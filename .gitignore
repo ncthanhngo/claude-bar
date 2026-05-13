@@ -25,4 +25,4 @@ dist/
 *.log
 
 # Internal planning / scratch (not for public repo)
-plans/
+plans/CLAUDE.md

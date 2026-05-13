@@ -26,12 +26,14 @@ Click it for the full popover: session %, weekly bar, accounts, auto-switch.
 
 ## Install
 
-### Homebrew Cask (one-liner)
+### Homebrew Cask
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/ncthanhngo/claude-bar/main/Casks/claude-bar.rb \
-  -o /tmp/claude-bar.rb && brew install --cask /tmp/claude-bar.rb
+brew tap ncthanhngo/claude-bar https://github.com/ncthanhngo/claude-bar
+brew install --cask ncthanhngo/claude-bar/claude-bar
 ```
+
+Upgrade later with `brew update && brew upgrade --cask claude-bar`.
 
 ### DMG (the boring way)
 
