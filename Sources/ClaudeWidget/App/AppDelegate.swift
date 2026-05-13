@@ -60,8 +60,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if popover.isShown {
             popover.performClose(sender)
         } else {
-            popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+            // On notched MacBooks the camera housing curves slightly below the
+            // menu bar — its rounded bottom corners clip the top of the popover
+            // when the status item sits next to the notch. Shift the anchor
+            // down a few points so the popover clears that curve.
+            let notchOffset: CGFloat = hasNotchedScreen ? 6 : 0
+            let anchor = NSRect(x: 0, y: -notchOffset,
+                                width: button.bounds.width,
+                                height: button.bounds.height)
+            popover.show(relativeTo: anchor, of: button, preferredEdge: .minY)
             popover.contentViewController?.view.window?.makeKey()
         }
+    }
+
+    private var hasNotchedScreen: Bool {
+        let screen = statusItem.button?.window?.screen ?? NSScreen.main
+        if #available(macOS 12.0, *) {
+            return (screen?.safeAreaInsets.top ?? 0) > 0
+        }
+        return false
     }
 }
