@@ -49,7 +49,14 @@ bash scripts/install-to-applications.sh
 
 Needs Xcode CLT (`xcode-select --install`). Built with SwiftPM, no Xcode project.
 
-**First launch (any method)** — macOS will refuse to open an unsigned app. *System Settings → Privacy & Security → Open Anyway*. One time only.
+**First launch (any method)** — macOS will refuse to open an unsigned app. Either:
+
+```bash
+sudo xattr -dr com.apple.quarantine "/Applications/Claude Widget.app"
+open "/Applications/Claude Widget.app"
+```
+
+Or via UI: *System Settings → Privacy & Security → Open Anyway*. One time only.
 
 ---
 
