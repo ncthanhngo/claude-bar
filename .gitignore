@@ -1,0 +1,28 @@
+# Swift / SwiftPM
+.build/
+.swiftpm/
+*.xcodeproj/
+Package.resolved
+
+# App bundle + DMG artifacts
+build/
+dist/
+*.dmg
+
+# macOS
+.DS_Store
+*.swp
+
+# IDE
+.vscode/
+.idea/
+
+# Local sandbox data — never commit user creds or local state
+~/Library/Application Support/ClaudeWidget/
+
+# Sample / temp
+/tmp/
+*.log
+
+# Internal planning / scratch (not for public repo)
+plans/

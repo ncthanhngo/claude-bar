@@ -1,0 +1,475 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Claude Widget — UI Preview</title>
+<style>
+  :root {
+    --bg: #1c1c1e;
+    --bg2: #2c2c2e;
+    --bg3: #3a3a3c;
+    --card: rgba(255,255,255,0.06);
+    --card-border: rgba(255,255,255,0.08);
+    --fg: #f2f2f7;
+    --fg-2: rgba(242,242,247,0.62);
+    --fg-3: rgba(242,242,247,0.38);
+    --accent: #0a84ff;
+    --green: #30d158;
+    --orange: #ff9f0a;
+    --red: #ff453a;
+    --shadow: 0 12px 40px rgba(0,0,0,0.45);
+    --radius: 12px;
+    --mono: ui-monospace,SFMono-Regular,Menlo,monospace;
+    --font: -apple-system,BlinkMacSystemFont,"SF Pro Text","Inter",system-ui,sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin:0; padding:0; min-height:100%;
+    font: 14px/1.4 var(--font);
+    color: var(--fg);
+    background:
+      radial-gradient(1100px 600px at 80% -10%, rgba(10,132,255,0.18), transparent 60%),
+      radial-gradient(800px 400px at 10% 110%, rgba(255,69,58,0.12), transparent 60%),
+      #0b0b0d;
+    -webkit-font-smoothing: antialiased;
+  }
+  header.page {
+    padding: 36px 28px 16px; max-width: 1200px; margin: 0 auto;
+  }
+  header.page h1 { margin:0; font-size: 22px; letter-spacing: -0.01em; }
+  header.page p  { margin: 6px 0 0; color: var(--fg-2); font-size: 13px; }
+  .controls {
+    display:flex; gap:6px; flex-wrap:wrap; margin-top: 16px;
+  }
+  .controls button {
+    background: var(--bg2); color: var(--fg); border:1px solid var(--card-border);
+    padding: 6px 10px; border-radius: 8px; font: inherit; cursor:pointer;
+  }
+  .controls button.active { background: var(--accent); border-color: transparent; }
+
+  /* Macbook stage */
+  .stage {
+    padding: 24px 28px 80px; max-width: 1200px; margin: 0 auto;
+    display: grid; grid-template-columns: minmax(380px,1fr) 360px;
+    gap: 28px; align-items: start;
+  }
+  @media (max-width: 920px) { .stage { grid-template-columns: 1fr; } }
+
+  .desktop {
+    position: relative;
+    border-radius: 18px; overflow: hidden;
+    border: 1px solid var(--card-border);
+    background: linear-gradient(180deg, #2a2a2e 0%, #1e1e22 100%);
+    aspect-ratio: 16/10;
+    box-shadow: var(--shadow);
+  }
+  .menubar {
+    position: absolute; inset: 0 0 auto 0; height: 28px;
+    background: rgba(20,20,22,0.7);
+    backdrop-filter: blur(20px);
+    display:flex; align-items:center; gap: 14px;
+    padding: 0 12px; font-size: 12.5px;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+  }
+  .menubar .left { display:flex; gap:14px; align-items:center; }
+  .menubar .left .apple { font-size: 13px; }
+  .menubar .left .app-name { font-weight: 600; }
+  .menubar .right { margin-left:auto; display:flex; gap:14px; align-items:center; }
+  .menubar .right .widget {
+    display:flex; gap:6px; align-items:center;
+    padding: 2px 8px; border-radius: 6px;
+    background: rgba(255,255,255,0.05);
+    cursor:pointer;
+    font-variant-numeric: tabular-nums;
+  }
+  .menubar .right .widget.green  { color: var(--green); }
+  .menubar .right .widget.orange { color: var(--orange); }
+  .menubar .right .widget.red    { color: var(--red); }
+  .widget-pointer {
+    position:absolute; top: 28px; right: 56px;
+    width: 0; height: 0; border:6px solid transparent; border-bottom-color: var(--bg);
+  }
+
+  /* Popover & sheets */
+  .popover {
+    position: relative;
+    width: 360px; min-height: 460px;
+    background: var(--bg);
+    border-radius: var(--radius);
+    border: 1px solid var(--card-border);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+    display: flex; flex-direction: column;
+  }
+  .popover .header, .popover .footer {
+    display:flex; align-items:center; gap:8px; padding: 10px 12px;
+    border-bottom: 1px solid var(--card-border);
+  }
+  .popover .footer { border-top: 1px solid var(--card-border); border-bottom: 0; margin-top:auto; }
+  .popover .header h2 { font-size: 14px; margin:0; font-weight: 600; }
+  .iconbtn {
+    background: transparent; border:0; color: var(--fg-2);
+    width:24px; height:24px; border-radius:6px; cursor:pointer;
+    display:inline-flex; align-items:center; justify-content:center;
+  }
+  .iconbtn:hover { background: var(--bg2); color: var(--fg); }
+  .pop-body { padding: 14px; display:flex; flex-direction: column; gap: 14px; flex:1; overflow:auto; }
+
+  .usage-card {
+    background: var(--card); border:1px solid var(--card-border);
+    border-radius: 10px; padding: 12px;
+    display:flex; flex-direction: column; gap: 10px;
+  }
+  .row { display:flex; align-items: baseline; }
+  .pct {
+    font-size: 38px; font-weight: 600; letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+  }
+  .pct.green { color: var(--green); }
+  .pct.orange { color: var(--orange); }
+  .pct.red { color: var(--red); }
+  .countdown { font-size: 18px; font-variant-numeric: tabular-nums; }
+  .label-tiny { font-size: 10.5px; color: var(--fg-3); text-transform: uppercase; letter-spacing: 0.04em; }
+
+  .progress {
+    height: 6px; background: rgba(255,255,255,0.08); border-radius: 999px; overflow:hidden;
+  }
+  .progress > span {
+    display:block; height:100%; border-radius:inherit;
+    background: var(--accent);
+    transition: width .3s ease;
+  }
+  .progress.green > span  { background: var(--green); }
+  .progress.orange > span { background: var(--orange); }
+  .progress.red > span    { background: var(--red); }
+
+  .metrics { display:flex; gap: 4px; padding-top: 2px; }
+  .metric { flex:1; display:flex; flex-direction: column; gap:1px; }
+  .metric .v { font-weight: 600; font-variant-numeric: tabular-nums; }
+  .metric .l { font-size: 10.5px; color: var(--fg-3); }
+  .divider-v { width:1px; background: var(--card-border); }
+  .block-range { font-size: 11.5px; color: var(--fg-2); display:flex; gap:6px; }
+
+  .section-title {
+    display:flex; justify-content:space-between; align-items:center;
+    font-size: 12.5px; font-weight: 600;
+  }
+  .section-title button {
+    background: transparent; border:0; color: var(--accent); cursor:pointer; font: inherit;
+  }
+
+  .profile-row {
+    display:flex; align-items:center; gap:8px;
+    padding: 8px 10px; border-radius: 8px;
+    background: rgba(255,255,255,0.025);
+    border: 1px solid var(--card-border);
+    margin-bottom: 6px;
+  }
+  .profile-row .name { flex:1; }
+  .profile-row .name small { display:block; color: var(--fg-3); font-size: 10.5px; }
+  .profile-row.active .indicator { color: var(--green); }
+  .indicator { width: 16px; text-align:center; color: var(--fg-3); }
+  .btn-mini {
+    padding: 4px 10px; font-size: 12px; border-radius: 6px;
+    background: var(--bg2); border:1px solid var(--card-border); color: var(--fg); cursor:pointer;
+  }
+  .btn-mini:hover { background: var(--bg3); }
+  .btn-icon-mini {
+    background: transparent; border:0; color: var(--fg-3); cursor:pointer; padding: 2px 6px;
+  }
+
+  /* Sheets (modal-ish look) */
+  .sheet {
+    width: 380px;
+    background: var(--bg);
+    border-radius: var(--radius);
+    border: 1px solid var(--card-border);
+    box-shadow: var(--shadow);
+    padding: 18px 18px 14px;
+  }
+  .sheet h3 { margin: 0 0 10px; font-size: 16px; }
+  .sheet .hint {
+    font-size: 12px; color: var(--fg-2); margin-bottom: 14px;
+  }
+  .field { display:flex; flex-direction:column; gap:4px; margin-bottom: 10px; }
+  .field label { font-size: 11.5px; color: var(--fg-2); }
+  .field input[type=text], .field input[type=number], .field select {
+    background: var(--bg2); color: var(--fg);
+    border:1px solid var(--card-border); border-radius: 6px;
+    padding: 6px 8px; font: inherit;
+  }
+  .radio-row { display:flex; gap:8px; align-items:center; padding: 3px 0; font-size: 13px; }
+  .pick-row { display:flex; gap:8px; align-items:center; }
+  .pick-row .file { flex:1; color: var(--fg-2); font-size: 12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .sheet-actions { display:flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+  .btn-primary {
+    background: var(--accent); border:0; color: white; padding: 6px 14px;
+    border-radius: 6px; cursor:pointer; font: inherit; font-weight: 600;
+  }
+  .btn-secondary {
+    background: var(--bg2); border:1px solid var(--card-border); color: var(--fg);
+    padding: 6px 14px; border-radius: 6px; cursor:pointer; font: inherit;
+  }
+
+  /* Right column scenario controls */
+  .panel {
+    background: var(--bg); border:1px solid var(--card-border);
+    border-radius: var(--radius); padding: 14px; position: sticky; top: 24px;
+  }
+  .panel h3 { margin: 0 0 8px; font-size: 14px; }
+  .panel small { color: var(--fg-2); display:block; margin-bottom: 12px; }
+  .panel .row { display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin-bottom: 10px; }
+  .panel .row > * { flex:1 1 auto; }
+  .panel button {
+    background: var(--bg2); color: var(--fg); border:1px solid var(--card-border);
+    padding: 6px 10px; border-radius: 6px; cursor:pointer; font: inherit; font-size: 12px;
+  }
+  .panel button.on { background: var(--accent); border-color: transparent; }
+
+  .legend { font-size: 11.5px; color: var(--fg-2); margin-top: 8px; line-height: 1.5; }
+
+  .hide { display: none !important; }
+</style>
+</head>
+<body>
+
+<header class="page">
+  <h1>Claude Widget — UI Preview</h1>
+  <p>Tĩnh, không phụ thuộc .app build. Toggle các state để xem layout dưới ngưỡng usage khác nhau.</p>
+  <div class="controls">
+    <button data-view="popover" class="active">Popover</button>
+    <button data-view="add">Add Profile sheet</button>
+    <button data-view="settings">Settings sheet</button>
+  </div>
+</header>
+
+<section class="stage">
+  <!-- LEFT: macOS desktop with menu bar + popover -->
+  <div class="desktop">
+    <div class="menubar">
+      <div class="left">
+        <span class="apple">&#63743;</span>
+        <span class="app-name">Claude Code</span>
+        <span>File</span><span>Edit</span><span>View</span><span>Window</span><span>Help</span>
+      </div>
+      <div class="right">
+        <span id="menu-widget" class="widget green" title="Claude usage">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/><path d="M12 6v6l4 2"/></svg>
+          <span id="menu-label">23% · 1h47m</span>
+        </span>
+        <span>&#9881;</span>
+        <span>&#128268;</span>
+        <span>2:43 PM</span>
+      </div>
+    </div>
+    <div class="widget-pointer"></div>
+
+    <!-- Popover floats over the desktop -->
+    <div id="floating" style="position:absolute; top: 36px; right: 18px; ">
+      <!-- views inject here -->
+      <div id="view-popover"></div>
+      <div id="view-add" class="hide"></div>
+      <div id="view-settings" class="hide"></div>
+    </div>
+
+  </div>
+
+  <!-- RIGHT: scenario controls -->
+  <aside class="panel">
+    <h3>Scenarios</h3>
+    <small>Đổi ngưỡng usage để xem label menu bar &amp; popover phản hồi.</small>
+
+    <div class="row">
+      <button data-scenario="low" class="on">23% (Low)</button>
+      <button data-scenario="mid">68% (Warn)</button>
+      <button data-scenario="high">94% (Critical)</button>
+      <button data-scenario="idle">Idle</button>
+    </div>
+
+    <div class="legend">
+      <strong>Plan limit (Pro)</strong>: 19.0M tokens / 5h block<br>
+      <strong>Tokens metric</strong>: input + output + cache_creation + cache_read<br>
+      <strong>Color</strong>: &lt;60% xanh, 60–85% cam, ≥85% đỏ.
+    </div>
+  </aside>
+</section>
+
+<script>
+const STATES = {
+  low:  { pct: 23, color: 'green',  tokens: 4_370_000, msgs: 38, blockStart: '12:00', blockEnd: '17:00', remaining: '1h47m' },
+  mid:  { pct: 68, color: 'orange', tokens: 12_920_000, msgs: 96, blockStart: '11:00', blockEnd: '16:00', remaining: '0h41m' },
+  high: { pct: 94, color: 'red',    tokens: 17_860_000, msgs: 142, blockStart: '10:00', blockEnd: '15:00', remaining: '0h08m' },
+  idle: { pct: 0,  color: 'green',  tokens: 0, msgs: 0, blockStart: '—', blockEnd: '—', remaining: '—', idle: true }
+};
+
+function fmtTokens(n) {
+  if (n >= 1_000_000) return (n/1_000_000).toFixed(1) + 'M';
+  if (n >= 1_000) return (n/1_000).toFixed(1) + 'K';
+  return String(n);
+}
+
+function popoverHTML(s) {
+  const limit = 19_000_000;
+  const pctW = Math.min(100, s.pct);
+  const showBlock = !s.idle;
+  return `
+  <div class="popover">
+    <div class="header">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22a10 10 0 1 0-10-10"/><path d="M12 6v6l4 2"/></svg>
+      <h2>Claude Usage</h2>
+      <div style="flex:1"></div>
+      <button class="iconbtn" title="Refresh">&#x21bb;</button>
+      <button class="iconbtn" title="Settings" id="open-settings">&#9881;</button>
+    </div>
+
+    <div class="pop-body">
+      <div class="usage-card">
+        <div class="row" style="justify-content: space-between;">
+          <div class="pct ${s.color}">${s.idle ? '—' : s.pct + '%'}</div>
+          <div style="text-align:right;">
+            <div class="countdown">${s.remaining}</div>
+            <div class="label-tiny">resets in</div>
+          </div>
+        </div>
+        <div class="progress ${s.color}"><span style="width: ${pctW}%"></span></div>
+        <div class="metrics">
+          <div class="metric"><span class="v">${fmtTokens(s.tokens)}</span><span class="l">Tokens</span></div>
+          <div class="divider-v"></div>
+          <div class="metric"><span class="v">${fmtTokens(limit)}</span><span class="l">Limit</span></div>
+          <div class="divider-v"></div>
+          <div class="metric"><span class="v">${s.msgs}</span><span class="l">Msgs</span></div>
+        </div>
+        ${showBlock ? `<div class="block-range"><span class="label-tiny" style="text-transform:none">Block:</span> ${s.blockStart} → ${s.blockEnd}</div>` : ''}
+        <div class="label-tiny" style="text-transform:none">Plan: Pro</div>
+      </div>
+
+      <div>
+        <div class="section-title">
+          <span>Accounts</span>
+          <button id="open-add">+ Add</button>
+        </div>
+        <div style="margin-top: 8px;">
+          <div class="profile-row active">
+            <span class="indicator">&#10003;</span>
+            <div class="name">personal <small>Pro · added 2026-05-12</small></div>
+            <button class="btn-icon-mini" title="Delete">&#128465;</button>
+          </div>
+          <div class="profile-row">
+            <span class="indicator">&#9675;</span>
+            <div class="name">work <small>Max 5× · added 2026-04-30</small></div>
+            <button class="btn-mini">Switch</button>
+            <button class="btn-icon-mini" title="Delete">&#128465;</button>
+          </div>
+          <div class="profile-row">
+            <span class="indicator">&#9675;</span>
+            <div class="name">backup <small>Pro · added 2026-03-18</small></div>
+            <button class="btn-mini">Switch</button>
+            <button class="btn-icon-mini" title="Delete">&#128465;</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer">
+      <span class="label-tiny" style="text-transform:none">Scanned 2:43 PM</span>
+      <div style="flex:1"></div>
+      <button class="iconbtn" style="color: var(--red)">Quit</button>
+    </div>
+  </div>`;
+}
+
+function addSheetHTML() {
+  return `
+  <div class="sheet">
+    <h3>Add account profile</h3>
+    <div class="hint">Snapshot credentials của một Claude login để sau này switch lại. File credentials chỉ copy vào app storage.</div>
+
+    <div class="field">
+      <label>Name</label>
+      <input type="text" value="work" />
+    </div>
+    <div class="field">
+      <label>Note (optional)</label>
+      <input type="text" placeholder="vd: company account" />
+    </div>
+    <div class="field">
+      <label>Source</label>
+      <div class="radio-row"><input type="radio" name="src" checked /> ~/.claude/.credentials.json (current)</div>
+      <div class="radio-row"><input type="radio" name="src" /> Choose file…</div>
+      <div class="pick-row hide"><span class="file">No file selected</span><button class="btn-secondary">Browse…</button></div>
+    </div>
+    <div class="sheet-actions">
+      <button class="btn-secondary" data-close="add">Cancel</button>
+      <button class="btn-primary">Add</button>
+    </div>
+  </div>`;
+}
+
+function settingsSheetHTML() {
+  return `
+  <div class="sheet">
+    <h3>Settings</h3>
+    <div class="field">
+      <label>Plan</label>
+      <select>
+        <option>Pro</option>
+        <option selected>Max 5×</option>
+        <option>Max 20×</option>
+        <option>Custom</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Custom 5h token limit</label>
+      <input type="number" value="50000000" disabled />
+    </div>
+    <div class="hint">Limits là heuristic — Anthropic không public con số chính xác. Chỉnh Custom nếu hit sớm/muộn.</div>
+    <div class="sheet-actions">
+      <button class="btn-primary" data-close="settings">Close</button>
+    </div>
+  </div>`;
+}
+
+// --- render
+let current = 'popover';
+let scenario = 'low';
+
+function render() {
+  const s = STATES[scenario];
+  document.getElementById('menu-label').textContent = s.idle ? 'idle' : `${s.pct}% · ${s.remaining}`;
+  const widget = document.getElementById('menu-widget');
+  widget.classList.remove('green','orange','red');
+  widget.classList.add(s.color);
+
+  document.getElementById('view-popover').innerHTML  = popoverHTML(s);
+  document.getElementById('view-add').innerHTML      = addSheetHTML();
+  document.getElementById('view-settings').innerHTML = settingsSheetHTML();
+
+  ['popover','add','settings'].forEach(v => {
+    document.getElementById('view-'+v).classList.toggle('hide', v !== current);
+  });
+
+  document.querySelectorAll('.controls button').forEach(b => {
+    b.classList.toggle('active', b.dataset.view === current);
+  });
+  document.querySelectorAll('.panel button').forEach(b => {
+    b.classList.toggle('on', b.dataset.scenario === scenario);
+  });
+
+  // wire close buttons / cross-links
+  document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', () => { current='popover'; render(); }));
+  const a = document.getElementById('open-add');      if (a) a.addEventListener('click', () => { current='add'; render(); });
+  const ss = document.getElementById('open-settings'); if (ss) ss.addEventListener('click', () => { current='settings'; render(); });
+}
+
+document.querySelectorAll('.controls button').forEach(b => {
+  b.addEventListener('click', () => { current = b.dataset.view; render(); });
+});
+document.querySelectorAll('.panel button').forEach(b => {
+  b.addEventListener('click', () => { scenario = b.dataset.scenario; render(); });
+});
+
+render();
+</script>
+</body>
+</html>
