@@ -56,7 +56,7 @@ sudo xattr -dr com.apple.quarantine "/Applications/Claude Widget.app"
 open "/Applications/Claude Widget.app"
 ```
 
-Or via UI: *System Settings → Privacy & Security → Open Anyway*. One time only.
+Or via UI: _System Settings → Privacy & Security → Open Anyway_. One time only.
 
 ---
 
@@ -119,6 +119,7 @@ Releasing pushes a new GitHub release and updates `Casks/claude-bar.rb`.
 ## Credits
 
 Standing on three shoulders:
+
 - [SlavomirDurej/claude-usage-widget](https://github.com/SlavomirDurej/claude-usage-widget) — found `/api/organizations/<id>/usage`
 - [realiti4/claude-swap](https://github.com/realiti4/claude-swap) — the Keychain swap pattern
 - [ryoppippi/ccusage](https://github.com/ryoppippi/ccusage) — JSONL block algorithm
@@ -127,4 +128,4 @@ Unofficial. Not affiliated with Anthropic. They make Claude; this just stares at
 
 ## License
 
-MIT.
+Thanh Ngô

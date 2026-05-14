@@ -64,7 +64,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             // menu bar — its rounded bottom corners clip the top of the popover
             // when the status item sits next to the notch. Shift the anchor
             // down a few points so the popover clears that curve.
-            let notchOffset: CGFloat = hasNotchedScreen ? 6 : 0
+            let notchOffset: CGFloat = hasNotchedScreen ? 12 : 0
             let anchor = NSRect(x: 0, y: -notchOffset,
                                 width: button.bounds.width,
                                 height: button.bounds.height)
