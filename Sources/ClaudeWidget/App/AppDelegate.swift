@@ -60,51 +60,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if popover.isShown {
             popover.performClose(sender)
         } else {
-            showPopover(from: button)
-        }
-    }
-
-    /// NSPopover sits flush against the status item, which means on notched
-    /// MacBooks the popover's top edge falls inside the camera housing's
-    /// vertical range. macOS clips those pixels (they're physically not on
-    /// the panel), so the top-left/right corner appears chopped off.
-    ///
-    /// The positioning rect offset that we tried first didn't move the
-    /// popover far enough — NSPopover snaps back near the source. Detach
-    /// instead: show as a borderless NSPanel positioned below the safe area.
-    private func showPopover(from button: NSStatusBarButton) {
-        let inset = notchInset
-        if inset <= 0 {
-            // Non-notched display — use the default placement.
-            popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+            // On notched MacBooks the popover's top edge sits inside the
+            // camera housing's vertical range, so the corners get clipped.
+            // Shift the anchor rect down — generously, since the notch can
+            // overhang the menu bar by 15-20pt depending on the display.
+            let offset: CGFloat = notchClearance
+            let anchor = NSRect(x: 0, y: -offset,
+                                width: button.bounds.width,
+                                height: button.bounds.height)
+            popover.show(relativeTo: anchor, of: button, preferredEdge: .minY)
             popover.contentViewController?.view.window?.makeKey()
-            return
-        }
-        // Shift the anchor far enough that popover.top > notch.bottom.
-        let anchor = NSRect(x: 0, y: -inset,
-                            width: button.bounds.width,
-                            height: button.bounds.height)
-        popover.show(relativeTo: anchor, of: button, preferredEdge: .minY)
-        if let win = popover.contentViewController?.view.window {
-            win.makeKey()
-            // Force a downward nudge — some macOS releases ignore the
-            // positioning rect's Y once the popover is on-screen.
-            var frame = win.frame
-            if let screen = button.window?.screen ?? NSScreen.main {
-                let maxTop = screen.frame.maxY - inset - 2
-                if frame.maxY > maxTop {
-                    frame.origin.y -= (frame.maxY - maxTop)
-                    win.setFrame(frame, display: true)
-                }
-            }
         }
     }
 
-    /// How far below the screen's true top edge the popover must start.
-    /// On notched MacBooks this is the camera housing height; otherwise 0.
-    private var notchInset: CGFloat {
+    private var notchClearance: CGFloat {
         guard #available(macOS 12.0, *) else { return 0 }
         let screen = statusItem.button?.window?.screen ?? NSScreen.main
-        return screen?.safeAreaInsets.top ?? 0
+        let notchTop = screen?.safeAreaInsets.top ?? 0
+        // Fixed 20pt clearance on any notched display — empirically enough
+        // to clear the rounded bottom corners on M1/M2/M3 MacBooks.
+        return notchTop > 0 ? 20 : 0
     }
 }
