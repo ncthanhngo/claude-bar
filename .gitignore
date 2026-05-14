@@ -26,3 +26,6 @@ dist/
 
 # Internal planning / scratch (not for public repo)
 plans/CLAUDE.md
+
+# Local agent instructions (kept out of public repo)
+CLAUDE.md
