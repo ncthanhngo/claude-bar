@@ -60,12 +60,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if popover.isShown {
             popover.performClose(sender)
         } else {
-            // On notched MacBooks the camera housing curves slightly below the
-            // menu bar — its rounded bottom corners clip the top of the popover
-            // when the status item sits next to the notch. Shift the anchor
-            // down a few points so the popover clears that curve.
-            let notchOffset: CGFloat = hasNotchedScreen ? 12 : 0
-            let anchor = NSRect(x: 0, y: -notchOffset,
+            // On notched MacBooks the camera housing extends ~38pt down from
+            // the top of the screen while the menu bar is only ~24pt, so the
+            // popover's top edge sits inside the notch's vertical range and
+            // gets clipped wherever it overlaps horizontally. Push the anchor
+            // down by (notchHeight - menuBarHeight) plus a small safety pad.
+            let anchor = NSRect(x: 0, y: -notchClearance,
                                 width: button.bounds.width,
                                 height: button.bounds.height)
             popover.show(relativeTo: anchor, of: button, preferredEdge: .minY)
@@ -73,11 +73,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    private var hasNotchedScreen: Bool {
+    private var notchClearance: CGFloat {
+        guard #available(macOS 12.0, *) else { return 0 }
         let screen = statusItem.button?.window?.screen ?? NSScreen.main
-        if #available(macOS 12.0, *) {
-            return (screen?.safeAreaInsets.top ?? 0) > 0
-        }
-        return false
+        let notchTop = screen?.safeAreaInsets.top ?? 0
+        guard notchTop > 0 else { return 0 }
+        let menuBar = NSStatusBar.system.thickness
+        return max(0, notchTop - menuBar) + 4
     }
 }
