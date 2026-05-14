@@ -23,7 +23,7 @@ if [[ ! -x "$BIN_PATH" ]]; then
     exit 1
 fi
 
-echo "▶ Assembling .app bundle at $APP_DIR…"
+echo "▶ Assembling .app bundle at ${APP_DIR}…"
 rm -rf "$APP_DIR"
 mkdir -p "$MACOS_DIR" "$RES_DIR"
 
