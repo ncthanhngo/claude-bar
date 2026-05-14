@@ -90,7 +90,7 @@ Done. The widget pesters you with notifications when it rotates; otherwise it sh
 
 ## Architecture
 
-Six layers, dependency flows one way (`UI → State → Services → Persistence → Domain`). Full rules in [`CLAUDE.md`](CLAUDE.md). The short version:
+Six layers, dependency flows one way (`UI → State → Services → Persistence → Domain`). The short version:
 
 ```
 Sources/ClaudeWidget/
