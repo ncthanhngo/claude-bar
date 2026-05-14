@@ -1,6 +1,6 @@
 cask "claude-bar" do
-  version "0.7.3"
-  sha256 "544bf6a0c64ce72cce21a3550aa232d2ac9fbfa0956fb990bb4a8045fa62b039"
+  version "0.7.4"
+  sha256 "8dd86c0dfe106606df4ecfca48fa78972cd45241f159f109a0824625f70b244d"
 
   url "https://github.com/ncthanhngo/claude-bar/releases/download/v#{version}/ClaudeWidget-#{version}.dmg"
   name "claude-bar"
