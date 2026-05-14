@@ -11,7 +11,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var cancellables = Set<AnyCancellable>()
     private var refreshTimer: Timer?
 
-    private static let popoverSize = NSSize(width: 360, height: 460)
+    private static let popoverSize = NSSize(width: 380, height: 580)
     /// Extra gap below the menu bar / notch before the panel starts.
     private static let topGap: CGFloat = 6
 
@@ -67,10 +67,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         p.backgroundColor = .clear
         p.isOpaque = false
 
-        // Wrap PopoverView in a rounded card so it looks like a popover.
+        // PopoverView already defines its own intrinsic size — just wrap it in
+        // a rounded card background so it looks like a popover.
         let host = NSHostingController(rootView:
             PopoverView(store: store)
-                .frame(width: Self.popoverSize.width, height: Self.popoverSize.height)
                 .background(.background)
                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         )
