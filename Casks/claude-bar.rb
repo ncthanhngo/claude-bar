@@ -7,6 +7,8 @@ cask "claude-bar" do
   desc "Menu bar widget for Claude usage tracking and multi-account switching"
   homepage "https://github.com/ncthanhngo/claude-bar"
 
+  depends_on macos: ">= :ventura"
+
   app "Claude Widget.app"
 
   zap trash: [
