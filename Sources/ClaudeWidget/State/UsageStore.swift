@@ -108,9 +108,10 @@ final class UsageStore: ObservableObject {
     // MARK: - Web auth (per-account web session)
 
     /// Sign into claude.ai and attach the captured session to a specific
-    /// account row. Does **not** touch the global SecretStore — used by
-    /// the per-row "Connect web" affordance so each saved account can be
-    /// polled with its own cookie.
+    /// account row. If the target is the active account, also mirror the
+    /// session into the global SecretStore so the HeroCard's `fetchWebUsage`
+    /// path picks up LIVE numbers immediately — otherwise it would keep
+    /// falling back to JSONL estimate until the next manual switch.
     func signInToClaudeAiForAccount(id: UUID) async throws {
         let sessionKey = try await LoginWindowController.runFlow()
         let orgId = try await WebUsageService.validateAndDetectOrg(sessionKey: sessionKey)
@@ -121,6 +122,14 @@ final class UsageStore: ObservableObject {
         acc.orgId = orgId
         try AccountStore.update(acc)
         accounts = AccountStore.loadAll()
+
+        if config.activeAccountId == id {
+            WebUsageService.storeCredentials(sessionKey: sessionKey, orgId: orgId)
+            webConnected = true
+            webError = nil
+            Task { await WebSessionClient.shared.setSessionKey(sessionKey) }
+            fetchWebUsage()
+        }
     }
 
     func disconnectClaudeAi() {
@@ -294,19 +303,6 @@ final class UsageStore: ObservableObject {
             return match
         }
         return nil
-    }
-
-    /// Extends `findDuplicateForCurrentKeychain` with an email hint. Used by
-    /// the magic-link flow: even if the Keychain blob's identity isn't
-    /// recognizable (no `uuid`/`email` keys, fully token-only), the email
-    /// decoded from the magic-link URL fragment can still match an already-
-    /// saved row's `Account.email`.
-    func findDuplicateForMagicLink(email: String?) -> Account? {
-        if let blobMatch = findDuplicateForCurrentKeychain() {
-            return blobMatch
-        }
-        guard let target = email?.lowercased(), !target.isEmpty else { return nil }
-        return accounts.first { $0.email?.lowercased() == target }
     }
 
     // MARK: - Auto-switch

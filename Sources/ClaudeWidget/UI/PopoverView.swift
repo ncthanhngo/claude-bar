@@ -6,7 +6,6 @@ struct PopoverView: View {
     @ObservedObject var store: UsageStore
 
     @State private var showingAddAccount = false
-    @State private var showingMagicLink = false
     @State private var showingSettings = false
 
     var body: some View {
@@ -32,26 +31,10 @@ struct PopoverView: View {
         }
         .frame(width: 380, height: 580)
         .sheet(isPresented: $showingAddAccount) {
-            AddAccountSheet(
-                store: store,
-                isPresented: $showingAddAccount,
-                onChooseMagicLink: switchToMagicLink
-            )
-        }
-        .sheet(isPresented: $showingMagicLink) {
-            MagicLinkLoginSheet(store: store, isPresented: $showingMagicLink)
+            AddAccountSheet(store: store, isPresented: $showingAddAccount)
         }
         .sheet(isPresented: $showingSettings) {
             SettingsView(store: store, isPresented: $showingSettings)
-        }
-    }
-
-    /// SwiftUI sheets are exclusive — dismiss the current one first, then
-    /// present the magic-link sheet on the next runloop tick.
-    private func switchToMagicLink() {
-        showingAddAccount = false
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-            showingMagicLink = true
         }
     }
 }

@@ -11,13 +11,10 @@ struct AutoSwitchControl: View {
                     .foregroundStyle(store.config.autoSwitchEnabled ? .blue : .secondary)
                 Text("Auto-switch accounts").font(.subheadline)
                 Spacer()
-                Toggle("", isOn: Binding(
+                BlueToggle(isOn: Binding(
                     get: { store.config.autoSwitchEnabled },
                     set: { store.setAutoSwitchEnabled($0) }
                 ))
-                .toggleStyle(.switch)
-                .controlSize(.small)
-                .labelsHidden()
             }
 
             if store.config.autoSwitchEnabled {

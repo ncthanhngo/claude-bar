@@ -64,7 +64,9 @@ final class LoginWindowController: NSObject {
         window.contentView = webView
         window.center()
         window.delegate = self
-        window.level = .floating
+        // `.modalPanel` (8) sits above the popover's `.floating` (3) so the
+        // login window is not occluded by the menu-bar widget.
+        window.level = .modalPanel
         window.collectionBehavior = [.fullScreenAuxiliary, .moveToActiveSpace]
         window.isReleasedWhenClosed = false
 

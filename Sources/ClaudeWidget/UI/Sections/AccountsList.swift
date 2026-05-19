@@ -73,7 +73,7 @@ struct AccountsList: View {
         alert.addButton(withTitle: "Save")
         alert.addButton(withTitle: "Cancel")
         alert.window.initialFirstResponder = field
-        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        guard alert.runModalAbovePopover() == .alertFirstButtonReturn else { return }
         let trimmed = field.stringValue.trimmingCharacters(in: .whitespaces)
         guard !trimmed.isEmpty, trimmed != account.label else { return }
         store.renameAccount(id: account.id, label: trimmed)
@@ -86,7 +86,7 @@ struct AccountsList: View {
         alert.addButton(withTitle: "Remove")
         alert.addButton(withTitle: "Cancel")
         alert.alertStyle = .warning
-        if alert.runModal() == .alertFirstButtonReturn {
+        if alert.runModalAbovePopover() == .alertFirstButtonReturn {
             store.deleteAccount(id: account.id)
         }
     }
@@ -107,7 +107,7 @@ Note: if you sign in as a different account, this row's polled % will be wrong. 
 """
         alert.addButton(withTitle: "Open login window")
         alert.addButton(withTitle: "Skip for now")
-        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        guard alert.runModalAbovePopover() == .alertFirstButtonReturn else { return }
         Task {
             do {
                 try await store.signInToClaudeAiForAccount(id: account.id)

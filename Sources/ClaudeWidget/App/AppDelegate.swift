@@ -66,7 +66,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             defer: false
         )
         p.isFloatingPanel = true
-        p.level = .popUpMenu
+        // `.floating` (3) keeps the panel above normal windows but below
+        // `.modalPanel` (8) — so NSAlerts / login window can render *on top*
+        // of the popover and remain interactive.
+        p.level = .floating
         p.becomesKeyOnlyIfNeeded = true
         p.hidesOnDeactivate = false
         p.isMovable = false

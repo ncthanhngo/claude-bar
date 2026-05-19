@@ -10,13 +10,15 @@ import AppKit
 struct AddAccountSheet: View {
     @ObservedObject var store: UsageStore
     @Binding var isPresented: Bool
-    var onChooseMagicLink: () -> Void = {}
 
     @State private var step: Step = .ready
     @State private var label: String = ""
     @State private var error: String?
     @State private var watcher = KeychainWatcher()
     @State private var saveIntent: SaveIntent = .new
+    @State private var capturedSessionKey: String?
+    @State private var capturedOrgId: String?
+    @State private var webViewInProgress = false
 
     enum Step: Equatable {
         case ready
@@ -92,11 +94,15 @@ struct AddAccountSheet: View {
             Text("Pick a login method").font(.subheadline).bold()
             HStack(alignment: .top, spacing: 4) {
                 Text("•").foregroundStyle(.secondary)
-                Text("**Open Claude login** — opens Terminal, runs `claude logout && claude`, you sign in via browser (Google, Apple, email magic link, SSO…).")
+                Text("**Sign in (browser)** — opens your default browser (Chrome/Arc/Firefox) for the OAuth flow. No Terminal window. Recommended.")
             }.font(.caption).foregroundStyle(.secondary)
             HStack(alignment: .top, spacing: 4) {
                 Text("•").foregroundStyle(.secondary)
-                Text("**Magic link** — you have a Claude Teams magic-link URL but no email access. Widget drives the OAuth flow automatically.")
+                Text("**Sign in (WebView)** — opens an embedded Safari WebView on claude.ai login. Captures the realtime polling cookie too. Requires the CLI already be signed in (uses current Keychain login).")
+            }.font(.caption).foregroundStyle(.secondary)
+            HStack(alignment: .top, spacing: 4) {
+                Text("•").foregroundStyle(.secondary)
+                Text("**Open Claude login** — opens Terminal, runs `claude logout && claude`. Use if browser flow fails.")
             }.font(.caption).foregroundStyle(.secondary)
             HStack(alignment: .top, spacing: 4) {
                 Text("•").foregroundStyle(.secondary)
@@ -145,11 +151,14 @@ struct AddAccountSheet: View {
             Spacer()
             switch step {
             case .ready:
-                Button("Magic link") { onChooseMagicLink() }
-                    .buttonStyle(.bordered)
                 Button("Snapshot current") { snapshot() }
                     .buttonStyle(.bordered)
                 Button("Open Claude login") { startWizard() }
+                    .buttonStyle(.bordered)
+                Button("Sign in (WebView)") { startWebViewWizard() }
+                    .buttonStyle(.bordered)
+                    .disabled(webViewInProgress)
+                Button("Sign in (browser)") { startBrowserWizard() }
                     .buttonStyle(.borderedProminent)
             case .waiting:
                 EmptyView()
@@ -162,6 +171,61 @@ struct AddAccountSheet: View {
     }
 
     // MARK: - Step transitions
+
+    /// WebView flow: opens claude.ai/login in the widget's embedded WKWebView,
+    /// captures the session cookie + orgId, then jumps to the label step.
+    /// Reuses the *current* Keychain CLI blob as the OAuth side — so this
+    /// method is "I'm already signed into claude CLI, now also enable
+    /// realtime polling for that same account in one shot."
+    private func startWebViewWizard() {
+        guard !webViewInProgress else { return }
+        error = nil
+        webViewInProgress = true
+        Task {
+            do {
+                let sessionKey = try await LoginWindowController.runFlow()
+                let orgId = try await WebUsageService.validateAndDetectOrg(sessionKey: sessionKey)
+                capturedSessionKey = sessionKey
+                capturedOrgId = orgId
+                label = ""
+                step = .detected
+            } catch {
+                self.error = (error as NSError).localizedDescription
+            }
+            webViewInProgress = false
+        }
+    }
+
+    /// Headless OAuth flow: spawns `claude auth login --claudeai` invisibly
+    /// and lets the user's default browser handle authorization. Same
+    /// pre-logout warning as `startWizard` to protect any unsaved login.
+    private func startBrowserWizard() {
+        error = nil
+        if keychainHasLogin() {
+            switch showLogoutWarning() {
+            case .saveFirst:
+                saveIntent = .saveCurrentThenContinue
+                label = ""
+                step = .detected
+                return
+            case .continueAnyway:
+                break
+            case .cancel:
+                return
+            }
+        }
+        do {
+            try BrowserOAuthLogin.start()
+        } catch {
+            self.error = (error as NSError).localizedDescription
+            return
+        }
+        step = .waiting
+        watcher.start { _ in
+            step = .detected
+            BrowserOAuthLogin.cancel()
+        }
+    }
 
     private func startWizard() {
         error = nil
@@ -205,7 +269,7 @@ struct AddAccountSheet: View {
         alert.addButton(withTitle: "Save current first")
         alert.addButton(withTitle: "Continue — already saved")
         alert.addButton(withTitle: "Cancel")
-        switch alert.runModal() {
+        switch alert.runModalAbovePopover() {
         case .alertFirstButtonReturn:  return .saveFirst
         case .alertSecondButtonReturn: return .continueAnyway
         default:                       return .cancel
@@ -225,7 +289,17 @@ struct AddAccountSheet: View {
             guard confirmDuplicate(existing: existing) else { return }
         }
         do {
-            try store.addCurrentClaudeCodeAccount(label: label)
+            if capturedSessionKey != nil {
+                try store.addCurrentClaudeCodeAccount(
+                    label: label,
+                    sessionKey: capturedSessionKey,
+                    orgId: capturedOrgId
+                )
+                capturedSessionKey = nil
+                capturedOrgId = nil
+            } else {
+                try store.addCurrentClaudeCodeAccount(label: label)
+            }
             switch saveIntent {
             case .saveCurrentThenContinue:
                 // Current login is now saved — return to step 1 so user can
@@ -250,11 +324,12 @@ struct AddAccountSheet: View {
         alert.alertStyle = .warning
         alert.addButton(withTitle: "Save anyway")
         alert.addButton(withTitle: "Cancel")
-        return alert.runModal() == .alertFirstButtonReturn
+        return alert.runModalAbovePopover() == .alertFirstButtonReturn
     }
 
     private func cancel() {
         watcher.stop()
+        BrowserOAuthLogin.cancel()
         isPresented = false
     }
 }

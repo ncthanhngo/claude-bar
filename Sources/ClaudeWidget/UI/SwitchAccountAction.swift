@@ -32,7 +32,7 @@ Continue?
         alert.addButton(withTitle: "Switch")
         alert.addButton(withTitle: "Cancel")
 
-        guard alert.runModal() == .alertFirstButtonReturn else { return false }
+        guard alert.runModalAbovePopover() == .alertFirstButtonReturn else { return false }
 
         do {
             try store.switchToAccount(id: account.id)

@@ -17,7 +17,7 @@ enum ClaudeCodeCredentials {
             switch self {
             case .readFailed(let s):  return "Could not read Claude Code credentials (status \(s))."
             case .writeFailed(let s): return "Could not write Claude Code credentials (status \(s))."
-            case .notFound:           return "No Claude Code login found. Sign in via `claude` first."
+            case .notFound:           return "No Claude Code login found. Run `claude` in Terminal first to create the Keychain item, then switch from the widget."
             }
         }
     }
@@ -45,7 +45,16 @@ enum ClaudeCodeCredentials {
         }
     }
 
-    /// Upsert the Claude Code OAuth blob. Used by account switching.
+    /// Update the Claude Code OAuth blob. Used by account switching.
+    ///
+    /// Intentionally update-only: if the Keychain item doesn't exist yet,
+    /// throws `.notFound` instead of creating one. A widget-created item
+    /// would carry an ACL listing only Claude Widget — kicking `claude`
+    /// CLI off the trusted-app list and triggering a macOS password prompt
+    /// on every Terminal `claude` invocation. Forcing the user to run
+    /// `claude` first ensures the CLI is the original creator (its binary
+    /// stays on the ACL); the widget gets added the first time it reads
+    /// the item and the user picks "Always Allow".
     static func write(_ value: String) throws {
         let data = Data(value.utf8)
         let query: [String: Any] = [
@@ -54,17 +63,11 @@ enum ClaudeCodeCredentials {
             kSecAttrAccount as String: account
         ]
         let attrs: [String: Any] = [kSecValueData as String: data]
-
-        let updateStatus = SecItemUpdate(query as CFDictionary, attrs as CFDictionary)
-        if updateStatus == errSecSuccess { return }
-        if updateStatus != errSecItemNotFound {
-            throw CredentialError.writeFailed(updateStatus)
-        }
-        var addAttrs = query
-        addAttrs[kSecValueData as String] = data
-        let addStatus = SecItemAdd(addAttrs as CFDictionary, nil)
-        guard addStatus == errSecSuccess else {
-            throw CredentialError.writeFailed(addStatus)
+        let status = SecItemUpdate(query as CFDictionary, attrs as CFDictionary)
+        switch status {
+        case errSecSuccess:      return
+        case errSecItemNotFound: throw CredentialError.notFound
+        default:                 throw CredentialError.writeFailed(status)
         }
     }
 }

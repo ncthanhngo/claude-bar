@@ -75,13 +75,10 @@ struct SettingsView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
             Spacer()
-            Toggle("", isOn: Binding(
+            BlueToggle(isOn: Binding(
                 get: { store.config.multiAccountPollingEnabled },
                 set: { store.setMultiAccountPolling(enabled: $0) }
             ))
-            .toggleStyle(.switch)
-            .controlSize(.small)
-            .labelsHidden()
         }
     }
 
@@ -199,7 +196,7 @@ struct SettingsView: View {
         alert.alertStyle = .warning
         alert.addButton(withTitle: "Clear everything")
         alert.addButton(withTitle: "Cancel")
-        if alert.runModal() == .alertFirstButtonReturn {
+        if alert.runModalAbovePopover() == .alertFirstButtonReturn {
             store.resetAllAccounts()
         }
     }
