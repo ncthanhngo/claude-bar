@@ -47,7 +47,15 @@ openssl req \
     >/dev/null 2>&1
 
 PASSWORD="claudewidget"
-openssl pkcs12 -export \
+# OpenSSL 3.x defaults to PBES2/PBKDF2 PKCS12 which Apple's `security` tool
+# can't import. `-legacy` falls back to the PKCS12 v1 MAC format `security`
+# understands. Harmless on LibreSSL / older OpenSSL (flag is ignored).
+PKCS12_LEGACY=""
+if openssl pkcs12 -help 2>&1 | grep -q "\-legacy"; then
+    PKCS12_LEGACY="-legacy"
+fi
+
+openssl pkcs12 -export $PKCS12_LEGACY \
     -inkey "$TMP/cert.key" \
     -in "$TMP/cert.crt" \
     -name "$CERT_NAME" \
