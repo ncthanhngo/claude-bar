@@ -13,7 +13,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private static let popoverSize = NSSize(width: 380, height: 580)
     /// Extra gap below the menu bar / notch before the panel starts.
-    private static let topGap: CGFloat = 6
+    private static let topGap: CGFloat = 14
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)

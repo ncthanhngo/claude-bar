@@ -30,7 +30,7 @@ ln -s /Applications "$STAGING/Applications"
 rm -f "$DMG_PATH"
 
 # 4. Build the DMG (compressed, read-only).
-echo "▶ Creating DMG: $DMG_PATH…"
+echo "▶ Creating DMG: ${DMG_PATH}…"
 hdiutil create \
     -volname "$APP_DISPLAY" \
     -srcfolder "$STAGING" \
