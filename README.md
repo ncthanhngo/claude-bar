@@ -16,9 +16,15 @@ Click it for the full popover: session %, weekly bar, accounts, auto-switch.
 
 - **Realtime session %** — same numbers Claude Code's `/usage` shows, polled every 60s
 - **Reset countdown** in the menu bar, ticking down every 5s
-- **Multi-account** — snapshot every `claude` login, switch with one click
-- **Auto-switch** when active account hits a threshold (default 95%) → rotates to the account with the lowest known usage, sends a macOS notification
-- **Web sign-in** via WKWebView (no DevTools cookie copying)
+- **Right-click → quick-switch** menu — pick an active account without opening the popover
+- **Multi-account, three ways to add**:
+  - **Open Claude login** — widget drives `claude logout && claude` for you, snapshots the result
+  - **Magic link** — paste a Teams workspace link, widget completes the OAuth flow in a hidden WebView (no email/password access needed)
+  - **Snapshot current** — register the existing `claude` CLI login as a widget account
+- **Per-account realtime polling** — opt-in: fetch `% used` for every saved account, not just the active one. Configurable interval (1–N minutes)
+- **Auto-switch with CLI safety** — when active hits the threshold, picks the lowest-usage account, but **defers the switch if `claude` is still running** (avoids cutting off your work mid-turn). Shows a pending banner + notification; switch fires once all `claude` processes quit
+- **Switch readiness verifier** — Settings → check each account against the auto-switch chain (OAuth blob, web session validity); reports per-account fix instructions
+- **Duplicate detection** — warns before saving a second snapshot of the same identity
 - **Idle**: ~0 % CPU, ~30 MB RAM
 - No telemetry. No daemon. No API key required.
 
@@ -60,13 +66,23 @@ Or via UI: _System Settings → Privacy & Security → Open Anyway_. One time on
 
 ---
 
-## Setup, in three clicks
+## Setup
 
-1. **Connect** banner → **Sign in with Claude** → log in inside the embedded Anthropic window. The widget grabs your `sessionKey` cookie and starts polling real usage numbers.
-2. Sign into Claude Code with the `claude` CLI, then **+ Add** in the widget → label the account. Repeat for each account you want to rotate between.
-3. Flip **Auto-switch accounts** on → drag the slider to your threshold.
+1. **Connect** banner → **Connect** → sign in inside the embedded Anthropic window. The widget grabs your `sessionKey` cookie and HeroCard goes `LIVE`.
+2. **+ Add** in the widget. Pick the path that fits:
+   - Already logged into `claude` CLI? → **Snapshot current** (one click)
+   - Want to log into a fresh account? → **Open Claude login**
+   - Got a Teams magic link from your admin? → **Magic link** (paste the URL)
 
-Done. The widget pesters you with notifications when it rotates; otherwise it shuts up.
+   Repeat for each account you want to rotate.
+3. Gear icon → **Settings**:
+   - Toggle **Track all accounts** on, pick an interval (1m / 5m / 15m / custom). This is what makes inactive rows show fresh % so auto-switch picks smart candidates.
+   - Click **Verify all accounts** in the Switch readiness card — anything not ✅ Ready gets a one-line fix.
+4. Back in the popover, flip **Auto-switch accounts** on → drag the slider to your threshold.
+
+Done. Notifications fire on every switch (manual + auto); the pending banner appears if a switch is held back by running `claude` sessions.
+
+See [`docs/usage.md`](docs/usage.md) for full reference (what each option means, file locations, cloud-badge meanings, troubleshooting).
 
 ---
 
@@ -74,6 +90,10 @@ Done. The widget pesters you with notifications when it rotates; otherwise it sh
 
 - **Realtime usage** = polled from `claude.ai/api/organizations/<orgId>/usage`, the same endpoint claude.ai's billing page calls. Goes through a hidden WKWebView because Cloudflare refuses to talk to raw `URLSession`.
 - **Multi-account** = read/write the macOS Keychain item Claude Code stores its OAuth in (`Claude Code-credentials`). Same pattern [`claude-swap`](https://github.com/realiti4/claude-swap) uses on the CLI.
+- **Per-account polling** = swap the WebKit cookie store between each account's saved `sessionKey`, fetch sequentially, restore the active account's cookie at the end. ~3-5s per account; configurable cadence.
+- **Magic-link login** = load the link in a hidden WebView (sets cookie), spawn `claude` CLI, scrape the OAuth URL from stdout, navigate the same WebView there (cookie auto-completes the PKCE flow → CLI receives auth code → tokens land in Keychain → watcher detects).
+- **CLI safety on switch** = `pgrep -lf claude` (filtered by argv[0] basename = `claude` exactly, so Claude.app helpers and ShipIt don't false-positive) before every auto-switch. If anything's running, pending state until idle.
+- **Duplicate detection** = recursive JSON search of the OAuth blob for stable identifiers (uuid, email). Token bytes rotate; identity doesn't.
 - **State** lives in `~/Library/Application Support/ClaudeWidget/` (`config.json`, `accounts.json`, `widget-secrets.json`, all mode `0600`).
 - **Fallback**: not connected? It parses `~/.claude/projects/**/*.jsonl` directly and computes 5h blocks like [`ccusage`](https://github.com/ryoppippi/ccusage). Less accurate (Anthropic doesn't publish the exact 5h token cap) but at least it works offline.
 
@@ -81,8 +101,11 @@ Done. The widget pesters you with notifications when it rotates; otherwise it sh
 
 ## Honest limitations
 
-- **Restart `claude` after switching** — the CLI reads its Keychain once at startup, doesn't hot-reload. There's no way around this without a Claude Code patch.
-- **Per-account usage tracking** uses one shared web session, so the % shown is for whichever account you signed into the widget — not necessarily the active CLI account. Disconnect + reconnect after switching if you need exact numbers.
+- **Restart `claude` after switching** — the CLI reads its Keychain once at startup, doesn't hot-reload. Auto-switch defers until your sessions quit (so you don't lose context mid-turn), but you still need to run `claude` again to start using the new account.
+- **Magic-link login depends on `claude` printing the OAuth URL to stdout.** Tested with the current version; if a future CLI release writes only to `/dev/tty`, the wizard will time out after 45s and tell you to fall back to **Snapshot current**.
+- **Per-account polling shares one WebKit cookie store** — fetches are sequential (~3-5s × N accounts per round). Plenty fast for 3-5 accounts at 1m+ intervals; not designed for 20-account fleets.
+- **Anthropic rate-limits aren't documented**. Recommend ≥1m polling for 3+ accounts. If you start seeing fetch errors, raise the interval.
+- **`pgrep` parser splits on whitespace** — if your home directory has spaces (`/Users/Joe Smith/`), CLI detection may miss processes. Rename or accept the gap (uncommon edge case).
 - **Unsigned binary** = first-launch Gatekeeper friction. Apple Developer ID costs $99/year and I would like to keep eating.
 - **Plan limits are guesses** in JSONL-fallback mode. The web mode doesn't care.
 
@@ -113,6 +136,14 @@ bash scripts/release.sh 0.7.3                  # bump + DMG + cask sha256 + gh r
 ```
 
 Releasing pushes a new GitHub release and updates `Casks/claude-bar.rb`.
+
+## Tests
+
+```bash
+swift test
+```
+
+49 unit tests covering pure logic: OAuth blob inspection, auto-switch candidate selection, magic-link URL parsing, pgrep output parsing, usage snapshot composition, pending-switch state. Run in ~10ms, no GUI / network / Keychain access required. UI flows + subprocess paths are manual — see `docs/usage.md` § Troubleshooting for likely-to-fail scenarios.
 
 ---
 

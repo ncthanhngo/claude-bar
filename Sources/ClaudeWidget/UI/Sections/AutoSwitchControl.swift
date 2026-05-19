@@ -53,7 +53,7 @@ struct AutoSwitchControl: View {
 
     private var hint: some View {
         Text(store.accounts.count >= 2
-             ? "Rotates to the account with the lowest known usage when the active one crosses the threshold."
+             ? "Rotates to the account with the lowest known usage when the active one crosses the threshold. If `claude` is running, the switch is held until you quit it — your session won't be cut mid-turn."
              : "Add at least 2 accounts to enable rotation.")
             .font(.caption2)
             .foregroundStyle(.secondary)

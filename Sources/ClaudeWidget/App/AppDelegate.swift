@@ -21,7 +21,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             button.title = "·· "
             button.image = NSImage(systemSymbolName: "gauge.medium", accessibilityDescription: "Claude usage")
             button.imagePosition = .imageLeading
-            button.action = #selector(togglePanel(_:))
+            // Listen to both buttons so right-click can open the quick-switch menu
+            // while preserving left-click → panel toggle.
+            button.sendAction(on: [.leftMouseUp, .rightMouseUp])
+            button.action = #selector(statusBarClicked(_:))
             button.target = self
         }
 
@@ -34,6 +37,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 self?.statusItem.button?.title = text
             }
             .store(in: &cancellables)
+
+        // Request notification permission up-front so manual + auto switches
+        // can both post toasts without prompting at the inconvenient moment.
+        AutoSwitcher.requestNotificationPermission()
 
         // Kick off
         store.refresh()
@@ -81,12 +88,96 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     // MARK: - Toggle / position
 
+    /// Splits left vs right click. Right-click (or control-click) opens the
+    /// quick-switch NSMenu; left-click toggles the SwiftUI popover panel.
+    @objc private func statusBarClicked(_ sender: AnyObject?) {
+        let event = NSApp.currentEvent
+        let isSecondary = event?.type == .rightMouseUp
+            || (event?.modifierFlags.contains(.control) == true)
+        if isSecondary {
+            showQuickSwitchMenu()
+        } else {
+            togglePanel(sender)
+        }
+    }
+
     @objc private func togglePanel(_ sender: AnyObject?) {
         if panel.isVisible {
             hidePanel()
         } else {
             showPanel()
         }
+    }
+
+    // MARK: - Quick-switch menu
+
+    private func showQuickSwitchMenu() {
+        // Make sure the popover isn't covering the click target.
+        if panel.isVisible { hidePanel() }
+        guard let button = statusItem.button else { return }
+        let menu = buildQuickSwitchMenu()
+        menu.popUp(positioning: nil,
+                   at: NSPoint(x: 0, y: button.bounds.height + 4),
+                   in: button)
+    }
+
+    private func buildQuickSwitchMenu() -> NSMenu {
+        let menu = NSMenu()
+
+        if store.accounts.isEmpty {
+            let empty = NSMenuItem(title: "No accounts saved",
+                                   action: nil, keyEquivalent: "")
+            empty.isEnabled = false
+            menu.addItem(empty)
+        } else {
+            let header = NSMenuItem(title: "Switch account",
+                                    action: nil, keyEquivalent: "")
+            header.isEnabled = false
+            menu.addItem(header)
+            for account in store.accounts {
+                let title = accountMenuTitle(account)
+                let item = NSMenuItem(title: title,
+                                      action: #selector(quickSwitchSelected(_:)),
+                                      keyEquivalent: "")
+                item.target = self
+                item.representedObject = account.id
+                if store.config.activeAccountId == account.id {
+                    item.state = .on
+                }
+                menu.addItem(item)
+            }
+        }
+
+        menu.addItem(.separator())
+        let showItem = NSMenuItem(title: "Show usage…",
+                                  action: #selector(showPanelFromMenu(_:)),
+                                  keyEquivalent: "")
+        showItem.target = self
+        menu.addItem(showItem)
+
+        menu.addItem(.separator())
+        let quit = NSMenuItem(title: "Quit",
+                              action: #selector(NSApplication.terminate(_:)),
+                              keyEquivalent: "q")
+        menu.addItem(quit)
+        return menu
+    }
+
+    private func accountMenuTitle(_ account: Account) -> String {
+        if let pct = account.lastSessionPercent {
+            return "\(account.displayName) · \(Int(pct.rounded()))%"
+        }
+        return account.displayName
+    }
+
+    @objc private func quickSwitchSelected(_ sender: NSMenuItem) {
+        guard let id = sender.representedObject as? UUID,
+              let account = store.accounts.first(where: { $0.id == id }) else { return }
+        SwitchAccountAction.confirmAndSwitch(store: store, account: account)
+    }
+
+    @objc private func showPanelFromMenu(_ sender: AnyObject?) {
+        if !panel.isVisible { showPanel() }
     }
 
     private func showPanel() {

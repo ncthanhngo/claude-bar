@@ -8,6 +8,8 @@ struct WidgetConfig: Codable {
     var autoSwitchEnabled: Bool
     var autoSwitchThresholdPercent: Double
     var includeCacheTokens: Bool
+    var multiAccountPollingEnabled: Bool = false
+    var multiAccountPollIntervalSeconds: Int = 60
 
     static let `default` = WidgetConfig(
         plan: .max20,
@@ -15,7 +17,9 @@ struct WidgetConfig: Codable {
         activeAccountId: nil,
         autoSwitchEnabled: false,
         autoSwitchThresholdPercent: 95,
-        includeCacheTokens: true
+        includeCacheTokens: true,
+        multiAccountPollingEnabled: false,
+        multiAccountPollIntervalSeconds: 60
     )
 
     /// Effective token cap for the chosen plan (used by JSONL fallback).

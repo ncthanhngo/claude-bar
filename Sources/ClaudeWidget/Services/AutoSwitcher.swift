@@ -13,6 +13,14 @@ enum AutoSwitcher {
     }
 
     /// Pure decision: returns the account to switch to, or nil if no action.
+    ///
+    /// Strategy:
+    ///  1. If any non-active account has a known `lastSessionPercent`, pick
+    ///     the one with the lowest value. This is the safe path — we know
+    ///     where we're switching to and it has headroom.
+    ///  2. If NO non-active account has been observed yet (polling never ran
+    ///     or always failed), fall back to the first non-active account by
+    ///     creation order. Deterministic but blind.
     static func chooseCandidate(
         activeId: UUID?,
         accounts: [Account],
@@ -22,16 +30,11 @@ enum AutoSwitcher {
         guard accounts.count >= 2 else { return nil }
         guard currentPercent >= threshold else { return nil }
         let others = accounts.filter { $0.id != activeId }
-        // Prefer accounts with the lowest known usage; ties broken by oldest
-        // observation. Unobserved accounts come first.
-        return others.min { lhs, rhs in
-            switch (lhs.lastSessionPercent, rhs.lastSessionPercent) {
-            case (nil, nil):    return (lhs.lastObservedAt ?? .distantPast) < (rhs.lastObservedAt ?? .distantPast)
-            case (nil, _):      return true
-            case (_, nil):      return false
-            case let (l?, r?):  return l < r
-            }
+        let withData = others.filter { $0.lastSessionPercent != nil }
+        if !withData.isEmpty {
+            return withData.min { ($0.lastSessionPercent ?? .infinity) < ($1.lastSessionPercent ?? .infinity) }
         }
+        return others.first
     }
 
     /// Side-effect: switches Claude Code's keychain and posts a notification.
@@ -57,9 +60,38 @@ enum AutoSwitcher {
     }
 
     private static func postSwitchNotification(to account: Account) {
+        post(
+            title: "Switched to \(account.displayName)",
+            body: "Previous account hit the usage threshold. Run `claude` to start using the new login."
+        )
+    }
+
+    /// Notification triggered by manual account switch from popover or
+    /// menubar. Phrased differently from the auto-switch one (no threshold
+    /// context) so the user knows whose action it was.
+    static func postManualSwitchNotification(to account: Account) {
+        post(
+            title: "Switched to \(account.displayName)",
+            body: "Run `claude` to start using this account."
+        )
+    }
+
+    private static func post(title: String, body: String) {
         let content = UNMutableNotificationContent()
-        content.title = "Switched to \(account.displayName)"
-        content.body = "Previous account hit the usage threshold. Restart Claude Code to use the new login."
+        content.title = title
+        content.body = body
+        content.sound = .default
+        let req = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
+        UNUserNotificationCenter.current().add(req)
+    }
+
+    /// Fired when threshold is hit but switch is deferred because `claude` is
+    /// still running. Tells the user the switch will happen automatically.
+    static func postPendingNotification(to account: Account, sessionCount: Int) {
+        let content = UNMutableNotificationContent()
+        content.title = "Usage threshold reached"
+        let plural = sessionCount == 1 ? "" : "s"
+        content.body = "Will switch to \(account.displayName) once \(sessionCount) running `claude` session\(plural) quit."
         content.sound = .default
         let req = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
         UNUserNotificationCenter.current().add(req)

@@ -6,8 +6,9 @@ struct PopoverView: View {
     @ObservedObject var store: UsageStore
 
     @State private var showingAddAccount = false
-    @State private var showingSettings = false
     @State private var showingConnect = false
+    @State private var showingMagicLink = false
+    @State private var showingSettings = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -16,6 +17,9 @@ struct PopoverView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     WebConnectionBanner(store: store, showingConnect: $showingConnect)
+                    if let pending = store.pendingSwitch {
+                        PendingSwitchBanner(pending: pending, onCancel: { store.cancelPendingSwitch() })
+                    }
                     HeroCard(store: store)
                     AccountsList(store: store, showingAddAccount: $showingAddAccount)
                     AutoSwitchControl(store: store)
@@ -30,13 +34,29 @@ struct PopoverView: View {
         }
         .frame(width: 380, height: 580)
         .sheet(isPresented: $showingAddAccount) {
-            AddAccountSheet(store: store, isPresented: $showingAddAccount)
+            AddAccountSheet(
+                store: store,
+                isPresented: $showingAddAccount,
+                onChooseMagicLink: switchToMagicLink
+            )
+        }
+        .sheet(isPresented: $showingMagicLink) {
+            MagicLinkLoginSheet(store: store, isPresented: $showingMagicLink)
+        }
+        .sheet(isPresented: $showingConnect) {
+            ConnectClaudeAiSheet(store: store, isPresented: $showingConnect)
         }
         .sheet(isPresented: $showingSettings) {
             SettingsView(store: store, isPresented: $showingSettings)
         }
-        .sheet(isPresented: $showingConnect) {
-            ConnectClaudeAiSheet(store: store, isPresented: $showingConnect)
+    }
+
+    /// SwiftUI sheets are exclusive — dismiss the current one first, then
+    /// present the magic-link sheet on the next runloop tick.
+    private func switchToMagicLink() {
+        showingAddAccount = false
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            showingMagicLink = true
         }
     }
 }
@@ -65,6 +85,7 @@ private struct HeaderBar: View {
             }
             Button { showingSettings = true } label: { Image(systemName: "gearshape") }
                 .buttonStyle(.borderless)
+                .help("Settings")
         }
         .padding(.horizontal, 16).padding(.vertical, 12)
     }

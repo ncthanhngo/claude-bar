@@ -23,3 +23,6 @@ dist/
 # Sample / temp
 /tmp/
 *.log
+
+# Local planning scratchpads — not part of the codebase
+plans/

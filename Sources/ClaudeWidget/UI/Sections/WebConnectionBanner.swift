@@ -1,13 +1,21 @@
 import SwiftUI
 
-/// Top-of-popover status: orange "Connect" banner when not signed in,
-/// green checkmark + controls when signed in.
+/// Disconnected-only CTA. When web is connected, this view collapses to
+/// nothing — the active account row's badge + ⋯ menu manages the session,
+/// avoiding a duplicate Reconnect/Disconnect surface.
+///
+/// If there's also a transient `webError`, surface it as a thin red strip
+/// even when otherwise connected so users notice fetch failures.
 struct WebConnectionBanner: View {
     @ObservedObject var store: UsageStore
     @Binding var showingConnect: Bool
 
     var body: some View {
-        if store.webConnected { connectedRow } else { disconnectedBanner }
+        if !store.webConnected {
+            disconnectedBanner
+        } else if let err = store.webError {
+            errorRow(err)
+        }
     }
 
     private var disconnectedBanner: some View {
@@ -28,28 +36,15 @@ struct WebConnectionBanner: View {
         .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.orange.opacity(0.3)))
     }
 
-    private var connectedRow: some View {
+    private func errorRow(_ message: String) -> some View {
         HStack(spacing: 6) {
-            Image(systemName: "checkmark.seal.fill").foregroundStyle(.green).font(.caption)
-            Text(store.webError ?? "Connected to claude.ai")
-                .font(.caption)
-                .foregroundStyle(store.webError != nil ? .red : .secondary)
-                .lineLimit(1)
+            Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.red).font(.caption)
+            Text(message).font(.caption2).foregroundStyle(.red).lineLimit(2)
             Spacer()
-            if store.isFetchingWeb {
-                ProgressView().controlSize(.mini).scaleEffect(0.5)
-            } else {
-                Button { store.fetchWebUsage() } label: { Image(systemName: "arrow.clockwise") }
-                    .buttonStyle(.borderless).font(.caption2)
-            }
-            Menu {
-                Button("Reconnect…") { showingConnect = true }
-                Button("Disconnect", role: .destructive) { store.disconnectClaudeAi() }
-            } label: {
-                Image(systemName: "ellipsis")
-            }
-            .menuStyle(.borderlessButton)
-            .fixedSize()
+            Button { store.fetchWebUsage() } label: { Image(systemName: "arrow.clockwise") }
+                .buttonStyle(.borderless).font(.caption2)
         }
+        .padding(8)
+        .background(RoundedRectangle(cornerRadius: 6).fill(.red.opacity(0.08)))
     }
 }

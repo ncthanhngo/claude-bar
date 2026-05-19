@@ -45,8 +45,11 @@ struct AccountsList: View {
                 AccountRow(
                     account: account,
                     isActive: store.config.activeAccountId == account.id,
+                    pollingEnabled: store.config.multiAccountPollingEnabled,
                     onSwitch: { confirmSwitch(account) },
-                    onDelete: { confirmDelete(account) }
+                    onDelete: { confirmDelete(account) },
+                    onConnectWeb: { confirmConnectWeb(account) },
+                    onDisconnectWeb: { store.disconnectWebForAccount(id: account.id) }
                 )
             }
         }
@@ -55,17 +58,7 @@ struct AccountsList: View {
     // MARK: - Actions
 
     private func confirmSwitch(_ account: Account) {
-        let alert = NSAlert()
-        alert.messageText = "Switch to \"\(account.displayName)\"?"
-        alert.informativeText = "Claude Code's Keychain login will be replaced with this account. Restart any running `claude` or VS Code session to pick up the change."
-        alert.addButton(withTitle: "Switch")
-        alert.addButton(withTitle: "Cancel")
-        guard alert.runModal() == .alertFirstButtonReturn else { return }
-        do {
-            try store.switchToAccount(id: account.id)
-        } catch {
-            store.lastError = error.localizedDescription
-        }
+        SwitchAccountAction.confirmAndSwitch(store: store, account: account)
     }
 
     private func confirmDelete(_ account: Account) {
@@ -79,6 +72,32 @@ struct AccountsList: View {
             store.deleteAccount(id: account.id)
         }
     }
+
+    /// Explain what "Connect web" does and let the user decide.
+    /// On confirm, runs `signInToClaudeAiForAccount` which opens an embedded
+    /// browser. The user signs in as the account they want to associate
+    /// with this row; we save the captured `sessionKey + orgId` to it.
+    private func confirmConnectWeb(_ account: Account) {
+        let alert = NSAlert()
+        alert.messageText = "Connect claude.ai web session"
+        alert.informativeText = """
+A Claude login window will open. Sign in as the account you want to associate with "\(account.displayName)".
+
+This is needed so the widget can fetch realtime % for this row in the background. Your current CLI keychain is not touched — only this row's web session is saved.
+
+Note: if you sign in as a different account, this row's polled % will be wrong. Click Cancel if you're unsure which identity to use.
+"""
+        alert.addButton(withTitle: "Open login window")
+        alert.addButton(withTitle: "Skip for now")
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        Task {
+            do {
+                try await store.signInToClaudeAiForAccount(id: account.id)
+            } catch {
+                store.lastError = error.localizedDescription
+            }
+        }
+    }
 }
 
 // MARK: - Row
@@ -86,8 +105,15 @@ struct AccountsList: View {
 private struct AccountRow: View {
     let account: Account
     let isActive: Bool
+    let pollingEnabled: Bool
     let onSwitch: () -> Void
     let onDelete: () -> Void
+    let onConnectWeb: () -> Void
+    let onDisconnectWeb: () -> Void
+
+    private var hasWebSession: Bool {
+        (account.sessionKey?.isEmpty == false) && (account.orgId?.isEmpty == false)
+    }
 
     private var subtitle: String {
         if isActive, let pct = account.lastSessionPercent {
@@ -117,6 +143,7 @@ private struct AccountRow: View {
                 Text(subtitle).font(.caption2).foregroundStyle(.secondary)
             }
             Spacer()
+            webStatusBadge
             if isActive {
                 if let pct = account.lastSessionPercent {
                     Text("\(Int(pct.rounded()))%")
@@ -130,6 +157,11 @@ private struct AccountRow: View {
                     .controlSize(.small)
             }
             Menu {
+                Button(hasWebSession ? "Reconnect web" : "Connect web", action: onConnectWeb)
+                if hasWebSession {
+                    Button("Disconnect web", action: onDisconnectWeb)
+                }
+                Divider()
                 Button("Remove", role: .destructive) { onDelete() }
             } label: {
                 Image(systemName: "ellipsis").foregroundStyle(.secondary)
@@ -148,6 +180,29 @@ private struct AccountRow: View {
             RoundedRectangle(cornerRadius: 8)
                 .stroke(isActive ? Color.green.opacity(0.3) : .clear)
         )
+    }
+
+    /// Small cloud icon: filled blue if this row has a web session and is
+    /// eligible for polling, hollow grey otherwise. Tapping prompts the
+    /// user with the connect-web explanation.
+    @ViewBuilder
+    private var webStatusBadge: some View {
+        if hasWebSession {
+            Image(systemName: "cloud.fill")
+                .font(.caption2)
+                .foregroundStyle(pollingEnabled ? .blue : .secondary)
+                .help(pollingEnabled
+                      ? "Realtime polling enabled for this account."
+                      : "Web session saved. Enable 'Track all accounts' in Settings to poll.")
+        } else {
+            Button(action: onConnectWeb) {
+                Image(systemName: "cloud")
+                    .font(.caption2)
+                    .foregroundStyle(.orange)
+            }
+            .buttonStyle(.borderless)
+            .help("No web session — usage % can't be polled for this account. Click to connect.")
+        }
     }
 }
 
