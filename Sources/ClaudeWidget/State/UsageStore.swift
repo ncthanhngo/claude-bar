@@ -105,29 +105,7 @@ final class UsageStore: ObservableObject {
         }
     }
 
-    // MARK: - Web auth (per-active-account web session)
-
-    /// OAuth-style sign-in to the web (claude.ai) endpoint. Captures the
-    /// `sessionKey` cookie so we can hit `claude.ai/api/.../usage`. Also
-    /// persists the session into the active Account so the multi-account
-    /// poller can use it without a re-sign-in.
-    func signInToClaudeAi() async throws {
-        let sessionKey = try await LoginWindowController.runFlow()
-        let orgId = try await WebUsageService.validateAndDetectOrg(sessionKey: sessionKey)
-        WebUsageService.storeCredentials(sessionKey: sessionKey, orgId: orgId)
-        webConnected = true
-        webError = nil
-
-        if let activeId = config.activeAccountId,
-           var acc = AccountStore.find(id: activeId) {
-            acc.sessionKey = sessionKey
-            acc.orgId = orgId
-            try? AccountStore.update(acc)
-            accounts = AccountStore.loadAll()
-        }
-
-        fetchWebUsage()
-    }
+    // MARK: - Web auth (per-account web session)
 
     /// Sign into claude.ai and attach the captured session to a specific
     /// account row. Does **not** touch the global SecretStore — used by
@@ -240,12 +218,41 @@ final class UsageStore: ObservableObject {
     }
 
     func deleteAccount(id: UUID) {
+        let removed = AccountStore.find(id: id)
         try? AccountStore.delete(id: id)
         accounts = AccountStore.loadAll()
-        if config.activeAccountId == id {
+        let wasActive = config.activeAccountId == id
+        if wasActive {
             config.activeAccountId = nil
             ConfigStore.shared.save(config)
         }
+        // Clear the global web session if it belonged to the removed row —
+        // otherwise HeroCard keeps polling claude.ai with a cookie tied to
+        // an account the user just deleted.
+        let removedKey = removed?.sessionKey
+        let globalKey = WebUsageService.loadSessionKey()
+        if wasActive || (removedKey != nil && removedKey == globalKey) {
+            disconnectClaudeAi()
+        }
+    }
+
+    /// Nukes every widget-owned piece of state: saved account rows, active
+    /// pointer, global web session + cached snapshot. Does NOT touch
+    /// `~/.claude/.credentials.json` (Claude Code CLI keeps working) or the
+    /// local `~/.claude/projects/*.jsonl` history. After this, the popover
+    /// returns to the "No saved accounts yet" empty state and the user must
+    /// re-Add at least one account to restore LIVE polling.
+    func resetAllAccounts() {
+        for acc in accounts {
+            try? AccountStore.delete(id: acc.id)
+        }
+        accounts = AccountStore.loadAll()
+        config.activeAccountId = nil
+        ConfigStore.shared.save(config)
+        disconnectClaudeAi()
+        clearPendingSwitch()
+        lastError = nil
+        webError = nil
     }
 
     func renameAccount(id: UUID, label: String) {

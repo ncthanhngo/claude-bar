@@ -6,7 +6,6 @@ struct PopoverView: View {
     @ObservedObject var store: UsageStore
 
     @State private var showingAddAccount = false
-    @State private var showingConnect = false
     @State private var showingMagicLink = false
     @State private var showingSettings = false
 
@@ -16,14 +15,13 @@ struct PopoverView: View {
             Divider()
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
-                    WebConnectionBanner(store: store, showingConnect: $showingConnect)
                     if let pending = store.pendingSwitch {
                         PendingSwitchBanner(pending: pending, onCancel: { store.cancelPendingSwitch() })
                     }
                     HeroCard(store: store)
                     AccountsList(store: store, showingAddAccount: $showingAddAccount)
                     AutoSwitchControl(store: store)
-                    if let err = store.lastError {
+                    if let err = store.lastError ?? store.webError {
                         Text(err).font(.caption).foregroundStyle(.red)
                     }
                 }
@@ -42,9 +40,6 @@ struct PopoverView: View {
         }
         .sheet(isPresented: $showingMagicLink) {
             MagicLinkLoginSheet(store: store, isPresented: $showingMagicLink)
-        }
-        .sheet(isPresented: $showingConnect) {
-            ConnectClaudeAiSheet(store: store, isPresented: $showingConnect)
         }
         .sheet(isPresented: $showingSettings) {
             SettingsView(store: store, isPresented: $showingSettings)

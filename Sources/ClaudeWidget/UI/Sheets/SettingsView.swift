@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 /// Widget-wide settings. Currently only controls multi-account realtime
 /// polling (toggle + interval picker).
@@ -19,6 +20,7 @@ struct SettingsView: View {
                     statusCard
                 }
                 SwitchReadinessCard(store: store)
+                dangerZone
                 Spacer(minLength: 0)
             }
             .padding(.horizontal, 20)
@@ -162,6 +164,44 @@ struct SettingsView: View {
             RoundedRectangle(cornerRadius: 10)
                 .fill(Color.secondary.opacity(0.04))
         )
+    }
+
+    // MARK: - Danger zone
+
+    private var dangerZone: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 6) {
+                Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.red)
+                Text("Reset widget").font(.subheadline).bold()
+            }
+            Text("Removes all saved accounts and the web session from this widget. Your Claude Code CLI login (`~/.claude`) is untouched — re-Add at least one account afterwards to resume LIVE polling.")
+                .font(.caption2).foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            Button(role: .destructive) {
+                confirmReset()
+            } label: {
+                Label("Clear all accounts & web session", systemImage: "trash")
+                    .font(.caption)
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+            .disabled(store.accounts.isEmpty && !store.webConnected)
+        }
+        .padding(12)
+        .background(RoundedRectangle(cornerRadius: 10).fill(Color.red.opacity(0.06)))
+        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.red.opacity(0.2)))
+    }
+
+    private func confirmReset() {
+        let alert = NSAlert()
+        alert.messageText = "Clear all widget data?"
+        alert.informativeText = "Removes \(store.accounts.count) saved account\(store.accounts.count == 1 ? "" : "s") and disconnects the web session. The Claude Code CLI login is untouched.\n\nYou'll need to Add an account again before the widget can poll Anthropic."
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: "Clear everything")
+        alert.addButton(withTitle: "Cancel")
+        if alert.runModal() == .alertFirstButtonReturn {
+            store.resetAllAccounts()
+        }
     }
 
     // MARK: - Footer

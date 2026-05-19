@@ -48,6 +48,7 @@ struct AccountsList: View {
                     pollingEnabled: store.config.multiAccountPollingEnabled,
                     onSwitch: { confirmSwitch(account) },
                     onDelete: { confirmDelete(account) },
+                    onRename: { promptRename(account) },
                     onConnectWeb: { confirmConnectWeb(account) },
                     onDisconnectWeb: { store.disconnectWebForAccount(id: account.id) }
                 )
@@ -59,6 +60,23 @@ struct AccountsList: View {
 
     private func confirmSwitch(_ account: Account) {
         SwitchAccountAction.confirmAndSwitch(store: store, account: account)
+    }
+
+    private func promptRename(_ account: Account) {
+        let alert = NSAlert()
+        alert.messageText = "Rename account"
+        alert.informativeText = "Pick a new label for \"\(account.displayName)\". Only the widget's display name changes — the Claude Code login is untouched."
+        let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 240, height: 24))
+        field.stringValue = account.label
+        field.placeholderString = "e.g. work, personal, client-X"
+        alert.accessoryView = field
+        alert.addButton(withTitle: "Save")
+        alert.addButton(withTitle: "Cancel")
+        alert.window.initialFirstResponder = field
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        let trimmed = field.stringValue.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty, trimmed != account.label else { return }
+        store.renameAccount(id: account.id, label: trimmed)
     }
 
     private func confirmDelete(_ account: Account) {
@@ -108,6 +126,7 @@ private struct AccountRow: View {
     let pollingEnabled: Bool
     let onSwitch: () -> Void
     let onDelete: () -> Void
+    let onRename: () -> Void
     let onConnectWeb: () -> Void
     let onDisconnectWeb: () -> Void
 
@@ -157,6 +176,8 @@ private struct AccountRow: View {
                     .controlSize(.small)
             }
             Menu {
+                Button("Rename…", action: onRename)
+                Divider()
                 Button(hasWebSession ? "Reconnect web" : "Connect web", action: onConnectWeb)
                 if hasWebSession {
                     Button("Disconnect web", action: onDisconnectWeb)
