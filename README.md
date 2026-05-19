@@ -41,6 +41,16 @@ brew install --cask ncthanhngo/claude-bar/claude-bar
 
 Upgrade later with `brew update && brew upgrade --cask claude-bar`.
 
+#### Upgrade fails with `Cask 'claude-bar' is unreadable` / `syntax errors` / `could not apply ... initial public release`
+
+The local tap clone is stuck mid-rebase with conflict markers in `Casks/claude-bar.rb`. Repo on GitHub is fine — only the machine's tap copy is broken. Reset by untapping and retapping:
+
+```bash
+brew untap ncthanhngo/claude-bar
+brew tap ncthanhngo/claude-bar https://github.com/ncthanhngo/claude-bar
+brew upgrade --cask claude-bar
+```
+
 ### DMG (the boring way)
 
 Download from [Releases](https://github.com/ncthanhngo/claude-bar/releases) → drag into Applications.
