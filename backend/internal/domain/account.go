@@ -40,6 +40,7 @@ type Registry struct {
 	ActiveAccountNumber int               `json:"activeAccountNumber"`
 	Sequence            []int             `json:"sequence"`
 	Accounts            map[int]*Account  `json:"accounts"`
+	SharedMCPConnectors AccountConnectors `json:"sharedMcpConnectors,omitempty"`
 	LastUpdated         time.Time         `json:"lastUpdated"`
 }
 

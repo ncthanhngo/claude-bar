@@ -10,10 +10,11 @@ import (
 	"github.com/soi/claude-swap-widget/backend/internal/domain"
 )
 
-// mcpServiceFormat is "claude-bar-mcp:<account-number>:<service>".
-// account-number (not email) survives rename. service is the canonical
-// MCPService identifier ("slack", "clickup", "gdrive").
-const mcpServiceFormat = "claude-bar-mcp:%d:%s"
+// mcpServiceFormat is "claude-bar-mcp:<account-key>:<service>".
+// account-key is the account number (not email) or "shared" for the local
+// machine-wide fallback connector. service is the canonical MCPService
+// identifier ("slack", "clickup", "gdrive").
+const mcpServiceFormat = "claude-bar-mcp:%s:%s"
 
 // MCPSecretStore stores provider tokens in the macOS Keychain.
 type MCPSecretStore struct {
@@ -30,7 +31,11 @@ func NewMCPSecretStore() *MCPSecretStore {
 }
 
 func (s *MCPSecretStore) kc(accountNum int, service domain.MCPService) *Keychain {
-	return New(fmt.Sprintf(mcpServiceFormat, accountNum, service), s.user)
+	accountKey := fmt.Sprintf("%d", accountNum)
+	if accountNum == 0 {
+		accountKey = "shared"
+	}
+	return New(fmt.Sprintf(mcpServiceFormat, accountKey, service), s.user)
 }
 
 // Read returns the stored payload. Returns ("", nil) when no entry exists so

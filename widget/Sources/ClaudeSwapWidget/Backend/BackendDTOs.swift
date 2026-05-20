@@ -169,6 +169,7 @@ struct MCPConnectorSummaryDTO: Codable, Hashable, Identifiable {
     let account: String?
     let needsReauth: Bool
     let connectedAt: Date?
+    let usesShared: Bool?
 
     var id: String { service }
 
@@ -176,7 +177,7 @@ struct MCPConnectorSummaryDTO: Codable, Hashable, Identifiable {
         switch service {
         case "slack":   return "Slack"
         case "clickup": return "ClickUp"
-        case "gdrive":  return "Google Drive"
+        case "gdrive":  return "Google"
         default:        return service.capitalized
         }
     }
@@ -193,6 +194,7 @@ struct MCPConnectorSummaryDTO: Codable, Hashable, Identifiable {
     var state: String {
         if needsReauth { return "needs re-auth" }
         if enabled && hasSecret { return "connected" }
+        if usesShared == true { return "using shared" }
         if hasSecret { return "disabled" }
         return "not connected"
     }
@@ -203,6 +205,7 @@ struct MCPAccountSummaryDTO: Codable, Hashable, Identifiable {
     let accountNumber: Int
     let displayName: String
     let active: Bool
+    let shared: Bool?
     let connectors: [MCPConnectorSummaryDTO]
 
     var id: Int { accountNumber }

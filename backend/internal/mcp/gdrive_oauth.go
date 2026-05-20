@@ -19,7 +19,7 @@ import (
 const (
 	gdriveAuthURL  = "https://accounts.google.com/o/oauth2/v2/auth"
 	gdriveTokenURL = "https://oauth2.googleapis.com/token"
-	gdriveScope    = "https://www.googleapis.com/auth/drive.readonly"
+	gdriveScope    = "https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/calendar.events.readonly https://www.googleapis.com/auth/gmail.readonly"
 )
 
 // tokenURLForTest is overridden by tests pointing at httptest. Production
@@ -40,14 +40,16 @@ type GDriveOAuthResult struct {
 }
 
 // GDriveStartOAuth runs the loopback PKCE flow:
-//   1. starts a localhost listener on a random port
-//   2. opens the user's browser at Google's consent URL
-//   3. waits for the redirect with ?code=...
-//   4. exchanges the code for refresh+access tokens
+//  1. starts a localhost listener on a random port
+//  2. opens the user's browser at Google's consent URL
+//  3. waits for the redirect with ?code=...
+//  4. exchanges the code for refresh+access tokens
 //
 // clientID is the OAuth client ID of the Claude Bar installed app.
+// clientSecret is optional in the OAuth spec, but Google Desktop clients can
+// require it for token exchange/refresh. If supplied, it is stored in Keychain.
 // openBrowser is called with the consent URL; the caller can shell out to `open`.
-func GDriveStartOAuth(ctx context.Context, clientID string, openBrowser func(string) error) (*GDriveOAuthResult, error) {
+func GDriveStartOAuth(ctx context.Context, clientID, clientSecret string, openBrowser func(string) error) (*GDriveOAuthResult, error) {
 	verifier, challenge, err := newPKCE()
 	if err != nil {
 		return nil, err
@@ -113,19 +115,22 @@ func GDriveStartOAuth(ctx context.Context, clientID string, openBrowser func(str
 	case err := <-errCh:
 		return nil, err
 	case code := <-codeCh:
-		return exchangeCode(ctx, clientID, code, verifier, redirectURI)
+		return exchangeCode(ctx, clientID, clientSecret, code, verifier, redirectURI)
 	case <-time.After(5 * time.Minute):
 		return nil, fmt.Errorf("oauth timeout")
 	}
 }
 
-func exchangeCode(ctx context.Context, clientID, code, verifier, redirectURI string) (*GDriveOAuthResult, error) {
+func exchangeCode(ctx context.Context, clientID, clientSecret, code, verifier, redirectURI string) (*GDriveOAuthResult, error) {
 	form := url.Values{
 		"client_id":     {clientID},
 		"code":          {code},
 		"code_verifier": {verifier},
 		"grant_type":    {"authorization_code"},
 		"redirect_uri":  {redirectURI},
+	}
+	if clientSecret != "" {
+		form.Set("client_secret", clientSecret)
 	}
 	tokens, err := postTokenForm(ctx, form)
 	if err != nil {
@@ -137,6 +142,7 @@ func exchangeCode(ctx context.Context, clientID, code, verifier, redirectURI str
 	return &GDriveOAuthResult{
 		Payload: &GDrivePayload{
 			ClientID:        clientID,
+			ClientSecret:    clientSecret,
 			RefreshToken:    tokens.RefreshToken,
 			AccessToken:     tokens.AccessToken,
 			AccessExpiresAt: time.Now().Add(time.Duration(tokens.ExpiresIn) * time.Second).Add(-1 * time.Minute),
@@ -159,6 +165,9 @@ func (g *Gateway) gdriveRefresh(ctx context.Context, cc *CallContext) (string, e
 		"client_id":     {payload.ClientID},
 		"refresh_token": {payload.RefreshToken},
 		"grant_type":    {"refresh_token"},
+	}
+	if payload.ClientSecret != "" {
+		form.Set("client_secret", payload.ClientSecret)
 	}
 	tokens, err := postTokenForm(ctx, form)
 	if err != nil {

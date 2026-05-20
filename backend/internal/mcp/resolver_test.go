@@ -90,3 +90,37 @@ func TestResolveSuccess(t *testing.T) {
 		t.Fatalf("bad CallContext: %+v", cc)
 	}
 }
+
+func TestResolveFallsBackToSharedConnector(t *testing.T) {
+	r := newResolverFixture(1, false, false)
+	reg := r.Registry.(*fakeRegistry).reg
+	reg.SharedMCPConnectors = domain.AccountConnectors{
+		domain.MCPServiceSlack: &domain.MCPConnector{Enabled: true},
+	}
+	r.Secrets.(fakeSecrets)[key(0, domain.MCPServiceSlack)] = "xoxp-shared"
+
+	cc, err := r.Resolve(context.Background(), domain.MCPServiceSlack)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if cc.AccountNumber != 0 || cc.Payload != "xoxp-shared" {
+		t.Fatalf("bad shared CallContext: %+v", cc)
+	}
+}
+
+func TestResolvePrefersAccountConnectorOverShared(t *testing.T) {
+	r := newResolverFixture(1, true, true)
+	reg := r.Registry.(*fakeRegistry).reg
+	reg.SharedMCPConnectors = domain.AccountConnectors{
+		domain.MCPServiceSlack: &domain.MCPConnector{Enabled: true},
+	}
+	r.Secrets.(fakeSecrets)[key(0, domain.MCPServiceSlack)] = "xoxp-shared"
+
+	cc, err := r.Resolve(context.Background(), domain.MCPServiceSlack)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if cc.AccountNumber != 1 || cc.Payload != "xoxp-fake" {
+		t.Fatalf("account connector should win: %+v", cc)
+	}
+}

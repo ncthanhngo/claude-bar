@@ -178,14 +178,20 @@ func runMCPConnectorsList(ctx context.Context, svc *usecase.Service, args []stri
 
 func runMCPConnectorsConnect(ctx context.Context, svc *usecase.Service, args []string) error {
 	fs := flag.NewFlagSet("connectors-connect", flag.ExitOnError)
-	account := fs.Int("account", 0, "account number")
+	account := fs.Int("account", -1, "account number")
+	shared := fs.Bool("shared", false, "connect once for all Claude Bar accounts on this Mac")
 	service := fs.String("service", "", "slack | clickup | gdrive")
 	tokenStr := fs.String("token", "", "read token from stdin with --token=-")
 	clientID := fs.String("client-id", "", "google OAuth client id (gdrive only)")
+	clientSecret := fs.String("client-secret", "", "google OAuth client secret (gdrive desktop clients may require it)")
 	displayName := fs.String("name", "", "optional display name shown in widget")
 	_ = fs.Parse(args)
-	if *account == 0 || *service == "" {
-		return errors.New("--account and --service are required")
+	targetAccount, err := mcpTargetAccount(*account, *shared)
+	if err != nil {
+		return err
+	}
+	if *service == "" {
+		return errors.New("--service is required")
 	}
 	svcID := domain.MCPService(*service)
 	switch svcID {
@@ -199,7 +205,7 @@ func runMCPConnectorsConnect(ctx context.Context, svc *usecase.Service, args []s
 			return fmt.Errorf("verify slack token: %w", err)
 		}
 		return svc.ConnectMCPConnector(ctx, usecase.ConnectMCPRequest{
-			AccountNumber: *account, Service: svcID, Payload: token,
+			AccountNumber: targetAccount, Service: svcID, Payload: token,
 			DisplayName: pickDisplayName(*displayName, vr.DisplayName),
 			Account:     vr.Account,
 			Verified:    true,
@@ -214,7 +220,7 @@ func runMCPConnectorsConnect(ctx context.Context, svc *usecase.Service, args []s
 			return fmt.Errorf("verify clickup token: %w", err)
 		}
 		return svc.ConnectMCPConnector(ctx, usecase.ConnectMCPRequest{
-			AccountNumber: *account, Service: svcID, Payload: token,
+			AccountNumber: targetAccount, Service: svcID, Payload: token,
 			DisplayName: pickDisplayName(*displayName, vr.DisplayName),
 			Account:     vr.Account,
 			Verified:    true,
@@ -224,7 +230,7 @@ func runMCPConnectorsConnect(ctx context.Context, svc *usecase.Service, args []s
 		if cid == "" {
 			return errors.New("--client-id is required for gdrive (no default baked in)")
 		}
-		res, err := mcp.GDriveStartOAuth(ctx, cid, openBrowser)
+		res, err := mcp.GDriveStartOAuth(ctx, cid, strings.TrimSpace(*clientSecret), openBrowser)
 		if err != nil {
 			return err
 		}
@@ -237,10 +243,10 @@ func runMCPConnectorsConnect(ctx context.Context, svc *usecase.Service, args []s
 			return err
 		}
 		return svc.ConnectMCPConnector(ctx, usecase.ConnectMCPRequest{
-			AccountNumber: *account, Service: svcID, Payload: payload,
+			AccountNumber: targetAccount, Service: svcID, Payload: payload,
 			DisplayName: pickDisplayName(*displayName, vr.DisplayName),
 			Account:     vr.Account,
-			Scopes:      []string{"drive.readonly"},
+			Scopes:      []string{"drive.readonly", "calendar.events.readonly", "gmail.readonly"},
 			Verified:    true,
 		})
 	default:
@@ -277,13 +283,31 @@ func verifyClient() *http.Client {
 
 func runMCPConnectorsDisconnect(ctx context.Context, svc *usecase.Service, args []string) error {
 	fs := flag.NewFlagSet("connectors-disconnect", flag.ExitOnError)
-	account := fs.Int("account", 0, "account number")
+	account := fs.Int("account", -1, "account number")
+	shared := fs.Bool("shared", false, "disconnect the shared connector")
 	service := fs.String("service", "", "slack | clickup | gdrive")
 	_ = fs.Parse(args)
-	if *account == 0 || *service == "" {
-		return errors.New("--account and --service are required")
+	targetAccount, err := mcpTargetAccount(*account, *shared)
+	if err != nil {
+		return err
 	}
-	return svc.DisconnectMCPConnector(ctx, *account, domain.MCPService(*service))
+	if *service == "" {
+		return errors.New("--service is required")
+	}
+	return svc.DisconnectMCPConnector(ctx, targetAccount, domain.MCPService(*service))
+}
+
+func mcpTargetAccount(account int, shared bool) (int, error) {
+	if shared {
+		if account != -1 {
+			return 0, errors.New("use either --shared or --account, not both")
+		}
+		return 0, nil
+	}
+	if account <= 0 {
+		return 0, errors.New("--account is required, or use --shared")
+	}
+	return account, nil
 }
 
 func openBrowser(url string) error {

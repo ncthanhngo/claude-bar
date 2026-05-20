@@ -46,6 +46,8 @@ func (g *Gateway) BuildServer() *server.MCPServer {
 	g.registerSlackTools(srv)
 	g.registerClickUpTools(srv)
 	g.registerGDriveTools(srv)
+	g.registerGCalTools(srv)
+	g.registerGmailTools(srv)
 	return srv
 }
 

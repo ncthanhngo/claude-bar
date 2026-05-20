@@ -17,6 +17,7 @@ type MCPConnectorSummary struct {
 	Account     string            `json:"account,omitempty"`
 	NeedsReauth bool              `json:"needsReauth"`
 	ConnectedAt time.Time         `json:"connectedAt,omitempty"`
+	UsesShared  bool              `json:"usesShared,omitempty"`
 }
 
 // MCPAccountSummary lists every supported service for one account, marking
@@ -25,6 +26,7 @@ type MCPAccountSummary struct {
 	AccountNumber int                   `json:"accountNumber"`
 	DisplayName   string                `json:"displayName"`
 	Active        bool                  `json:"active"`
+	Shared        bool                  `json:"shared,omitempty"`
 	Connectors    []MCPConnectorSummary `json:"connectors"`
 }
 
@@ -34,7 +36,17 @@ func (s *Service) ListMCPConnectors(ctx context.Context) ([]MCPAccountSummary, e
 	if err != nil {
 		return nil, err
 	}
-	out := make([]MCPAccountSummary, 0, len(reg.Sequence))
+	out := make([]MCPAccountSummary, 0, len(reg.Sequence)+1)
+	shared, err := s.connectorSummaryRows(ctx, 0, reg.SharedMCPConnectors, nil)
+	if err != nil {
+		return nil, err
+	}
+	out = append(out, MCPAccountSummary{
+		AccountNumber: 0,
+		DisplayName:   "Shared for all accounts",
+		Shared:        true,
+		Connectors:    shared,
+	})
 	for _, num := range reg.Sequence {
 		acc, ok := reg.Accounts[num]
 		if !ok {
@@ -44,27 +56,45 @@ func (s *Service) ListMCPConnectors(ctx context.Context) ([]MCPAccountSummary, e
 			AccountNumber: num,
 			DisplayName:   acc.DisplayName(),
 			Active:        reg.ActiveAccountNumber == num,
-			Connectors:    make([]MCPConnectorSummary, 0, len(domain.AllMCPServices)),
 		}
-		for _, svc := range domain.AllMCPServices {
-			row := MCPConnectorSummary{Service: svc}
-			if meta, ok := acc.MCPConnectors[svc]; ok && meta != nil {
-				row.Enabled = meta.Enabled
-				row.DisplayName = meta.DisplayName
-				row.Account = meta.Account
-				row.NeedsReauth = meta.NeedsReauth
-				row.ConnectedAt = meta.ConnectedAt
-			}
-			payload, err := s.MCPSecrets.Read(ctx, num, svc)
-			if err != nil {
-				return nil, fmt.Errorf("read mcp secret %s/%d: %w", svc, num, err)
-			}
-			row.HasSecret = payload != ""
-			summary.Connectors = append(summary.Connectors, row)
+		rows, err := s.connectorSummaryRows(ctx, num, acc.MCPConnectors, reg.SharedMCPConnectors)
+		if err != nil {
+			return nil, err
 		}
+		summary.Connectors = rows
 		out = append(out, summary)
 	}
 	return out, nil
+}
+
+func (s *Service) connectorSummaryRows(ctx context.Context, accountNum int, metas, fallback domain.AccountConnectors) ([]MCPConnectorSummary, error) {
+	rows := make([]MCPConnectorSummary, 0, len(domain.AllMCPServices))
+	for _, svc := range domain.AllMCPServices {
+		row := MCPConnectorSummary{Service: svc}
+		if meta, ok := metas[svc]; ok && meta != nil {
+			row.Enabled = meta.Enabled
+			row.DisplayName = meta.DisplayName
+			row.Account = meta.Account
+			row.NeedsReauth = meta.NeedsReauth
+			row.ConnectedAt = meta.ConnectedAt
+		}
+		payload, err := s.MCPSecrets.Read(ctx, accountNum, svc)
+		if err != nil {
+			return nil, fmt.Errorf("read mcp secret %s/%d: %w", svc, accountNum, err)
+		}
+		row.HasSecret = payload != ""
+		if accountNum != 0 && !row.HasSecret {
+			if sharedMeta, ok := fallback[svc]; ok && sharedMeta != nil && sharedMeta.Enabled {
+				sharedPayload, err := s.MCPSecrets.Read(ctx, 0, svc)
+				if err != nil {
+					return nil, fmt.Errorf("read mcp shared secret %s: %w", svc, err)
+				}
+				row.UsesShared = sharedPayload != ""
+			}
+		}
+		rows = append(rows, row)
+	}
+	return rows, nil
 }
 
 // ConnectMCPRequest carries the payload to persist for a connector.
@@ -93,15 +123,13 @@ func (s *Service) ConnectMCPConnector(ctx context.Context, req ConnectMCPRequest
 	if err != nil {
 		return err
 	}
-	acc, ok := reg.Accounts[req.AccountNumber]
-	if !ok {
-		return fmt.Errorf("account %d not found", req.AccountNumber)
+	if req.AccountNumber != 0 {
+		if _, ok := reg.Accounts[req.AccountNumber]; !ok {
+			return fmt.Errorf("account %d not found", req.AccountNumber)
+		}
 	}
 	if err := s.MCPSecrets.Write(ctx, req.AccountNumber, req.Service, req.Payload); err != nil {
 		return fmt.Errorf("write mcp secret: %w", err)
-	}
-	if acc.MCPConnectors == nil {
-		acc.MCPConnectors = domain.AccountConnectors{}
 	}
 	meta := &domain.MCPConnector{
 		Enabled:     true,
@@ -114,7 +142,18 @@ func (s *Service) ConnectMCPConnector(ctx context.Context, req ConnectMCPRequest
 	if req.Verified {
 		meta.LastVerified = time.Now().UTC()
 	}
-	acc.MCPConnectors[req.Service] = meta
+	if req.AccountNumber == 0 {
+		if reg.SharedMCPConnectors == nil {
+			reg.SharedMCPConnectors = domain.AccountConnectors{}
+		}
+		reg.SharedMCPConnectors[req.Service] = meta
+	} else {
+		acc := reg.Accounts[req.AccountNumber]
+		if acc.MCPConnectors == nil {
+			acc.MCPConnectors = domain.AccountConnectors{}
+		}
+		acc.MCPConnectors[req.Service] = meta
+	}
 	return s.Registry.Save(ctx, reg)
 }
 
@@ -129,12 +168,21 @@ func (s *Service) DisconnectMCPConnector(ctx context.Context, accountNum int, sv
 	if err != nil {
 		return err
 	}
+	if err := s.MCPSecrets.Delete(ctx, accountNum, svc); err != nil {
+		return fmt.Errorf("delete mcp secret: %w", err)
+	}
+	if accountNum == 0 {
+		if reg.SharedMCPConnectors != nil {
+			delete(reg.SharedMCPConnectors, svc)
+			if len(reg.SharedMCPConnectors) == 0 {
+				reg.SharedMCPConnectors = nil
+			}
+		}
+		return s.Registry.Save(ctx, reg)
+	}
 	acc, ok := reg.Accounts[accountNum]
 	if !ok {
 		return fmt.Errorf("account %d not found", accountNum)
-	}
-	if err := s.MCPSecrets.Delete(ctx, accountNum, svc); err != nil {
-		return fmt.Errorf("delete mcp secret: %w", err)
 	}
 	if acc.MCPConnectors != nil {
 		delete(acc.MCPConnectors, svc)
@@ -157,11 +205,15 @@ func (s *Service) MarkMCPNeedsReauth(ctx context.Context, accountNum int, svc do
 	if err != nil {
 		return err
 	}
-	acc, ok := reg.Accounts[accountNum]
-	if !ok {
-		return nil
+	metas := reg.SharedMCPConnectors
+	if accountNum != 0 {
+		acc, ok := reg.Accounts[accountNum]
+		if !ok {
+			return nil
+		}
+		metas = acc.MCPConnectors
 	}
-	if meta, ok := acc.MCPConnectors[svc]; ok && meta != nil {
+	if meta, ok := metas[svc]; ok && meta != nil {
 		meta.NeedsReauth = true
 		return s.Registry.Save(ctx, reg)
 	}

@@ -9,9 +9,10 @@ wrong, not the document.
 ## 1. What this feature is
 
 Local-only MCP gateway hosted by Claude Bar. Claude Code talks to the gateway
-over stdio. The gateway resolves the **currently active Claude Bar account**
-and loads that account's Slack / ClickUp / Google Drive credentials from the
-macOS Keychain. Tokens never leave the Mac.
+over stdio. The gateway resolves the **currently active Claude Bar account**,
+loads that account's Slack / ClickUp / Google Workspace credentials from the
+macOS Keychain when present, and otherwise falls back to the shared connector
+for this Mac. Tokens never leave the Mac.
 
 ## 2. What this feature is NOT
 
@@ -29,10 +30,9 @@ macOS Keychain. Tokens never leave the Mac.
 ```
 ┌──────────────────────────────────────────────────────────────────┐
 │  Same Claude.ai login on a DIFFERENT Mac                         │
-│  → has no local gateway binary                                   │
-│  → has no local Keychain entries                                 │
-│  → cannot invoke cb_slack_* / cb_clickup_* / cb_gdrive_* tools   │
-│  → Claude Code on that Mac sees the tools as unavailable         │
+│  → cannot use this Mac's Keychain entries directly               │
+│  → can restore connectors only with same Apple ID + sync passphrase │
+│  → restored tokens become that Mac's local Keychain entries      │
 └──────────────────────────────────────────────────────────────────┘
 ┌──────────────────────────────────────────────────────────────────┐
 │  Same Claude.ai login on THIS Mac, same macOS user               │
@@ -50,10 +50,11 @@ macOS Keychain. Tokens never leave the Mac.
 
 | Asset | Where it lives | Sensitivity |
 |---|---|---|
-| Slack user token (xoxp/xoxb) | Keychain, service `claude-bar-mcp:<n>:slack` | High |
-| ClickUp personal API token (`pk_*`) | Keychain, service `claude-bar-mcp:<n>:clickup` | High |
-| Google OAuth refresh token + short-lived access token | Keychain, service `claude-bar-mcp:<n>:gdrive` | High |
-| Connector metadata (enabled flag, workspace name, scopes, email, lastVerified) | `registry.json` → `accounts[n].mcpConnectors` | Low — must contain **no secrets** |
+| Slack user token (xoxp/xoxb) | Keychain, service `claude-bar-mcp:<n>:slack` or `claude-bar-mcp:shared:slack` | High |
+| ClickUp personal API token (`pk_*`) | Keychain, service `claude-bar-mcp:<n>:clickup` or `claude-bar-mcp:shared:clickup` | High |
+| Google OAuth refresh token + short-lived access token | Keychain, service `claude-bar-mcp:<n>:gdrive` or `claude-bar-mcp:shared:gdrive` | High |
+| Connector metadata (enabled flag, workspace name, scopes, email, lastVerified) | `registry.json` → `accounts[n].mcpConnectors` or `sharedMcpConnectors` | Low — must contain **no secrets** |
+| Encrypted iCloud sync bundle | `~/Library/Mobile Documents/.../ClaudeBar/cloud-bundle.enc` | High — contains account credentials and connector payloads, encrypted by user passphrase |
 | Tool-call requests + responses | Claude.ai chat history (synced) | Medium — outside our control |
 | Gateway stderr logs | Console / log file (TBD) | Must be redaction-safe |
 
@@ -61,7 +62,8 @@ macOS Keychain. Tokens never leave the Mac.
 
 ### Allowed
 
-- macOS Keychain generic-password entries, service-name `claude-bar-mcp:<account-number>:<service>`, account = `$USER`.
+- macOS Keychain generic-password entries, service-name `claude-bar-mcp:<account-number>:<service>` or `claude-bar-mcp:shared:<service>`, account = `$USER`.
+- Passphrase-encrypted iCloud sync bundle entries for connector metadata and payloads. This is opt-in via iCloud Sync and uses the same AES-256-GCM/scrypt envelope as account credential sync.
 - Registry JSON metadata (no secrets, only display/status fields).
 - In-process memory for the lifetime of one MCP tool call.
 
@@ -70,7 +72,7 @@ macOS Keychain. Tokens never leave the Mac.
 - Repo files, including `.mcp.json` checked into any project.
 - Claude Code project-scope MCP config (project-shared `.mcp.json`).
 - Claude.ai cloud connectors.
-- iCloud sync bundle. Cloud-sync code (`backend/internal/adapter/cloudsync`) MUST exclude `mcpConnectors` metadata and MUST NOT touch the Keychain `claude-bar-mcp:*` namespace.
+- Any unencrypted iCloud file. Connector tokens may only appear inside `cloud-bundle.enc` after passphrase encryption.
 - Plain-text dumps via `csw verify`, `csw list`, or any `--json` output.
 - Anywhere logging is enabled (`Console.app`, file logs, stderr).
 
@@ -79,6 +81,7 @@ macOS Keychain. Tokens never leave the Mac.
 | Surface | Pattern | Reason |
 |---|---|---|
 | Keychain service | `claude-bar-mcp:<account-number>:<service>` | Account **number** (not email) survives rename. |
+| Shared Keychain service | `claude-bar-mcp:shared:<service>` | One local fallback credential usable by every Claude Bar account on this Mac. |
 | Keychain account | `$USER` | Same as existing `csw-backup:*` pattern. |
 | MCP tool name | `cb_<service>_<verb>` | `cb_` prefix avoids collision with other MCP servers Claude Code may have installed. |
 | Registry key | `accounts[n].mcpConnectors.<service>` | One slot per service per account. |
@@ -91,6 +94,9 @@ Active-account is resolved **once per MCP tool call**. No cross-call cache.
 - `tools/call` handler reads `registry.json` (already a cheap atomic read).
 - Looks up the active account number.
 - Builds a per-call connector profile from Keychain.
+- If the active account has its own enabled connector and secret, that wins.
+- Otherwise, if `sharedMcpConnectors.<service>` is enabled and the shared
+  Keychain item exists, the shared connector is used.
 - Releases the profile when the call returns.
 
 This avoids the race where a user switches account mid-session and gets stale
@@ -102,7 +108,7 @@ relative to remote API latency.
 | Condition | Behavior | Rationale |
 |---|---|---|
 | No active account | Return MCP error `connector_unavailable: no active Claude Bar account`. | Fail closed. |
-| Service not enabled for active account | Return `connector_disabled: <service>`. No detail. | Don't leak which other accounts have it. |
+| Service not enabled for active account and no shared fallback | Return `connector_disabled: <service>`. No detail. | Don't leak which other accounts have it. |
 | Keychain read fails (item missing) | Return `connector_unavailable: <service> not authorized`. | Don't expose Keychain error to caller. |
 | Token rejected by provider | Return `connector_auth_expired: <service>` + mark `needsReauth=true` in registry metadata. | Drives UI re-auth prompt. |
 | Rate limit | Return `connector_rate_limited: retry after Ns`. | Standard MCP error. |
@@ -127,17 +133,20 @@ relative to remote API latency.
 - Mitigation: read-only tools only in MVP; UI copy must warn the user that the
   token can read all workspaces the user has access to.
 
-### Google Drive — OAuth loopback + PKCE
+### Google Workspace — OAuth loopback + PKCE
 
-- Required scope: `https://www.googleapis.com/auth/drive.readonly`.
-- No `drive.file`, no `drive` (full), no Docs API write scope.
+- Required scopes: `https://www.googleapis.com/auth/drive.readonly`,
+  `https://www.googleapis.com/auth/calendar.events.readonly`,
+  `https://www.googleapis.com/auth/gmail.readonly`.
+- No `drive.file`, no `drive` (full), no Calendar write scope, no Gmail modify/send scope.
+- Google Cloud project must enable Drive API, Calendar API, and Gmail API.
 - Refresh token stored; access token refreshed on-demand inside the gateway.
 
 ## 11. Disconnect / revoke behavior
 
 - "Disconnect" in widget UI MUST:
   1. Delete Keychain item.
-  2. Remove `accounts[n].mcpConnectors.<service>` from registry.
+  2. Remove `accounts[n].mcpConnectors.<service>` or `sharedMcpConnectors.<service>` from registry.
   3. Best-effort: call provider revoke endpoint (Google `revoke`, Slack `auth.revoke`). Skip on ClickUp (no per-token revoke).
 - "Remove account" (existing `csw remove` flow) MUST cascade-delete all `claude-bar-mcp:<n>:*` Keychain entries for that account number.
 
@@ -145,11 +154,11 @@ relative to remote API latency.
 
 The Local MCP settings panel must show a persistent note. Approved wording:
 
-> Local MCP keeps your Slack / ClickUp / Google Drive tokens on this Mac, tied
-> to your active Claude Bar account. Tools and their results still flow through
+> Local MCP keeps your Slack / ClickUp / Google Workspace tokens on this Mac.
+> Shared connectors work for every Claude Bar account on this Mac; account-specific
+> connectors override shared ones. Tools and their results still flow through
 > your Claude account's chat history, which may be shared if you share that
-> Claude login. Switching Claude Bar accounts switches which tokens the local
-> gateway uses.
+> Claude login.
 
 ## 13. Out-of-scope risks (accepted)
 

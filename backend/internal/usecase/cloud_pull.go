@@ -36,6 +36,14 @@ func (s *Service) CloudPull(ctx context.Context, passphrase string) error {
 	if err != nil {
 		return fmt.Errorf("load registry: %w", err)
 	}
+	restoreMCP := bundle.Version >= 2
+	if restoreMCP {
+		shared, err := s.restoreMCPConnectors(ctx, 0, bundle.SharedMCPConnectors)
+		if err != nil {
+			return err
+		}
+		reg.SharedMCPConnectors = shared
+	}
 
 	for _, ba := range bundle.Accounts {
 		// Write credential into backup keychain.
@@ -55,6 +63,13 @@ func (s *Service) CloudPull(ctx context.Context, passphrase string) error {
 		acc.Nickname = ba.Nickname
 		acc.OrganizationName = ba.OrganizationName
 		acc.OrganizationUUID = ba.OrganizationUUID
+		if restoreMCP {
+			connectors, err := s.restoreMCPConnectors(ctx, ba.Number, ba.MCPConnectors)
+			if err != nil {
+				return err
+			}
+			acc.MCPConnectors = connectors
+		}
 		if acc.CreatedAt.IsZero() {
 			acc.CreatedAt = time.Now().UTC()
 		}
@@ -93,4 +108,48 @@ func (s *Service) CloudForget(_ context.Context) error {
 		return nil
 	}
 	return err
+}
+
+func (s *Service) restoreMCPConnectors(ctx context.Context, accountNum int, connectors []cloudsync.BundleMCPConnector) (domain.AccountConnectors, error) {
+	if len(connectors) == 0 {
+		if accountNum == 0 {
+			for _, svc := range domain.AllMCPServices {
+				if err := s.MCPSecrets.Delete(ctx, accountNum, svc); err != nil {
+					return nil, fmt.Errorf("delete stale shared mcp secret %s: %w", svc, err)
+				}
+			}
+		}
+		return nil, nil
+	}
+	out := domain.AccountConnectors{}
+	seen := map[domain.MCPService]bool{}
+	for _, c := range connectors {
+		if c.Service == "" || c.Payload == "" {
+			continue
+		}
+		if err := s.MCPSecrets.Write(ctx, accountNum, c.Service, c.Payload); err != nil {
+			return nil, fmt.Errorf("restore mcp secret %s/%d: %w", c.Service, accountNum, err)
+		}
+		out[c.Service] = &domain.MCPConnector{
+			Enabled:      c.Enabled,
+			DisplayName:  c.DisplayName,
+			Account:      c.Account,
+			Scopes:       append([]string(nil), c.Scopes...),
+			ConnectedAt:  c.ConnectedAt,
+			LastVerified: c.LastVerified,
+			NeedsReauth:  c.NeedsReauth,
+		}
+		seen[c.Service] = true
+	}
+	for _, svc := range domain.AllMCPServices {
+		if !seen[svc] {
+			if err := s.MCPSecrets.Delete(ctx, accountNum, svc); err != nil {
+				return nil, fmt.Errorf("delete stale mcp secret %s/%d: %w", svc, accountNum, err)
+			}
+		}
+	}
+	if len(out) == 0 {
+		return nil, nil
+	}
+	return out, nil
 }
