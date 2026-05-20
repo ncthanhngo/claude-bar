@@ -29,6 +29,51 @@ struct MenuContentView: View {
                 Task { await store.rename(acc.account.number, to: newName) }
             }
         }
+        .sheet(item: $store.pendingBusySwap) { pending in
+            BusySwapConfirmSheet(pending: pending) {
+                Task { await store.swap(to: pending.targetNumber) }
+            }
+        }
+    }
+}
+
+private struct BusySwapConfirmSheet: View {
+    let pending: AppStore.PendingBusySwap
+    let onConfirm: () -> Void
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 8) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundColor(.orange)
+                Text("Claude is running")
+                    .font(.headline)
+            }
+            Text("Switching to \(pending.targetName) will interrupt the current session(s):")
+                .font(.callout)
+                .foregroundColor(.secondary)
+            VStack(alignment: .leading, spacing: 4) {
+                ForEach(pending.sessions, id: \.pid) { s in
+                    Text("• \(s.typeLabel): \(s.locationLabel)")
+                        .font(.system(size: 12))
+                        .foregroundColor(.secondary)
+                }
+            }
+            HStack {
+                Spacer()
+                Button("Cancel") { dismiss() }
+                    .keyboardShortcut(.cancelAction)
+                Button("Force switch") {
+                    onConfirm()
+                    dismiss()
+                }
+                .keyboardShortcut(.defaultAction)
+            }
+            .padding(.top, 4)
+        }
+        .padding(20)
+        .frame(width: 360)
     }
 }
 
@@ -85,18 +130,25 @@ private struct AccountListSection: View {
     @EnvironmentObject var store: AppStore
     @Binding var renaming: AccountViewDTO?
 
+    private static let scrollThreshold = 3
+
     var body: some View {
         if let snap = store.snapshot, !snap.accounts.isEmpty {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 3) {
-                    ForEach(snap.accounts) { acc in
-                        AccountRowView(view: acc, onRename: { renaming = acc })
-                    }
+            let sorted = snap.accounts.sorted { $0.isActive && !$1.isActive }
+            let needsScroll = sorted.count > Self.scrollThreshold
+            let rows = VStack(alignment: .leading, spacing: 3) {
+                ForEach(sorted) { acc in
+                    AccountRowView(view: acc, onRename: { renaming = acc })
                 }
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
             }
-            .frame(maxHeight: 360)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+
+            if needsScroll {
+                ScrollView { rows }.frame(maxHeight: 360)
+            } else {
+                rows
+            }
         } else {
             EmptyAccountsView()
         }

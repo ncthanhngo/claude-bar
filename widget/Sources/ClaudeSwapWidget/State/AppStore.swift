@@ -14,6 +14,14 @@ final class AppStore: ObservableObject {
     @Published private(set) var isRefreshing: Bool = false
     @Published private(set) var lastRefreshAt: Date?
     @Published private(set) var swappingTo: Int?
+    @Published var pendingBusySwap: PendingBusySwap?
+
+    struct PendingBusySwap: Identifiable {
+        let id = UUID()
+        let targetNumber: Int
+        let targetName: String
+        let sessions: [RunningSession]
+    }
 
     let client = CswClient()
     let settings = AppSettings.shared
