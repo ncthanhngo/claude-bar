@@ -15,11 +15,15 @@ struct MenuBarLabelView: View {
     }
 
     private var menuBarIcon: some View {
-        Group {
+        let tint = settings.menuBarIconColor.color
+        return Group {
             if let img = scaledMenuBarImage {
                 Image(nsImage: img)
+                    .renderingMode(.template)
+                    .foregroundColor(tint)
             } else {
                 Image(systemName: iconName)
+                    .foregroundColor(tint)
             }
         }
     }
@@ -34,6 +38,7 @@ struct MenuBarLabelView: View {
             src.draw(in: rect)
             return true
         }
+        out.isTemplate = true
         return out
     }
 
