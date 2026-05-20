@@ -25,7 +25,9 @@ all: app
 
 backend:
 	@mkdir -p backend/bin
-	cd backend && go build -trimpath -ldflags="-s -w" -o bin/csw ./cmd/csw
+	cd backend && go build -trimpath \
+	  -ldflags="-s -w -X main.defaultGDriveClientID=$(GDRIVE_CLIENT_ID)" \
+	  -o bin/csw ./cmd/csw
 
 widget:
 	cd widget && swift build -c release

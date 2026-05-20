@@ -101,6 +101,105 @@ actor CswClient {
         _ = try await runRaw(["cloud", "forget", "--json"])
     }
 
+    // MARK: - Local MCP
+
+    func mcpStatus() async throws -> MCPInstallStatusDTO {
+        try await run(["mcp", "status", "--json"], decode: MCPInstallStatusDTO.self)
+    }
+
+    func mcpInstall(force: Bool = false) async throws {
+        var args = ["mcp", "install"]
+        if force { args.append("--force") }
+        _ = try await runRaw(args)
+    }
+
+    func mcpUninstall() async throws {
+        _ = try await runRaw(["mcp", "uninstall"])
+    }
+
+    func mcpConnectorsList() async throws -> [MCPAccountSummaryDTO] {
+        try await run(["mcp", "connectors", "list", "--json"], decode: [MCPAccountSummaryDTO].self)
+    }
+
+    /// Connects a Slack or ClickUp connector by piping the user-pasted token
+    /// over stdin. The token never appears in argv / shell history.
+    func mcpConnectorConnectToken(
+        account: Int,
+        service: String,
+        token: String,
+        displayName: String? = nil
+    ) async throws {
+        var args = ["mcp", "connectors", "connect",
+                    "--account", String(account),
+                    "--service", service,
+                    "--token", "-"]
+        if let dn = displayName, !dn.isEmpty {
+            args.append(contentsOf: ["--name", dn])
+        }
+        try await runWithStdin(args, stdin: token)
+    }
+
+    /// Starts the Google Drive OAuth loopback flow inside csw. Blocks until
+    /// the user finishes the browser consent step (or 5-min timeout).
+    func mcpConnectorConnectGoogle(
+        account: Int,
+        clientID: String,
+        displayName: String? = nil
+    ) async throws {
+        var args = ["mcp", "connectors", "connect",
+                    "--account", String(account),
+                    "--service", "gdrive"]
+        // Empty clientID means "use the build-time default baked into csw".
+        if !clientID.isEmpty {
+            args.append(contentsOf: ["--client-id", clientID])
+        }
+        if let dn = displayName, !dn.isEmpty {
+            args.append(contentsOf: ["--name", dn])
+        }
+        _ = try await runRaw(args)
+    }
+
+    func mcpConnectorDisconnect(account: Int, service: String) async throws {
+        _ = try await runRaw([
+            "mcp", "connectors", "disconnect",
+            "--account", String(account),
+            "--service", service,
+        ])
+    }
+
+    private func runWithStdin(_ args: [String], stdin payload: String) async throws {
+        guard let bin = CswBinary.resolve() else { throw CswError.binaryNotFound }
+        try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
+            let task = Process()
+            task.executableURL = bin
+            task.arguments = args
+            let stdinPipe = Pipe()
+            let stdout = Pipe()
+            let stderr = Pipe()
+            task.standardInput = stdinPipe
+            task.standardOutput = stdout
+            task.standardError = stderr
+            task.terminationHandler = { proc in
+                let errData = (try? stderr.fileHandleForReading.readToEnd()) ?? Data()
+                if proc.terminationStatus == 0 {
+                    cont.resume()
+                } else {
+                    let msg = String(data: errData, encoding: .utf8) ?? ""
+                    cont.resume(throwing: CswError.nonZeroExit(code: proc.terminationStatus, stderr: msg))
+                }
+            }
+            do {
+                try task.run()
+                if let data = payload.data(using: .utf8) {
+                    stdinPipe.fileHandleForWriting.write(data)
+                }
+                stdinPipe.fileHandleForWriting.closeFile()
+            } catch {
+                cont.resume(throwing: error)
+            }
+        }
+    }
+
     private func runWithPassphrase(_ args: [String], passphrase: String) async throws {
         guard let bin = CswBinary.resolve() else { throw CswError.binaryNotFound }
         try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in

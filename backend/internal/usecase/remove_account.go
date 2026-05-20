@@ -28,6 +28,11 @@ func (s *Service) RemoveAccount(ctx context.Context, num int) error {
 	if err := s.Backup.Delete(ctx, acc.Number, acc.Email); err != nil {
 		return fmt.Errorf("delete backup: %w", err)
 	}
+	if s.MCPSecrets != nil {
+		if err := s.MCPSecrets.DeleteAll(ctx, acc.Number); err != nil {
+			return fmt.Errorf("delete mcp secrets: %w", err)
+		}
+	}
 	if s.UsageCache != nil {
 		_ = s.UsageCache.Drop(num)
 	}

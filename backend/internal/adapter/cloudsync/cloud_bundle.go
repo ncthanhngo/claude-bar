@@ -48,6 +48,14 @@ const (
 )
 
 // BundleAccount is one account entry inside the encrypted bundle.
+//
+// Privacy contract: this struct intentionally omits domain.Account.MCPConnectors
+// and any Keychain payload for the "claude-bar-mcp:*" namespace. Local MCP
+// connector credentials and metadata are local-only by design — pushing them
+// would create a stale "enabled=true" row on the pulling Mac with no matching
+// Keychain secret, contradicting the threat-model boundary
+// (docs/local-mcp-threat-model.md §5 "Forbidden — iCloud sync bundle").
+// Tests in mcp_exclusion_test.go assert this stays true.
 type BundleAccount struct {
 	Number           int    `json:"number"`
 	Email            string `json:"email"`

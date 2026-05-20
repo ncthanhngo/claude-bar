@@ -147,3 +147,63 @@ struct VerificationReportDTO: Codable, Hashable {
     let ready: Int
     let failed: Int
 }
+
+// MARK: - Local MCP
+
+/// Mirrors the envelope returned by `csw mcp status --json`. Bundles install
+/// state with a build-time flag indicating whether csw was built with a
+/// default Google OAuth client ID (`-ldflags=-X main.defaultGDriveClientID=…`).
+struct MCPInstallStatusDTO: Codable, Hashable {
+    let installed: Bool
+    let command: String?
+    let conflict: Bool?
+    let hasDefaultGDriveClient: Bool?
+}
+
+/// Mirrors backend/internal/usecase/mcp_connectors.go MCPConnectorSummary.
+struct MCPConnectorSummaryDTO: Codable, Hashable, Identifiable {
+    let service: String
+    let enabled: Bool
+    let hasSecret: Bool
+    let displayName: String?
+    let account: String?
+    let needsReauth: Bool
+    let connectedAt: Date?
+
+    var id: String { service }
+
+    var labelTitle: String {
+        switch service {
+        case "slack":   return "Slack"
+        case "clickup": return "ClickUp"
+        case "gdrive":  return "Google Drive"
+        default:        return service.capitalized
+        }
+    }
+
+    var systemImageName: String {
+        switch service {
+        case "slack":   return "bubble.left.and.bubble.right"
+        case "clickup": return "checklist"
+        case "gdrive":  return "folder.fill"
+        default:        return "puzzlepiece.extension"
+        }
+    }
+
+    var state: String {
+        if needsReauth { return "needs re-auth" }
+        if enabled && hasSecret { return "connected" }
+        if hasSecret { return "disabled" }
+        return "not connected"
+    }
+}
+
+/// Mirrors backend/internal/usecase/mcp_connectors.go MCPAccountSummary.
+struct MCPAccountSummaryDTO: Codable, Hashable, Identifiable {
+    let accountNumber: Int
+    let displayName: String
+    let active: Bool
+    let connectors: [MCPConnectorSummaryDTO]
+
+    var id: Int { accountNumber }
+}

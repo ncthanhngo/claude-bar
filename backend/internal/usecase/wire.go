@@ -21,6 +21,7 @@ func NewMacOSService() *Service {
 		Refresh:    oauth.NewTokenRefresher(),
 		Sessions:   sessions.New(),
 		Lock:       lock.New(),
+		MCPSecrets: keychain.NewMCPSecretStore(),
 		UsageCache: cache.New(),
 		Backoff:    cache.NewBackoff(),
 	}

@@ -19,10 +19,11 @@ struct SettingsWindowView: View {
             accountsTab.tabItem { Label("Accounts", systemImage: "person.2") }
             generalTab.tabItem { Label("General", systemImage: "gearshape") }
             autoSwapTab.tabItem { Label("Auto-swap", systemImage: "arrow.triangle.2.circlepath") }
+            LocalMCPSettingsView().tabItem { Label("Local MCP", systemImage: "puzzlepiece.extension") }
             diagnosticsTab.tabItem { Label("Diagnostics", systemImage: "stethoscope") }
             aboutTab.tabItem { Label("About", systemImage: "info.circle") }
         }
-        .frame(width: 500, height: 420)
+        .frame(width: 560, height: 480)
         .sheet(isPresented: $showPassphraseEntry) { passphraseSheet }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             axGranted = IDEReloader.isAccessibilityGranted

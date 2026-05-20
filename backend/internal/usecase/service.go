@@ -16,6 +16,7 @@ type Service struct {
 	Refresh    port.TokenRefresher
 	Sessions   port.SessionInspector
 	Lock       port.FileLock
+	MCPSecrets port.MCPSecretStore
 	UsageCache *cache.UsageCache
 	Backoff    *cache.Backoff
 }

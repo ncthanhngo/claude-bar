@@ -1,11 +1,20 @@
-// Package keychain wraps /usr/bin/security on macOS to read and write
-// generic password entries that hold Claude Code OAuth credentials.
+// Package keychain wraps macOS Keychain generic password entries that hold
+// Claude Code OAuth credentials and local MCP connector secrets.
 package keychain
+
+/*
+#cgo LDFLAGS: -framework Security -framework CoreFoundation
+#include <Security/Security.h>
+#include <CoreFoundation/CoreFoundation.h>
+#include <stdlib.h>
+*/
+import "C"
 
 import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"os/exec"
 	"strings"
 )
@@ -48,18 +57,55 @@ func (k *Keychain) Read(ctx context.Context) (string, error) {
 
 // Write upserts the password for this (service, account).
 func (k *Keychain) Write(ctx context.Context, payload string) error {
-	cmd := exec.CommandContext(ctx,
-		"/usr/bin/security",
-		"add-generic-password",
-		"-U",
-		"-s", k.service,
-		"-a", k.account,
-		"-w", payload,
+	_ = ctx // Native Security.framework calls are synchronous and non-cancellable.
+	service := []byte(k.service)
+	account := []byte(k.account)
+	password := []byte(payload)
+
+	servicePtr := C.CBytes(service)
+	accountPtr := C.CBytes(account)
+	passwordPtr := C.CBytes(password)
+	defer C.free(servicePtr)
+	defer C.free(accountPtr)
+	defer C.free(passwordPtr)
+
+	var defaultKeychain C.SecKeychainRef
+	status := C.SecKeychainAddGenericPassword(
+		defaultKeychain,
+		C.UInt32(len(service)),
+		(*C.char)(servicePtr),
+		C.UInt32(len(account)),
+		(*C.char)(accountPtr),
+		C.UInt32(len(password)),
+		passwordPtr,
+		(*C.SecKeychainItemRef)(nil),
 	)
-	var errOut bytes.Buffer
-	cmd.Stderr = &errOut
-	if err := cmd.Run(); err != nil {
-		return &Error{Op: "write", Stderr: errOut.String(), Err: err}
+	if status == C.errSecDuplicateItem {
+		var item C.SecKeychainItemRef
+		var defaultSearchList C.CFTypeRef
+		findStatus := C.SecKeychainFindGenericPassword(
+			defaultSearchList,
+			C.UInt32(len(service)),
+			(*C.char)(servicePtr),
+			C.UInt32(len(account)),
+			(*C.char)(accountPtr),
+			(*C.UInt32)(nil),
+			nil,
+			&item,
+		)
+		if findStatus != C.errSecSuccess {
+			return &Error{Op: "write", Stderr: fmt.Sprintf("find existing item status %d", int(findStatus))}
+		}
+		defer C.CFRelease(C.CFTypeRef(item))
+		status = C.SecKeychainItemModifyAttributesAndData(
+			item,
+			nil,
+			C.UInt32(len(password)),
+			passwordPtr,
+		)
+	}
+	if status != C.errSecSuccess {
+		return &Error{Op: "write", Stderr: fmt.Sprintf("security framework status %d", int(status))}
 	}
 	return nil
 }

@@ -62,6 +62,21 @@ After this, when a swap happens your terminal session (including GoLand's integr
 
 Enable **Auto-reload IDE after swap** in Settings → General, then click **Grant Access** when the Accessibility prompt appears. Claude Bar will send `⌘⇧P → Developer: Reload Window` after each swap.
 
+### Local MCP connectors (optional)
+
+Each Claude Bar account can own a private set of Slack, ClickUp, and Google Drive tokens that Claude Code reaches through a local stdio gateway. Tokens stay on this Mac in the macOS Keychain and never touch the repo, `~/.claude.json`, logs, or the iCloud sync bundle. Switching accounts in the menu bar swaps which tokens the next tool call uses — no Claude Code restart required.
+
+1. Open **Settings → Local MCP**.
+2. Click **Install** to wire `claude-bar-mcp` into `~/.claude.json`.
+3. For each account, click **Connect** next to the service you want.
+   - Slack/ClickUp: paste a user token (Slack `xoxp-…` / ClickUp `pk_…`). The token is piped to `csw` over stdin and never appears in argv or shell history.
+   - Google Drive: paste your Google OAuth Desktop client ID, then click **Open browser to connect**. PKCE (S256) is used, so no client secret is needed.
+4. Restart Claude Code once so it picks up the new MCP server. After that, switching Claude Bar accounts is hot — Claude Code keeps running.
+
+Tools currently exposed (read-only): `cb_slack_list_channels`, `cb_slack_search_messages`, `cb_slack_get_thread`, `cb_clickup_list_workspaces`, `cb_clickup_list_tasks`, `cb_clickup_get_task`, `cb_gdrive_search_files`, `cb_gdrive_get_file_metadata`, `cb_gdrive_get_doc_text`.
+
+> **Privacy boundary:** local tokens stay on this Mac, but tool results still flow through your Claude account's chat history, which may be shared if you share that Claude login. Anyone else logged into the same Claude account on a *different* Mac cannot use these connectors unless they install Claude Bar there too.
+
 ---
 
 ## Update

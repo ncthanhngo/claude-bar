@@ -1,5 +1,7 @@
 # Build outputs
 release/
+dist/
+.build/
 backend/bin/
 widget/.build/
 widget/.swiftpm/

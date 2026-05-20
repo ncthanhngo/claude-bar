@@ -48,6 +48,8 @@ func main() {
 		err = runRefreshTokens(ctx, svc, args)
 	case "cloud":
 		err = runCloud(ctx, svc, args)
+	case "mcp":
+		err = runMCP(ctx, svc, args)
 	case "help", "-h", "--help":
 		usage()
 	default:
@@ -78,6 +80,13 @@ Commands:
   cloud push              Encrypt and push accounts to iCloud Drive
   cloud pull              Restore accounts from iCloud Drive bundle
   cloud forget            Delete the bundle from iCloud Drive
+  mcp serve               Run the local MCP gateway over stdio
+  mcp install [--force]   Wire claude-bar-mcp into ~/.claude.json
+  mcp uninstall           Remove claude-bar-mcp from ~/.claude.json
+  mcp status              Show gateway install state
+  mcp connectors list     List connectors per account
+  mcp connectors connect --account N --service slack|clickup|gdrive [--token=- | --client-id ID]
+  mcp connectors disconnect --account N --service slack|clickup|gdrive
   help                    Show this help
 
 All commands accept --json for machine-readable output.`)

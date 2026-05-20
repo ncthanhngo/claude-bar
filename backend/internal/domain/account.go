@@ -14,6 +14,11 @@ type Account struct {
 	OrganizationUUID string    `json:"organizationUuid,omitempty"`
 	Nickname         string    `json:"nickname,omitempty"`
 	CreatedAt        time.Time `json:"createdAt"`
+
+	// MCPConnectors is non-secret per-account metadata for local MCP
+	// connectors. Tokens live in the macOS Keychain under
+	// "claude-bar-mcp:<number>:<service>".
+	MCPConnectors AccountConnectors `json:"mcpConnectors,omitempty"`
 }
 
 // DisplayName returns nickname if set, otherwise email.
