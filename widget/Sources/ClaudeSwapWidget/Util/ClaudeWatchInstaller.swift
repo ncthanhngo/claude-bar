@@ -89,6 +89,7 @@ private let claudeWatchScript = #"""
 set -euo pipefail
 
 CLAUDE_JSON="${HOME}/.claude.json"
+SESSIONS_DIR="${HOME}/.claude/sessions"
 # Seconds to wait for a credential change after claude exits.
 # Manual swap: credentials change before SIGINT → detected immediately.
 # Auto-swap: widget swaps up to ~sessionPollInterval seconds after exit.
@@ -98,6 +99,36 @@ cred_hash() {
     /usr/bin/shasum -a 256 "$CLAUDE_JSON" 2>/dev/null | cut -d' ' -f1
 }
 
+MY_PID=$$
+# Per-watcher scratch file holding the most recent sessionId observed for the
+# claude child of THIS shell. Lets each terminal restart on its own session
+# instead of all racing onto whichever was most recent globally.
+SID_FILE=$(/usr/bin/mktemp -t claude-watch-sid.XXXXXX)
+trap 'rm -f "$SID_FILE"; [ -n "${WATCHER_PID:-}" ] && kill "$WATCHER_PID" 2>/dev/null || true' EXIT
+
+# Background poller: scans ~/.claude/sessions/*.json for sessions whose process
+# is a direct child of this shell, and records the sessionId. Refreshes every
+# 0.5s so it catches the session shortly after claude starts.
+session_watcher() {
+    set +e
+    while true; do
+        for f in "$SESSIONS_DIR"/*.json; do
+            [ -f "$f" ] || continue
+            local spid sid ppid
+            spid=$(/usr/bin/sed -n 's/.*"pid":\([0-9]*\).*/\1/p' "$f" 2>/dev/null | /usr/bin/head -1)
+            [ -z "$spid" ] && continue
+            ppid=$(ps -o ppid= -p "$spid" 2>/dev/null | /usr/bin/tr -d ' ')
+            [ "$ppid" = "$MY_PID" ] || continue
+            sid=$(/usr/bin/sed -n 's/.*"sessionId":"\([^"]*\)".*/\1/p' "$f" 2>/dev/null | /usr/bin/head -1)
+            [ -n "$sid" ] && printf '%s' "$sid" > "$SID_FILE"
+        done
+        sleep 0.5
+    done
+}
+
+session_watcher &
+WATCHER_PID=$!
+
 LAST_HASH=$(cred_hash)
 FIRST_RUN=true
 
@@ -106,11 +137,20 @@ while true; do
         claude "$@" || true
         FIRST_RUN=false
     else
+        SID=""
+        [ -s "$SID_FILE" ] && SID=$(/bin/cat "$SID_FILE")
         echo ""
-        echo "  ↻  Credentials changed — restarting claude with new account…"
-        echo "     (resuming previous conversation context with --continue)"
-        echo ""
-        claude --continue || claude || true
+        if [ -n "$SID" ]; then
+            echo "  ↻  Credentials changed — restarting claude with new account…"
+            echo "     (resuming this terminal's session: ${SID})"
+            echo ""
+            claude --resume "$SID" || claude --continue || claude || true
+        else
+            echo "  ↻  Credentials changed — restarting claude with new account…"
+            echo "     (no session id captured — falling back to --continue)"
+            echo ""
+            claude --continue || claude || true
+        fi
     fi
 
     # Poll briefly so auto-swap (which completes after the session ends)
