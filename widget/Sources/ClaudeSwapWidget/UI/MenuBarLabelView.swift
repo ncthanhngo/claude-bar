@@ -1,4 +1,6 @@
 import SwiftUI
+import CoreImage
+import CoreImage.CIFilterBuiltins
 
 /// The text rendered in the macOS menu bar (top of screen).
 struct MenuBarLabelView: View {
@@ -19,7 +21,6 @@ struct MenuBarLabelView: View {
             if let img = scaledMenuBarImage {
                 Image(nsImage: img)
             } else {
-                // SF Symbol fallback — foregroundColor works fine here
                 Image(systemName: iconName)
                     .foregroundColor(settings.menuBarIconColor.color)
             }
@@ -32,27 +33,38 @@ struct MenuBarLabelView: View {
         let h: CGFloat = 16
         let w = round(h * src.size.width / src.size.height)
         let size = NSSize(width: w, height: h)
-        let rect = NSRect(origin: .zero, size: size)
 
-        if let swiftColor = settings.menuBarIconColor.color {
-            // Bake tint into the image directly: draw source, then fill with
-            // the chosen color using .sourceAtop (only paints over existing pixels).
-            let out = NSImage(size: size)
-            out.lockFocus()
-            src.draw(in: rect, from: .zero, operation: .sourceOver, fraction: 1.0)
-            NSColor(swiftColor).setFill()
-            rect.fill(using: .sourceAtop)
-            out.unlockFocus()
-            return out
-        } else {
-            // System / auto: template lets macOS pick white/black per menu bar appearance.
-            let out = NSImage(size: size, flipped: false) { r in
-                NSGraphicsContext.current?.imageInterpolation = .none
-                src.draw(in: r)
-                return true
-            }
-            out.isTemplate = true
-            return out
+        guard let swiftColor = settings.menuBarIconColor.color else {
+            // System: draw as original full-color PNG
+            return scaled(src, to: size)
+        }
+
+        // Custom color: CIColorMonochrome maps luminosity to the chosen hue.
+        // Dark pixels (eyes, outline) stay dark; bright pixels (body) get the tint.
+        // This preserves contrast so eyes remain visible.
+        guard let cgSrc = src.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
+            return scaled(src, to: size)
+        }
+        let ns = NSColor(swiftColor).usingColorSpace(.sRGB) ?? NSColor(swiftColor)
+        let ci = CIColor(red: ns.redComponent, green: ns.greenComponent, blue: ns.blueComponent)
+
+        let filter = CIFilter.colorMonochrome()
+        filter.inputImage = CIImage(cgImage: cgSrc)
+        filter.color = ci
+        filter.intensity = 1.0
+
+        guard let output = filter.outputImage,
+              let tintedCG = CIContext().createCGImage(output, from: output.extent) else {
+            return scaled(src, to: size)
+        }
+        return scaled(NSImage(cgImage: tintedCG, size: src.size), to: size)
+    }
+
+    private func scaled(_ src: NSImage, to size: NSSize) -> NSImage {
+        NSImage(size: size, flipped: false) { rect in
+            NSGraphicsContext.current?.imageInterpolation = .high
+            src.draw(in: rect)
+            return true
         }
     }
 
