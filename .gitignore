@@ -23,3 +23,7 @@ DerivedData/
 .vscode/
 .idea/
 *.swp
+
+# Local planning & notes (not for remote)
+plans/
+TECHNICAL-NOTES.md

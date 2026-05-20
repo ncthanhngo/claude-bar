@@ -385,7 +385,22 @@ private struct ConnectGoogleSheet: View {
         panel.allowsMultipleSelection = false
         panel.canChooseDirectories = false
         panel.allowedContentTypes = [.json]
+        if let window = NSApp.keyWindow ?? NSApp.mainWindow ?? NSApp.windows.first(where: { $0.isVisible && $0.canBecomeKey }) {
+            let originalLevel = window.level
+            window.level = .normal
+            panel.beginSheetModal(for: window) { response in
+                window.level = originalLevel
+                guard response == .OK, let url = panel.url else { return }
+                importGoogleOAuthJSON(from: url)
+            }
+            return
+        }
+        panel.level = .modalPanel
         guard panel.runModal() == .OK, let url = panel.url else { return }
+        importGoogleOAuthJSON(from: url)
+    }
+
+    private func importGoogleOAuthJSON(from url: URL) {
         do {
             let data = try Data(contentsOf: url)
             let parsed = try JSONDecoder().decode(GoogleOAuthClientFile.self, from: data)
