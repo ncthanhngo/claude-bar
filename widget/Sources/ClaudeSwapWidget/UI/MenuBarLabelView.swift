@@ -15,15 +15,13 @@ struct MenuBarLabelView: View {
     }
 
     private var menuBarIcon: some View {
-        let tint = settings.menuBarIconColor.color
-        return Group {
+        Group {
             if let img = scaledMenuBarImage {
                 Image(nsImage: img)
-                    .renderingMode(.template)
-                    .foregroundColor(tint)
             } else {
+                // SF Symbol fallback — foregroundColor works fine here
                 Image(systemName: iconName)
-                    .foregroundColor(tint)
+                    .foregroundColor(settings.menuBarIconColor.color)
             }
         }
     }
@@ -33,13 +31,29 @@ struct MenuBarLabelView: View {
               let src = NSImage(contentsOf: url) else { return nil }
         let h: CGFloat = 16
         let w = round(h * src.size.width / src.size.height)
-        let out = NSImage(size: NSSize(width: w, height: h), flipped: false) { rect in
-            NSGraphicsContext.current?.imageInterpolation = .none
-            src.draw(in: rect)
-            return true
+        let size = NSSize(width: w, height: h)
+        let rect = NSRect(origin: .zero, size: size)
+
+        if let swiftColor = settings.menuBarIconColor.color {
+            // Bake tint into the image directly: draw source, then fill with
+            // the chosen color using .sourceAtop (only paints over existing pixels).
+            let out = NSImage(size: size)
+            out.lockFocus()
+            src.draw(in: rect, from: .zero, operation: .sourceOver, fraction: 1.0)
+            NSColor(swiftColor).setFill()
+            rect.fill(using: .sourceAtop)
+            out.unlockFocus()
+            return out
+        } else {
+            // System / auto: template lets macOS pick white/black per menu bar appearance.
+            let out = NSImage(size: size, flipped: false) { r in
+                NSGraphicsContext.current?.imageInterpolation = .none
+                src.draw(in: r)
+                return true
+            }
+            out.isTemplate = true
+            return out
         }
-        out.isTemplate = true
-        return out
     }
 
     private var active: AccountViewDTO? { store.snapshot?.active }
