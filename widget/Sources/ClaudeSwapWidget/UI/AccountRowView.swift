@@ -206,16 +206,26 @@ struct AccountRowView: View {
         let sessions = RunningSession.readAll()
         if sessions.isEmpty {
             doSwap()
-        } else {
-            store.pendingBusySwap = AppStore.PendingBusySwap(
-                targetNumber: view.account.number,
-                targetName: view.account.displayName,
-                sessions: sessions
-            )
+            return
+        }
+        // Show NSAlert directly on the main thread (SwiftUI button actions
+        // already run on the main thread — no DispatchQueue wrapper needed).
+        let alert = NSAlert()
+        alert.messageText = "Claude is running"
+        let lines = sessions
+            .map { "• \($0.typeLabel): \($0.locationLabel)" }
+            .joined(separator: "\n")
+        alert.informativeText = "Switching to \(view.account.displayName) will interrupt:\n\(lines)"
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: "Force switch")
+        alert.addButton(withTitle: "Cancel")
+        if alert.runModal() == .alertFirstButtonReturn {
+            doSwap()
         }
     }
 
     private func doSwap() {
-        Task { await store.swap(to: view.account.number) }
+        let num = view.account.number
+        Task { @MainActor in await store.swap(to: num) }
     }
 }

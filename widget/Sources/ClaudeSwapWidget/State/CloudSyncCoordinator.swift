@@ -33,7 +33,10 @@ final class CloudSyncCoordinator: ObservableObject {
             kSecAttrService: keychainService,
             kSecAttrAccount: keychainAccount,
             kSecReturnData: true,
-            kSecMatchLimit: kSecMatchLimitOne
+            kSecMatchLimit: kSecMatchLimitOne,
+            // Never show an authentication prompt — return nil if UI would be required.
+            // This prevents a blocking keychain dialog in the middle of a swap.
+            kSecUseAuthenticationUI: kSecUseAuthenticationUISkip
         ]
         var ref: AnyObject?
         guard SecItemCopyMatching(q as CFDictionary, &ref) == errSecSuccess,

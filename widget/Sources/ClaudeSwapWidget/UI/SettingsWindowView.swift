@@ -23,6 +23,7 @@ struct SettingsWindowView: View {
             aboutTab.tabItem { Label("About", systemImage: "info.circle") }
         }
         .frame(width: 500, height: 420)
+        .sheet(isPresented: $showPassphraseEntry) { passphraseSheet }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             axGranted = IDEReloader.isAccessibilityGranted
         }
@@ -108,7 +109,7 @@ struct SettingsWindowView: View {
                 Toggle(isOn: $settings.autoReloadIDEAfterSwap) {
                     SettingsToggleLabel(
                         title: "Auto-reload IDE after swap",
-                        detail: "Reloads VSCode, Cursor, and Windsurf windows so extensions pick up the new account."
+                        detail: "Reloads VSCode, Cursor, Windsurf, and JetBrains IDEs (GoLand, IntelliJ, etc.) so extensions pick up the new account."
                     )
                 }
                 if settings.autoReloadIDEAfterSwap {
@@ -120,13 +121,13 @@ struct SettingsWindowView: View {
                 Toggle(isOn: $settings.autoKillCLIAfterSwap) {
                     SettingsToggleLabel(
                         title: "Auto-kill CLI sessions after swap",
-                        detail: "Sends SIGINT to every claude CLI process so claude-watch can auto-restart."
+                        detail: "Sends SIGINT to every claude CLI process. Use with claude-watch so the terminal auto-restarts on the new account (including GoLand's built-in terminal)."
                     )
                 }
                 if settings.autoKillCLIAfterSwap {
                     commandRow(label: "Install claude-watch once", command: installCmd)
                     commandRow(label: "Make claude auto-restart everywhere", command: aliasCmd)
-                    Text("Open a new terminal tab after running the alias command.")
+                    Text("Open a new terminal tab after running the alias command. claude-watch detects the credential change and restarts automatically.")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
@@ -235,10 +236,6 @@ struct SettingsWindowView: View {
                     }
                 }
             }
-            .sheet(isPresented: $showPassphraseEntry) {
-                passphraseSheet
-            }
-
             SettingsGroup("IDE reload test", subtitle: "Runs the full reload flow now so you can see exactly what happens.") {
                 Button {
                     ideTestRunning = true
@@ -416,7 +413,8 @@ struct SettingsWindowView: View {
     }
 
     private var aliasCmd: String {
-        "echo 'alias claude=\"claude-watch\"' >> ~/.zshrc && source ~/.zshrc"
+        // Add to both ~/.zshrc (interactive shells) and ~/.zprofile (login shells used by GoLand/JetBrains terminals).
+        "grep -qxF 'alias claude=\"claude-watch\"' ~/.zshrc 2>/dev/null || echo 'alias claude=\"claude-watch\"' >> ~/.zshrc; grep -qxF 'alias claude=\"claude-watch\"' ~/.zprofile 2>/dev/null || echo 'alias claude=\"claude-watch\"' >> ~/.zprofile"
     }
 
     private func formatSec(_ seconds: Int) -> String {
