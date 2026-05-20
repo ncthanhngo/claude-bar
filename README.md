@@ -25,6 +25,7 @@ brew install --cask claude-bar
 - **Session guard** — warns you if Claude is running before a manual switch; option to force-switch anyway
 - **Web fallback** — embedded WKWebView for fetching usage data when the Anthropic API is rate-limited
 - **Themes** — Light, Dark, and Rainbow
+- **Icon color** — 11 preset tint colors for the menu bar icon (Settings → General)
 
 ---
 
@@ -44,19 +45,7 @@ Open **Settings → Accounts → Add account**. Each account needs a separate Cl
 
 ### Auto-restart terminal sessions
 
-Enable **Auto-kill CLI sessions** in Settings → General, then run once in your terminal:
-
-```bash
-# Install claude-watch (written by Claude Bar on first launch)
-chmod +x "$HOME/Library/Application Support/claude-bar/claude-watch.sh" \
-  && ln -sf "$HOME/Library/Application Support/claude-bar/claude-watch.sh" \
-     /opt/homebrew/bin/claude-watch
-
-# Make every `claude` call auto-restart after a swap
-echo 'alias claude="claude-watch"' >> ~/.zshrc && source ~/.zshrc
-```
-
-After this, when a swap happens your terminal session (including GoLand's integrated terminal) restarts automatically with the new account credentials.
+Enable **Auto-kill CLI sessions** in Settings → General. Claude Bar automatically installs `claude-watch` and adds the shell alias on first launch — no manual steps needed. When a swap happens, your terminal session (including GoLand's integrated terminal) restarts automatically with the new account credentials.
 
 ### IDE reload — VSCode / Cursor / Windsurf
 
