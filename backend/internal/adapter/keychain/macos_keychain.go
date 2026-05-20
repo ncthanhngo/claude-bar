@@ -7,16 +7,18 @@ package keychain
 #include <Security/Security.h>
 #include <CoreFoundation/CoreFoundation.h>
 #include <stdlib.h>
+
+// Expose as a plain C function so cgo can see the value — errSecItemNotFound
+// is a macro/enum in some SDK versions and not always visible as C.errSecXxx.
+static OSStatus kcItemNotFound() { return errSecItemNotFound; }
 */
 import "C"
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
-	"os/exec"
-	"strings"
+	"unsafe"
 )
 
 // ErrNotFound is returned when the keychain has no entry for the given service.
@@ -34,25 +36,40 @@ func New(service, account string) *Keychain {
 }
 
 // Read returns the password payload for this (service, account).
-func (k *Keychain) Read(ctx context.Context) (string, error) {
-	cmd := exec.CommandContext(ctx,
-		"/usr/bin/security",
-		"find-generic-password",
-		"-s", k.service,
-		"-a", k.account,
-		"-w",
+// Uses Security.framework directly (same process as Write) — no keychain
+// permission dialog, no dependency on the /usr/bin/security CLI.
+func (k *Keychain) Read(_ context.Context) (string, error) {
+	service := []byte(k.service)
+	account := []byte(k.account)
+
+	servicePtr := C.CBytes(service)
+	accountPtr := C.CBytes(account)
+	defer C.free(servicePtr)
+	defer C.free(accountPtr)
+
+	var passwordLen C.UInt32
+	var passwordData unsafe.Pointer
+	var defaultKeychain C.CFTypeRef // zero value = default keychain list
+
+	status := C.SecKeychainFindGenericPassword(
+		defaultKeychain,
+		C.UInt32(len(service)),
+		(*C.char)(servicePtr),
+		C.UInt32(len(account)),
+		(*C.char)(accountPtr),
+		&passwordLen,
+		&passwordData,
+		(*C.SecKeychainItemRef)(nil),
 	)
-	var out, errOut bytes.Buffer
-	cmd.Stdout = &out
-	cmd.Stderr = &errOut
-	if err := cmd.Run(); err != nil {
-		var ee *exec.ExitError
-		if errors.As(err, &ee) && ee.ExitCode() == 44 {
-			return "", ErrNotFound
-		}
-		return "", &Error{Op: "read", Stderr: errOut.String(), Err: err}
+	if status == C.kcItemNotFound() {
+		return "", ErrNotFound
 	}
-	return strings.TrimRight(out.String(), "\n"), nil
+	if status != C.errSecSuccess {
+		return "", &Error{Op: "read", Stderr: fmt.Sprintf("security framework status %d", int(status))}
+	}
+	defer C.free(passwordData)
+
+	return string(C.GoBytes(passwordData, C.int(passwordLen))), nil
 }
 
 // Write upserts the password for this (service, account).
@@ -111,26 +128,43 @@ func (k *Keychain) Write(ctx context.Context, payload string) error {
 }
 
 // Delete removes the entry. No error if absent.
-func (k *Keychain) Delete(ctx context.Context) error {
-	cmd := exec.CommandContext(ctx,
-		"/usr/bin/security",
-		"delete-generic-password",
-		"-s", k.service,
-		"-a", k.account,
+func (k *Keychain) Delete(_ context.Context) error {
+	service := []byte(k.service)
+	account := []byte(k.account)
+
+	servicePtr := C.CBytes(service)
+	accountPtr := C.CBytes(account)
+	defer C.free(servicePtr)
+	defer C.free(accountPtr)
+
+	var item C.SecKeychainItemRef
+	var defaultKeychain C.CFTypeRef
+
+	status := C.SecKeychainFindGenericPassword(
+		defaultKeychain,
+		C.UInt32(len(service)),
+		(*C.char)(servicePtr),
+		C.UInt32(len(account)),
+		(*C.char)(accountPtr),
+		(*C.UInt32)(nil),
+		nil,
+		&item,
 	)
-	var errOut bytes.Buffer
-	cmd.Stderr = &errOut
-	if err := cmd.Run(); err != nil {
-		var ee *exec.ExitError
-		if errors.As(err, &ee) && ee.ExitCode() == 44 {
-			return nil
-		}
-		return &Error{Op: "delete", Stderr: errOut.String(), Err: err}
+	if status == C.kcItemNotFound() {
+		return nil
+	}
+	if status != C.errSecSuccess {
+		return &Error{Op: "delete", Stderr: fmt.Sprintf("find status %d", int(status))}
+	}
+	defer C.CFRelease(C.CFTypeRef(item))
+
+	if st := C.SecKeychainItemDelete(item); st != C.errSecSuccess {
+		return &Error{Op: "delete", Stderr: fmt.Sprintf("security framework status %d", int(st))}
 	}
 	return nil
 }
 
-// Error carries the security CLI stderr for diagnostics.
+// Error carries the operation and status code for diagnostics.
 type Error struct {
 	Op     string
 	Stderr string
@@ -139,7 +173,7 @@ type Error struct {
 
 func (e *Error) Error() string {
 	if e.Stderr != "" {
-		return "keychain " + e.Op + ": " + strings.TrimSpace(e.Stderr)
+		return "keychain " + e.Op + ": " + e.Stderr
 	}
 	return "keychain " + e.Op + ": " + e.Err.Error()
 }
