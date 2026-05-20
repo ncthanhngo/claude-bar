@@ -114,4 +114,27 @@ flapping right after a swap while the new account's first request is in flight.
 | `~/Library/Application Support/claude-swap-widget/swap.lock` | csw flock | 0600 |
 | Keychain `csw-backup:*` | csw via `security` | per-user keychain |
 | Keychain `Claude Code-credentials` | Claude Code (we read/write same entry) | per-user keychain |
-| `~/.claude.json` | Claude Code (we only patch `oauthAccount` field) | preserved as-is |
+| `~/.claude.json` | Claude Code (we patch `oauthAccount` + `mcpServers["claude-bar-mcp"]`) | preserved as-is |
+| Keychain `claude-bar-mcp:*` | csw via `security` | per-user keychain |
+
+## Local MCP gateway
+
+Optional feature. When the user installs the gateway, Claude Code calls
+`csw mcp serve` (the same packaged `csw` binary) over stdio. The gateway
+exposes nine read-only tools (`cb_slack_*`, `cb_clickup_*`, `cb_gdrive_*`)
+and resolves the **active Claude Bar account per tool call** — switching
+accounts in the menu bar swaps which token the next call uses, with no
+Claude Code restart required.
+
+```
+Claude Code
+  └─ stdio ─▶  csw mcp serve
+                └─ Resolver  ─▶  registry.json  (active account)
+                              ─▶  Keychain "claude-bar-mcp:<n>:<svc>"
+                              ─▶  Slack / ClickUp / Google APIs
+```
+
+Privacy boundary, scopes, redaction rules, and disconnect/revoke contract
+live in `docs/local-mcp-threat-model.md`. The iCloud sync bundle
+**intentionally excludes** `mcpConnectors` metadata; a structural test in
+`backend/internal/adapter/cloudsync/mcp_exclusion_test.go` keeps it that way.

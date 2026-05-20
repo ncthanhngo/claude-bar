@@ -19,6 +19,7 @@ struct ClaudeSwapWidgetApp: App {
     @StateObject private var verifyCoordinator = VerifyCoordinator()
     @StateObject private var webFallback = WebFallbackCoordinator()
     @StateObject private var cloudSync = CloudSyncCoordinator(client: CswClient())
+    @StateObject private var localMCP = LocalMCPCoordinator(client: CswClient())
     @ObservedObject private var settings = AppSettings.shared
     @Environment(\.openSettings) private var openSettings
 
@@ -99,6 +100,7 @@ struct ClaudeSwapWidgetApp: App {
                 .environmentObject(verifyCoordinator)
                 .environmentObject(webFallback)
                 .environmentObject(cloudSync)
+                .environmentObject(localMCP)
         }
     }
 }

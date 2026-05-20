@@ -56,3 +56,12 @@ type FileLock interface {
 	Acquire(ctx context.Context) error
 	Release() error
 }
+
+// MCPSecretStore holds per-account connector tokens in the macOS Keychain.
+// Keys are (accountNumber, service). Payload is provider-defined opaque JSON.
+type MCPSecretStore interface {
+	Read(ctx context.Context, accountNum int, service domain.MCPService) (string, error)
+	Write(ctx context.Context, accountNum int, service domain.MCPService, payload string) error
+	Delete(ctx context.Context, accountNum int, service domain.MCPService) error
+	DeleteAll(ctx context.Context, accountNum int) error
+}
