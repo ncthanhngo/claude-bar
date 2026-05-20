@@ -15,12 +15,60 @@ enum ClaudeWatchInstaller {
     static func install() {
         let dir = scriptDestination.deletingLastPathComponent()
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        let content = claudeWatchScript
-        try? content.write(to: scriptDestination, atomically: true, encoding: .utf8)
+        try? claudeWatchScript.write(to: scriptDestination, atomically: true, encoding: .utf8)
         try? FileManager.default.setAttributes(
             [.posixPermissions: 0o755],
             ofItemAtPath: scriptDestination.path
         )
+        installSymlink()
+        installShellAlias()
+    }
+
+    // MARK: - Auto-setup helpers
+
+    private static let symlinkCandidates = [
+        "/opt/homebrew/bin/claude-watch",
+        "/usr/local/bin/claude-watch"
+    ]
+
+    /// Creates a symlink in the first writable bin dir found on PATH.
+    private static func installSymlink() {
+        let fm = FileManager.default
+        let src = scriptDestination.path
+        for linkPath in symlinkCandidates {
+            let binDir = URL(fileURLWithPath: linkPath).deletingLastPathComponent().path
+            guard fm.isWritableFile(atPath: binDir) else { continue }
+            try? fm.removeItem(atPath: linkPath)
+            try? fm.createSymbolicLink(atPath: linkPath, withDestinationPath: src)
+            break
+        }
+    }
+
+    /// Appends `alias claude="claude-watch"` to ~/.zshrc / ~/.bashrc if not already present.
+    private static func installShellAlias() {
+        let alias = #"alias claude="claude-watch""#
+        let marker = "# Added by Claude Bar"
+        let block = "\n\(marker)\n\(alias)\n"
+
+        let profiles = [
+            ("~/.zshrc",         true),   // interactive shells (most terminals)
+            ("~/.zprofile",      false),  // login shells (JetBrains built-in terminal on macOS)
+            ("~/.bashrc",        false),
+            ("~/.bash_profile",  false)
+        ]
+
+        for (rawPath, createIfMissing) in profiles {
+            let path = (rawPath as NSString).expandingTildeInPath
+            let fm = FileManager.default
+
+            if fm.fileExists(atPath: path) {
+                guard let existing = try? String(contentsOfFile: path, encoding: .utf8),
+                      !existing.contains(alias) else { continue }
+                try? (existing + block).write(toFile: path, atomically: true, encoding: .utf8)
+            } else if createIfMissing {
+                try? block.write(toFile: path, atomically: true, encoding: .utf8)
+            }
+        }
     }
 }
 

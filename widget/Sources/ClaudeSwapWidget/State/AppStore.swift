@@ -14,15 +14,6 @@ final class AppStore: ObservableObject {
     @Published private(set) var isRefreshing: Bool = false
     @Published private(set) var lastRefreshAt: Date?
     @Published private(set) var swappingTo: Int?
-    @Published var pendingBusySwap: PendingBusySwap?
-
-    struct PendingBusySwap: Identifiable {
-        let id = UUID()
-        let targetNumber: Int
-        let targetName: String
-        let sessions: [RunningSession]
-    }
-
     let client = CswClient()
     let settings = AppSettings.shared
     let autoSwap: AutoSwapStateMachine
@@ -36,6 +27,7 @@ final class AppStore: ObservableObject {
         autoSwap.sessionsProvider = { [weak self] in self?.sessions }
         autoSwap.onSwapPerformed = { [weak self] in
             await self?.refreshNow()
+            self?.schedulePostSwapIntegrations()
         }
     }
 
@@ -109,30 +101,78 @@ final class AppStore: ObservableObject {
 
     func swap(to num: Int) async {
         swappingTo = num
-        defer { swappingTo = nil }
         do {
+            print("[AppStore] Switching to account \(num)")
             try await client.switchTo(num)
-            if settings.autoKillCLIAfterSwap {
-                CLISessionKiller.killAll()
-            }
             await refreshNow()
-            if settings.autoReloadIDEAfterSwap {
-                let reloaded = await IDEReloader.reloadAll()
-                if !reloaded.isEmpty {
-                    await postIDEReloadNotification(reloaded)
-                }
-            }
+            print("[AppStore] Switched to account \(num)")
+            swappingTo = nil
+            schedulePostSwapIntegrations()
         } catch {
             lastError = error.localizedDescription
+            swappingTo = nil
+            print("[AppStore] Switch failed: \(error.localizedDescription)")
         }
     }
 
-    private func postIDEReloadNotification(_ names: [String]) async {
-        let joined = names.joined(separator: ", ")
+    private func schedulePostSwapIntegrations() {
+        Task { [weak self] in
+            await self?.restartCLISessionsAfterSwap()
+        }
+        Task { [weak self] in
+            await self?.reloadIDEsAfterSwap()
+        }
+    }
+
+    private func restartCLISessionsAfterSwap() async {
+        // Credentials must already be switched before SIGINT so claude-watch
+        // can see the changed ~/.claude.json and restart the same terminal.
+        var killCount = 0
+        if settings.autoKillCLIAfterSwap {
+            let killed = CLISessionKiller.killAll()
+            killCount = killed.count
+            if killCount > 0 {
+                try? await Task.sleep(nanoseconds: 800_000_000) // 0.8s graceful
+                CLISessionKiller.forceKillSurvivors(killed)
+                try? await Task.sleep(nanoseconds: 200_000_000) // 0.2s settle
+            }
+        }
+
+        await postSwapNotification(
+            killCount: killCount,
+            reloaded: nil,
+            autoKillEnabled: settings.autoKillCLIAfterSwap,
+            autoReloadEnabled: false
+        )
+    }
+
+    private func reloadIDEsAfterSwap() async {
+        guard settings.autoReloadIDEAfterSwap else { return }
+        let reloaded = await IDEReloader.reloadAll()
+        await postSwapNotification(
+            killCount: nil,
+            reloaded: reloaded,
+            autoKillEnabled: false,
+            autoReloadEnabled: true
+        )
+    }
+
+    private func postSwapNotification(killCount: Int?, reloaded: [String]?,
+                                      autoKillEnabled: Bool, autoReloadEnabled: Bool) async {
+        var lines: [String] = []
+        if autoKillEnabled {
+            let count = killCount ?? 0
+            lines.append(count > 0 ? "Killed \(count) CLI session(s)" : "No CLI sessions to kill")
+        }
+        if autoReloadEnabled {
+            let names = reloaded ?? []
+            lines.append(names.isEmpty ? "IDE reload: no IDEs detected" : "Reloaded: \(names.joined(separator: ", "))")
+        }
+        guard !lines.isEmpty else { return }
         let content = UNMutableNotificationContent()
-        content.title = "Reloaded \(joined)"
-        content.body = "Claude extension restarting with new account."
-        let req = UNNotificationRequest(identifier: "csw.ide-reload", content: content, trigger: nil)
+        content.title = "Account switched"
+        content.body = lines.joined(separator: "\n")
+        let req = UNNotificationRequest(identifier: "csw.swap-done", content: content, trigger: nil)
         try? await UNUserNotificationCenter.current().add(req)
     }
 
@@ -170,8 +210,11 @@ final class AppStore: ObservableObject {
     // MARK: - Cloud sync helpers
 
     private func autoPushCloud() async {
+        // Read passphrase on main actor first, then push in background.
         guard let cloud = cloudSync,
               let pass = cloud.loadPassphrase() else { return }
-        await cloud.push(passphrase: pass)
+        Task.detached(priority: .background) { [weak cloud, pass] in
+            await cloud?.push(passphrase: pass)
+        }
     }
 }

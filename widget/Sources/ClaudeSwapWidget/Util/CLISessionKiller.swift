@@ -14,13 +14,20 @@ enum CLISessionKiller {
         let sent: Bool
     }
 
-    /// Kill all interactive CLI sessions. Returns which PIDs were signalled.
+    /// Send SIGINT to all interactive CLI sessions. Returns immediately.
     @discardableResult
     static func killAll() -> [KillResult] {
         let sessions = readSessions()
         return sessions.map { s in
             let sent = kill(Int32(s.pid), SIGINT) == 0
             return KillResult(pid: s.pid, cwd: s.cwd, sent: sent)
+        }
+    }
+
+    /// Send SIGKILL to any sessions that are still alive (call after async wait).
+    static func forceKillSurvivors(_ results: [KillResult]) {
+        for r in results where isAlive(pid: r.pid) {
+            kill(Int32(r.pid), SIGKILL)
         }
     }
 

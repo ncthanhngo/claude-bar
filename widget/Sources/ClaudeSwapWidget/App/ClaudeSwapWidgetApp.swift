@@ -1,12 +1,19 @@
 import SwiftUI
 import UserNotifications
 
+final class AppDelegate: NSObject, NSApplicationDelegate {
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+        false  // menu bar app — never quit just because a window closed
+    }
+}
+
 extension Notification.Name {
     static let openSettings = Notification.Name("claudebar.openSettings")
 }
 
 @main
 struct ClaudeSwapWidgetApp: App {
+    @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @StateObject private var store = AppStore()
     @StateObject private var loginCoordinator = LoginCoordinator()
     @StateObject private var verifyCoordinator = VerifyCoordinator()
@@ -18,6 +25,33 @@ struct ClaudeSwapWidgetApp: App {
     init() {
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
         ClaudeWatchInstaller.install()
+        migrateSettingsIfNeeded()
+    }
+
+    /// Copy settings from the old bundle ID (dev.soi.claude-swap-widget) to the
+    /// new one (dev.ncthanhngo.claude-bar) when migrating for the first time.
+    private func migrateSettingsIfNeeded() {
+        let newDomain = "dev.ncthanhngo.claude-bar"
+        let oldDomain = "dev.soi.claude-swap-widget"
+        let migrationKey = "settingsMigratedFromLegacyDomain"
+
+        let newDefaults = UserDefaults(suiteName: newDomain) ?? .standard
+        guard !newDefaults.bool(forKey: migrationKey) else { return }
+
+        if let old = UserDefaults(suiteName: oldDomain) {
+            let keys = [
+                "autoKillCLIAfterSwap", "autoReloadIDEAfterSwap", "autoSwapEnabled",
+                "thresholdPct", "menuBarStyle", "refreshIntervalSec",
+                "refreshIntervalHighSec", "adaptiveHighThresholdPct",
+                "sessionPollIntervalSec", "widgetTheme"
+            ]
+            for key in keys {
+                if let val = old.object(forKey: key) {
+                    newDefaults.set(val, forKey: key)
+                }
+            }
+        }
+        newDefaults.set(true, forKey: migrationKey)
     }
 
     var body: some Scene {
@@ -39,17 +73,15 @@ struct ClaudeSwapWidgetApp: App {
                     await cloudSync.checkOnboarding(snapshot: store.snapshot)
                 }
                 .onReceive(NotificationCenter.default.publisher(for: .openSettings)) { _ in
-                    // Dismiss the popover: grab all visible windows now (only the popover
-                    // is open at this moment), capture frame, then hide them all.
-                    NSApp.windows.filter { $0.isVisible }.forEach { $0.orderOut(nil) }
                     openSettings()
+                    let abovePopup = NSWindow.Level(rawValue: NSWindow.Level.statusBar.rawValue + 1)
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
                         NSApp.activate(ignoringOtherApps: true)
                         NSApp.windows
                             .filter { $0.isVisible && $0.canBecomeKey }
                             .filter { $0.level == .normal }
                             .forEach { win in
-                                win.center()
+                                win.level = abovePopup
                                 win.makeKeyAndOrderFront(nil)
                             }
                     }
