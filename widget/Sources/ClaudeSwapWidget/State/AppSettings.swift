@@ -34,6 +34,7 @@ final class AppSettings: ObservableObject {
     @AppStorage("widgetTheme") var widgetTheme: WidgetTheme = .light
     /// Day (yyyy-MM-dd) of the last successful daily token refresh.
     @AppStorage("lastDailyTokenRefreshDay") var lastDailyTokenRefreshDay: String = ""
+    @AppStorage("menuBarIconColor") var menuBarIconColor: MenuBarIconColor = .system
 }
 
 enum WidgetTheme: String, CaseIterable, Identifiable {
@@ -79,6 +80,38 @@ enum WidgetTheme: String, CaseIterable, Identifiable {
         switch self {
         case .light, .dark: return .secondary
         case .rainbow:      return Color(red: 0.6, green: 0.2, blue: 0.8)
+        }
+    }
+}
+
+enum MenuBarIconColor: String, CaseIterable, Identifiable {
+    case system
+    case white, gray
+    case blue, teal, green, yellow, orange, red, pink, purple
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .system: return "System"
+        default:      return rawValue.capitalized
+        }
+    }
+
+    /// nil = use system/template rendering (follows menu bar appearance)
+    var color: Color? {
+        switch self {
+        case .system: return nil
+        case .white:  return .white
+        case .gray:   return .gray
+        case .blue:   return .blue
+        case .teal:   return Color(red: 0.18, green: 0.78, blue: 0.75)
+        case .green:  return .green
+        case .yellow: return .yellow
+        case .orange: return .orange
+        case .red:    return .red
+        case .pink:   return Color(red: 1.0, green: 0.45, blue: 0.70)
+        case .purple: return .purple
         }
     }
 }

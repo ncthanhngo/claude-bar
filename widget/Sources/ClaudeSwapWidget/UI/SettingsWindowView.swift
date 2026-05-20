@@ -104,6 +104,8 @@ struct SettingsWindowView: View {
                     }
                 }
                 .frame(maxWidth: 360, alignment: .leading)
+                Divider()
+                iconColorPicker
             }
 
             SettingsGroup("IDE integration", subtitle: "Optional helpers for keeping editors and terminal sessions aligned after a swap.") {
@@ -151,6 +153,48 @@ struct SettingsWindowView: View {
                 )
                 Stepper(value: $settings.adaptiveHighThresholdPct, in: 50...95, step: 5) {
                     valueRow(title: "Fast refresh starts at", value: "\(settings.adaptiveHighThresholdPct)%")
+                }
+            }
+        }
+    }
+
+    private var iconColorPicker: some View {
+        HStack(spacing: 0) {
+            Text("Icon color")
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .frame(width: 80, alignment: .leading)
+            Spacer()
+            HStack(spacing: 5) {
+                ForEach(MenuBarIconColor.allCases) { c in
+                    Button {
+                        settings.menuBarIconColor = c
+                    } label: {
+                        ZStack {
+                            if c == .system {
+                                // "auto" chip — half black / half white
+                                Circle()
+                                    .fill(LinearGradient(
+                                        colors: [.black, .white],
+                                        startPoint: .leading,
+                                        endPoint: .trailing
+                                    ))
+                                    .frame(width: 18, height: 18)
+                            } else {
+                                Circle()
+                                    .fill(c.color ?? .primary)
+                                    .frame(width: 18, height: 18)
+                                    .overlay(Circle().stroke(Color.primary.opacity(0.15), lineWidth: 0.5))
+                            }
+                            if settings.menuBarIconColor == c {
+                                Image(systemName: "checkmark")
+                                    .font(.system(size: 9, weight: .bold))
+                                    .foregroundColor(c == .white || c == .yellow ? .black : .white)
+                            }
+                        }
+                    }
+                    .buttonStyle(.borderless)
+                    .help(c.label)
                 }
             }
         }
