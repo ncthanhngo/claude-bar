@@ -39,16 +39,18 @@ struct ClaudeSwapWidgetApp: App {
                     await cloudSync.checkOnboarding(snapshot: store.snapshot)
                 }
                 .onReceive(NotificationCenter.default.publisher(for: .openSettings)) { _ in
+                    // Dismiss the popover: grab all visible windows now (only the popover
+                    // is open at this moment), capture frame, then hide them all.
+                    NSApp.windows.filter { $0.isVisible }.forEach { $0.orderOut(nil) }
                     openSettings()
-                    let abovePopup = NSWindow.Level(rawValue: NSWindow.Level.statusBar.rawValue + 1)
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
                         NSApp.activate(ignoringOtherApps: true)
                         NSApp.windows
                             .filter { $0.isVisible && $0.canBecomeKey }
                             .filter { $0.level == .normal }
-                            .forEach {
-                                $0.level = abovePopup
-                                $0.makeKeyAndOrderFront(nil)
+                            .forEach { win in
+                                win.center()
+                                win.makeKeyAndOrderFront(nil)
                             }
                     }
                 }

@@ -8,8 +8,6 @@ struct AccountRowView: View {
     @EnvironmentObject var webFallback: WebFallbackCoordinator
     @ObservedObject private var settings = AppSettings.shared
     @State private var isHovering = false
-    @State private var showingBusyAlert = false
-    @State private var busySessions: [RunningSession] = []
 
     var body: some View {
         Button(action: trySwap) {
@@ -45,12 +43,6 @@ struct AccountRowView: View {
             if !hovering { NSCursor.pop() }
         }
         .contextMenu { contextMenuBody }
-        .alert("Claude is running", isPresented: $showingBusyAlert) {
-            Button("Cancel", role: .cancel) {}
-            Button("Force switch", role: .destructive) { doSwap() }
-        } message: {
-            Text(busyAlertMessage)
-        }
     }
 
     private var isSwappingThisRow: Bool { store.swappingTo == view.account.number }
@@ -215,17 +207,15 @@ struct AccountRowView: View {
         if sessions.isEmpty {
             doSwap()
         } else {
-            busySessions = sessions
-            showingBusyAlert = true
+            store.pendingBusySwap = AppStore.PendingBusySwap(
+                targetNumber: view.account.number,
+                targetName: view.account.displayName,
+                sessions: sessions
+            )
         }
     }
 
     private func doSwap() {
         Task { await store.swap(to: view.account.number) }
-    }
-
-    private var busyAlertMessage: String {
-        let lines = busySessions.map { "• \($0.typeLabel): \($0.locationLabel)" }
-        return "Switching now will interrupt the current session.\n\n" + lines.joined(separator: "\n")
     }
 }
