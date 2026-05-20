@@ -7,10 +7,96 @@ package keychain
 #include <Security/Security.h>
 #include <CoreFoundation/CoreFoundation.h>
 #include <stdlib.h>
+#include <string.h>
 
-// Expose as a plain C function so cgo can see the value — errSecItemNotFound
-// is a macro/enum in some SDK versions and not always visible as C.errSecXxx.
-static OSStatus kcItemNotFound() { return errSecItemNotFound; }
+// kcRead looks up a generic-password item using the modern SecItem API.
+// The item does not need per-app ACL trust — kSecAttrAccessibleAfterFirstUnlock
+// items are accessible by any process after the first post-boot unlock.
+// Returns errSecItemNotFound when absent; caller must free(*outData).
+static OSStatus kcRead(const char* svc, UInt32 svcLen,
+                       const char* acc, UInt32 accLen,
+                       char** outData, UInt32* outLen) {
+    CFStringRef service = CFStringCreateWithBytes(kCFAllocatorDefault,
+        (const UInt8*)svc, svcLen, kCFStringEncodingUTF8, false);
+    CFStringRef account = CFStringCreateWithBytes(kCFAllocatorDefault,
+        (const UInt8*)acc, accLen, kCFStringEncodingUTF8, false);
+
+    const void* keys[]   = { kSecClass, kSecAttrService, kSecAttrAccount, kSecReturnData, kSecMatchLimit };
+    const void* values[] = { kSecClassGenericPassword, service, account, kCFBooleanTrue, kSecMatchLimitOne };
+    CFDictionaryRef query = CFDictionaryCreate(kCFAllocatorDefault,
+        keys, values, 5, &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
+
+    CFTypeRef result = NULL;
+    OSStatus status = SecItemCopyMatching(query, &result);
+
+    CFRelease(service);
+    CFRelease(account);
+    CFRelease(query);
+
+    if (status == errSecSuccess && result != NULL) {
+        CFDataRef data = (CFDataRef)result;
+        *outLen = (UInt32)CFDataGetLength(data);
+        *outData = (char*)malloc(*outLen + 1);
+        memcpy(*outData, CFDataGetBytePtr(data), *outLen);
+        (*outData)[*outLen] = '\0';
+        CFRelease(result);
+    }
+    return status;
+}
+
+// kcWrite upserts a generic-password item with kSecAttrAccessibleAfterFirstUnlock,
+// which carries no per-app ACL. It deletes any existing item first (which may
+// have been created by another app with a restrictive ACL, e.g. the claude CLI).
+static OSStatus kcWrite(const char* svc, UInt32 svcLen,
+                        const char* acc, UInt32 accLen,
+                        const char* pwd, UInt32 pwdLen) {
+    CFStringRef service = CFStringCreateWithBytes(kCFAllocatorDefault,
+        (const UInt8*)svc, svcLen, kCFStringEncodingUTF8, false);
+    CFStringRef account = CFStringCreateWithBytes(kCFAllocatorDefault,
+        (const UInt8*)acc, accLen, kCFStringEncodingUTF8, false);
+    CFDataRef password = CFDataCreate(kCFAllocatorDefault, (const UInt8*)pwd, pwdLen);
+
+    // Delete any existing item so we can recreate with our own accessible attribute.
+    const void* dKeys[]   = { kSecClass, kSecAttrService, kSecAttrAccount };
+    const void* dValues[] = { kSecClassGenericPassword, service, account };
+    CFDictionaryRef delQuery = CFDictionaryCreate(kCFAllocatorDefault,
+        dKeys, dValues, 3, &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
+    SecItemDelete(delQuery);
+    CFRelease(delQuery);
+
+    // Add fresh item — kSecAttrAccessibleAfterFirstUnlock = no per-app ACL prompt.
+    const void* aKeys[]   = { kSecClass, kSecAttrService, kSecAttrAccount, kSecValueData, kSecAttrAccessible };
+    const void* aValues[] = { kSecClassGenericPassword, service, account, password, kSecAttrAccessibleAfterFirstUnlock };
+    CFDictionaryRef addQuery = CFDictionaryCreate(kCFAllocatorDefault,
+        aKeys, aValues, 5, &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
+    OSStatus status = SecItemAdd(addQuery, NULL);
+
+    CFRelease(service);
+    CFRelease(account);
+    CFRelease(password);
+    CFRelease(addQuery);
+    return status;
+}
+
+// kcDelete removes a generic-password item; returns errSecSuccess if absent.
+static OSStatus kcDelete(const char* svc, UInt32 svcLen,
+                         const char* acc, UInt32 accLen) {
+    CFStringRef service = CFStringCreateWithBytes(kCFAllocatorDefault,
+        (const UInt8*)svc, svcLen, kCFStringEncodingUTF8, false);
+    CFStringRef account = CFStringCreateWithBytes(kCFAllocatorDefault,
+        (const UInt8*)acc, accLen, kCFStringEncodingUTF8, false);
+
+    const void* keys[]   = { kSecClass, kSecAttrService, kSecAttrAccount };
+    const void* values[] = { kSecClassGenericPassword, service, account };
+    CFDictionaryRef query = CFDictionaryCreate(kCFAllocatorDefault,
+        keys, values, 3, &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
+    OSStatus status = SecItemDelete(query);
+
+    CFRelease(service);
+    CFRelease(account);
+    CFRelease(query);
+    return (status == errSecItemNotFound) ? errSecSuccess : status;
+}
 */
 import "C"
 
@@ -24,7 +110,7 @@ import (
 // ErrNotFound is returned when the keychain has no entry for the given service.
 var ErrNotFound = errors.New("keychain item not found")
 
-// Keychain talks to /usr/bin/security.
+// Keychain talks to the macOS Keychain via Security.framework (SecItem API).
 type Keychain struct {
 	service string
 	account string
@@ -36,135 +122,77 @@ func New(service, account string) *Keychain {
 }
 
 // Read returns the password payload for this (service, account).
-// Uses Security.framework directly (same process as Write) — no keychain
-// permission dialog, no dependency on the /usr/bin/security CLI.
 func (k *Keychain) Read(_ context.Context) (string, error) {
-	service := []byte(k.service)
-	account := []byte(k.account)
+	svc := []byte(k.service)
+	acc := []byte(k.account)
+	svcPtr := C.CBytes(svc)
+	accPtr := C.CBytes(acc)
+	defer C.free(svcPtr)
+	defer C.free(accPtr)
 
-	servicePtr := C.CBytes(service)
-	accountPtr := C.CBytes(account)
-	defer C.free(servicePtr)
-	defer C.free(accountPtr)
+	var outData *C.char
+	var outLen C.UInt32
 
-	var passwordLen C.UInt32
-	var passwordData unsafe.Pointer
-	var defaultKeychain C.CFTypeRef // zero value = default keychain list
-
-	status := C.SecKeychainFindGenericPassword(
-		defaultKeychain,
-		C.UInt32(len(service)),
-		(*C.char)(servicePtr),
-		C.UInt32(len(account)),
-		(*C.char)(accountPtr),
-		&passwordLen,
-		&passwordData,
-		(*C.SecKeychainItemRef)(nil),
+	status := C.kcRead(
+		(*C.char)(svcPtr), C.UInt32(len(svc)),
+		(*C.char)(accPtr), C.UInt32(len(acc)),
+		&outData, &outLen,
 	)
-	if status == C.kcItemNotFound() {
+	if status == C.errSecItemNotFound {
 		return "", ErrNotFound
 	}
 	if status != C.errSecSuccess {
-		return "", &Error{Op: "read", Stderr: fmt.Sprintf("security framework status %d", int(status))}
+		return "", &Error{Op: "read", Stderr: fmt.Sprintf("SecItem status %d", int(status))}
 	}
-	defer C.free(passwordData)
-
-	return string(C.GoBytes(passwordData, C.int(passwordLen))), nil
+	defer C.free(unsafe.Pointer(outData))
+	return string(C.GoBytes(unsafe.Pointer(outData), C.int(outLen))), nil
 }
 
 // Write upserts the password for this (service, account).
-func (k *Keychain) Write(ctx context.Context, payload string) error {
-	_ = ctx // Native Security.framework calls are synchronous and non-cancellable.
-	service := []byte(k.service)
-	account := []byte(k.account)
-	password := []byte(payload)
+// Recreates the item with kSecAttrAccessibleAfterFirstUnlock so any
+// process can read it without a per-app ACL prompt.
+func (k *Keychain) Write(_ context.Context, payload string) error {
+	svc := []byte(k.service)
+	acc := []byte(k.account)
+	pwd := []byte(payload)
+	svcPtr := C.CBytes(svc)
+	accPtr := C.CBytes(acc)
+	pwdPtr := C.CBytes(pwd)
+	defer C.free(svcPtr)
+	defer C.free(accPtr)
+	defer C.free(pwdPtr)
 
-	servicePtr := C.CBytes(service)
-	accountPtr := C.CBytes(account)
-	passwordPtr := C.CBytes(password)
-	defer C.free(servicePtr)
-	defer C.free(accountPtr)
-	defer C.free(passwordPtr)
-
-	var defaultKeychain C.SecKeychainRef
-	status := C.SecKeychainAddGenericPassword(
-		defaultKeychain,
-		C.UInt32(len(service)),
-		(*C.char)(servicePtr),
-		C.UInt32(len(account)),
-		(*C.char)(accountPtr),
-		C.UInt32(len(password)),
-		passwordPtr,
-		(*C.SecKeychainItemRef)(nil),
+	status := C.kcWrite(
+		(*C.char)(svcPtr), C.UInt32(len(svc)),
+		(*C.char)(accPtr), C.UInt32(len(acc)),
+		(*C.char)(pwdPtr), C.UInt32(len(pwd)),
 	)
-	if status == C.errSecDuplicateItem {
-		var item C.SecKeychainItemRef
-		var defaultSearchList C.CFTypeRef
-		findStatus := C.SecKeychainFindGenericPassword(
-			defaultSearchList,
-			C.UInt32(len(service)),
-			(*C.char)(servicePtr),
-			C.UInt32(len(account)),
-			(*C.char)(accountPtr),
-			(*C.UInt32)(nil),
-			nil,
-			&item,
-		)
-		if findStatus != C.errSecSuccess {
-			return &Error{Op: "write", Stderr: fmt.Sprintf("find existing item status %d", int(findStatus))}
-		}
-		defer C.CFRelease(C.CFTypeRef(item))
-		status = C.SecKeychainItemModifyAttributesAndData(
-			item,
-			nil,
-			C.UInt32(len(password)),
-			passwordPtr,
-		)
-	}
 	if status != C.errSecSuccess {
-		return &Error{Op: "write", Stderr: fmt.Sprintf("security framework status %d", int(status))}
+		return &Error{Op: "write", Stderr: fmt.Sprintf("SecItem status %d", int(status))}
 	}
 	return nil
 }
 
 // Delete removes the entry. No error if absent.
 func (k *Keychain) Delete(_ context.Context) error {
-	service := []byte(k.service)
-	account := []byte(k.account)
+	svc := []byte(k.service)
+	acc := []byte(k.account)
+	svcPtr := C.CBytes(svc)
+	accPtr := C.CBytes(acc)
+	defer C.free(svcPtr)
+	defer C.free(accPtr)
 
-	servicePtr := C.CBytes(service)
-	accountPtr := C.CBytes(account)
-	defer C.free(servicePtr)
-	defer C.free(accountPtr)
-
-	var item C.SecKeychainItemRef
-	var defaultKeychain C.CFTypeRef
-
-	status := C.SecKeychainFindGenericPassword(
-		defaultKeychain,
-		C.UInt32(len(service)),
-		(*C.char)(servicePtr),
-		C.UInt32(len(account)),
-		(*C.char)(accountPtr),
-		(*C.UInt32)(nil),
-		nil,
-		&item,
+	status := C.kcDelete(
+		(*C.char)(svcPtr), C.UInt32(len(svc)),
+		(*C.char)(accPtr), C.UInt32(len(acc)),
 	)
-	if status == C.kcItemNotFound() {
-		return nil
-	}
 	if status != C.errSecSuccess {
-		return &Error{Op: "delete", Stderr: fmt.Sprintf("find status %d", int(status))}
-	}
-	defer C.CFRelease(C.CFTypeRef(item))
-
-	if st := C.SecKeychainItemDelete(item); st != C.errSecSuccess {
-		return &Error{Op: "delete", Stderr: fmt.Sprintf("security framework status %d", int(st))}
+		return &Error{Op: "delete", Stderr: fmt.Sprintf("SecItem status %d", int(status))}
 	}
 	return nil
 }
 
-// Error carries the operation and status code for diagnostics.
+// Error carries the operation and status for diagnostics.
 type Error struct {
 	Op     string
 	Stderr string
