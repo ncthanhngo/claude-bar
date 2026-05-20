@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/soi/claude-swap-widget/backend/internal/adapter/cloudsync"
+	"github.com/soi/claude-swap-widget/backend/internal/domain"
 )
 
 // CloudPush reads all accounts + backup credentials, encrypts them with the
@@ -23,9 +24,14 @@ func (s *Service) CloudPush(ctx context.Context, passphrase string) error {
 	}
 
 	bundle := &cloudsync.CloudBundle{
-		Version:  1,
+		Version:  2,
 		PushedAt: time.Now().UTC(),
 	}
+	sharedConnectors, err := s.bundleMCPConnectors(ctx, 0, reg.SharedMCPConnectors)
+	if err != nil {
+		return err
+	}
+	bundle.SharedMCPConnectors = sharedConnectors
 
 	for _, acc := range reg.Accounts {
 		var blob string
@@ -43,6 +49,10 @@ func (s *Service) CloudPush(ctx context.Context, passphrase string) error {
 			}
 			blob = string(bak)
 		}
+		connectors, err := s.bundleMCPConnectors(ctx, acc.Number, acc.MCPConnectors)
+		if err != nil {
+			return err
+		}
 		bundle.Accounts = append(bundle.Accounts, cloudsync.BundleAccount{
 			Number:           acc.Number,
 			Email:            acc.Email,
@@ -50,6 +60,7 @@ func (s *Service) CloudPush(ctx context.Context, passphrase string) error {
 			OrganizationName: acc.OrganizationName,
 			OrganizationUUID: acc.OrganizationUUID,
 			CredentialBlob:   blob,
+			MCPConnectors:    connectors,
 			UpdatedAt:        acc.CreatedAt.UTC().Format(time.RFC3339),
 		})
 	}
@@ -71,4 +82,36 @@ func (s *Service) CloudPush(ctx context.Context, passphrase string) error {
 		return fmt.Errorf("write bundle: %w", err)
 	}
 	return nil
+}
+
+func (s *Service) bundleMCPConnectors(ctx context.Context, accountNum int, metas domain.AccountConnectors) ([]cloudsync.BundleMCPConnector, error) {
+	if len(metas) == 0 {
+		return nil, nil
+	}
+	out := make([]cloudsync.BundleMCPConnector, 0, len(metas))
+	for _, svc := range domain.AllMCPServices {
+		meta, ok := metas[svc]
+		if !ok || meta == nil {
+			continue
+		}
+		payload, err := s.MCPSecrets.Read(ctx, accountNum, svc)
+		if err != nil {
+			return nil, fmt.Errorf("read mcp secret %s/%d: %w", svc, accountNum, err)
+		}
+		if payload == "" {
+			continue
+		}
+		out = append(out, cloudsync.BundleMCPConnector{
+			Service:      svc,
+			Payload:      payload,
+			Enabled:      meta.Enabled,
+			DisplayName:  meta.DisplayName,
+			Account:      meta.Account,
+			Scopes:       append([]string(nil), meta.Scopes...),
+			ConnectedAt:  meta.ConnectedAt,
+			LastVerified: meta.LastVerified,
+			NeedsReauth:  meta.NeedsReauth,
+		})
+	}
+	return out, nil
 }

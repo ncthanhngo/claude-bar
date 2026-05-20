@@ -66,6 +66,9 @@ func TestGDriveRefreshExchangesExpiredToken(t *testing.T) {
 		if !strings.Contains(string(body), "grant_type=refresh_token") {
 			t.Errorf("missing grant_type=refresh_token: %s", body)
 		}
+		if !strings.Contains(string(body), "client_secret=desktop-secret") {
+			t.Errorf("missing client_secret in form: %s", body)
+		}
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{"access_token":"ya29.fresh","expires_in":3600,"token_type":"Bearer"}`))
 	}))
@@ -78,6 +81,7 @@ func TestGDriveRefreshExchangesExpiredToken(t *testing.T) {
 
 	payload := &GDrivePayload{
 		ClientID:        "c.apps.googleusercontent.com",
+		ClientSecret:    "desktop-secret",
 		RefreshToken:    "1//refresh",
 		AccessToken:     "ya29.expired",
 		AccessExpiresAt: time.Now().Add(-1 * time.Hour),
@@ -107,7 +111,43 @@ func TestGDriveRefreshExchangesExpiredToken(t *testing.T) {
 	if back.AccessToken != "ya29.fresh" {
 		t.Errorf("refreshed token not persisted, got %q", back.AccessToken)
 	}
+	if back.ClientSecret != "desktop-secret" {
+		t.Errorf("client secret not preserved, got %q", back.ClientSecret)
+	}
 	if back.AccessExpiresAt.Before(time.Now()) {
 		t.Errorf("AccessExpiresAt should be in the future, got %v", back.AccessExpiresAt)
+	}
+}
+
+func TestExchangeCodeSendsClientSecretWhenProvided(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		form := string(body)
+		for _, want := range []string{
+			"client_id=c.apps.googleusercontent.com",
+			"client_secret=desktop-secret",
+			"code=auth-code",
+			"code_verifier=verifier",
+			"grant_type=authorization_code",
+		} {
+			if !strings.Contains(form, want) {
+				t.Errorf("missing %s in form: %s", want, form)
+			}
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"access_token":"ya29.fresh","refresh_token":"1//refresh","expires_in":3600,"token_type":"Bearer"}`))
+	}))
+	defer srv.Close()
+
+	prev := tokenURLForTest
+	tokenURLForTest = srv.URL
+	defer func() { tokenURLForTest = prev }()
+
+	res, err := exchangeCode(context.Background(), "c.apps.googleusercontent.com", "desktop-secret", "auth-code", "verifier", "http://127.0.0.1/callback")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Payload.ClientSecret != "desktop-secret" {
+		t.Fatalf("client secret not stored in payload: %+v", res.Payload)
 	}
 }

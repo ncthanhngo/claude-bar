@@ -191,7 +191,7 @@ struct SettingsWindowView: View {
 
     private var diagnosticsTab: some View {
         SettingsPage {
-            SettingsGroup("iCloud Sync", subtitle: "Encrypt and store accounts in iCloud Drive. Restore on any Mac with the same Apple ID and iCloud Drive enabled.") {
+            SettingsGroup("iCloud Sync", subtitle: "Encrypt and store accounts plus local MCP connectors in iCloud Drive. Restore on any Mac with the same Apple ID and passphrase.") {
                 if let status = cloudSync.status, status.exists {
                     HStack(spacing: 6) {
                         badge("BUNDLE FOUND", color: .green)
@@ -313,12 +313,35 @@ struct SettingsWindowView: View {
             SettingsGroup("Claude Bar") {
                 Text("A menu-bar profile switcher for Claude Code accounts.")
                     .foregroundColor(.secondary)
-                Divider()
-                Text("Backend: csw (Go)")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                HStack {
+                    Text("Version")
+                    Spacer()
+                    Text(appVersionLabel)
+                        .foregroundColor(.secondary)
+                        .monospacedDigit()
+                }
+                .font(.caption)
+            }
+            SettingsGroup("Tech Stack") {
+                stackRow(label: "UI", value: "SwiftUI · macOS 14+")
+                stackRow(label: "Backend", value: "Go (csw daemon)")
+                stackRow(label: "IPC", value: "Unix socket · HTTP/JSON")
+                stackRow(label: "Auth storage", value: "macOS Keychain")
+                stackRow(label: "Cloud sync", value: "iCloud Drive · AES-256-GCM")
+                stackRow(label: "MCP connectors", value: "ClickUp · Slack · Google Drive · Google Workspace")
             }
         }
+    }
+
+    private func stackRow(label: String, value: String) -> some View {
+        HStack(alignment: .top) {
+            Text(label)
+                .foregroundColor(.secondary)
+                .frame(width: 100, alignment: .leading)
+            Text(value)
+                .foregroundColor(.primary)
+        }
+        .font(.caption)
     }
 
     private var accessibilityStatus: some View {
@@ -418,6 +441,22 @@ struct SettingsWindowView: View {
         "grep -qxF 'alias claude=\"claude-watch\"' ~/.zshrc 2>/dev/null || echo 'alias claude=\"claude-watch\"' >> ~/.zshrc; grep -qxF 'alias claude=\"claude-watch\"' ~/.zprofile 2>/dev/null || echo 'alias claude=\"claude-watch\"' >> ~/.zprofile"
     }
 
+    private var appVersionLabel: String {
+        let info = Bundle.main.infoDictionary
+        let short = info?["CFBundleShortVersionString"] as? String
+        let build = info?["CFBundleVersion"] as? String
+        switch (short, build) {
+        case let (s?, b?) where s != b:
+            return "\(s) (\(b))"
+        case let (s?, _):
+            return s
+        case let (_, b?):
+            return b
+        default:
+            return "dev"
+        }
+    }
+
     private func formatSec(_ seconds: Int) -> String {
         if seconds < 60 { return "\(seconds)s" }
         let minutes = seconds / 60
@@ -444,8 +483,8 @@ struct SettingsWindowView: View {
             Text(cloudSync.passphraseIntent == .pull ? "Restore from iCloud" : "iCloud Sync Passphrase")
                 .font(.headline)
             Text(cloudSync.passphraseIntent == .pull
-                 ? "Enter the passphrase you used on your other Mac."
-                 : "Choose a passphrase to encrypt your accounts. You will need it on any new Mac.")
+                 ? "Enter the passphrase you used on your other Mac. Accounts and connector tokens will be restored into this Mac's Keychain."
+                 : "Choose a passphrase to encrypt your accounts and connector tokens. You will need it on any new Mac.")
                 .font(.caption).foregroundColor(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
 
@@ -489,4 +528,3 @@ struct SettingsWindowView: View {
         return "\(secs / 86400)d ago"
     }
 }
-

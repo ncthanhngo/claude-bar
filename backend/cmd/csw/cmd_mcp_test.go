@@ -33,3 +33,25 @@ func TestReadTokenReadsFromStdinOnly(t *testing.T) {
 		t.Fatalf("unexpected token %q", got)
 	}
 }
+
+func TestMCPTargetAccountShared(t *testing.T) {
+	got, err := mcpTargetAccount(-1, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != 0 {
+		t.Fatalf("shared account should be 0, got %d", got)
+	}
+}
+
+func TestMCPTargetAccountRejectsMissingAccount(t *testing.T) {
+	if _, err := mcpTargetAccount(-1, false); err == nil || !strings.Contains(err.Error(), "--account") {
+		t.Fatalf("expected missing account error, got %v", err)
+	}
+}
+
+func TestMCPTargetAccountRejectsSharedAndAccount(t *testing.T) {
+	if _, err := mcpTargetAccount(1, true); err == nil || !strings.Contains(err.Error(), "either --shared or --account") {
+		t.Fatalf("expected conflict error, got %v", err)
+	}
+}

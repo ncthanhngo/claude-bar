@@ -50,10 +50,29 @@ func (r *Resolver) Resolve(ctx context.Context, svc domain.MCPService) (*CallCon
 		return nil, ErrNoActiveAccount
 	}
 	meta, ok := acc.MCPConnectors[svc]
-	if !ok || meta == nil || !meta.Enabled {
+	accountConnectorEnabled := ok && meta != nil && meta.Enabled
+	if accountConnectorEnabled {
+		payload, err := r.Secrets.Read(ctx, acc.Number, svc)
+		if err != nil {
+			return nil, fmt.Errorf("read secret: %w", err)
+		}
+		if payload != "" {
+			return &CallContext{
+				AccountNumber: acc.Number,
+				Service:       svc,
+				Payload:       payload,
+				Meta:          meta,
+			}, nil
+		}
+	}
+	sharedMeta, ok := reg.SharedMCPConnectors[svc]
+	if !ok || sharedMeta == nil || !sharedMeta.Enabled {
+		if accountConnectorEnabled {
+			return nil, ErrConnectorUnauthorized
+		}
 		return nil, ErrConnectorDisabled
 	}
-	payload, err := r.Secrets.Read(ctx, acc.Number, svc)
+	payload, err := r.Secrets.Read(ctx, 0, svc)
 	if err != nil {
 		return nil, fmt.Errorf("read secret: %w", err)
 	}
@@ -61,9 +80,9 @@ func (r *Resolver) Resolve(ctx context.Context, svc domain.MCPService) (*CallCon
 		return nil, ErrConnectorUnauthorized
 	}
 	return &CallContext{
-		AccountNumber: acc.Number,
+		AccountNumber: 0,
 		Service:       svc,
 		Payload:       payload,
-		Meta:          meta,
+		Meta:          sharedMeta,
 	}, nil
 }

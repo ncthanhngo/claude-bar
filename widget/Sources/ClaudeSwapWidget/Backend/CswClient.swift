@@ -129,10 +129,13 @@ actor CswClient {
         token: String,
         displayName: String? = nil
     ) async throws {
-        var args = ["mcp", "connectors", "connect",
-                    "--account", String(account),
-                    "--service", service,
-                    "--token", "-"]
+        var args = ["mcp", "connectors", "connect"]
+        if account == 0 {
+            args.append("--shared")
+        } else {
+            args.append(contentsOf: ["--account", String(account)])
+        }
+        args.append(contentsOf: ["--service", service, "--token", "-"])
         if let dn = displayName, !dn.isEmpty {
             args.append(contentsOf: ["--name", dn])
         }
@@ -144,14 +147,22 @@ actor CswClient {
     func mcpConnectorConnectGoogle(
         account: Int,
         clientID: String,
+        clientSecret: String,
         displayName: String? = nil
     ) async throws {
-        var args = ["mcp", "connectors", "connect",
-                    "--account", String(account),
-                    "--service", "gdrive"]
+        var args = ["mcp", "connectors", "connect"]
+        if account == 0 {
+            args.append("--shared")
+        } else {
+            args.append(contentsOf: ["--account", String(account)])
+        }
+        args.append(contentsOf: ["--service", "gdrive"])
         // Empty clientID means "use the build-time default baked into csw".
         if !clientID.isEmpty {
             args.append(contentsOf: ["--client-id", clientID])
+        }
+        if !clientSecret.isEmpty {
+            args.append(contentsOf: ["--client-secret", clientSecret])
         }
         if let dn = displayName, !dn.isEmpty {
             args.append(contentsOf: ["--name", dn])
@@ -160,11 +171,14 @@ actor CswClient {
     }
 
     func mcpConnectorDisconnect(account: Int, service: String) async throws {
-        _ = try await runRaw([
-            "mcp", "connectors", "disconnect",
-            "--account", String(account),
-            "--service", service,
-        ])
+        var args = ["mcp", "connectors", "disconnect"]
+        if account == 0 {
+            args.append("--shared")
+        } else {
+            args.append(contentsOf: ["--account", String(account)])
+        }
+        args.append(contentsOf: ["--service", service])
+        _ = try await runRaw(args)
     }
 
     private func runWithStdin(_ args: [String], stdin payload: String) async throws {

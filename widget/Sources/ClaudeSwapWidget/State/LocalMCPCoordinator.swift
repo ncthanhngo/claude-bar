@@ -102,14 +102,14 @@ final class LocalMCPCoordinator: ObservableObject {
         }
     }
 
-    func connectGoogle(account: Int, clientID: String, displayName: String?) async {
+    func connectGoogle(account: Int, clientID: String, clientSecret: String, displayName: String?) async {
         guard !isBusy else { return }
         isBusy = true
         lastError = nil
         defer { isBusy = false }
         do {
             try await client.mcpConnectorConnectGoogle(
-                account: account, clientID: clientID, displayName: displayName
+                account: account, clientID: clientID, clientSecret: clientSecret, displayName: displayName
             )
             accounts = try await client.mcpConnectorsList()
         } catch {

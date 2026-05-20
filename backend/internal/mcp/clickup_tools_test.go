@@ -7,7 +7,35 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	mcpgo "github.com/mark3labs/mcp-go/mcp"
+
+	"github.com/soi/claude-swap-widget/backend/internal/domain"
 )
+
+func newCallRequest(args map[string]any) mcpgo.CallToolRequest {
+	return mcpgo.CallToolRequest{Params: mcpgo.CallToolParams{Arguments: args}}
+}
+
+func newClickUpTestGateway(client *http.Client) *Gateway {
+	gw := newTestGateway()
+	gw.HTTP = client
+	reg := domain.NewRegistry()
+	reg.ActiveAccountNumber = 1
+	reg.Sequence = []int{1}
+	reg.Accounts[1] = &domain.Account{
+		Number: 1,
+		Email:  "clickup@example.com",
+		MCPConnectors: domain.AccountConnectors{
+			domain.MCPServiceClickUp: &domain.MCPConnector{Enabled: true},
+		},
+	}
+	gw.Resolver = &Resolver{
+		Registry: &fakeRegistry{reg: reg},
+		Secrets:  fakeSecrets{key(1, domain.MCPServiceClickUp): "pk_test"},
+	}
+	return gw
+}
 
 func TestClickUpCallSendsRawTokenAndDecodes(t *testing.T) {
 	var sawAuth, sawPath string
@@ -44,6 +72,79 @@ func TestClickUpCallSendsRawTokenAndDecodes(t *testing.T) {
 	}
 	if sawPath != "/list/123/task" {
 		t.Errorf("path %q", sawPath)
+	}
+}
+
+func TestClickUpListListsRequiresExactlyOneParent(t *testing.T) {
+	gw := newTestGateway()
+	req := newCallRequest(map[string]any{})
+	res, err := gw.clickupListLists(context.Background(), req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res == nil || !res.IsError {
+		t.Fatalf("expected tool error for missing parent, got %+v", res)
+	}
+
+	req = newCallRequest(map[string]any{"folder_id": "f1", "space_id": "s1"})
+	res, err = gw.clickupListLists(context.Background(), req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res == nil || !res.IsError {
+		t.Fatalf("expected tool error for conflicting parents, got %+v", res)
+	}
+}
+
+func TestClickUpHierarchyPaths(t *testing.T) {
+	var paths []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		paths = append(paths, r.URL.Path)
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/team/123/space":
+			_, _ = w.Write([]byte(`{"spaces":[]}`))
+		case "/space/456/folder":
+			_, _ = w.Write([]byte(`{"folders":[]}`))
+		case "/folder/789/list", "/space/456/list":
+			_, _ = w.Write([]byte(`{"lists":[]}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+
+	oldBase := clickupAPIBase
+	clickupAPIBase = srv.URL
+	defer func() { clickupAPIBase = oldBase }()
+
+	gw := newClickUpTestGateway(srv.Client())
+	calls := []func() (*mcpgo.CallToolResult, error){
+		func() (*mcpgo.CallToolResult, error) {
+			return gw.clickupListSpaces(context.Background(), newCallRequest(map[string]any{"workspace_id": "123"}))
+		},
+		func() (*mcpgo.CallToolResult, error) {
+			return gw.clickupListFolders(context.Background(), newCallRequest(map[string]any{"space_id": "456"}))
+		},
+		func() (*mcpgo.CallToolResult, error) {
+			return gw.clickupListLists(context.Background(), newCallRequest(map[string]any{"folder_id": "789"}))
+		},
+		func() (*mcpgo.CallToolResult, error) {
+			return gw.clickupListLists(context.Background(), newCallRequest(map[string]any{"space_id": "456"}))
+		},
+	}
+	for _, call := range calls {
+		res, err := call()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if res == nil || res.IsError {
+			t.Fatalf("unexpected result: %+v", res)
+		}
+	}
+	want := []string{"/team/123/space", "/space/456/folder", "/folder/789/list", "/space/456/list"}
+	if strings.Join(paths, ",") != strings.Join(want, ",") {
+		t.Fatalf("paths %v, want %v", paths, want)
 	}
 }
 

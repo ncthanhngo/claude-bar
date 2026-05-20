@@ -1,7 +1,9 @@
+import AppKit
 import SwiftUI
 
 struct LocalMCPSettingsView: View {
     @EnvironmentObject var coordinator: LocalMCPCoordinator
+    @EnvironmentObject var cloudSync: CloudSyncCoordinator
     @State private var pendingDisconnect: PendingDisconnect?
 
     private struct PendingDisconnect: Identifiable {
@@ -21,10 +23,12 @@ struct LocalMCPSettingsView: View {
         .sheet(item: $coordinator.connectSheet) { target in
             ConnectTokenSheet(target: target)
                 .environmentObject(coordinator)
+                .environmentObject(cloudSync)
         }
         .sheet(item: $coordinator.gdriveSheet) { target in
             ConnectGoogleSheet(target: target)
                 .environmentObject(coordinator)
+                .environmentObject(cloudSync)
         }
         .confirmationDialog(
             "Disconnect \(pendingDisconnect?.serviceLabel ?? "")?",
@@ -37,12 +41,13 @@ struct LocalMCPSettingsView: View {
             Button("Disconnect", role: .destructive) {
                 Task {
                     await coordinator.disconnect(account: p.accountNumber, service: p.service)
+                    await pushCloudIfConfigured()
                     pendingDisconnect = nil
                 }
             }
             Button("Cancel", role: .cancel) { pendingDisconnect = nil }
         } message: { _ in
-            Text("Removes the token from this Mac's Keychain and clears the connector from your registry. No way to undo from here.")
+            Text("Removes the token from this Mac's Keychain and clears the connector from your registry. Shared connector removal affects every account that does not have its own connector.")
         }
         .overlay(alignment: .bottom) {
             if let msg = coordinator.lastError {
@@ -62,7 +67,7 @@ struct LocalMCPSettingsView: View {
         VStack(alignment: .leading, spacing: 4) {
             Label("Local connectors stay on this Mac", systemImage: "lock.shield")
                 .font(.subheadline.weight(.medium))
-            Text("Slack, ClickUp, and Google Drive tokens live in the macOS Keychain, tied to your active Claude Bar account. Tool results still flow through your Claude chat history, which may be shared if you share that Claude login. Switching Claude Bar accounts switches which tokens the local gateway uses.")
+            Text("Slack, ClickUp, and Google Workspace tokens live in the macOS Keychain. Shared connectors work for every Claude Bar account on this Mac; account-specific connectors override shared ones. Tool results still flow through your Claude chat history, which may be shared if you share that Claude login.")
                 .font(.caption)
                 .foregroundColor(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -134,13 +139,19 @@ struct LocalMCPSettingsView: View {
     }
 
     private var connectorsSection: some View {
-        SettingsGroup("Connectors", subtitle: "Each row is one Claude Bar account. Connecting Slack/ClickUp/Drive on account A does not give account B access.") {
+        SettingsGroup("Connectors", subtitle: "Connect once in Shared Connectors for every Claude Bar account on this Mac. Per-account rows can still override a shared connector.") {
+            let shared = coordinator.accounts.first { $0.shared == true }
+            let accountRows = coordinator.accounts.filter { $0.shared != true }
             if coordinator.accounts.isEmpty {
                 Text(coordinator.isBusy ? "Loading…" : "No accounts yet — add one in the Accounts tab.")
                     .font(.callout).foregroundColor(.secondary)
             } else {
-                VStack(spacing: 10) {
-                    ForEach(coordinator.accounts) { acc in
+                VStack(alignment: .leading, spacing: 10) {
+                    if let shared {
+                        accountBlock(shared)
+                        Divider()
+                    }
+                    ForEach(accountRows) { acc in
                         accountBlock(acc)
                     }
                 }
@@ -152,6 +163,13 @@ struct LocalMCPSettingsView: View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 6) {
                 Text(acc.displayName).font(.system(size: 13, weight: .medium))
+                if acc.shared == true {
+                    Text("SHARED")
+                        .font(.system(size: 9, weight: .bold)).tracking(0.4)
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 6).padding(.vertical, 2)
+                        .background(Color.accentColor).clipShape(Capsule())
+                }
                 if acc.active {
                     Text("ACTIVE")
                         .font(.system(size: 9, weight: .bold)).tracking(0.4)
@@ -166,8 +184,14 @@ struct LocalMCPSettingsView: View {
             }
         }
         .padding(8)
-        .background(acc.active ? Color.green.opacity(0.06) : Color.secondary.opacity(0.04))
+        .background(accountBlockBackground(acc))
         .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+
+    private func accountBlockBackground(_ acc: MCPAccountSummaryDTO) -> Color {
+        if acc.shared == true { return Color.accentColor.opacity(0.07) }
+        if acc.active { return Color.green.opacity(0.06) }
+        return Color.secondary.opacity(0.04)
     }
 
     private func connectorRow(account: Int, connector: MCPConnectorSummaryDTO) -> some View {
@@ -214,8 +238,14 @@ struct LocalMCPSettingsView: View {
     private func stateColor(for c: MCPConnectorSummaryDTO) -> Color {
         if c.needsReauth { return .orange }
         if c.enabled && c.hasSecret { return .green }
+        if c.usesShared == true { return .accentColor }
         if c.hasSecret { return .secondary }
         return .secondary
+    }
+
+    private func pushCloudIfConfigured() async {
+        guard let passphrase = cloudSync.loadPassphrase() else { return }
+        await cloudSync.push(passphrase: passphrase)
     }
 }
 
@@ -224,13 +254,14 @@ struct LocalMCPSettingsView: View {
 private struct ConnectTokenSheet: View {
     let target: LocalMCPCoordinator.ConnectSheetTarget
     @EnvironmentObject var coordinator: LocalMCPCoordinator
+    @EnvironmentObject var cloudSync: CloudSyncCoordinator
     @Environment(\.dismiss) private var dismiss
     @State private var token: String = ""
     @State private var displayName: String = ""
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Connect \(target.serviceLabel)")
+            Text(target.accountNumber == 0 ? "Connect \(target.serviceLabel) for all accounts" : "Connect \(target.serviceLabel)")
                 .font(.headline)
             Text(hint)
                 .font(.caption)
@@ -252,6 +283,7 @@ private struct ConnectTokenSheet: View {
                             token: t,
                             displayName: displayName.isEmpty ? nil : displayName
                         )
+                        await pushCloudIfConfigured()
                         dismiss()
                     }
                 }
@@ -273,14 +305,22 @@ private struct ConnectTokenSheet: View {
             return "Paste the provider token."
         }
     }
+
+    private func pushCloudIfConfigured() async {
+        guard let passphrase = cloudSync.loadPassphrase() else { return }
+        await cloudSync.push(passphrase: passphrase)
+    }
 }
 
 private struct ConnectGoogleSheet: View {
     let target: LocalMCPCoordinator.GDriveSheetTarget
     @EnvironmentObject var coordinator: LocalMCPCoordinator
+    @EnvironmentObject var cloudSync: CloudSyncCoordinator
     @Environment(\.dismiss) private var dismiss
     @State private var clientID: String = ""
+    @State private var clientSecret: String = ""
     @State private var displayName: String = ""
+    @State private var importError: String?
 
     private var hasDefault: Bool {
         coordinator.installStatus?.hasDefaultGDriveClient == true
@@ -288,17 +328,29 @@ private struct ConnectGoogleSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Connect Google Drive")
+            Text(target.accountNumber == 0 ? "Connect Google for all accounts" : "Connect Google")
                 .font(.headline)
             Text(hasDefault
-                 ? "Clicking Connect opens your browser for Google consent. We never see or store your Google password; only the refresh token comes back, and it stays in your Keychain. PKCE (S256) keeps the flow safe without a client secret."
-                 : "Paste your Google OAuth Desktop client ID. Clicking Connect opens your browser for consent. We never see or store your Google password; only the refresh token comes back, and it stays in your Keychain. PKCE (S256) is used so no client secret is needed.")
+                 ? "Clicking Connect opens your browser for Google consent. We request read-only Drive, Calendar, and Gmail scopes. OAuth tokens stay in your Keychain. Leave Client ID empty to use the app default, or import/paste your Desktop OAuth client JSON."
+                 : "Paste your Google OAuth Desktop client ID and client secret, or import the downloaded JSON file. We request read-only Drive, Calendar, and Gmail scopes. Enable Drive, Calendar, and Gmail APIs in the same Google Cloud project.")
                 .font(.caption)
                 .foregroundColor(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
-            if !hasDefault {
-                TextField("Client ID (xxxx.apps.googleusercontent.com)", text: $clientID)
-                    .textFieldStyle(.roundedBorder)
+            Button {
+                importGoogleOAuthJSON()
+            } label: {
+                Label("Import JSON", systemImage: "doc.badge.gearshape")
+            }
+            .buttonStyle(.bordered)
+            TextField(hasDefault ? "Client ID override (optional)" : "Client ID (xxxx.apps.googleusercontent.com)", text: $clientID)
+                .textFieldStyle(.roundedBorder)
+            SecureField("Client secret (from the same Desktop OAuth client)", text: $clientSecret)
+                .textFieldStyle(.roundedBorder)
+            if let importError {
+                Text(importError)
+                    .font(.caption)
+                    .foregroundColor(.red)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             TextField("Optional label", text: $displayName)
                 .textFieldStyle(.roundedBorder)
@@ -307,12 +359,15 @@ private struct ConnectGoogleSheet: View {
                 Button("Cancel") { dismiss() }
                 Button("Open browser to connect") {
                     let cid = clientID.trimmingCharacters(in: .whitespacesAndNewlines)
+                    let secret = clientSecret.trimmingCharacters(in: .whitespacesAndNewlines)
                     Task {
                         await coordinator.connectGoogle(
                             account: target.accountNumber,
                             clientID: cid,
+                            clientSecret: secret,
                             displayName: displayName.isEmpty ? nil : displayName
                         )
+                        await pushCloudIfConfigured()
                         dismiss()
                     }
                 }
@@ -322,5 +377,50 @@ private struct ConnectGoogleSheet: View {
         }
         .padding(20)
         .frame(width: 460)
+    }
+
+    private func importGoogleOAuthJSON() {
+        let panel = NSOpenPanel()
+        panel.title = "Select Google OAuth client JSON"
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+        panel.allowedContentTypes = [.json]
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        do {
+            let data = try Data(contentsOf: url)
+            let parsed = try JSONDecoder().decode(GoogleOAuthClientFile.self, from: data)
+            let client = parsed.installed ?? parsed.web
+            guard let client, !client.clientID.isEmpty else {
+                throw CocoaError(.fileReadCorruptFile)
+            }
+            clientID = client.clientID
+            clientSecret = client.clientSecret ?? ""
+            if displayName.isEmpty {
+                displayName = "Google"
+            }
+            importError = nil
+        } catch {
+            importError = "Could not read client_id/client_secret from this JSON. Create an OAuth Client ID with Application type Desktop app, then download its JSON."
+        }
+    }
+
+    private func pushCloudIfConfigured() async {
+        guard let passphrase = cloudSync.loadPassphrase() else { return }
+        await cloudSync.push(passphrase: passphrase)
+    }
+}
+
+private struct GoogleOAuthClientFile: Decodable {
+    let installed: GoogleOAuthClient?
+    let web: GoogleOAuthClient?
+}
+
+private struct GoogleOAuthClient: Decodable {
+    let clientID: String
+    let clientSecret: String?
+
+    enum CodingKeys: String, CodingKey {
+        case clientID = "client_id"
+        case clientSecret = "client_secret"
     }
 }

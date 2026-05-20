@@ -31,6 +31,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/soi/claude-swap-widget/backend/internal/domain"
 	"golang.org/x/crypto/scrypt"
 )
 
@@ -47,30 +48,39 @@ const (
 	scryptP = 1
 )
 
+// BundleMCPConnector is one local MCP connector inside the encrypted bundle.
+// Payload is provider-defined secret material copied from Keychain; this struct
+// must only ever be written inside the AES-GCM encrypted cloud bundle.
+type BundleMCPConnector struct {
+	Service      domain.MCPService `json:"service"`
+	Payload      string            `json:"payload"`
+	Enabled      bool              `json:"enabled"`
+	DisplayName  string            `json:"displayName,omitempty"`
+	Account      string            `json:"account,omitempty"`
+	Scopes       []string          `json:"scopes,omitempty"`
+	ConnectedAt  time.Time         `json:"connectedAt,omitempty"`
+	LastVerified time.Time         `json:"lastVerified,omitempty"`
+	NeedsReauth  bool              `json:"needsReauth,omitempty"`
+}
+
 // BundleAccount is one account entry inside the encrypted bundle.
-//
-// Privacy contract: this struct intentionally omits domain.Account.MCPConnectors
-// and any Keychain payload for the "claude-bar-mcp:*" namespace. Local MCP
-// connector credentials and metadata are local-only by design — pushing them
-// would create a stale "enabled=true" row on the pulling Mac with no matching
-// Keychain secret, contradicting the threat-model boundary
-// (docs/local-mcp-threat-model.md §5 "Forbidden — iCloud sync bundle").
-// Tests in mcp_exclusion_test.go assert this stays true.
 type BundleAccount struct {
-	Number           int    `json:"number"`
-	Email            string `json:"email"`
-	Nickname         string `json:"nickname,omitempty"`
-	OrganizationName string `json:"organizationName,omitempty"`
-	OrganizationUUID string `json:"organizationUuid,omitempty"`
-	CredentialBlob   string `json:"credentialBlob"`
-	UpdatedAt        string `json:"updatedAt"`
+	Number           int                  `json:"number"`
+	Email            string               `json:"email"`
+	Nickname         string               `json:"nickname,omitempty"`
+	OrganizationName string               `json:"organizationName,omitempty"`
+	OrganizationUUID string               `json:"organizationUuid,omitempty"`
+	CredentialBlob   string               `json:"credentialBlob"`
+	MCPConnectors    []BundleMCPConnector `json:"mcpConnectors,omitempty"`
+	UpdatedAt        string               `json:"updatedAt"`
 }
 
 // CloudBundle is the plaintext payload stored inside the encrypted file.
 type CloudBundle struct {
-	Version  int             `json:"version"`
-	PushedAt time.Time       `json:"pushedAt"`
-	Accounts []BundleAccount `json:"accounts"`
+	Version             int                  `json:"version"`
+	PushedAt            time.Time            `json:"pushedAt"`
+	Accounts            []BundleAccount      `json:"accounts"`
+	SharedMCPConnectors []BundleMCPConnector `json:"sharedMcpConnectors,omitempty"`
 }
 
 // BundlePath returns the iCloud Drive path for the encrypted bundle.

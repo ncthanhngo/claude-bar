@@ -64,18 +64,18 @@ Enable **Auto-reload IDE after swap** in Settings → General, then click **Gran
 
 ### Local MCP connectors (optional)
 
-Each Claude Bar account can own a private set of Slack, ClickUp, and Google Drive tokens that Claude Code reaches through a local stdio gateway. Tokens stay on this Mac in the macOS Keychain and never touch the repo, `~/.claude.json`, logs, or the iCloud sync bundle. Switching accounts in the menu bar swaps which tokens the next tool call uses — no Claude Code restart required.
+Claude Bar can keep one shared set of Slack, ClickUp, and Google Workspace tokens for every account on this Mac, plus optional per-account overrides. Claude Code reaches them through a local stdio gateway. Tokens stay in the macOS Keychain locally; if iCloud Sync is enabled, they are copied only into the passphrase-encrypted Claude Bar iCloud bundle so another Mac signed into the same Apple ID can restore them into its own Keychain. Switching accounts in the menu bar swaps to that account's override when present; otherwise it uses the shared connector — no Claude Code restart required.
 
 1. Open **Settings → Local MCP**.
 2. Click **Install** to wire `claude-bar-mcp` into `~/.claude.json`.
-3. For each account, click **Connect** next to the service you want.
+3. In **Shared for all accounts**, click **Connect** next to each service you want to use across all Claude Bar accounts. Use per-account rows only when an account should override the shared connector.
    - Slack/ClickUp: paste a user token (Slack `xoxp-…` / ClickUp `pk_…`). The token is piped to `csw` over stdin and never appears in argv or shell history.
-   - Google Drive: paste your Google OAuth Desktop client ID, then click **Open browser to connect**. PKCE (S256) is used, so no client secret is needed.
+   - Google Workspace: enable Drive, Calendar, and Gmail APIs in Google Cloud, paste your OAuth Desktop client ID/secret or import the downloaded JSON file, then click **Open browser to connect**. PKCE (S256) is still used.
 4. Restart Claude Code once so it picks up the new MCP server. After that, switching Claude Bar accounts is hot — Claude Code keeps running.
 
-Tools currently exposed (read-only): `cb_slack_list_channels`, `cb_slack_search_messages`, `cb_slack_get_thread`, `cb_clickup_list_workspaces`, `cb_clickup_list_tasks`, `cb_clickup_get_task`, `cb_gdrive_search_files`, `cb_gdrive_get_file_metadata`, `cb_gdrive_get_doc_text`.
+Tools currently exposed (read-only): `cb_slack_list_channels`, `cb_slack_search_messages`, `cb_slack_get_thread`, `cb_clickup_list_workspaces`, `cb_clickup_list_spaces`, `cb_clickup_list_folders`, `cb_clickup_list_lists`, `cb_clickup_list_tasks`, `cb_clickup_get_task`, `cb_gdrive_search_files`, `cb_gdrive_get_file_metadata`, `cb_gdrive_get_doc_text`, `cb_gcal_list_events`, `cb_gcal_get_event`, `cb_gmail_search_messages`, `cb_gmail_get_message`.
 
-> **Privacy boundary:** local tokens stay on this Mac, but tool results still flow through your Claude account's chat history, which may be shared if you share that Claude login. Anyone else logged into the same Claude account on a *different* Mac cannot use these connectors unless they install Claude Bar there too.
+> **Privacy boundary:** shared tokens are usable by every Claude Bar account configured on this Mac. If iCloud Sync is enabled, the same connector tokens are available to Macs that share your Apple ID and know the Claude Bar sync passphrase. Tool results still flow through your Claude account's chat history, which may be shared if you share that Claude login.
 
 ---
 
