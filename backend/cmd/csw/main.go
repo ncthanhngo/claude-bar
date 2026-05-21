@@ -46,6 +46,8 @@ func main() {
 		err = runVerify(ctx, svc, args)
 	case "refresh-tokens":
 		err = runRefreshTokens(ctx, svc, args)
+	case "repair-keychain":
+		err = runRepairKeychain(ctx, svc, args)
 	case "cloud":
 		err = runCloud(ctx, svc, args)
 	case "mcp":
@@ -76,6 +78,7 @@ Commands:
   sessions                Report live Claude Code sessions
   verify                  Verify every account is swap-ready
   refresh-tokens          Refresh OAuth tokens for all inactive accounts
+  repair-keychain         Rewrite live Claude Code Keychain item from active backup
   cloud status            Show iCloud Drive bundle status
   cloud push              Encrypt and push accounts to iCloud Drive
   cloud pull              Restore accounts from iCloud Drive bundle

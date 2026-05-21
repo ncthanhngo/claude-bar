@@ -26,8 +26,8 @@ type ListAccountsResult struct {
 }
 
 // ListAccounts returns every account with usage. Usage is fetched in parallel.
-// Inactive accounts get OAuth refresh on expiry; active account is read-only
-// to avoid clobbering Claude Code's own refresh.
+// Usage reads the Claude Bar backup credentials for every account, including
+// the active account, so polling never touches Claude Code's live Keychain item.
 func (s *Service) ListAccounts(ctx context.Context) (*ListAccountsResult, error) {
 	reg, err := s.Registry.Load(ctx)
 	if err != nil {
@@ -85,13 +85,7 @@ func (s *Service) fillUsage(ctx context.Context, v *AccountView) {
 		}
 	}
 
-	var blob domain.CredentialBlob
-	var err error
-	if v.IsActive {
-		blob, err = s.Live.Read(ctx)
-	} else {
-		blob, err = s.Backup.Read(ctx, v.Account.Number, v.Account.Email)
-	}
+	blob, err := s.Backup.Read(ctx, v.Account.Number, v.Account.Email)
 	if err != nil {
 		s.fallbackToCache(v, err)
 		return
@@ -108,8 +102,9 @@ func (s *Service) fillUsage(ctx context.Context, v *AccountView) {
 	v.SubscriptionType = payload.SubscriptionType
 	access := payload.AccessToken
 
-	// Inactive + token expired -> refresh, persist back to backup.
-	if !v.IsActive && payload.RefreshToken != "" && oauth.IsExpired(payload.ExpiresAt) {
+	// Token expired -> refresh only the backup copy. Claude Code still owns the
+	// live active credential; this avoids keychain prompts during menu polling.
+	if payload.RefreshToken != "" && oauth.IsExpired(payload.ExpiresAt) {
 		fresh, refErr := s.Refresh.Refresh(ctx, payload.RefreshToken)
 		if refErr == nil && fresh != nil {
 			newBlob, _ := blob.WithRefreshed(fresh)
@@ -138,11 +133,17 @@ func (s *Service) fillUsage(ctx context.Context, v *AccountView) {
 }
 
 func shortDuration(d time.Duration) string {
-	if d <= 0 { return "now" }
+	if d <= 0 {
+		return "now"
+	}
 	m := int(d.Minutes())
 	s := int(d.Seconds()) % 60
-	if m == 0 { return fmt.Sprintf("%ds", s) }
-	if m < 60 { return fmt.Sprintf("%dm %02ds", m, s) }
+	if m == 0 {
+		return fmt.Sprintf("%ds", s)
+	}
+	if m < 60 {
+		return fmt.Sprintf("%dm %02ds", m, s)
+	}
 	h := m / 60
 	return fmt.Sprintf("%dh %02dm", h, m%60)
 }

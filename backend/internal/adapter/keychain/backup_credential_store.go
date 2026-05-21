@@ -58,7 +58,8 @@ func (s *BackupCredentialStore) Read(ctx context.Context, accountNum int, email 
 	}
 	s.mu.RUnlock()
 
-	out, err := s.kc(accountNum, email).Read(ctx)
+	kc := s.kc(accountNum, email)
+	out, err := kc.Read(ctx)
 	if err != nil {
 		if errors.Is(err, ErrNotFound) {
 			return "", nil
@@ -66,6 +67,11 @@ func (s *BackupCredentialStore) Read(ctx context.Context, accountNum int, email 
 		return "", err
 	}
 	blob := domain.CredentialBlob(out)
+
+	// One-time ACL migration: delete the old restrictive-ACL item and recreate
+	// without an ACL so future reads from any process never prompt again.
+	// The delete does not access the secret, so no second dialog appears.
+	_ = kc.Migrate(ctx, out)
 
 	s.mu.Lock()
 	s.cache[k] = blob
