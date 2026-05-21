@@ -42,7 +42,7 @@ func (s *Service) SwitchAccount(ctx context.Context, targetNum int) error {
 		return fmt.Errorf("account %d not found", targetNum)
 	}
 	if reg.ActiveAccountNumber == targetNum {
-		return s.rewriteLiveCredentialFromBackup(ctx, target)
+		return s.repairActiveAccountState(ctx, target)
 	}
 
 	prevConfig, err := s.Config.Read(ctx)
@@ -116,6 +116,28 @@ func (s *Service) RepairLiveCredential(ctx context.Context) error {
 		return errors.New("no active account")
 	}
 	return s.rewriteLiveCredentialFromBackup(ctx, active)
+}
+
+func (s *Service) repairActiveAccountState(ctx context.Context, acc *domain.Account) error {
+	if err := s.rewriteLiveCredentialFromBackup(ctx, acc); err != nil {
+		return err
+	}
+
+	cfg, err := s.Config.Read(ctx)
+	if err != nil {
+		return fmt.Errorf("read claude config: %w", err)
+	}
+	if cfg == nil {
+		cfg = &emptyConfig
+	}
+	if cfg.Raw == nil {
+		cfg.Raw = map[string]any{}
+	}
+	cfg.OAuthAccount = newOAuthAccount(acc.Email, acc.OrganizationName, acc.OrganizationUUID)
+	if err := s.Config.Write(ctx, cfg); err != nil {
+		return fmt.Errorf("write claude config: %w", err)
+	}
+	return nil
 }
 
 func (s *Service) rewriteLiveCredentialFromBackup(ctx context.Context, acc *domain.Account) error {
