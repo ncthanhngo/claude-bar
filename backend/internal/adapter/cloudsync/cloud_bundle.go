@@ -45,30 +45,49 @@ const (
 	bundleV1      = uint16(1)
 	scryptNV1     = 1 << 15
 
-	// bundleV2 raises scrypt to N=2^17 (OWASP minimum). All new bundles use V2.
-	bundleV2      = uint16(2)
-	bundleVersion = bundleV2
+	// bundleV2 raised scrypt to N=2^17 (OWASP minimum). V2 bundles are still
+	// readable but new pushes use V3.
+	bundleV2  = uint16(2)
+	scryptNV2 = 1 << 17
+
+	// bundleV3 keeps V2's scrypt parameters but adds anti-rollback (Seq,
+	// PrevHash), per-record UpdatedAt merge, and double-encrypted MCP
+	// payloads in the plaintext JSON. The binary header layout is unchanged.
+	bundleV3      = uint16(3)
+	bundleVersion = bundleV3
 	scryptN       = 1 << 17
 	scryptR       = 8
 	scryptP       = 1
 )
 
 // BundleMCPConnector is one local MCP connector inside the encrypted bundle.
-// Payload is provider-defined secret material copied from Keychain; this struct
-// must only ever be written inside the AES-GCM encrypted cloud bundle.
+//
+// Payload carries provider-defined secret material copied from Keychain. In V3
+// bundles it is **double-encrypted**: the plaintext secret is AES-GCM sealed
+// with an HKDF-derived MCP sub-key (see EncryptMCPPayload / DecryptMCPPayload)
+// before being placed here, then the outer JSON is itself AES-GCM encrypted.
+// A debug dump of the decrypted bundle therefore exposes ciphertext only.
+//
+// V1/V2 bundles stored the raw secret here; readers must check
+// PayloadEncrypted to know whether a second decrypt is required.
 type BundleMCPConnector struct {
-	Service      domain.MCPService `json:"service"`
-	Payload      string            `json:"payload"`
-	Enabled      bool              `json:"enabled"`
-	DisplayName  string            `json:"displayName,omitempty"`
-	Account      string            `json:"account,omitempty"`
-	Scopes       []string          `json:"scopes,omitempty"`
-	ConnectedAt  time.Time         `json:"connectedAt,omitempty"`
-	LastVerified time.Time         `json:"lastVerified,omitempty"`
-	NeedsReauth  bool              `json:"needsReauth,omitempty"`
+	Service          domain.MCPService `json:"service"`
+	Payload          string            `json:"payload"`
+	PayloadEncrypted bool              `json:"payloadEncrypted,omitempty"`
+	Enabled          bool              `json:"enabled"`
+	DisplayName      string            `json:"displayName,omitempty"`
+	Account          string            `json:"account,omitempty"`
+	Scopes           []string          `json:"scopes,omitempty"`
+	ConnectedAt      time.Time         `json:"connectedAt,omitempty"`
+	LastVerified     time.Time         `json:"lastVerified,omitempty"`
+	NeedsReauth      bool              `json:"needsReauth,omitempty"`
 }
 
 // BundleAccount is one account entry inside the encrypted bundle.
+//
+// UpdatedAtTime (V3) is the authoritative per-record version timestamp used
+// for last-writer-wins merge. UpdatedAt (string, V1/V2) is kept for backward
+// compat — V3 readers populate both fields so older code continues to work.
 type BundleAccount struct {
 	Number           int                  `json:"number"`
 	Email            string               `json:"email"`
@@ -78,11 +97,18 @@ type BundleAccount struct {
 	CredentialBlob   string               `json:"credentialBlob"`
 	MCPConnectors    []BundleMCPConnector `json:"mcpConnectors,omitempty"`
 	UpdatedAt        string               `json:"updatedAt"`
+	UpdatedAtTime    time.Time            `json:"updatedAtTime,omitempty"`
 }
 
 // CloudBundle is the plaintext payload stored inside the encrypted file.
+//
+// V3 adds Seq (monotonic counter per push) and PrevHash (SHA-256 of the
+// previous bundle's ciphertext, hex). Together they form the hash chain used
+// by sync_state.go to reject rollback attempts.
 type CloudBundle struct {
 	Version             int                  `json:"version"`
+	Seq                 uint64               `json:"seq,omitempty"`
+	PrevHash            string               `json:"prevHash,omitempty"`
 	PushedAt            time.Time            `json:"pushedAt"`
 	Accounts            []BundleAccount      `json:"accounts"`
 	SharedMCPConnectors []BundleMCPConnector `json:"sharedMcpConnectors,omitempty"`
@@ -163,7 +189,8 @@ func Decrypt(data []byte, passphrase string) (*CloudBundle, error) {
 	nonce := data[6+saltLen : 6+saltLen+nonceLen]
 	ciphertext := data[6+saltLen+nonceLen:]
 
-	// Use the N that matches the version that encrypted this bundle.
+	// Use the N that matches the version that encrypted this bundle. V2 and V3
+	// share the same scrypt cost; only V1 was weaker.
 	n := scryptN
 	if version == bundleV1 {
 		n = scryptNV1

@@ -3,13 +3,29 @@ package usecase
 import (
 	"context"
 	"errors"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/soi/claude-swap-widget/backend/internal/adapter/cloudsync"
 	"github.com/soi/claude-swap-widget/backend/internal/domain"
 )
+
+// isolateCloudIO redirects bundle + sync-state writes to temp paths so push
+// tests do not pollute the developer's real iCloud Drive or Application
+// Support directories. Cleanup restores the overrides.
+func isolateCloudIO(t *testing.T) {
+	t.Helper()
+	dir := t.TempDir()
+	cloudsync.BundlePathForTest = filepath.Join(dir, "bundle.enc")
+	cloudsync.SyncStatePathForTest = filepath.Join(dir, "sync-state.json")
+	t.Cleanup(func() {
+		cloudsync.BundlePathForTest = ""
+		cloudsync.SyncStatePathForTest = ""
+	})
+}
 
 // pushTestLiveStore returns a configurable blob or error.
 type pushTestLiveStore struct {
@@ -145,6 +161,7 @@ func TestCloudPushFailsWhenInactiveCredentialRefreshFails(t *testing.T) {
 // TestCloudPush_OptionB_RefreshCalledBeforeLock verifies that RefreshAllTokens
 // is invoked before Lock.Acquire so network calls never run under the file lock.
 func TestCloudPush_OptionB_RefreshCalledBeforeLock(t *testing.T) {
+	isolateCloudIO(t)
 	var seq []string
 
 	instrLock := &seqRecordingLock{seq: &seq}
@@ -219,6 +236,7 @@ func (l *seqRecordingLock) Release() error { return nil }
 // TestCloudPush_R2_ActiveLiveFailFallsBackToBackup verifies that when the live
 // keychain read fails, the active account's backup is used instead.
 func TestCloudPush_R2_ActiveLiveFailFallsBackToBackup(t *testing.T) {
+	isolateCloudIO(t)
 	backupBlob := credentialBlob("backup-token", "backup-rt", time.Now().Add(time.Hour))
 	reg := &domain.Registry{
 		ActiveAccountNumber: 1,

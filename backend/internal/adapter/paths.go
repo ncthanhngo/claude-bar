@@ -47,6 +47,12 @@ func UsageCacheFile() string {
 	return filepath.Join(WidgetDataDir(), "usage-cache.json")
 }
 
+// CloudSyncStateFile holds per-device sync state (seq + bundle hash) for
+// anti-rollback. Local-only — never synced.
+func CloudSyncStateFile() string {
+	return filepath.Join(WidgetDataDir(), "cloud-sync-state.json")
+}
+
 // EnsureDataDir creates the widget data dir with safe perms.
 func EnsureDataDir() error {
 	return os.MkdirAll(WidgetDataDir(), 0o700)
