@@ -40,7 +40,21 @@ func (s switchTestConfigStore) Read(context.Context) (*domain.ClaudeConfig, erro
 func (s switchTestConfigStore) Write(context.Context, *domain.ClaudeConfig) error { return nil }
 func (s switchTestConfigStore) Exists() bool                                      { return true }
 
-func TestSwitchAccountAlreadyActiveRepairsLiveCredential(t *testing.T) {
+type switchTestRecordingConfigStore struct {
+	cfg     *domain.ClaudeConfig
+	written *domain.ClaudeConfig
+}
+
+func (s *switchTestRecordingConfigStore) Read(context.Context) (*domain.ClaudeConfig, error) {
+	return s.cfg, nil
+}
+func (s *switchTestRecordingConfigStore) Write(_ context.Context, cfg *domain.ClaudeConfig) error {
+	s.written = cfg
+	return nil
+}
+func (s *switchTestRecordingConfigStore) Exists() bool { return true }
+
+func TestSwitchAccountAlreadyActiveRepairsLiveCredentialAndClaudeConfig(t *testing.T) {
 	live := &switchTestLiveStore{}
 	backup := &listTestBackupStore{
 		blobs: map[int]domain.CredentialBlob{
@@ -48,15 +62,29 @@ func TestSwitchAccountAlreadyActiveRepairsLiveCredential(t *testing.T) {
 		},
 		writes: map[int]domain.CredentialBlob{},
 	}
+	config := &switchTestRecordingConfigStore{cfg: &domain.ClaudeConfig{
+		Raw: map[string]any{},
+		OAuthAccount: &domain.OAuthAccount{
+			EmailAddress:     "stale@example.com",
+			OrganizationName: "Stale Org",
+			OrganizationUUID: "stale-org",
+		},
+	}}
 
 	svc := &Service{
 		Live:   live,
 		Backup: backup,
+		Config: config,
 		Registry: listTestRegistryStore{reg: &domain.Registry{
 			ActiveAccountNumber: 1,
 			Sequence:            []int{1},
 			Accounts: map[int]*domain.Account{
-				1: {Number: 1, Email: "active@example.com"},
+				1: {
+					Number:           1,
+					Email:            "active@example.com",
+					OrganizationName: "Active Org",
+					OrganizationUUID: "active-org",
+				},
 			},
 		}},
 		Refresh: refreshedSwitchToken(),
@@ -68,6 +96,15 @@ func TestSwitchAccountAlreadyActiveRepairsLiveCredential(t *testing.T) {
 	}
 	if live.written == "" {
 		t.Fatal("active switch did not rewrite live credential")
+	}
+	if config.written == nil || config.written.OAuthAccount == nil {
+		t.Fatal("active switch did not rewrite claude config")
+	}
+	if got := config.written.OAuthAccount.EmailAddress; got != "active@example.com" {
+		t.Fatalf("claude config email = %q, want active@example.com", got)
+	}
+	if got := config.written.OAuthAccount.OrganizationUUID; got != "active-org" {
+		t.Fatalf("claude config org = %q, want active-org", got)
 	}
 }
 
