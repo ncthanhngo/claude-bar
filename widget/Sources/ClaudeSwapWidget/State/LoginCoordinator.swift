@@ -55,6 +55,7 @@ final class LoginCoordinator: ObservableObject {
             let res = try await client.add(
                 nickname: pendingNickname.isEmpty ? nil : pendingNickname
             )
+            await store?.refreshNow()
             step = .done(
                 displayName: res.account.displayName,
                 wasDuplicate: res.wasDuplicate,
