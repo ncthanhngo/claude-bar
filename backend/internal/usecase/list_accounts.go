@@ -36,6 +36,13 @@ func (s *Service) ListAccounts(ctx context.Context) (*ListAccountsResult, error)
 		return nil, err
 	}
 
+	activeNum := reg.ActiveAccountNumber
+	if s.Config != nil {
+		if cfg, cfgErr := s.Config.Read(ctx); cfgErr == nil {
+			activeNum = activeAccountNumber(reg, cfg)
+		}
+	}
+
 	views := make([]*AccountView, 0, len(reg.Sequence))
 	for _, num := range reg.Sequence {
 		acc, ok := reg.Accounts[num]
@@ -44,7 +51,7 @@ func (s *Service) ListAccounts(ctx context.Context) (*ListAccountsResult, error)
 		}
 		views = append(views, &AccountView{
 			Account:  acc,
-			IsActive: num == reg.ActiveAccountNumber,
+			IsActive: num == activeNum,
 		})
 	}
 
@@ -60,7 +67,7 @@ func (s *Service) ListAccounts(ctx context.Context) (*ListAccountsResult, error)
 
 	return &ListAccountsResult{
 		Accounts:            views,
-		ActiveAccountNumber: reg.ActiveAccountNumber,
+		ActiveAccountNumber: activeNum,
 	}, nil
 }
 

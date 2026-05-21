@@ -12,3 +12,13 @@ func newOAuthAccount(email, orgName, orgUUID string) *domain.OAuthAccount {
 		OrganizationUUID: orgUUID,
 	}
 }
+
+func activeAccountNumber(reg *domain.Registry, cfg *domain.ClaudeConfig) int {
+	if cfg == nil || cfg.OAuthAccount == nil {
+		return reg.ActiveAccountNumber
+	}
+	if num := reg.FindByIdentity(cfg.OAuthAccount.EmailAddress, cfg.OAuthAccount.OrganizationUUID); num != 0 {
+		return num
+	}
+	return reg.ActiveAccountNumber
+}
