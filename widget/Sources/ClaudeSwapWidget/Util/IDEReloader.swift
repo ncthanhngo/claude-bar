@@ -1,12 +1,15 @@
 import Foundation
 import AppKit
 import ApplicationServices
+import CoreGraphics
 
 /// Detects running IDE instances that have the Claude Code extension active,
 /// then reloads their windows so they pick up the freshly-swapped credentials.
 ///
 /// Detection source: `~/.claude/ide/{port}.lock`
-/// Primary reload: AppleScript keystroke Cmd+Shift+P → "Developer: Reload Window"
+/// Primary reload: VSCode gets the configured Cmd+Shift+R reload shortcut;
+/// other supported editors use Cmd+Shift+P → "Developer: Reload Window".
+///   Events are routed directly to the IDE process to avoid frontmost-app races.
 /// Fallback (no Accessibility): kill the claude-vscode backend; VSCode restarts it.
 enum IDEReloader {
 
@@ -16,8 +19,6 @@ enum IDEReloader {
         AXIsProcessTrusted()
     }
 
-    /// Shows the native macOS "Allow ClaudeSwapWidget to control your computer?" dialog
-    /// and opens System Settings → Accessibility if not yet granted.
     @discardableResult
     static func requestAccessibilityPermission() -> Bool {
         let options = ["AXTrustedCheckOptionPrompt": true] as NSDictionary as CFDictionary
@@ -26,11 +27,8 @@ enum IDEReloader {
 
     // MARK: - Public API
 
-    /// Detect + reload all IDE instances.
-    /// If Accessibility is granted: full window reload via AppleScript (cleanest).
-    /// If AppleScript fails or no Accessibility: kill extension backend (extension reconnects).
-    /// Returns the list of IDE display names acted on.
     @discardableResult
+    @MainActor
     static func reloadAll() async -> [String] {
         let instances = await detect()
         guard !instances.isEmpty else { return [] }
@@ -38,26 +36,20 @@ enum IDEReloader {
         var reloaded: [String] = []
 
         if isAccessibilityGranted {
-            // AppleScript window reload — only for VSCode-family IDEs that have a processName.
-            // JetBrains IDEs (GoLand, IntelliJ…) don't support this; they use the kill-backend path below.
-            for ide in instances where ide.processName != nil {
-                if await reload(ide) {
-                    reloaded.append(ide.displayName)
-                }
+            let reloadable = instances.filter { bundleId(for: $0.ideName) != nil }
+            for group in Dictionary(grouping: reloadable, by: \.ideName).values {
+                guard let ide = group.first else { continue }
+                let count = await reloadAllWindows(for: ide)
+                reloaded.append(contentsOf: Array(repeating: ide.displayName, count: count))
             }
         }
 
-        // Kill extension backends for ALL detected IDEs:
-        // - VSCode-family: kills remaining open windows not caught by AppleScript
-        // - JetBrains (GoLand etc.): kills the Claude extension backend so it reconnects
-        //   with the new account credentials on next use
+        // Kill extension backends for ALL IDEs (VSCode-family + JetBrains)
         killExtensionSessions()
 
         return reloaded.isEmpty ? instances.map { $0.displayName } : reloaded
     }
 
-    /// Kill claude-vscode/IDE backend processes so the extension reconnects
-    /// with the new credentials. Does not require Accessibility permission.
     @discardableResult
     static func killExtensionSessions() -> [Int] {
         let dir = URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent(".claude/sessions")
@@ -84,9 +76,9 @@ enum IDEReloader {
     struct IDEInstance {
         let port: Int
         let pid: Int
-        let ideName: String        // "Visual Studio Code", "Cursor", "GoLand" …
-        let processName: String?   // macOS process name for AppleScript; nil = use kill-backend fallback
-        let displayName: String    // Short name shown in notifications
+        let ideName: String
+        let processName: String?   // kept for diagnostics
+        let displayName: String
     }
 
     static func detect() async -> [IDEInstance] {
@@ -113,14 +105,49 @@ enum IDEReloader {
         return found
     }
 
-    // MARK: - Reload via AppleScript
+    // MARK: - Reload via CGEvent (@MainActor — uses ClaudeBar's AX permission)
 
-    @discardableResult
-    static func reload(_ ide: IDEInstance) async -> Bool {
-        // Put the command on the clipboard BEFORE running AppleScript.
-        // Clipboard paste (Cmd+V) bypasses the active IME (e.g. Vietnamese input),
-        // avoiding garbled text. We include ">" so it runs as a command, not a file search —
-        // Cmd+A after opening the palette would erase the auto-inserted ">".
+    @MainActor
+    private static func reloadAllWindows(for ide: IDEInstance) async -> Int {
+        guard let bid = bundleId(for: ide.ideName),
+              let app = NSRunningApplication.runningApplications(withBundleIdentifier: bid).first
+        else { return 0 }
+
+        let windows = appWindows(for: app)
+        guard !windows.isEmpty else { return await reload(app, ideName: ide.ideName, window: nil) ? 1 : 0 }
+
+        var count = 0
+        for window in windows where await reload(app, ideName: ide.ideName, window: window) {
+            count += 1
+        }
+        return count
+    }
+
+    @MainActor
+    private static func reload(_ app: NSRunningApplication, ideName: String, window: AXUIElement?) async -> Bool {
+        if isVSCode(ideName) {
+            return await reloadVSCode(app, window: window)
+        }
+        return await reloadFromCommandPalette(app, window: window)
+    }
+
+    @MainActor
+    private static func reloadVSCode(_ app: NSRunningApplication, window: AXUIElement?) async -> Bool {
+        let prevApp = focus(app, window: window)
+        try? await Task.sleep(nanoseconds: 800_000_000)
+
+        // The user-configured VSCode shortcut reloads the window without typing
+        // into whichever text field currently has focus.
+        guard postKey(15, [.maskCommand, .maskShift], to: app.processIdentifier) else { return false }
+
+        try? await Task.sleep(nanoseconds: 300_000_000)
+        restoreFrontmost(prevApp)
+        return true
+    }
+
+    @MainActor
+    private static func reloadFromCommandPalette(_ app: NSRunningApplication, window: AXUIElement?) async -> Bool {
+        // Save and set clipboard — paste bypasses IME (Vietnamese etc.)
         let pb = NSPasteboard.general
         let savedClip: [(NSPasteboard.PasteboardType, Data)] = pb.pasteboardItems?.flatMap { item in
             item.types.compactMap { t in item.data(forType: t).map { (t, $0) } }
@@ -128,85 +155,67 @@ enum IDEReloader {
         pb.clearContents()
         pb.setString(">Developer: Reload Window", forType: .string)
 
-        let script = """
-        set prevApp to ""
-        try
-            tell application "System Events"
-                set prevApp to name of first process whose frontmost is true
-            end tell
-        end try
-        tell application "\(ide.ideName)"
-            activate
-        end tell
-        delay 0.8
-        tell application "System Events"
-            tell process "\(ide.processName)"
-                set frontmost to true
-                delay 0.3
-                keystroke "p" using {command down, shift down}
-                delay 0.7
-                keystroke "a" using {command down}
-                delay 0.1
-                keystroke "v" using {command down}
-                delay 0.6
-                key code 36
-            end tell
-        end tell
-        delay 0.3
-        if prevApp is not "" and prevApp is not "\(ide.processName)" then
-            try
-                tell application prevApp to activate
-            end try
-        end if
-        """
-        let ok = await withCheckedContinuation { cont in
-            DispatchQueue.global().async {
-                let task = Process()
-                task.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
-                task.arguments = ["-e", script]
-                let errPipe = Pipe()
-                task.standardError = errPipe
-                do {
-                    try task.launch()
-                    task.waitUntilExit()
-                    let errOut = String(data: errPipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
-                    if !errOut.isEmpty {
-                        print("[IDEReloader] osascript error (\(ide.displayName)): \(errOut)")
-                    }
-                    cont.resume(returning: task.terminationStatus == 0)
-                } catch {
-                    print("[IDEReloader] osascript launch failed: \(error)")
-                    cont.resume(returning: false)
-                }
-            }
-        }
-        // Restore previous clipboard contents
-        DispatchQueue.main.async {
+        let prevApp = focus(app, window: window)
+        defer {
             pb.clearContents()
             for (type, data) in savedClip { pb.setData(data, forType: type) }
         }
-        return ok
+
+        try? await Task.sleep(nanoseconds: 800_000_000)
+
+        // Cmd+Shift+P — open command palette
+        guard postKey(35, [.maskCommand, .maskShift], to: app.processIdentifier) else { return false }
+        try? await Task.sleep(nanoseconds: 700_000_000)
+        // Cmd+A — select all in palette input
+        guard postKey(0, .maskCommand, to: app.processIdentifier) else { return false }
+        try? await Task.sleep(nanoseconds: 100_000_000)
+        // Cmd+V — paste ">Developer: Reload Window"
+        guard postKey(9, .maskCommand, to: app.processIdentifier) else { return false }
+        try? await Task.sleep(nanoseconds: 600_000_000)
+        // Return — execute
+        guard postKey(36, [], to: app.processIdentifier) else { return false }
+
+        try? await Task.sleep(nanoseconds: 300_000_000)
+        restoreFrontmost(prevApp)
+
+        return true
     }
 
-    /// Run a diagnostic reload and return a human-readable result string.
+    @MainActor
     static func diagnose() async -> String {
+        var log: [String] = []
         let ax = isAccessibilityGranted
+        log.append("AX:\(ax ? "✓" : "✗")")
+
         let instances = await detect()
-        guard !instances.isEmpty else {
-            return "AX:\(ax ? "✓" : "✗")  IDE: none detected (check ~/.claude/ide/*.lock)"
+        if instances.isEmpty {
+            log.append("IDEs: none (check ~/.claude/ide/*.lock)")
+            return log.joined(separator: "\n")
         }
-        let names = instances.map { $0.displayName }.joined(separator: ", ")
-        if !ax {
-            killExtensionSessions()
-            return "AX:✗  IDE:\(names)  → killed extension backend (grant Accessibility for window reload)"
-        }
-        var ok: [String] = []
+
         for ide in instances {
-            if await reload(ide) { ok.append(ide.displayName) }
+            let bid = bundleId(for: ide.ideName)
+            let app = bid.flatMap { NSRunningApplication.runningApplications(withBundleIdentifier: $0).first }
+            log.append("\(ide.displayName): lockPid=\(ide.pid) bundleId=\(bid ?? "nil") appPid=\(app?.processIdentifier.description ?? "not found")")
         }
-        return ok.isEmpty
-            ? "AX:✓  IDE:\(names)  → AppleScript ran but reload failed (check VSCode focus)"
-            : "AX:✓  Reloaded: \(ok.joined(separator: ", "))"
+
+        if !ax {
+            let killed = killExtensionSessions()
+            log.append("No AX — killed backends: \(killed)")
+            return log.joined(separator: "\n")
+        }
+
+        let reloadable = instances.filter { bundleId(for: $0.ideName) != nil }
+        for group in Dictionary(grouping: reloadable, by: \.ideName).values {
+            guard let ide = group.first else { continue }
+            log.append("→ reloading \(ide.displayName) windows...")
+            let count = await reloadAllWindows(for: ide)
+            log.append("  reloaded windows: \(count)")
+        }
+
+        let killed = killExtensionSessions()
+        log.append("killed backends: \(killed)")
+        return log.joined(separator: "\n")
     }
 
     // MARK: - Helpers
@@ -215,29 +224,85 @@ enum IDEReloader {
         kill(Int32(pid), 0) == 0 || errno == EPERM
     }
 
-    /// Maps Anthropic's ideName to the macOS process name used by System Events.
-    /// Returns nil for JetBrains IDEs — they use the kill-backend fallback instead.
+    /// Post key down+up to the IDE process, not whichever app happens to be frontmost.
+    private static func postKey(_ keyCode: CGKeyCode, _ flags: CGEventFlags, to pid: pid_t) -> Bool {
+        guard let dn = CGEvent(keyboardEventSource: nil, virtualKey: keyCode, keyDown: true),
+              let up = CGEvent(keyboardEventSource: nil, virtualKey: keyCode, keyDown: false)
+        else { return false }
+        dn.flags = flags
+        up.flags = flags
+        dn.postToPid(pid)
+        up.postToPid(pid)
+        return true
+    }
+
+    private static func appWindows(for app: NSRunningApplication) -> [AXUIElement] {
+        let axApp = AXUIElementCreateApplication(app.processIdentifier)
+        var raw: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(axApp, kAXWindowsAttribute as CFString, &raw) == .success,
+              let windows = raw as? [AXUIElement] else { return [] }
+        return windows
+    }
+
+    private static func focus(_ window: AXUIElement, in app: AXUIElement) {
+        AXUIElementPerformAction(window, kAXRaiseAction as CFString)
+        AXUIElementSetAttributeValue(window, kAXMainAttribute as CFString, kCFBooleanTrue)
+        AXUIElementSetAttributeValue(app, kAXFocusedWindowAttribute as CFString, window)
+    }
+
+    @MainActor
+    private static func focus(_ app: NSRunningApplication, window: AXUIElement?) -> NSRunningApplication? {
+        let prevApp = NSWorkspace.shared.frontmostApplication
+        let axApp = AXUIElementCreateApplication(app.processIdentifier)
+        AXUIElementSetAttributeValue(axApp, kAXFrontmostAttribute as CFString, kCFBooleanTrue)
+        if let window {
+            focus(window, in: axApp)
+        }
+        return prevApp
+    }
+
+    private static func restoreFrontmost(_ app: NSRunningApplication?) {
+        guard let app else { return }
+        let axApp = AXUIElementCreateApplication(app.processIdentifier)
+        AXUIElementSetAttributeValue(axApp, kAXFrontmostAttribute as CFString, kCFBooleanTrue)
+    }
+
+    private static func isVSCode(_ ideName: String) -> Bool {
+        ideName == "Visual Studio Code" || ideName == "Visual Studio Code - Insiders"
+    }
+
+    private static func bundleId(for ideName: String) -> String? {
+        switch ideName {
+        case "Visual Studio Code":            return "com.microsoft.VSCode"
+        case "Visual Studio Code - Insiders": return "com.microsoft.VSCodeInsiders"
+        case "Cursor":                        return "com.todesktop.230313mzl4w4u92"
+        case "Windsurf":                      return "com.exafunction.windsurf"
+        case "Zed":                           return "dev.zed.Zed"
+        default:                              return nil
+        }
+    }
+
     private static func processName(for ideName: String) -> String? {
         switch ideName {
-        case "Visual Studio Code": return "Code"
+        case "Visual Studio Code":            return "Code"
         case "Visual Studio Code - Insiders": return "Code - Insiders"
-        case "Cursor": return "Cursor"
-        case "Windsurf": return "Windsurf"
-        case "Zed": return "Zed"
-        default: return nil  // GoLand, IntelliJ, etc. → kill-backend fallback
+        case "Cursor":                        return "Cursor"
+        case "Windsurf":                      return "Windsurf"
+        case "Zed":                           return "Zed"
+        default:                              return nil
         }
     }
 
     private static func shortName(for ideName: String) -> String {
         switch ideName {
-        case "Visual Studio Code": return "VSCode"
+        case "Visual Studio Code":            return "VSCode"
         case "Visual Studio Code - Insiders": return "VSCode Insiders"
-        case "GoLand": return "GoLand"
-        case "IntelliJ IDEA": return "IntelliJ"
-        case "PyCharm": return "PyCharm"
-        case "WebStorm": return "WebStorm"
-        case "Rider": return "Rider"
-        default: return ideName
+        case "GoLand":                        return "GoLand"
+        case "IntelliJ IDEA":                 return "IntelliJ"
+        case "PyCharm":                       return "PyCharm"
+        case "WebStorm":                      return "WebStorm"
+        case "Rider":                         return "Rider"
+        default:                              return ideName
         }
     }
 }

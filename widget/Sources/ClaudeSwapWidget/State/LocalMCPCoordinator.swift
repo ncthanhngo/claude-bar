@@ -87,8 +87,8 @@ final class LocalMCPCoordinator: ObservableObject {
         }
     }
 
-    func connectToken(account: Int, service: String, token: String, displayName: String?) async {
-        guard !isBusy else { return }
+    func connectToken(account: Int, service: String, token: String, displayName: String?) async -> Bool {
+        guard !isBusy else { return false }
         isBusy = true
         lastError = nil
         defer { isBusy = false }
@@ -97,8 +97,10 @@ final class LocalMCPCoordinator: ObservableObject {
                 account: account, service: service, token: token, displayName: displayName
             )
             accounts = try await client.mcpConnectorsList()
+            return true
         } catch {
             lastError = error.localizedDescription
+            return false
         }
     }
 

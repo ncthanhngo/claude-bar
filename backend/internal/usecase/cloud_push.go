@@ -18,6 +18,17 @@ func (s *Service) CloudPush(ctx context.Context, passphrase string) error {
 		return fmt.Errorf("passphrase must not be empty")
 	}
 
+	// Option B: refresh inactive tokens before acquiring the lock so the bundle
+	// contains fresh credentials without holding the lock during network calls.
+	_ = s.RefreshAllTokens(ctx)
+
+	// R5: acquire the file lock before reading any keychain data to serialise
+	// against SwitchAccount, which also holds the lock while overwriting live.
+	if err := s.Lock.Acquire(ctx); err != nil {
+		return fmt.Errorf("acquire push lock: %w", err)
+	}
+	defer s.Lock.Release()
+
 	reg, err := s.Registry.Load(ctx)
 	if err != nil {
 		return fmt.Errorf("load registry: %w", err)
@@ -36,12 +47,19 @@ func (s *Service) CloudPush(ctx context.Context, passphrase string) error {
 	for _, acc := range reg.Accounts {
 		var blob string
 		if acc.Number == reg.ActiveAccountNumber {
-			// Active account: read from the live keychain entry.
-			live, err := s.Live.Read(ctx)
-			if err != nil || live == "" {
-				continue
+			// R2: active account must be in the bundle. Fall back to backup if the
+			// live read fails; fail loudly if neither is available so the caller
+			// knows the bundle would be incomplete.
+			live, liveErr := s.Live.Read(ctx)
+			if liveErr != nil || live == "" {
+				bak, _ := s.Backup.Read(ctx, acc.Number, acc.Email)
+				if bak == "" {
+					return fmt.Errorf("active account %d (%s): live credential unreadable and no backup — cannot push", acc.Number, acc.Email)
+				}
+				blob = string(bak)
+			} else {
+				blob = string(live)
 			}
-			blob = string(live)
 		} else {
 			bak, err := s.Backup.Read(ctx, acc.Number, acc.Email)
 			if err != nil || bak == "" {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"strconv"
+	"sync"
 	"testing"
 	"time"
 
@@ -55,11 +56,14 @@ func (s listTestRegistryStore) Save(context.Context, *domain.Registry) error {
 }
 
 type listTestUsageFetcher struct {
+	mu     sync.Mutex
 	tokens []string
 }
 
 func (f *listTestUsageFetcher) Fetch(_ context.Context, accessToken string) (*domain.Usage, error) {
+	f.mu.Lock()
 	f.tokens = append(f.tokens, accessToken)
+	f.mu.Unlock()
 	return &domain.Usage{
 		FiveHour:  &domain.Window{UtilizationPct: 0.25, ResetsAt: time.Now().Add(time.Hour)},
 		FetchedAt: time.Now(),
@@ -67,13 +71,17 @@ func (f *listTestUsageFetcher) Fetch(_ context.Context, accessToken string) (*do
 }
 
 type listTestTokenRefresher struct {
+	mu    sync.Mutex
 	calls int
 	fresh *domain.OAuthPayload
+	err   error
 }
 
 func (r *listTestTokenRefresher) Refresh(context.Context, string) (*domain.OAuthPayload, error) {
+	r.mu.Lock()
 	r.calls++
-	return r.fresh, nil
+	r.mu.Unlock()
+	return r.fresh, r.err
 }
 
 func TestListAccountsUsesBackupForActiveAccount(t *testing.T) {
@@ -160,6 +168,48 @@ func TestListAccountsRefreshesExpiredActiveBackupWithoutLiveRead(t *testing.T) {
 	}
 	if len(usage.tokens) != 1 || usage.tokens[0] != "fresh-token" {
 		t.Fatalf("usage token = %v, want refreshed token", usage.tokens)
+	}
+}
+
+func TestListAccountsFlagsInactiveAccountWhenExpiredBackupCannotRefresh(t *testing.T) {
+	backup := &listTestBackupStore{
+		blobs: map[int]domain.CredentialBlob{
+			1: credentialBlob("active-token", "active-refresh", time.Now().Add(time.Hour)),
+			2: credentialBlob("stale-token", "revoked-refresh", time.Now().Add(-time.Hour)),
+		},
+		writes: map[int]domain.CredentialBlob{},
+	}
+	usage := &listTestUsageFetcher{}
+	svc := &Service{
+		Backup: backup,
+		Registry: listTestRegistryStore{reg: &domain.Registry{
+			ActiveAccountNumber: 1,
+			Sequence:            []int{1, 2},
+			Accounts: map[int]*domain.Account{
+				1: {Number: 1, Email: "active@example.com"},
+				2: {Number: 2, Email: "target@example.com"},
+			},
+		}},
+		Usage:   usage,
+		Refresh: &listTestTokenRefresher{err: errors.New("oauth refresh 400 invalid_grant")},
+	}
+
+	res, err := svc.ListAccounts(context.Background())
+	if err != nil {
+		t.Fatalf("ListAccounts returned error: %v", err)
+	}
+	if len(res.Accounts) != 2 {
+		t.Fatalf("account count = %d, want 2", len(res.Accounts))
+	}
+	target := res.Accounts[1]
+	if target.CredentialState != "needs_login" {
+		t.Fatalf("credential state = %q, want needs_login", target.CredentialState)
+	}
+	if target.CredentialError == "" {
+		t.Fatal("credential refresh failure detail missing")
+	}
+	if target.Usage == nil {
+		t.Fatal("usage should still render from stored access token when reachable")
 	}
 }
 

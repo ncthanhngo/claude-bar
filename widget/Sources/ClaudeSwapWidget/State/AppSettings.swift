@@ -23,7 +23,7 @@ final class AppSettings: ObservableObject {
     @AppStorage("menuBarStyle") var menuBarStyle: MenuBarStyle = .compact
     @AppStorage("aggressiveAutoKill") var aggressiveAutoKill: Bool = false
 
-    /// When true, automatically sends Cmd+Shift+P → "Developer: Reload Window"
+    /// When true, automatically reloads supported IDE windows after a swap.
     /// to every running IDE (VSCode, Cursor, Windsurf…) after a successful swap.
     /// Requires Accessibility permission the first time.
     @AppStorage("autoReloadIDEAfterSwap") var autoReloadIDEAfterSwap: Bool = false
@@ -32,8 +32,17 @@ final class AppSettings: ObservableObject {
     /// a swap. Useful with the `claude-watch` wrapper script which auto-restarts.
     @AppStorage("autoKillCLIAfterSwap") var autoKillCLIAfterSwap: Bool = false
     @AppStorage("widgetTheme") var widgetTheme: WidgetTheme = .light
-    /// Day (yyyy-MM-dd) of the last successful daily token refresh.
-    @AppStorage("lastDailyTokenRefreshDay") var lastDailyTokenRefreshDay: String = ""
+    /// Timestamp of the last backup token refresh attempt (written before RPC).
+    /// Used to throttle attempt frequency — prevents hammering Anthropic on
+    /// repeated grant failures. Transient failures retry after a shorter window;
+    /// see `backupTokenRefreshIfNeeded()` in AppStore for the full policy.
+    @AppStorage("lastBackupTokenRefreshAt") var lastBackupTokenRefreshAt: Double = 0
+
+    /// Timestamp of the last *successful* backup token refresh (written after RPC).
+    /// Compared against `lastBackupTokenRefreshAt` to distinguish a transient
+    /// failure (last attempt failed, retry sooner) from a persistent one (keep
+    /// the full 6-hour throttle so broken grants don't cause refresh spam).
+    @AppStorage("lastBackupTokenRefreshSuccessAt") var lastBackupTokenRefreshSuccessAt: Double = 0
     @AppStorage("menuBarIconColor") var menuBarIconColor: MenuBarIconColor = .system
 }
 

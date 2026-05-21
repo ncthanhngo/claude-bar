@@ -16,6 +16,8 @@ type AccountView struct {
 	IsActive         bool            `json:"isActive"`
 	Usage            *domain.Usage   `json:"usage,omitempty"`
 	Error            string          `json:"error,omitempty"`
+	CredentialState  string          `json:"credentialState,omitempty"`
+	CredentialError  string          `json:"credentialError,omitempty"`
 	SubscriptionType string          `json:"subscriptionType,omitempty"`
 }
 
@@ -63,7 +65,65 @@ func (s *Service) ListAccounts(ctx context.Context) (*ListAccountsResult, error)
 }
 
 func (s *Service) fillUsage(ctx context.Context, v *AccountView) {
-	// 1. Fresh cache hit -> done.
+	blob, err := s.Backup.Read(ctx, v.Account.Number, v.Account.Email)
+	if err != nil {
+		s.fallbackToCache(v, err)
+		return
+	}
+	if blob == "" {
+		v.Error = "no credentials"
+		if !v.IsActive {
+			v.CredentialState = "needs_login"
+			v.CredentialError = "backup credentials missing"
+		}
+		return
+	}
+	payload, err := blob.Extract()
+	if err != nil {
+		if !v.IsActive {
+			v.CredentialState = "needs_login"
+			v.CredentialError = err.Error()
+		}
+		s.fallbackToCache(v, err)
+		return
+	}
+	v.CredentialState = "ready"
+	if !v.IsActive && (payload.AccessToken == "" || payload.RefreshToken == "") {
+		v.CredentialState = "needs_login"
+		v.CredentialError = "backup is missing access or refresh token"
+	}
+	v.SubscriptionType = payload.SubscriptionType
+	access := payload.AccessToken
+
+	// Token expired -> refresh only the backup copy. Claude Code still owns the
+	// live active credential; this avoids keychain prompts during menu polling.
+	// Mutex serialises this per-account so concurrent callers don't race on
+	// the same refresh token when the provider rotates on first use.
+	if payload.RefreshToken != "" && oauth.IsExpired(payload.ExpiresAt) {
+		var freshAccess, credErr string
+		func() {
+			unlock := s.lockBackupRefresh(v.Account.Number)
+			defer unlock()
+			fresh, refErr := s.Refresh.Refresh(ctx, payload.RefreshToken)
+			if refErr != nil || fresh == nil || fresh.AccessToken == "" || fresh.RefreshToken == "" {
+				credErr = refreshFailureDetail(refErr, fresh)
+				return
+			}
+			if newBlob, blobErr := blob.WithRefreshed(fresh); blobErr == nil && newBlob != "" {
+				_ = s.Backup.Write(ctx, v.Account.Number, v.Account.Email, newBlob)
+			}
+			freshAccess = fresh.AccessToken
+		}()
+		if credErr != "" && !v.IsActive {
+			v.CredentialState = "needs_login"
+			v.CredentialError = credErr
+		} else if freshAccess != "" {
+			access = freshAccess
+		}
+	}
+
+	// Fresh usage cache still short-circuits the API call, but credential
+	// inspection above runs every poll so stale backups surface promptly.
 	if s.UsageCache != nil {
 		if entry, fresh := s.UsageCache.Get(v.Account.Number); fresh && entry != nil {
 			v.Usage = entry.Usage
@@ -71,7 +131,7 @@ func (s *Service) fillUsage(ctx context.Context, v *AccountView) {
 		}
 	}
 
-	// 2. Backoff in effect -> serve stale cache + cooldown message, skip API.
+	// Backoff in effect -> serve stale cache + cooldown message, skip API.
 	if s.Backoff != nil {
 		if skip, remaining := s.Backoff.ShouldSkip(); skip {
 			if s.UsageCache != nil {
@@ -82,36 +142,6 @@ func (s *Service) fillUsage(ctx context.Context, v *AccountView) {
 			}
 			v.Error = fmt.Sprintf("rate limited — retry in %s", shortDuration(remaining))
 			return
-		}
-	}
-
-	blob, err := s.Backup.Read(ctx, v.Account.Number, v.Account.Email)
-	if err != nil {
-		s.fallbackToCache(v, err)
-		return
-	}
-	if blob == "" {
-		v.Error = "no credentials"
-		return
-	}
-	payload, err := blob.Extract()
-	if err != nil {
-		s.fallbackToCache(v, err)
-		return
-	}
-	v.SubscriptionType = payload.SubscriptionType
-	access := payload.AccessToken
-
-	// Token expired -> refresh only the backup copy. Claude Code still owns the
-	// live active credential; this avoids keychain prompts during menu polling.
-	if payload.RefreshToken != "" && oauth.IsExpired(payload.ExpiresAt) {
-		fresh, refErr := s.Refresh.Refresh(ctx, payload.RefreshToken)
-		if refErr == nil && fresh != nil {
-			newBlob, _ := blob.WithRefreshed(fresh)
-			if newBlob != "" {
-				_ = s.Backup.Write(ctx, v.Account.Number, v.Account.Email, newBlob)
-				access = fresh.AccessToken
-			}
 		}
 	}
 
@@ -130,6 +160,16 @@ func (s *Service) fillUsage(ctx context.Context, v *AccountView) {
 	if s.UsageCache != nil {
 		_ = s.UsageCache.Put(v.Account.Number, usage)
 	}
+}
+
+func refreshFailureDetail(err error, fresh *domain.OAuthPayload) string {
+	if err != nil {
+		return err.Error()
+	}
+	if fresh == nil {
+		return "refresh returned no token"
+	}
+	return "refresh returned incomplete token"
 }
 
 func shortDuration(d time.Duration) string {

@@ -72,6 +72,8 @@ struct AccountViewDTO: Codable, Hashable, Identifiable {
     let isActive: Bool
     let usage: UsageDTO?
     let error: String?
+    let credentialState: String?
+    let credentialError: String?
     let subscriptionType: String?
 
     var id: Int { account.number }

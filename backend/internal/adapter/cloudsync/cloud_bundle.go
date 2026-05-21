@@ -84,7 +84,11 @@ type CloudBundle struct {
 }
 
 // BundlePath returns the iCloud Drive path for the encrypted bundle.
+// CLAUDE_SWAP_BUNDLE_PATH overrides the path (used in tests).
 func BundlePath() string {
+	if p := os.Getenv("CLAUDE_SWAP_BUNDLE_PATH"); p != "" {
+		return p
+	}
 	home, _ := os.UserHomeDir()
 	return filepath.Join(home,
 		"Library", "Mobile Documents", "com~apple~CloudDocs",
