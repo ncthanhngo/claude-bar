@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"sync"
 
 	"github.com/soi/claude-swap-widget/backend/internal/domain"
 )
@@ -14,8 +15,13 @@ import (
 const backupServiceFormat = "csw-backup:%d:%s"
 
 // BackupCredentialStore holds credentials for inactive accounts.
+// An in-memory cache avoids repeated Keychain reads (and permission dialogs)
+// within a single daemon lifetime. The cache is invalidated on every Write so
+// the next Read reflects the freshly-written item (which carries a permissive ACL).
 type BackupCredentialStore struct {
-	user string
+	user  string
+	mu    sync.RWMutex
+	cache map[string]domain.CredentialBlob
 }
 
 // NewBackupCredentialStore binds to the current $USER.
@@ -24,15 +30,34 @@ func NewBackupCredentialStore() *BackupCredentialStore {
 	if user == "" {
 		user = "user"
 	}
-	return &BackupCredentialStore{user: user}
+	return &BackupCredentialStore{
+		user:  user,
+		cache: make(map[string]domain.CredentialBlob),
+	}
+}
+
+func (s *BackupCredentialStore) key(accountNum int, email string) string {
+	return fmt.Sprintf(backupServiceFormat, accountNum, email)
 }
 
 func (s *BackupCredentialStore) kc(accountNum int, email string) *Keychain {
-	return New(fmt.Sprintf(backupServiceFormat, accountNum, email), s.user)
+	return New(s.key(accountNum, email), s.user)
 }
 
 // Read returns the backed-up credential for an inactive account.
+// Results are cached in memory so the Keychain is only accessed once per
+// daemon lifetime per account — subsequent calls return the cached value
+// without triggering a macOS permission dialog.
 func (s *BackupCredentialStore) Read(ctx context.Context, accountNum int, email string) (domain.CredentialBlob, error) {
+	k := s.key(accountNum, email)
+
+	s.mu.RLock()
+	if blob, ok := s.cache[k]; ok {
+		s.mu.RUnlock()
+		return blob, nil
+	}
+	s.mu.RUnlock()
+
 	out, err := s.kc(accountNum, email).Read(ctx)
 	if err != nil {
 		if errors.Is(err, ErrNotFound) {
@@ -40,15 +65,33 @@ func (s *BackupCredentialStore) Read(ctx context.Context, accountNum int, email 
 		}
 		return "", err
 	}
-	return domain.CredentialBlob(out), nil
+	blob := domain.CredentialBlob(out)
+
+	s.mu.Lock()
+	s.cache[k] = blob
+	s.mu.Unlock()
+
+	return blob, nil
 }
 
-// Write saves a backup credential for an inactive account.
+// Write saves a backup credential and updates the in-memory cache so the
+// next Read reflects the new value without going back to Keychain.
 func (s *BackupCredentialStore) Write(ctx context.Context, accountNum int, email string, blob domain.CredentialBlob) error {
-	return s.kc(accountNum, email).Write(ctx, string(blob))
+	if err := s.kc(accountNum, email).Write(ctx, string(blob)); err != nil {
+		return err
+	}
+	k := s.key(accountNum, email)
+	s.mu.Lock()
+	s.cache[k] = blob
+	s.mu.Unlock()
+	return nil
 }
 
-// Delete removes a backup credential.
+// Delete removes a backup credential and evicts the cache entry.
 func (s *BackupCredentialStore) Delete(ctx context.Context, accountNum int, email string) error {
+	k := s.key(accountNum, email)
+	s.mu.Lock()
+	delete(s.cache, k)
+	s.mu.Unlock()
 	return s.kc(accountNum, email).Delete(ctx)
 }
