@@ -20,7 +20,11 @@ func (s *Service) CloudPush(ctx context.Context, passphrase string) error {
 
 	// Option B: refresh inactive tokens before acquiring the lock so the bundle
 	// contains fresh credentials without holding the lock during network calls.
-	_ = s.RefreshAllTokens(ctx)
+	// A failed refresh means at least one inactive backup cannot be swapped to
+	// on the destination either, so do not publish a bundle that looks healthy.
+	if err := s.RefreshAllTokens(ctx); err != nil {
+		return fmt.Errorf("refresh inactive credentials before push: %w", err)
+	}
 
 	// R5: acquire the file lock before reading any keychain data to serialise
 	// against SwitchAccount, which also holds the lock while overwriting live.

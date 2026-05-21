@@ -69,6 +69,7 @@ type pushTestRefresher struct {
 	mu       sync.Mutex
 	calls    int
 	sequence *[]string // shared pointer so lock and refresher write to same slice
+	err      error
 }
 
 func (r *pushTestRefresher) Refresh(context.Context, string) (*domain.OAuthPayload, error) {
@@ -78,6 +79,9 @@ func (r *pushTestRefresher) Refresh(context.Context, string) (*domain.OAuthPaylo
 		*r.sequence = append(*r.sequence, "refresh")
 	}
 	r.mu.Unlock()
+	if r.err != nil {
+		return nil, r.err
+	}
 	return &domain.OAuthPayload{
 		AccessToken:  "fresh",
 		RefreshToken: "fresh-rt",
@@ -103,6 +107,38 @@ func makeCloudPushService(live *pushTestLiveStore, bak *pushTestBackupStore, loc
 		Lock:     lock,
 		Refresh:  refresher,
 		Registry: &pushTestRegistry{reg: reg},
+	}
+}
+
+func TestCloudPushFailsWhenInactiveCredentialRefreshFails(t *testing.T) {
+	reg := &domain.Registry{
+		ActiveAccountNumber: 1,
+		Sequence:            []int{1, 2},
+		Accounts: map[int]*domain.Account{
+			1: {Number: 1, Email: "active@example.com"},
+			2: {Number: 2, Email: "inactive@example.com"},
+		},
+	}
+	lock := &pushTestLock{}
+	svc := makeCloudPushService(
+		&pushTestLiveStore{blob: credentialBlob("live-token", "live-rt", time.Now().Add(time.Hour))},
+		&pushTestBackupStore{blobs: map[int]domain.CredentialBlob{
+			2: credentialBlob("stale-token", "revoked-rt", time.Now().Add(-time.Hour)),
+		}},
+		lock,
+		&pushTestRefresher{err: errors.New("invalid_grant")},
+		reg,
+	)
+
+	err := svc.CloudPush(context.Background(), "test-pass")
+	if err == nil {
+		t.Fatal("CloudPush returned nil for failed inactive refresh")
+	}
+	if !strings.Contains(err.Error(), "refresh inactive credentials before push") {
+		t.Fatalf("CloudPush error = %q, want pre-push refresh context", err)
+	}
+	if lock.locked || len(lock.acquired) != 0 {
+		t.Fatalf("CloudPush acquired lock after failed pre-push refresh: %+v", lock)
 	}
 }
 
@@ -190,10 +226,10 @@ func TestCloudPush_R2_ActiveLiveFailFallsBackToBackup(t *testing.T) {
 		Accounts:            map[int]*domain.Account{1: {Number: 1, Email: "a@example.com"}},
 	}
 	svc := &Service{
-		Live:    &pushTestLiveStore{err: errors.New("keychain locked")},
-		Backup:  &pushTestBackupStore{blobs: map[int]domain.CredentialBlob{1: backupBlob}},
-		Lock:    &pushTestLock{},
-		Refresh: &pushTestRefresher{},
+		Live:     &pushTestLiveStore{err: errors.New("keychain locked")},
+		Backup:   &pushTestBackupStore{blobs: map[int]domain.CredentialBlob{1: backupBlob}},
+		Lock:     &pushTestLock{},
+		Refresh:  &pushTestRefresher{},
 		Registry: &pushTestRegistry{reg: reg},
 	}
 
@@ -214,10 +250,10 @@ func TestCloudPush_R2_ActiveLiveFailNoBackup_ReturnsError(t *testing.T) {
 		Accounts:            map[int]*domain.Account{1: {Number: 1, Email: "a@example.com"}},
 	}
 	svc := &Service{
-		Live:    &pushTestLiveStore{err: errors.New("keychain locked")},
-		Backup:  &pushTestBackupStore{blobs: map[int]domain.CredentialBlob{}},
-		Lock:    &pushTestLock{},
-		Refresh: &pushTestRefresher{},
+		Live:     &pushTestLiveStore{err: errors.New("keychain locked")},
+		Backup:   &pushTestBackupStore{blobs: map[int]domain.CredentialBlob{}},
+		Lock:     &pushTestLock{},
+		Refresh:  &pushTestRefresher{},
 		Registry: &pushTestRegistry{reg: reg},
 	}
 
