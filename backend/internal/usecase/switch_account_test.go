@@ -29,6 +29,19 @@ type switchTestLock struct{}
 func (switchTestLock) Acquire(context.Context) error { return nil }
 func (switchTestLock) Release() error                { return nil }
 
+type switchTestRecordingRegistryStore struct {
+	reg   *domain.Registry
+	saved *domain.Registry
+}
+
+func (s *switchTestRecordingRegistryStore) Load(context.Context) (*domain.Registry, error) {
+	return s.reg, nil
+}
+func (s *switchTestRecordingRegistryStore) Save(_ context.Context, reg *domain.Registry) error {
+	s.saved = reg
+	return nil
+}
+
 type switchTestConfigStore struct {
 	cfg *domain.ClaudeConfig
 }
@@ -105,6 +118,52 @@ func TestSwitchAccountAlreadyActiveRepairsLiveCredentialAndClaudeConfig(t *testi
 	}
 	if got := config.written.OAuthAccount.OrganizationUUID; got != "active-org" {
 		t.Fatalf("claude config org = %q, want active-org", got)
+	}
+}
+
+func TestSwitchAccountAdoptsConfigActiveAccountWhenRegistryDrifts(t *testing.T) {
+	liveBlob := credentialBlob("live-token", "live-refresh", time.Now().Add(time.Hour))
+	live := &switchTestLiveStore{read: liveBlob}
+	backup := &listTestBackupStore{
+		blobs: map[int]domain.CredentialBlob{
+			1: credentialBlob("registry-token", "registry-refresh", time.Now().Add(time.Hour)),
+			2: credentialBlob("stale-token", "revoked-refresh", time.Now().Add(-time.Hour)),
+		},
+		writes: map[int]domain.CredentialBlob{},
+	}
+	registry := &switchTestRecordingRegistryStore{reg: &domain.Registry{
+		ActiveAccountNumber: 1,
+		Sequence:            []int{1, 2},
+		Accounts: map[int]*domain.Account{
+			1: {Number: 1, Email: "registry@example.com", OrganizationUUID: "registry-org"},
+			2: {Number: 2, Email: "config@example.com", OrganizationUUID: "config-org"},
+		},
+	}}
+	svc := &Service{
+		Live:   live,
+		Backup: backup,
+		Config: switchTestConfigStore{cfg: &domain.ClaudeConfig{
+			OAuthAccount: &domain.OAuthAccount{
+				EmailAddress:     "config@example.com",
+				OrganizationUUID: "config-org",
+			},
+		}},
+		Registry: registry,
+		Refresh:  &listTestTokenRefresher{err: errors.New("invalid_grant")},
+		Lock:     switchTestLock{},
+	}
+
+	if err := svc.SwitchAccount(context.Background(), 2); err != nil {
+		t.Fatalf("SwitchAccount(config active) returned error: %v", err)
+	}
+	if registry.saved == nil || registry.saved.ActiveAccountNumber != 2 {
+		t.Fatalf("saved active account = %+v, want config account 2", registry.saved)
+	}
+	if backup.writes[2] != liveBlob {
+		t.Fatalf("config-active backup = %q, want live snapshot", backup.writes[2])
+	}
+	if live.written != "" {
+		t.Fatalf("config-active switch rewrote live credential: %q", live.written)
 	}
 }
 

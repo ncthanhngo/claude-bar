@@ -123,6 +123,46 @@ func TestListAccountsUsesBackupForActiveAccount(t *testing.T) {
 	}
 }
 
+func TestListAccountsShowsConfigActiveAccountWhenRegistryDrifts(t *testing.T) {
+	backup := &listTestBackupStore{
+		blobs: map[int]domain.CredentialBlob{
+			1: credentialBlob("registry-token", "registry-refresh", time.Now().Add(time.Hour)),
+			2: credentialBlob("config-token", "config-refresh", time.Now().Add(time.Hour)),
+		},
+		writes: map[int]domain.CredentialBlob{},
+	}
+	svc := &Service{
+		Backup: backup,
+		Config: switchTestConfigStore{cfg: &domain.ClaudeConfig{
+			OAuthAccount: &domain.OAuthAccount{
+				EmailAddress:     "config@example.com",
+				OrganizationUUID: "config-org",
+			},
+		}},
+		Registry: listTestRegistryStore{reg: &domain.Registry{
+			ActiveAccountNumber: 1,
+			Sequence:            []int{1, 2},
+			Accounts: map[int]*domain.Account{
+				1: {Number: 1, Email: "registry@example.com", OrganizationUUID: "registry-org"},
+				2: {Number: 2, Email: "config@example.com", OrganizationUUID: "config-org"},
+			},
+		}},
+		Usage:   &listTestUsageFetcher{},
+		Refresh: &listTestTokenRefresher{},
+	}
+
+	res, err := svc.ListAccounts(context.Background())
+	if err != nil {
+		t.Fatalf("ListAccounts returned error: %v", err)
+	}
+	if res.ActiveAccountNumber != 2 {
+		t.Fatalf("active account number = %d, want config account 2", res.ActiveAccountNumber)
+	}
+	if res.Accounts[0].IsActive || !res.Accounts[1].IsActive {
+		t.Fatalf("active views = %+v, want config account active", res.Accounts)
+	}
+}
+
 func TestListAccountsRefreshesExpiredActiveBackupWithoutLiveRead(t *testing.T) {
 	live := &listTestLiveStore{}
 	backup := &listTestBackupStore{

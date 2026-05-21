@@ -41,16 +41,20 @@ func (s *Service) SwitchAccount(ctx context.Context, targetNum int) error {
 	if !ok {
 		return fmt.Errorf("account %d not found", targetNum)
 	}
-	if reg.ActiveAccountNumber == targetNum {
-		return s.repairActiveAccountState(ctx, target)
-	}
 
 	prevConfig, err := s.Config.Read(ctx)
 	if err != nil {
 		return err
 	}
+	activeNum := activeAccountNumber(reg, prevConfig)
+	if activeNum == targetNum {
+		if reg.ActiveAccountNumber != targetNum {
+			return s.adoptConfigActiveAccount(ctx, reg, target)
+		}
+		return s.repairActiveAccountState(ctx, target)
+	}
 
-	if active, ok := reg.Accounts[reg.ActiveAccountNumber]; ok && active != nil {
+	if active, ok := reg.Accounts[activeNum]; ok && active != nil {
 		// Best-effort: failure (Keychain ACL denied, transient read error) must not
 		// block the switch. Rollback degrades to pre-existing backup in that case.
 		_ = s.snapshotLiveCredential(ctx, active)
@@ -80,7 +84,7 @@ func (s *Service) SwitchAccount(ctx context.Context, targetNum int) error {
 		// If step 3 (snapshot) succeeded, this is the fresh live cred written there.
 		// If step 3 failed (best-effort), this is the pre-existing backup — still a
 		// valid restore point. Either way, live and ~/.claude.json stay consistent.
-		if active, ok := reg.Accounts[reg.ActiveAccountNumber]; ok && active != nil {
+		if active, ok := reg.Accounts[activeNum]; ok && active != nil {
 			if prev, _ := s.Backup.Read(ctx, active.Number, active.Email); prev != "" {
 				if rollbackErr := s.Live.Write(ctx, prev); rollbackErr != nil {
 					return fmt.Errorf("write claude config: %w; rollback write live: %w", err, rollbackErr)
@@ -92,6 +96,18 @@ func (s *Service) SwitchAccount(ctx context.Context, targetNum int) error {
 
 	// Step 7 — update registry.
 	reg.ActiveAccountNumber = targetNum
+	if err := s.Registry.Save(ctx, reg); err != nil {
+		return fmt.Errorf("save registry: %w", err)
+	}
+	return nil
+}
+
+func (s *Service) adoptConfigActiveAccount(ctx context.Context, reg *domain.Registry, acc *domain.Account) error {
+	// The live Claude config says this account is already active. Refresh its
+	// backup from live when possible so a later switch-back does not depend on a
+	// stale refresh token, but do not block registry recovery on Keychain read.
+	_ = s.snapshotLiveCredential(ctx, acc)
+	reg.ActiveAccountNumber = acc.Number
 	if err := s.Registry.Save(ctx, reg); err != nil {
 		return fmt.Errorf("save registry: %w", err)
 	}
