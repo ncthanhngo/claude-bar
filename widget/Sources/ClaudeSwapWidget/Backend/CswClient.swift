@@ -94,6 +94,25 @@ actor CswClient {
         let path: String
         let pushedAt: Date?
         let sizeKb: Int?
+        let backupCount: Int?
+        let lastSeenSeq: UInt64?
+    }
+
+    /// One entry returned by `csw cloud list-backups --json`. Slot 0 is the
+    /// current bundle; slots >= 1 are ring-buffer copies, newest first.
+    /// `decrypted == false` means we showed metadata only (no passphrase or
+    /// wrong passphrase); in that case `seq` / `pushedAtInBundle` are absent.
+    struct CloudBackupInfoDTO: Codable, Identifiable {
+        let slot: Int
+        let path: String
+        let fileModTime: Date
+        let sizeKb: Int64
+        let decrypted: Bool
+        let seq: UInt64?
+        let pushedAtInBundle: Date?
+        let accountCount: Int?
+
+        var id: Int { slot }
     }
 
     func cloudStatus() async throws -> CloudStatusDTO {
@@ -110,6 +129,27 @@ actor CswClient {
 
     func cloudForget() async throws {
         _ = try await runRaw(["cloud", "forget", "--json"])
+    }
+
+    /// Lists every available bundle copy (current + ring-buffer backups).
+    /// Pass an empty passphrase to get metadata only; pass the real one to
+    /// decrypt each and reveal seq, pushed-at, and account count.
+    func cloudListBackups(passphrase: String) async throws -> [CloudBackupInfoDTO] {
+        try await runWithPassphraseDecoding(
+            ["cloud", "list-backups", "--json"],
+            passphrase: passphrase,
+            decode: [CloudBackupInfoDTO].self
+        )
+    }
+
+    /// Restores accounts from a specific ring-buffer slot. Slot 0 is identical
+    /// to `cloudPull`; slots >= 1 walk back through older bundles. Bypasses
+    /// anti-rollback on the backend side — an explicit user choice.
+    func cloudRestoreBackup(slot: Int, passphrase: String) async throws {
+        try await runWithPassphrase(
+            ["cloud", "restore-backup", String(slot), "--json"],
+            passphrase: passphrase
+        )
     }
 
     // MARK: - Local MCP
@@ -226,8 +266,26 @@ actor CswClient {
     }
 
     private func runWithPassphrase(_ args: [String], passphrase: String) async throws {
+        _ = try await runWithPassphraseRaw(args, passphrase: passphrase)
+    }
+
+    private func runWithPassphraseDecoding<T: Decodable>(
+        _ args: [String],
+        passphrase: String,
+        decode: T.Type
+    ) async throws -> T {
+        let raw = try await runWithPassphraseRaw(args, passphrase: passphrase)
+        do {
+            return try decoder.decode(T.self, from: raw)
+        } catch {
+            let str = String(data: raw, encoding: .utf8) ?? "<binary>"
+            throw CswError.decodingFailed(underlying: error, raw: str)
+        }
+    }
+
+    private func runWithPassphraseRaw(_ args: [String], passphrase: String) async throws -> Data {
         guard let bin = CswBinary.resolve() else { throw CswError.binaryNotFound }
-        try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
+        return try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Data, Error>) in
             let task = Process()
             task.executableURL = bin
             task.arguments = args
@@ -238,9 +296,10 @@ actor CswClient {
             task.standardOutput = stdout
             task.standardError  = stderr
             task.terminationHandler = { proc in
+                let outData = (try? stdout.fileHandleForReading.readToEnd()) ?? Data()
                 let errData = (try? stderr.fileHandleForReading.readToEnd()) ?? Data()
                 if proc.terminationStatus == 0 {
-                    cont.resume()
+                    cont.resume(returning: outData)
                 } else {
                     let msg = String(data: errData, encoding: .utf8) ?? ""
                     cont.resume(throwing: CswError.nonZeroExit(code: proc.terminationStatus, stderr: msg))

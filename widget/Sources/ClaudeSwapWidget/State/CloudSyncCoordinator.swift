@@ -15,7 +15,11 @@ final class CloudSyncCoordinator: ObservableObject {
     @Published var showPassphraseSheet = false
     @Published var passphraseIntent: PassphraseIntent = .push
 
-    enum PassphraseIntent { case push, pull, changePassphrase }
+    /// Backups fetched by `listBackups` for the restore-from-backup sheet.
+    /// Cleared whenever a fresh fetch starts so the UI can show a spinner.
+    @Published private(set) var backups: [CswClient.CloudBackupInfoDTO] = []
+
+    enum PassphraseIntent { case push, pull, changePassphrase, restoreFromBackup }
 
     private let client: CswClient
     private let keychainService = "claude-bar-cloudsync-passphrase"
@@ -108,6 +112,42 @@ final class CloudSyncCoordinator: ObservableObject {
         } catch {
             lastError = error.localizedDescription
         }
+    }
+
+    /// Loads the list of available bundle copies (current + ring-buffer
+    /// backups) with the given passphrase so seq + pushed-at can be displayed
+    /// for each. Result is published via `backups`.
+    func listBackups(passphrase: String) async {
+        isBusy = true; lastError = nil
+        backups = []
+        defer { isBusy = false }
+        do {
+            backups = try await client.cloudListBackups(passphrase: passphrase)
+        } catch {
+            lastError = error.localizedDescription
+        }
+    }
+
+    /// Restores accounts from a specific ring-buffer slot. The user is
+    /// expected to have chosen the slot from `backups`. On success the cached
+    /// listing is cleared so a subsequent open re-fetches fresh metadata.
+    func restoreBackup(slot: Int, passphrase: String) async {
+        isBusy = true; lastError = nil
+        defer { isBusy = false }
+        do {
+            try await client.cloudRestoreBackup(slot: slot, passphrase: passphrase)
+            savePassphrase(passphrase)
+            backups = []
+            await refreshStatus()
+        } catch {
+            lastError = error.localizedDescription
+        }
+    }
+
+    /// Clears the cached backups listing. UI calls this on sheet dismiss so a
+    /// reopened sheet refetches and reflects any state change from elsewhere.
+    func clearBackups() {
+        backups = []
     }
 
     /// Called on startup: if no local accounts exist but a cloud bundle does,
