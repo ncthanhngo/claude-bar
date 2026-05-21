@@ -66,6 +66,8 @@ final class AppStore: ObservableObject {
         guard shouldAttempt else { return }
 
         settings.lastBackupTokenRefreshAt = now
+        isRefreshing = true
+        defer { isRefreshing = false }
         do {
             try await client.refreshAllTokens()
             settings.lastBackupTokenRefreshSuccessAt = now

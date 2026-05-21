@@ -36,16 +36,21 @@ import (
 )
 
 const (
-	magic         = "CLBR"
-	bundleVersion = uint16(1)
-	saltLen       = 32
-	nonceLen      = 12
-	keyLen        = 32
+	magic  = "CLBR"
+	saltLen  = 32
+	nonceLen = 12
+	keyLen   = 32
 
-	// scrypt parameters (N=2^15 ≈ 100ms on modern hardware, r=8, p=1)
-	scryptN = 1 << 15
-	scryptR = 8
-	scryptP = 1
+	// bundleV1 used scrypt N=2^15 — kept for decrypting legacy bundles only.
+	bundleV1      = uint16(1)
+	scryptNV1     = 1 << 15
+
+	// bundleV2 raises scrypt to N=2^17 (OWASP minimum). All new bundles use V2.
+	bundleV2      = uint16(2)
+	bundleVersion = bundleV2
+	scryptN       = 1 << 17
+	scryptR       = 8
+	scryptP       = 1
 )
 
 // BundleMCPConnector is one local MCP connector inside the encrypted bundle.
@@ -83,11 +88,16 @@ type CloudBundle struct {
 	SharedMCPConnectors []BundleMCPConnector `json:"sharedMcpConnectors,omitempty"`
 }
 
+// BundlePathForTest may be set by test code to redirect bundle I/O to a temp
+// file. Unlike an env-var override, this cannot be injected from outside the
+// process — a caller must have source-level access to set it.
+// Never set this in production code.
+var BundlePathForTest string
+
 // BundlePath returns the iCloud Drive path for the encrypted bundle.
-// CLAUDE_SWAP_BUNDLE_PATH overrides the path (used in tests).
 func BundlePath() string {
-	if p := os.Getenv("CLAUDE_SWAP_BUNDLE_PATH"); p != "" {
-		return p
+	if BundlePathForTest != "" {
+		return BundlePathForTest
 	}
 	home, _ := os.UserHomeDir()
 	return filepath.Join(home,
@@ -107,7 +117,7 @@ func Encrypt(bundle *CloudBundle, passphrase string) ([]byte, error) {
 		return nil, fmt.Errorf("rand salt: %w", err)
 	}
 
-	key, err := deriveKey(passphrase, salt)
+	key, err := deriveKeyN(passphrase, salt, scryptN)
 	if err != nil {
 		return nil, err
 	}
@@ -139,6 +149,7 @@ func Encrypt(bundle *CloudBundle, passphrase string) ([]byte, error) {
 }
 
 // Decrypt reads the binary blob and returns the plaintext bundle.
+// Supports V1 (scrypt N=2^15) and V2+ (scrypt N=2^17) bundles.
 func Decrypt(data []byte, passphrase string) (*CloudBundle, error) {
 	header := 4 + 2 + saltLen + nonceLen
 	if len(data) < header+16 {
@@ -147,12 +158,17 @@ func Decrypt(data []byte, passphrase string) (*CloudBundle, error) {
 	if string(data[:4]) != magic {
 		return nil, errors.New("not a ClaudeBar bundle (bad magic)")
 	}
-	// version := binary.BigEndian.Uint16(data[4:6]) — reserved for future migration
+	version := binary.BigEndian.Uint16(data[4:6])
 	salt := data[6 : 6+saltLen]
 	nonce := data[6+saltLen : 6+saltLen+nonceLen]
 	ciphertext := data[6+saltLen+nonceLen:]
 
-	key, err := deriveKey(passphrase, salt)
+	// Use the N that matches the version that encrypted this bundle.
+	n := scryptN
+	if version == bundleV1 {
+		n = scryptNV1
+	}
+	key, err := deriveKeyN(passphrase, salt, n)
 	if err != nil {
 		return nil, err
 	}
@@ -178,8 +194,8 @@ func Decrypt(data []byte, passphrase string) (*CloudBundle, error) {
 	return &bundle, nil
 }
 
-func deriveKey(passphrase string, salt []byte) ([]byte, error) {
-	key, err := scrypt.Key([]byte(passphrase), salt, scryptN, scryptR, scryptP, keyLen)
+func deriveKeyN(passphrase string, salt []byte, n int) ([]byte, error) {
+	key, err := scrypt.Key([]byte(passphrase), salt, n, scryptR, scryptP, keyLen)
 	if err != nil {
 		return nil, fmt.Errorf("scrypt: %w", err)
 	}

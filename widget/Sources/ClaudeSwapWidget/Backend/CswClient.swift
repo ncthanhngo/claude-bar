@@ -6,6 +6,17 @@ enum CswError: LocalizedError {
     case nonZeroExit(code: Int32, stderr: String)
     case decodingFailed(underlying: Error, raw: String)
 
+    /// Strip token-shaped strings before surfacing output in the UI.
+    static func redact(_ s: String) -> String {
+        // JWT (eyJ…)
+        var out = s.replacingOccurrences(of: #"eyJ[A-Za-z0-9_\-]{20,}\.[A-Za-z0-9_\-]+\.[A-Za-z0-9_\-]+"#,
+                                         with: "<redacted>", options: .regularExpression)
+        // 32+ char hex / base64 tokens
+        out = out.replacingOccurrences(of: #"[A-Za-z0-9+/=_\-]{32,}"#,
+                                       with: "<redacted>", options: .regularExpression)
+        return out
+    }
+
     var errorDescription: String? {
         switch self {
         case .binaryNotFound:
@@ -13,7 +24,7 @@ enum CswError: LocalizedError {
         case .nonZeroExit(let code, let stderr):
             return "csw exited \(code): \(stderr)"
         case .decodingFailed(let err, let raw):
-            return "csw JSON decode failed: \(err.localizedDescription)\nRaw: \(raw.prefix(400))"
+            return "csw JSON decode failed: \(err.localizedDescription)\nRaw: \(CswError.redact(raw).prefix(200))"
         }
     }
 }

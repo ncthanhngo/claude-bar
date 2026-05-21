@@ -67,7 +67,11 @@ func GDriveStartOAuth(ctx context.Context, clientID, clientSecret string, openBr
 
 	codeCh := make(chan string, 1)
 	errCh := make(chan error, 1)
-	srv := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := &http.Server{
+		ReadTimeout:    30 * time.Second,
+		WriteTimeout:   30 * time.Second,
+		MaxHeaderBytes: 4096,
+		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/callback" {
 			http.NotFound(w, r)
 			return
@@ -90,7 +94,8 @@ func GDriveStartOAuth(ctx context.Context, clientID, clientSecret string, openBr
 		}
 		fmt.Fprintln(w, "Google Drive connected. You may close this tab.")
 		codeCh <- code
-	})}
+	}),
+	}
 	go func() { _ = srv.Serve(listener) }()
 	defer srv.Shutdown(context.Background())
 

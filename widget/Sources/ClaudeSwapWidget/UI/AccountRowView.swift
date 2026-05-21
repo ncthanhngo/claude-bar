@@ -37,11 +37,8 @@ struct AccountRowView: View {
         // Do NOT use .disabled() — it dims the whole row via SwiftUI opacity.
         // Block interaction manually instead.
         .allowsHitTesting(!view.isActive && store.swappingTo == nil)
-        .onHover { hovering in
-            isHovering = hovering
-            if hovering && !view.isActive { NSCursor.pointingHand.push() }
-            if !hovering { NSCursor.pop() }
-        }
+        .onHover { isHovering = $0 }
+        .pointingHandCursor(when: !view.isActive)
         .contextMenu { contextMenuBody }
     }
 
@@ -112,6 +109,7 @@ struct AccountRowView: View {
         .menuStyle(.borderlessButton)
         .menuIndicator(.hidden)
         .fixedSize()
+        .pointingHandCursor()
     }
 
     // MARK: - Subtitle
@@ -191,6 +189,7 @@ struct AccountRowView: View {
                         .foregroundColor(.accentColor).underline()
                 }
                 .buttonStyle(.plain)
+                .pointingHandCursor()
             }
         }
     }
@@ -219,6 +218,13 @@ struct AccountRowView: View {
 
     private func trySwap() {
         guard !view.isActive else { return }
+        // Backend safeToSwap is authoritative — it checks session status (busy/idle),
+        // not just liveness. Idle VSCode sessions must not block a switch.
+        if store.sessions?.safeToSwap == true {
+            doSwap()
+            return
+        }
+        // Fallback when backend data not yet loaded, or sessions are actually busy.
         let sessions = RunningSession.readAll()
         if sessions.isEmpty {
             doSwap()
@@ -227,11 +233,11 @@ struct AccountRowView: View {
         // Show NSAlert directly on the main thread (SwiftUI button actions
         // already run on the main thread — no DispatchQueue wrapper needed).
         let alert = NSAlert()
-        alert.messageText = "Claude is running"
+        alert.messageText = "Claude is busy"
         let lines = sessions
             .map { "• \($0.typeLabel): \($0.locationLabel)" }
             .joined(separator: "\n")
-        alert.informativeText = "Switching to \(view.account.displayName) will interrupt:\n\(lines)"
+        alert.informativeText = "Switching to \(view.account.displayName) may interrupt:\n\(lines)"
         alert.alertStyle = .warning
         alert.addButton(withTitle: "Force switch")
         alert.addButton(withTitle: "Cancel")

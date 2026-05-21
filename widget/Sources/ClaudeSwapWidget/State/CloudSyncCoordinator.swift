@@ -50,9 +50,12 @@ final class CloudSyncCoordinator: ObservableObject {
                                      kSecAttrService: keychainService,
                                      kSecAttrAccount: keychainAccount]
         SecItemDelete(del as CFDictionary)
+        // ThisDeviceOnly prevents the passphrase from syncing to iCloud Keychain
+        // and appearing on other devices signed into the same Apple ID.
         let add: [CFString: Any] = [kSecClass: kSecClassGenericPassword,
                                      kSecAttrService: keychainService,
                                      kSecAttrAccount: keychainAccount,
+                                     kSecAttrAccessible: kSecAttrAccessibleWhenUnlockedThisDeviceOnly,
                                      kSecValueData: data]
         SecItemAdd(add as CFDictionary, nil)
     }
