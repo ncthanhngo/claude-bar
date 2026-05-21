@@ -13,9 +13,9 @@
     <key>CFBundleIdentifier</key>
     <string>dev.ncthanhngo.claude-bar</string>
     <key>CFBundleVersion</key>
-    <string>7.0</string>
+    <string>7.1</string>
     <key>CFBundleShortVersionString</key>
-    <string>7.0</string>
+    <string>7.1</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleSignature</key>
