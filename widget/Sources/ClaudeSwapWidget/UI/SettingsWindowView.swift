@@ -17,6 +17,8 @@ struct SettingsWindowView: View {
     @State private var restoreBackupPassphrase = ""
     @State private var restoreSelectedSlot: Int?
     @State private var restoreConfirmSlot: Int?
+    @State private var installedKeybindingTargets: [KeybindingsInstaller.Target] = KeybindingsInstaller.detectInstalled()
+    @State private var keybindingApplyStatus: String?
 
     var body: some View {
         TabView {
@@ -126,6 +128,8 @@ struct SettingsWindowView: View {
                 }
                 if settings.autoReloadIDEAfterSwap {
                     accessibilityStatus
+                    Divider()
+                    reloadShortcutSection
                 }
 
                 Divider()
@@ -451,6 +455,94 @@ struct SettingsWindowView: View {
             }
         }
         .padding(.leading, 4)
+    }
+
+    // MARK: - Reload shortcut
+
+    private var reloadShortcutSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .firstTextBaseline, spacing: 10) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Reload shortcut")
+                        .font(.caption)
+                    Text("Installed into VSCode / Cursor / Windsurf / Antigravity keybindings and replayed after each swap.")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer()
+                ShortcutRecorderField(
+                    shortcut: Binding(
+                        get: { settings.parsedReloadShortcut },
+                        set: { settings.reloadShortcut = $0.vscodeString }
+                    ),
+                    onChange: { _ in applyReloadShortcut() }
+                )
+            }
+
+            Toggle(isOn: Binding(
+                get: { settings.injectReloadShortcut },
+                set: { newValue in
+                    settings.injectReloadShortcut = newValue
+                    if newValue { applyReloadShortcut() }
+                    else { removeReloadShortcut() }
+                }
+            )) {
+                Text("Install shortcut into IDE keybindings.json")
+                    .font(.caption)
+            }
+            .toggleStyle(.checkbox)
+
+            if settings.injectReloadShortcut {
+                if installedKeybindingTargets.isEmpty {
+                    Text("No supported editors detected.")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                } else {
+                    HStack(spacing: 6) {
+                        Text("Detected:")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                        ForEach(installedKeybindingTargets, id: \.id) { t in
+                            Text(t.displayName)
+                                .font(.caption2)
+                                .padding(.horizontal, 6).padding(.vertical, 2)
+                                .background(Color.green.opacity(0.12))
+                                .clipShape(Capsule())
+                        }
+                        Spacer()
+                        Button("Re-apply") { applyReloadShortcut() }
+                            .buttonStyle(.borderless)
+                            .controlSize(.small)
+                    }
+                }
+            }
+
+            if let status = keybindingApplyStatus {
+                Text(status)
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+            }
+        }
+        .padding(.leading, 4)
+        .onAppear {
+            installedKeybindingTargets = KeybindingsInstaller.detectInstalled()
+        }
+    }
+
+    private func applyReloadShortcut() {
+        installedKeybindingTargets = KeybindingsInstaller.detectInstalled()
+        let applied = KeybindingsInstaller.apply(shortcut: settings.parsedReloadShortcut)
+        keybindingApplyStatus = applied.isEmpty
+            ? "No editors found — install VSCode / Cursor / Antigravity first."
+            : "Applied to \(applied.map(\.displayName).joined(separator: ", "))."
+    }
+
+    private func removeReloadShortcut() {
+        let removed = KeybindingsInstaller.removeAll()
+        keybindingApplyStatus = removed.isEmpty
+            ? "No managed entries to remove."
+            : "Removed from \(removed.map(\.displayName).joined(separator: ", "))."
     }
 
     private func refreshStepper(

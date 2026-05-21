@@ -31,6 +31,14 @@ final class AppSettings: ObservableObject {
     /// When true, sends SIGINT to every interactive `claude` CLI session after
     /// a swap. Useful with the `claude-watch` wrapper script which auto-restarts.
     @AppStorage("autoKillCLIAfterSwap") var autoKillCLIAfterSwap: Bool = false
+    /// VSCode-style string of the reload shortcut injected into VSCode-family
+    /// editors and replayed by `IDEReloader`. Default `cmd+ctrl+r`.
+    @AppStorage("reloadShortcut") var reloadShortcut: String = "cmd+ctrl+r"
+
+    /// When true, the app keeps the reload shortcut synced into the
+    /// keybindings.json of every detected VSCode-family editor.
+    @AppStorage("injectReloadShortcut") var injectReloadShortcut: Bool = true
+
     @AppStorage("widgetTheme") var widgetTheme: WidgetTheme = .light
     /// Timestamp of the last backup token refresh attempt (written before RPC).
     /// Used to throttle attempt frequency — prevents hammering Anthropic on
@@ -44,6 +52,12 @@ final class AppSettings: ObservableObject {
     /// the full 6-hour throttle so broken grants don't cause refresh spam).
     @AppStorage("lastBackupTokenRefreshSuccessAt") var lastBackupTokenRefreshSuccessAt: Double = 0
     @AppStorage("menuBarIconColor") var menuBarIconColor: MenuBarIconColor = .system
+
+    /// Parsed view of `reloadShortcut`, with default fallback if the stored
+    /// string is malformed (e.g. user-edited UserDefaults).
+    var parsedReloadShortcut: KeyboardShortcut {
+        KeyboardShortcut.parse(reloadShortcut) ?? .defaultShortcut
+    }
 }
 
 enum WidgetTheme: String, CaseIterable, Identifiable {

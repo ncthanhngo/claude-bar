@@ -27,6 +27,23 @@ struct ClaudeSwapWidgetApp: App {
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
         ClaudeWatchInstaller.install()
         migrateSettingsIfNeeded()
+        syncReloadShortcutIfNeeded()
+    }
+
+    /// Keep the configured reload shortcut in sync with each VSCode-family
+    /// editor's keybindings.json on launch. Skips work when state file already
+    /// reflects the current shortcut + all detected targets.
+    @MainActor
+    private func syncReloadShortcutIfNeeded() {
+        let settings = AppSettings.shared
+        guard settings.injectReloadShortcut else { return }
+        let want = settings.parsedReloadShortcut.vscodeString
+        let state = KeybindingsInstaller.loadState()
+        let installedIds = Set(KeybindingsInstaller.detectInstalled().map(\.id))
+        let appliedIds = Set(state?.appliedTargets ?? [])
+        let needsApply = state?.lastShortcut != want || !installedIds.isSubset(of: appliedIds)
+        guard needsApply else { return }
+        KeybindingsInstaller.apply(shortcut: settings.parsedReloadShortcut)
     }
 
     /// Copy settings from the old bundle ID (dev.soi.claude-swap-widget) to the

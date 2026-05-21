@@ -125,20 +125,25 @@ enum IDEReloader {
 
     @MainActor
     private static func reload(_ app: NSRunningApplication, ideName: String, window: AXUIElement?) async -> Bool {
-        if isVSCode(ideName) {
-            return await reloadVSCode(app, window: window)
+        // VSCode-family IDEs all get the same injected reload shortcut (see
+        // KeybindingsInstaller). If the user disabled injection, fall back to
+        // the command palette dance.
+        if isVSCodeFamily(ideName), AppSettings.shared.injectReloadShortcut {
+            return await reloadViaShortcut(app, window: window)
         }
         return await reloadFromCommandPalette(app, window: window)
     }
 
     @MainActor
-    private static func reloadVSCode(_ app: NSRunningApplication, window: AXUIElement?) async -> Bool {
+    private static func reloadViaShortcut(_ app: NSRunningApplication, window: AXUIElement?) async -> Bool {
+        let shortcut = AppSettings.shared.parsedReloadShortcut
         let prevApp = focus(app, window: window)
         try? await Task.sleep(nanoseconds: 800_000_000)
 
-        // The user-configured VSCode shortcut reloads the window without typing
-        // into whichever text field currently has focus.
-        guard postKey(15, [.maskCommand, .maskShift], to: app.processIdentifier) else { return false }
+        // The injected shortcut reloads the window without typing into
+        // whichever text field currently has focus.
+        guard postKey(CGKeyCode(shortcut.keyCode), shortcut.cgEventFlags, to: app.processIdentifier)
+        else { return false }
 
         try? await Task.sleep(nanoseconds: 300_000_000)
         restoreFrontmost(prevApp)
@@ -267,8 +272,20 @@ enum IDEReloader {
         AXUIElementSetAttributeValue(axApp, kAXFrontmostAttribute as CFString, kCFBooleanTrue)
     }
 
-    private static func isVSCode(_ ideName: String) -> Bool {
-        ideName == "Visual Studio Code" || ideName == "Visual Studio Code - Insiders"
+    /// VSCode-family editors all honor the injected `keybindings.json` entry,
+    /// so they can be reloaded via the same key chord rather than a command
+    /// palette dance. Zed is intentionally excluded — different key system.
+    private static func isVSCodeFamily(_ ideName: String) -> Bool {
+        switch ideName {
+        case "Visual Studio Code",
+             "Visual Studio Code - Insiders",
+             "Cursor",
+             "Windsurf",
+             "Antigravity":
+            return true
+        default:
+            return false
+        }
     }
 
     private static func bundleId(for ideName: String) -> String? {
@@ -277,6 +294,7 @@ enum IDEReloader {
         case "Visual Studio Code - Insiders": return "com.microsoft.VSCodeInsiders"
         case "Cursor":                        return "com.todesktop.230313mzl4w4u92"
         case "Windsurf":                      return "com.exafunction.windsurf"
+        case "Antigravity":                   return "com.google.antigravity"
         case "Zed":                           return "dev.zed.Zed"
         default:                              return nil
         }
@@ -288,6 +306,7 @@ enum IDEReloader {
         case "Visual Studio Code - Insiders": return "Code - Insiders"
         case "Cursor":                        return "Cursor"
         case "Windsurf":                      return "Windsurf"
+        case "Antigravity":                   return "Antigravity"
         case "Zed":                           return "Zed"
         default:                              return nil
         }
