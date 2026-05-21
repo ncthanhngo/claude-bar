@@ -32,5 +32,19 @@
     <true/>
     <key>NSAppleEventsUsageDescription</key>
     <string>Used to open Terminal so you can run `claude /login` when adding an account.</string>
+    <key>NSHumanReadableCopyright</key>
+    <string>Copyright © 2026 Thanh Ngô. Licensed under MIT.</string>
+    <key>CFBundleGetInfoString</key>
+    <string>Claude Bar 7.6 — menu-bar manager for multiple Claude Code accounts</string>
+    <key>CBAuthorName</key>
+    <string>Thanh Ngô</string>
+    <key>CBAuthorEmail</key>
+    <string>nc.thanhngo@gmail.com</string>
+    <key>CBHomepageURL</key>
+    <string>https://github.com/ncthanhngo/claude-bar</string>
+    <key>CBLicense</key>
+    <string>MIT</string>
+    <key>CBBuildDate</key>
+    <string>2026-05-22</string>
 </dict>
 </plist>

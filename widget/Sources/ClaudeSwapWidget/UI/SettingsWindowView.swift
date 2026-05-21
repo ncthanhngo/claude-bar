@@ -407,6 +407,27 @@ struct SettingsWindowView: View {
                         .clipShape(Capsule())
                 }
                 .font(.caption)
+                infoRow(label: "Build date", value: aboutInfo.buildDate)
+                infoRow(label: "License", value: aboutInfo.license)
+            }
+            SettingsGroup("Author") {
+                infoRow(label: "Name", value: aboutInfo.authorName)
+                HStack(alignment: .top) {
+                    Text("Email")
+                        .foregroundColor(.secondary)
+                        .frame(width: 100, alignment: .leading)
+                    Link(aboutInfo.authorEmail, destination: URL(string: "mailto:\(aboutInfo.authorEmail)")!)
+                }
+                .font(.caption)
+                HStack(alignment: .top) {
+                    Text("Homepage")
+                        .foregroundColor(.secondary)
+                        .frame(width: 100, alignment: .leading)
+                    Link(aboutInfo.homepageURL, destination: URL(string: aboutInfo.homepageURL)!)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
+                .font(.caption)
             }
             SettingsGroup("Tech Stack") {
                 stackRow(label: "UI", value: "SwiftUI · macOS 14+")
@@ -416,7 +437,58 @@ struct SettingsWindowView: View {
                 stackRow(label: "Cloud sync", value: "iCloud Drive · AES-256-GCM")
                 stackRow(label: "MCP connectors", value: "ClickUp · Slack · Google Drive · Google Workspace")
             }
+            SettingsGroup("Legal") {
+                Text(aboutInfo.copyright)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                HStack(spacing: 12) {
+                    Button("View Releases") {
+                        if let url = URL(string: aboutInfo.homepageURL + "/releases") {
+                            NSWorkspace.shared.open(url)
+                        }
+                    }
+                    Button("Report Issue") {
+                        if let url = URL(string: aboutInfo.homepageURL + "/issues/new") {
+                            NSWorkspace.shared.open(url)
+                        }
+                    }
+                }
+                .font(.caption)
+            }
         }
+    }
+
+    private func infoRow(label: String, value: String) -> some View {
+        HStack(alignment: .top) {
+            Text(label)
+                .foregroundColor(.secondary)
+                .frame(width: 100, alignment: .leading)
+            Text(value)
+                .foregroundColor(.primary)
+            Spacer()
+        }
+        .font(.caption)
+    }
+
+    private struct AboutInfo {
+        let authorName: String
+        let authorEmail: String
+        let homepageURL: String
+        let license: String
+        let buildDate: String
+        let copyright: String
+    }
+
+    private var aboutInfo: AboutInfo {
+        let info = Bundle.main.infoDictionary
+        return AboutInfo(
+            authorName: info?["CBAuthorName"] as? String ?? "Thanh Ngô",
+            authorEmail: info?["CBAuthorEmail"] as? String ?? "nc.thanhngo@gmail.com",
+            homepageURL: info?["CBHomepageURL"] as? String ?? "https://github.com/ncthanhngo/claude-bar",
+            license: info?["CBLicense"] as? String ?? "MIT",
+            buildDate: info?["CBBuildDate"] as? String ?? "unknown",
+            copyright: info?["NSHumanReadableCopyright"] as? String ?? "Copyright © Thanh Ngô"
+        )
     }
 
     private func stackRow(label: String, value: String) -> some View {
