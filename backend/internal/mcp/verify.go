@@ -19,9 +19,9 @@ type VerifyResult struct {
 	Scopes      []string
 }
 
-// VerifySlackToken pings Slack's auth.test endpoint. Returns the workspace
-// name + user email so the registry metadata can show "Slack — Acme (alice@…)"
-// instead of a bare "connected".
+// VerifySlackToken checks the token against the Slack endpoints our MCP tools
+// actually call. auth.test alone accepts bot tokens, but search.messages does
+// not, so a bot token would otherwise appear connected and fail later.
 func VerifySlackToken(ctx context.Context, httpClient *http.Client, token string) (*VerifyResult, error) {
 	return verifySlackAt(ctx, httpClient, slackAPIBase, token)
 }
@@ -43,12 +43,12 @@ func verifySlackAt(ctx context.Context, httpClient *http.Client, base, token str
 		return nil, fmt.Errorf("slack verify http %d: %s", resp.StatusCode, Redact(strings.TrimSpace(string(body))))
 	}
 	var out struct {
-		OK      bool   `json:"ok"`
-		Error   string `json:"error"`
-		Team    string `json:"team"`
-		User    string `json:"user"`
-		TeamID  string `json:"team_id"`
-		UserID  string `json:"user_id"`
+		OK     bool   `json:"ok"`
+		Error  string `json:"error"`
+		Team   string `json:"team"`
+		User   string `json:"user"`
+		TeamID string `json:"team_id"`
+		UserID string `json:"user_id"`
 	}
 	if err := json.Unmarshal(body, &out); err != nil {
 		return nil, fmt.Errorf("slack verify decode: %w", err)
@@ -56,7 +56,42 @@ func verifySlackAt(ctx context.Context, httpClient *http.Client, base, token str
 	if !out.OK {
 		return nil, fmt.Errorf("slack verify: %s", out.Error)
 	}
+	if strings.HasPrefix(token, "xoxb-") {
+		return nil, errors.New("slack verify: bot tokens (xoxb-) cannot use search.messages; use a Slack user token (xoxp- or xoxe-) with search:read and channel read/history scopes")
+	}
+	if err := verifySlackCapability(ctx, httpClient, base, token, "conversations.list", "types=public_channel,private_channel&limit=1&exclude_archived=true"); err != nil {
+		return nil, fmt.Errorf("slack verify conversations.list: %w", err)
+	}
+	if err := verifySlackCapability(ctx, httpClient, base, token, "search.messages", "query=the&count=1"); err != nil {
+		return nil, fmt.Errorf("slack verify search.messages: %w", err)
+	}
 	return &VerifyResult{DisplayName: out.Team, Account: out.User}, nil
+}
+
+func verifySlackCapability(ctx context.Context, httpClient *http.Client, base, token, method, rawQuery string) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, base+"/"+method+"?"+rawQuery, nil)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Accept", "application/json")
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("slack verify: %w", err)
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode/100 != 2 {
+		return fmt.Errorf("http %d: %s", resp.StatusCode, Redact(strings.TrimSpace(string(body))))
+	}
+	var out slackResponse
+	if err := json.Unmarshal(body, &out); err != nil {
+		return fmt.Errorf("decode: %w", err)
+	}
+	if !out.OK {
+		return errors.New(out.Error)
+	}
+	return nil
 }
 
 // VerifyClickUpToken pings ClickUp's /user endpoint. The personal token is

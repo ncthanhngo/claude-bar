@@ -140,6 +140,9 @@ struct AccountRowView: View {
     @ViewBuilder
     private var usageBlock: some View {
         VStack(alignment: .leading, spacing: 3) {
+            if view.credentialState == "needs_login" {
+                credentialBadge
+            }
             if let usage = view.usage {
                 if let w = usage.fiveHour { UsageBar(label: "5h", window: w) }
                 if let w = usage.sevenDay  { UsageBar(label: "7d", window: w) }
@@ -153,6 +156,19 @@ struct AccountRowView: View {
         }
         .padding(.leading, 32)
         .padding(.top, 2)
+    }
+
+    private var credentialBadge: some View {
+        HStack(spacing: 4) {
+            Image(systemName: "person.crop.circle.badge.exclamationmark")
+                .font(.system(size: 9))
+                .foregroundColor(.orange)
+            Text("Needs login")
+                .font(.system(size: 10, weight: .medium))
+                .foregroundColor(.orange)
+                .lineLimit(1)
+        }
+        .help(view.credentialError ?? "Backup credentials cannot refresh.")
     }
 
     @ViewBuilder

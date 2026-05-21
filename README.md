@@ -18,6 +18,7 @@ brew install --cask claude-bar
 ## Features
 
 - **Multi-account management** — add, rename, and switch Claude Code accounts from the menu bar
+- **Credential health** — inactive accounts that can no longer refresh are marked before a broken switch
 - **Usage display** — 5-hour and 7-day quota bars with % and time-until-reset for each account
 - **Auto-swap** — automatically switches to a lower-usage account when the active one hits your threshold; waits for `claude` to exit first, then notifies you
 - **IDE reload** — after a swap, reloads VSCode / Cursor / Windsurf windows so the extension picks up new credentials (requires Accessibility permission)
@@ -49,7 +50,7 @@ Enable **Auto-kill CLI sessions** in Settings → General. Claude Bar automatica
 
 ### IDE reload — VSCode / Cursor / Windsurf
 
-Enable **Auto-reload IDE after swap** in Settings → General, then click **Grant Access** when the Accessibility prompt appears. Claude Bar will send `⌘⇧P → Developer: Reload Window` after each swap.
+Enable **Auto-reload IDE after swap** in Settings → General, then click **Grant Access** when the Accessibility prompt appears. Claude Bar will reload supported IDE windows after each swap. VS Code uses the `⌘⇧R` reload shortcut; Cursor, Windsurf, and Zed use `⌘⇧P → Developer: Reload Window`.
 
 ### Local MCP connectors (optional)
 
@@ -58,7 +59,7 @@ Claude Bar can keep one shared set of Slack, ClickUp, and Google Workspace token
 1. Open **Settings → Local MCP**.
 2. Click **Install** to wire `claude-bar-mcp` into `~/.claude.json`.
 3. In **Shared for all accounts**, click **Connect** next to each service you want to use across all Claude Bar accounts. Use per-account rows only when an account should override the shared connector.
-   - Slack/ClickUp: paste a user token (Slack `xoxp-…` / ClickUp `pk_…`). The token is piped to `csw` over stdin and never appears in argv or shell history.
+   - Slack/ClickUp: paste a user token (Slack `xoxp-…` or `xoxe-…` / ClickUp `pk_…`). Slack bot tokens (`xoxb-…`) are not supported because Slack search requires a user token. The token is piped to `csw` over stdin and never appears in argv or shell history.
    - Google Workspace: enable Drive, Calendar, and Gmail APIs in Google Cloud, paste your OAuth Desktop client ID/secret or import the downloaded JSON file, then click **Open browser to connect**. PKCE (S256) is still used.
 4. Restart Claude Code once so it picks up the new MCP server. After that, switching Claude Bar accounts is hot — Claude Code keeps running.
 

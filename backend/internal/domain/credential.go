@@ -37,13 +37,25 @@ func (c CredentialBlob) Extract() (*OAuthPayload, error) {
 	return wrap.ClaudeAiOauth, nil
 }
 
-// WithRefreshed returns a new blob with the OAuth fields replaced.
+// WithRefreshed returns a new blob with only the token fields updated.
+// Fields not returned by the refresh endpoint (e.g. subscriptionType, accountUuid)
+// are preserved from the existing blob so no metadata is silently dropped.
 func (c CredentialBlob) WithRefreshed(p *OAuthPayload) (CredentialBlob, error) {
 	var wrap map[string]any
 	if err := json.Unmarshal([]byte(c), &wrap); err != nil {
 		return "", err
 	}
-	wrap["claudeAiOauth"] = p
+	existing, _ := wrap["claudeAiOauth"].(map[string]any)
+	if existing == nil {
+		existing = map[string]any{}
+	}
+	existing["accessToken"] = p.AccessToken
+	existing["refreshToken"] = p.RefreshToken
+	existing["expiresAt"] = p.ExpiresAt
+	if len(p.Scopes) > 0 {
+		existing["scopes"] = p.Scopes
+	}
+	wrap["claudeAiOauth"] = existing
 	out, err := json.Marshal(wrap)
 	if err != nil {
 		return "", err

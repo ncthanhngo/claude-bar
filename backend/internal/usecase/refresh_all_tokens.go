@@ -31,19 +31,24 @@ func (s *Service) RefreshAllTokens(ctx context.Context) error {
 		if err != nil || payload.RefreshToken == "" {
 			continue
 		}
-		fresh, err := s.Refresh.Refresh(ctx, payload.RefreshToken)
-		if err != nil {
-			failures = append(failures, fmt.Sprintf("account %d (%s): %v", num, acc.Email, err))
-			continue
-		}
-		if fresh == nil {
-			continue
-		}
-		refreshed, err := blob.WithRefreshed(fresh)
-		if err != nil || refreshed == "" {
-			continue
-		}
-		_ = s.Backup.Write(ctx, acc.Number, acc.Email, refreshed)
+		// Mutex serialises with switch/list/verify refresh writers on same account.
+		func() {
+			unlock := s.lockBackupRefresh(acc.Number)
+			defer unlock()
+			fresh, refErr := s.Refresh.Refresh(ctx, payload.RefreshToken)
+			if refErr != nil {
+				failures = append(failures, fmt.Sprintf("account %d (%s): %v", num, acc.Email, refErr))
+				return
+			}
+			if fresh == nil {
+				return
+			}
+			refreshed, mergeErr := blob.WithRefreshed(fresh)
+			if mergeErr != nil || refreshed == "" {
+				return
+			}
+			_ = s.Backup.Write(ctx, acc.Number, acc.Email, refreshed)
+		}()
 	}
 	if len(failures) > 0 {
 		return fmt.Errorf("partial refresh failures: %s", strings.Join(failures, "; "))

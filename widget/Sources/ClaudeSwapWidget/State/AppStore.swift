@@ -28,6 +28,7 @@ final class AppStore: ObservableObject {
         autoSwap.onSwapPerformed = { [weak self] in
             await self?.refreshNow()
             self?.schedulePostSwapIntegrations()
+            await self?.autoPushCloud()
         }
     }
 
@@ -37,34 +38,43 @@ final class AppStore: ObservableObject {
         refreshTask?.cancel()
         refreshTask = Task { [weak self] in
             await self?.refreshNow()
-            // Daily token refresh — runs once per calendar day on startup.
-            await self?.dailyTokenRefreshIfNeeded()
+            await self?.backupTokenRefreshIfNeeded()
             while !Task.isCancelled {
                 guard let self else { return }
                 let secs = self.nextRefreshIntervalSec()
                 try? await Task.sleep(nanoseconds: UInt64(secs) * 1_000_000_000)
+                await self.backupTokenRefreshIfNeeded()
                 await self.refreshNow()
             }
         }
         autoSwap.start()
     }
 
-    private func dailyTokenRefreshIfNeeded() async {
-        let today = todayString()
-        guard settings.lastDailyTokenRefreshDay != today else { return }
+    private func backupTokenRefreshIfNeeded() async {
+        let now = Date().timeIntervalSince1970
+        let fullInterval: TimeInterval    = 6 * 60 * 60  // normal 6-hour cycle
+        let transientRetry: TimeInterval  = 15 * 60      // retry window after transient failure
+
+        let timeSinceAttempt  = now - settings.lastBackupTokenRefreshAt
+        let timeSinceSuccess  = now - settings.lastBackupTokenRefreshSuccessAt
+        // lastAttemptFailed: success timestamp is older than attempt timestamp
+        // (with 60s margin so near-simultaneous writes don't false-positive).
+        let lastAttemptFailed = timeSinceSuccess > timeSinceAttempt + 60
+
+        let shouldAttempt = timeSinceAttempt >= fullInterval
+                         || (lastAttemptFailed && timeSinceAttempt >= transientRetry)
+        guard shouldAttempt else { return }
+
+        settings.lastBackupTokenRefreshAt = now
         do {
             try await client.refreshAllTokens()
-            settings.lastDailyTokenRefreshDay = today
+            settings.lastBackupTokenRefreshSuccessAt = now
         } catch {
-            // Non-fatal: log and skip — will retry next launch
-            print("[AppStore] Daily token refresh failed: \(error.localizedDescription)")
+            print("[AppStore] Backup token refresh failed: \(error.localizedDescription)")
+            // lastBackupTokenRefreshSuccessAt intentionally not updated on failure.
+            // Next check after transientRetry will retry; persistent grant failures
+            // are throttled by the fullInterval on the attempt timestamp.
         }
-    }
-
-    private func todayString() -> String {
-        let f = DateFormatter()
-        f.dateFormat = "yyyy-MM-dd"
-        return f.string(from: Date())
     }
 
     /// Computes the next sleep duration based on the most recent active 5h%.
@@ -108,6 +118,7 @@ final class AppStore: ObservableObject {
             print("[AppStore] Switched to account \(num)")
             swappingTo = nil
             schedulePostSwapIntegrations()
+            await autoPushCloud()
         } catch {
             lastError = error.localizedDescription
             swappingTo = nil

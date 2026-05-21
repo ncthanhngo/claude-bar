@@ -105,25 +105,38 @@ func (s *Service) verifyOne(ctx context.Context, r *domain.AccountVerification) 
 	add("credentials_valid", true, "")
 
 	// 3. token_refresh — only for inactive (claude owns active refresh).
+	// Mutex serialises refresh+write per account across concurrent verify calls
+	// and races with switch/refresh-all on the same account's backup token.
 	access := payload.AccessToken
 	if r.IsActive {
 		addSkip("token_refresh", "active account — claude owns refresh")
 	} else {
-		fresh, refErr := s.Refresh.Refresh(ctx, payload.RefreshToken)
-		if refErr != nil || fresh == nil {
-			detail := "refresh failed"
-			if refErr != nil {
-				detail = refErr.Error()
+		var freshAccess string
+		var refreshFailed bool
+		func() {
+			unlock := s.lockBackupRefresh(r.AccountNum)
+			defer unlock()
+			fresh, refErr := s.Refresh.Refresh(ctx, payload.RefreshToken)
+			if refErr != nil || fresh == nil {
+				detail := "refresh failed"
+				if refErr != nil {
+					detail = refErr.Error()
+				}
+				add("token_refresh", false, detail)
+				r.SwapReady = false
+				refreshFailed = true
+				return
 			}
-			add("token_refresh", false, detail)
-			r.SwapReady = false
+			add("token_refresh", true, "")
+			freshAccess = fresh.AccessToken
+			if newBlob, err := blob.WithRefreshed(fresh); err == nil && newBlob != "" {
+				_ = s.Backup.Write(ctx, r.AccountNum, r.Email, newBlob)
+			}
+		}()
+		if refreshFailed {
 			return
 		}
-		add("token_refresh", true, "")
-		access = fresh.AccessToken
-		if newBlob, err := blob.WithRefreshed(fresh); err == nil && newBlob != "" {
-			_ = s.Backup.Write(ctx, r.AccountNum, r.Email, newBlob)
-		}
+		access = freshAccess
 	}
 
 	// 4. usage_reachable

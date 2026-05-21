@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/soi/claude-swap-widget/backend/internal/adapter/cloudsync"
@@ -17,6 +18,10 @@ func (s *Service) CloudPull(ctx context.Context, passphrase string) error {
 		return fmt.Errorf("passphrase must not be empty")
 	}
 
+	// Read and decrypt outside the lock: decrypt is CPU-intensive and the window
+	// between read and lock-acquire is small. A concurrent push that lands here
+	// means the pull restores a bundle that is at most one push cycle stale —
+	// acceptable for a best-effort sync.
 	data, err := os.ReadFile(cloudsync.BundlePath())
 	if err != nil {
 		return fmt.Errorf("read bundle: %w", err)
@@ -45,14 +50,32 @@ func (s *Service) CloudPull(ctx context.Context, passphrase string) error {
 		reg.SharedMCPConnectors = shared
 	}
 
+	var failures []string
 	for _, ba := range bundle.Accounts {
-		// Write credential into backup keychain.
-		blob := domain.CredentialBlob(ba.CredentialBlob)
-		if err := s.Backup.Write(ctx, ba.Number, ba.Email, blob); err != nil {
-			return fmt.Errorf("restore credential for %s: %w", ba.Email, err)
+		bundleBlob := domain.CredentialBlob(ba.CredentialBlob)
+		writeBlob := bundleBlob
+
+		// Option A: prefer the fresher credential — if local backup parses and has
+		// a higher expiresAt, keep it rather than overwriting with a stale bundle.
+		localBlob, localErr := s.Backup.Read(ctx, ba.Number, ba.Email)
+		if localErr == nil && localBlob != "" {
+			bundlePayload, bErr := bundleBlob.Extract()
+			localPayload, lErr := localBlob.Extract()
+			if bErr == nil && lErr == nil && localPayload.ExpiresAt > bundlePayload.ExpiresAt {
+				writeBlob = localBlob
+			}
+			// equal expiresAt → writeBlob stays bundleBlob (bundle wins = new-machine scenario)
+		}
+		// local empty or error → writeBlob stays bundleBlob (always write bundle for new accounts)
+
+		// R6: collect write failures instead of aborting — one bad keychain slot
+		// must not prevent the rest of the accounts from being restored.
+		if writeErr := s.Backup.Write(ctx, ba.Number, ba.Email, writeBlob); writeErr != nil {
+			failures = append(failures, fmt.Sprintf("account %d (%s): %v", ba.Number, ba.Email, writeErr))
+			continue
 		}
 
-		// Upsert account in registry.
+		// Upsert account in registry only for successfully written accounts.
 		if _, exists := reg.Accounts[ba.Number]; !exists {
 			reg.Accounts[ba.Number] = &domain.Account{}
 			reg.Sequence = append(reg.Sequence, ba.Number)
@@ -75,7 +98,27 @@ func (s *Service) CloudPull(ctx context.Context, passphrase string) error {
 		}
 	}
 
-	return s.Registry.Save(ctx, reg)
+	// R6: always save registry for all successfully written accounts.
+	if saveErr := s.Registry.Save(ctx, reg); saveErr != nil {
+		return fmt.Errorf("save registry: %w", saveErr)
+	}
+
+	// R1: validate pulled credentials immediately in the background rather than
+	// waiting until the next scheduled refresh or switch attempt.
+	// INVARIANT: RefreshAllTokens must never call s.Lock.Acquire — the file lock
+	// is still held at this point (defer Release runs on function return).
+	go func() {
+		bgCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		_ = s.RefreshAllTokens(bgCtx)
+	}()
+
+	if len(failures) > 0 {
+		return fmt.Errorf("partial restore (%d/%d): %s",
+			len(bundle.Accounts)-len(failures), len(bundle.Accounts),
+			strings.Join(failures, "; "))
+	}
+	return nil
 }
 
 // CloudStatus returns metadata about the iCloud Drive bundle.

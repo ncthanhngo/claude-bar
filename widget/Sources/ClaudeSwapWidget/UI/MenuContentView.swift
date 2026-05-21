@@ -85,7 +85,7 @@ private struct AccountListSection: View {
     @EnvironmentObject var store: AppStore
     @Binding var renaming: AccountViewDTO?
 
-    private static let scrollThreshold = 3
+    private static let scrollThreshold = 6
 
     var body: some View {
         if let snap = store.snapshot, !snap.accounts.isEmpty {
@@ -100,7 +100,7 @@ private struct AccountListSection: View {
             .padding(.vertical, 4)
 
             if needsScroll {
-                ScrollView { rows }.frame(maxHeight: 360)
+                ScrollView { rows }.frame(maxHeight: 580)
             } else {
                 rows
             }

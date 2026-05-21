@@ -14,7 +14,17 @@ func TestVerifySlackToken_OK(t *testing.T) {
 			t.Errorf("missing/bad Bearer: %q", r.Header.Get("Authorization"))
 		}
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"ok":true,"team":"Acme","user":"alice","team_id":"T1","user_id":"U1"}`))
+		switch r.URL.Path {
+		case "/auth.test":
+			_, _ = w.Write([]byte(`{"ok":true,"team":"Acme","user":"alice","team_id":"T1","user_id":"U1"}`))
+		case "/conversations.list":
+			_, _ = w.Write([]byte(`{"ok":true,"channels":[]}`))
+		case "/search.messages":
+			_, _ = w.Write([]byte(`{"ok":true,"messages":{"matches":[],"total":0}}`))
+		default:
+			t.Errorf("unexpected path %s", r.URL.Path)
+			_, _ = w.Write([]byte(`{"ok":false,"error":"unexpected_path"}`))
+		}
 	}))
 	defer srv.Close()
 
@@ -37,6 +47,44 @@ func TestVerifySlackToken_BadAuth(t *testing.T) {
 	_, err := verifySlackAt(context.Background(), srv.Client(), srv.URL, "xoxp-bad")
 	if err == nil || !strings.Contains(err.Error(), "invalid_auth") {
 		t.Fatalf("expected invalid_auth, got %v", err)
+	}
+}
+
+func TestVerifySlackToken_RejectsBotToken(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if r.URL.Path != "/auth.test" {
+			t.Fatalf("bot token should fail before probing %s", r.URL.Path)
+		}
+		_, _ = w.Write([]byte(`{"ok":true,"team":"Acme","user":"bot","team_id":"T1","user_id":"B1"}`))
+	}))
+	defer srv.Close()
+
+	_, err := verifySlackAt(context.Background(), srv.Client(), srv.URL, "xoxb-bot")
+	if err == nil || !strings.Contains(err.Error(), "bot tokens") {
+		t.Fatalf("expected bot token error, got %v", err)
+	}
+}
+
+func TestVerifySlackToken_RejectsTokenWithoutSearch(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/auth.test":
+			_, _ = w.Write([]byte(`{"ok":true,"team":"Acme","user":"alice","team_id":"T1","user_id":"U1"}`))
+		case "/conversations.list":
+			_, _ = w.Write([]byte(`{"ok":true,"channels":[]}`))
+		case "/search.messages":
+			_, _ = w.Write([]byte(`{"ok":false,"error":"missing_scope"}`))
+		default:
+			t.Errorf("unexpected path %s", r.URL.Path)
+		}
+	}))
+	defer srv.Close()
+
+	_, err := verifySlackAt(context.Background(), srv.Client(), srv.URL, "xoxp-no-search")
+	if err == nil || !strings.Contains(err.Error(), "missing_scope") {
+		t.Fatalf("expected missing_scope, got %v", err)
 	}
 }
 

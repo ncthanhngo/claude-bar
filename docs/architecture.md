@@ -53,7 +53,8 @@ Swift widget is a thin client that calls the Go backend via subprocess + JSON.
 2. Read current live Keychain blob + `~/.claude.json`.
 3. Persist them under the current active account's backup slot
    (Keychain service = `csw-backup:<num>:<email>`).
-4. Read the target account's backup creds.
+4. Refresh the target account's backup creds; fail with a re-login error if
+   that backup can no longer refresh.
 5. Write target creds into the live Keychain entry (`Claude Code-credentials`).
 6. Patch `~/.claude.json`: only `oauthAccount` is replaced — every other field is left untouched.
 7. Update registry's `activeAccountNumber`. Save (atomic write, 0600).
@@ -70,6 +71,8 @@ Swift widget is a thin client that calls the Go backend via subprocess + JSON.
 - If a backup access token is within 5 min of expiry, the widget calls
   `POST https://platform.claude.com/v1/oauth/token` with `refresh_token` and
   persists the refreshed creds back to that backup keychain entry.
+- If an inactive backup cannot refresh, list polling marks that account as
+  needing login even when an old access token still reaches the usage API.
 - Active account live credentials are **never** refreshed by the widget —
   `claude` itself owns refresh for the live token, and a race could clobber the
   user's session.

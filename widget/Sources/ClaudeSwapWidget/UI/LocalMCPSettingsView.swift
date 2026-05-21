@@ -277,14 +277,16 @@ private struct ConnectTokenSheet: View {
                 Button("Connect") {
                     let t = token.trimmingCharacters(in: .whitespacesAndNewlines)
                     Task {
-                        await coordinator.connectToken(
+                        let connected = await coordinator.connectToken(
                             account: target.accountNumber,
                             service: target.service,
                             token: t,
                             displayName: displayName.isEmpty ? nil : displayName
                         )
-                        await pushCloudIfConfigured()
-                        dismiss()
+                        if connected {
+                            await pushCloudIfConfigured()
+                            dismiss()
+                        }
                     }
                 }
                 .keyboardShortcut(.defaultAction)
