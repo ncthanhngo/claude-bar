@@ -108,8 +108,8 @@ func (pullTestMCPSecretStore) Delete(_ context.Context, _ int, _ domain.MCPServi
 }
 func (pullTestMCPSecretStore) DeleteAll(_ context.Context, _ int) error { return nil }
 
-// writeBundleFile writes an encrypted bundle to a temp file and returns the path,
-// monkey-patching the BundlePath via env var understood by BundlePath().
+// writeBundleFile writes an encrypted bundle to a temp file and patches
+// cloudsync.BundlePathForTest so BundlePath() returns that path for the test.
 func writeBundleFile(t *testing.T, bundle *cloudsync.CloudBundle, passphrase string) func() {
 	t.Helper()
 	enc, err := cloudsync.Encrypt(bundle, passphrase)
@@ -124,7 +124,8 @@ func writeBundleFile(t *testing.T, bundle *cloudsync.CloudBundle, passphrase str
 		t.Fatalf("write temp bundle: %v", err)
 	}
 	f.Close()
-	t.Setenv("CLAUDE_SWAP_BUNDLE_PATH", f.Name())
+	cloudsync.BundlePathForTest = f.Name()
+	t.Cleanup(func() { cloudsync.BundlePathForTest = "" })
 	return func() { os.Remove(f.Name()) }
 }
 
@@ -286,7 +287,7 @@ func TestCloudPull_R6_OneAccountWriteError_OthersSucceed_RegistrySaved(t *testin
 	defer cleanup()
 
 	bak := &pullTestBackupStore{
-		blobs:    map[int]domain.CredentialBlob{},
+		blobs:     map[int]domain.CredentialBlob{},
 		writeErrs: map[int]error{1: errors.New("keychain write failed")},
 	}
 	reg := &pullTestRegistry{reg: &domain.Registry{Accounts: map[int]*domain.Account{}, Sequence: []int{}}}
@@ -320,6 +321,54 @@ func TestCloudPull_R6_OneAccountWriteError_OthersSucceed_RegistrySaved(t *testin
 	}
 	if _, ok := reg.reg.Accounts[1]; ok {
 		t.Fatal("failed account 1 must not be in registry")
+	}
+}
+
+func TestCloudPull_PreservesActiveLocalIdentityWhenBundleNumberCollides(t *testing.T) {
+	bundleBlob := credentialBlob("bundle-token", "bundle-rt", time.Now().Add(time.Hour))
+	passphrase := "test-pass"
+
+	cleanup := writeBundleFile(t, makeBundle([]cloudsync.BundleAccount{
+		{
+			Number:           4,
+			Email:            "soi@example.com",
+			OrganizationUUID: "soi-org",
+			CredentialBlob:   string(bundleBlob),
+		},
+	}), passphrase)
+	defer cleanup()
+
+	reg := &pullTestRegistry{reg: &domain.Registry{
+		ActiveAccountNumber: 4,
+		Accounts: map[int]*domain.Account{
+			4: {Number: 4, Email: "dev3@example.com", OrganizationUUID: "dev3-org"},
+		},
+		Sequence: []int{4},
+	}}
+	bak := &pullTestBackupStore{blobs: map[int]domain.CredentialBlob{}}
+	svc := &Service{
+		Backup:     bak,
+		Registry:   reg,
+		Lock:       &pushTestLock{},
+		Refresh:    &pullTestRefresher{err: errors.New("refresh disabled")},
+		MCPSecrets: pullTestMCPSecretStore{},
+	}
+
+	if err := svc.CloudPull(context.Background(), passphrase); err != nil {
+		t.Fatalf("CloudPull returned error: %v", err)
+	}
+	if got := reg.reg.Accounts[4].Email; got != "dev3@example.com" {
+		t.Fatalf("active local slot email = %q, want dev3@example.com", got)
+	}
+	if reg.reg.ActiveAccountNumber != 4 {
+		t.Fatalf("active account number = %d, want 4", reg.reg.ActiveAccountNumber)
+	}
+	pulledNum := reg.reg.FindByIdentity("soi@example.com", "soi-org")
+	if pulledNum == 0 || pulledNum == 4 {
+		t.Fatalf("pulled account number = %d, want a new local slot", pulledNum)
+	}
+	if got := bak.get(pulledNum); got != bundleBlob {
+		t.Fatalf("pulled backup at account %d = %q, want bundle blob", pulledNum, got)
 	}
 }
 

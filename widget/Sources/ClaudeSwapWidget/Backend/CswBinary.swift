@@ -9,22 +9,31 @@ import Foundation
 ///   4. `PATH` lookup via `/usr/bin/which`
 enum CswBinary {
     static func resolve() -> URL? {
+#if DEBUG
+        // Dev override: point CSW_BIN at a locally built binary.
+        // Stripped from release builds — only the bundled binary is trusted there.
         if let env = ProcessInfo.processInfo.environment["CSW_BIN"],
            FileManager.default.isExecutableFile(atPath: env) {
             return URL(fileURLWithPath: env)
         }
+#endif
         if let bundled = Bundle.main.url(forResource: "csw", withExtension: nil),
            FileManager.default.isExecutableFile(atPath: bundled.path) {
             return bundled
         }
-        for path in ["/usr/local/bin/csw", "/opt/homebrew/bin/csw", "/usr/bin/csw"] {
+        for path in ["/usr/local/bin/csw", "/opt/homebrew/bin/csw"] {
             if FileManager.default.isExecutableFile(atPath: path) {
                 return URL(fileURLWithPath: path)
             }
         }
+#if DEBUG
         return whichLookup()
+#else
+        return nil
+#endif
     }
 
+#if DEBUG
     private static func whichLookup() -> URL? {
         let task = Process()
         task.launchPath = "/usr/bin/which"
@@ -46,4 +55,5 @@ enum CswBinary {
               FileManager.default.isExecutableFile(atPath: path) else { return nil }
         return URL(fileURLWithPath: path)
     }
+#endif
 }

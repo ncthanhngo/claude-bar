@@ -52,12 +52,13 @@ func (s *Service) CloudPull(ctx context.Context, passphrase string) error {
 
 	var failures []string
 	for _, ba := range bundle.Accounts {
+		accountNum, exists := pullAccountNumber(reg, ba)
 		bundleBlob := domain.CredentialBlob(ba.CredentialBlob)
 		writeBlob := bundleBlob
 
 		// Option A: prefer the fresher credential — if local backup parses and has
 		// a higher expiresAt, keep it rather than overwriting with a stale bundle.
-		localBlob, localErr := s.Backup.Read(ctx, ba.Number, ba.Email)
+		localBlob, localErr := s.Backup.Read(ctx, accountNum, ba.Email)
 		if localErr == nil && localBlob != "" {
 			bundlePayload, bErr := bundleBlob.Extract()
 			localPayload, lErr := localBlob.Extract()
@@ -70,24 +71,24 @@ func (s *Service) CloudPull(ctx context.Context, passphrase string) error {
 
 		// R6: collect write failures instead of aborting — one bad keychain slot
 		// must not prevent the rest of the accounts from being restored.
-		if writeErr := s.Backup.Write(ctx, ba.Number, ba.Email, writeBlob); writeErr != nil {
-			failures = append(failures, fmt.Sprintf("account %d (%s): %v", ba.Number, ba.Email, writeErr))
+		if writeErr := s.Backup.Write(ctx, accountNum, ba.Email, writeBlob); writeErr != nil {
+			failures = append(failures, fmt.Sprintf("account %d (%s): %v", accountNum, ba.Email, writeErr))
 			continue
 		}
 
 		// Upsert account in registry only for successfully written accounts.
-		if _, exists := reg.Accounts[ba.Number]; !exists {
-			reg.Accounts[ba.Number] = &domain.Account{}
-			reg.Sequence = append(reg.Sequence, ba.Number)
+		if !exists {
+			reg.Accounts[accountNum] = &domain.Account{}
+			reg.Sequence = append(reg.Sequence, accountNum)
 		}
-		acc := reg.Accounts[ba.Number]
-		acc.Number = ba.Number
+		acc := reg.Accounts[accountNum]
+		acc.Number = accountNum
 		acc.Email = ba.Email
 		acc.Nickname = ba.Nickname
 		acc.OrganizationName = ba.OrganizationName
 		acc.OrganizationUUID = ba.OrganizationUUID
 		if restoreMCP {
-			connectors, err := s.restoreMCPConnectors(ctx, ba.Number, ba.MCPConnectors)
+			connectors, err := s.restoreMCPConnectors(ctx, accountNum, ba.MCPConnectors)
 			if err != nil {
 				return err
 			}
@@ -119,6 +120,18 @@ func (s *Service) CloudPull(ctx context.Context, passphrase string) error {
 			strings.Join(failures, "; "))
 	}
 	return nil
+}
+
+// Cloud bundles carry the source machine's account numbers, but numbers are
+// local registry slots. Preserve local identities when a bundle slot collides.
+func pullAccountNumber(reg *domain.Registry, ba cloudsync.BundleAccount) (int, bool) {
+	if num := reg.FindByIdentity(ba.Email, ba.OrganizationUUID); num != 0 {
+		return num, true
+	}
+	if _, exists := reg.Accounts[ba.Number]; !exists {
+		return ba.Number, false
+	}
+	return reg.NextAccountNumber(), false
 }
 
 // CloudStatus returns metadata about the iCloud Drive bundle.

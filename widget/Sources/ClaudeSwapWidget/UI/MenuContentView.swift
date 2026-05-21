@@ -36,6 +36,9 @@ struct MenuContentView: View {
 
 private struct HeaderBar: View {
     @EnvironmentObject var store: AppStore
+    @State private var isHealthChecking = false
+    @State private var healthResult: HealthCheckResult? = nil
+    @State private var showHealthPopover = false
 
     var body: some View {
         HStack(spacing: 8) {
@@ -47,29 +50,54 @@ private struct HeaderBar: View {
                 .foregroundColor(store.lastError == nil ? Color.secondary : Color.red)
                 .lineLimit(1)
             Spacer()
-            if store.isRefreshing {
+            if store.isRefreshing || isHealthChecking {
                 ProgressView().controlSize(.mini)
             } else {
-                Button(action: { Task { await store.refreshNow() } }) {
+                Button(action: runHealthCheck) {
                     Image(systemName: "arrow.clockwise")
                         .font(.system(size: 11))
                         .foregroundColor(.secondary)
                 }
                 .buttonStyle(.borderless)
-                .help("Refresh now")
+                .help("Check account health & refresh credentials")
+                .pointingHandCursor()
+                .popover(isPresented: $showHealthPopover, arrowEdge: .bottom) {
+                    if let result = healthResult {
+                        HealthCheckPopoverView(result: result, isPresented: $showHealthPopover)
+                    }
+                }
             }
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 6)
     }
 
+    private func runHealthCheck() {
+        guard !isHealthChecking && !store.isRefreshing else { return }
+        showHealthPopover = false
+        isHealthChecking = true
+        Task {
+            do {
+                let report = try await store.client.verify()
+                let failed = report.results.filter { !$0.swapReady }
+                healthResult = failed.isEmpty ? .healthy(report.total) : .issues(failed: failed)
+            } catch {
+                healthResult = .failed(error.localizedDescription)
+            }
+            await store.refreshNow()
+            isHealthChecking = false
+            showHealthPopover = true
+        }
+    }
+
     private var statusDotColor: Color {
         if store.lastError != nil { return .red }
-        if store.isRefreshing    { return .orange }
+        if store.isRefreshing || isHealthChecking { return .orange }
         return .green
     }
 
     private var statusText: String {
+        if isHealthChecking { return "Checking health…" }
         if let err = store.lastError { return err }
         guard let when = store.lastRefreshAt else { return "Loading…" }
         let secs = max(0, Int(Date().timeIntervalSince(when)))
@@ -124,6 +152,7 @@ private struct EmptyAccountsView: View {
             Button("Add your first account") { loginCoordinator.begin() }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.small)
+                .pointingHandCursor()
         }
         .padding(.vertical, 24)
         .frame(maxWidth: .infinity)
@@ -227,6 +256,7 @@ private struct FooterActions: View {
                     .foregroundColor(.secondary)
             }
             .buttonStyle(.borderless).help("Settings")
+            .pointingHandCursor()
 
             Spacer()
 
@@ -237,6 +267,7 @@ private struct FooterActions: View {
             }
             .buttonStyle(.borderless)
             .help("Theme: \(settings.widgetTheme.rawValue) — click to cycle")
+            .pointingHandCursor()
 
             Spacer()
 
@@ -246,6 +277,7 @@ private struct FooterActions: View {
                     .foregroundColor(.secondary)
             }
             .buttonStyle(.borderless).help("Quit")
+            .pointingHandCursor()
         }
         .padding(.horizontal, 14)
         .padding(.top, 8)
