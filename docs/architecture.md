@@ -65,11 +65,14 @@ Swift widget is a thin client that calls the Go backend via subprocess + JSON.
   - `Authorization: Bearer <accessToken>`
   - `anthropic-beta: oauth-2025-04-20`
 - Response: `{five_hour: {utilization, resets_at}, seven_day: {utilization, resets_at}}`
-- Inactive accounts: if the access token is within 5 min of expiry, the widget
-  calls `POST https://platform.claude.com/v1/oauth/token` with `refresh_token`
-  and persists the refreshed creds back to the backup keychain entry.
-- Active account: **never** refreshed by the widget — `claude` itself owns
-  refresh for the live token, and a race could clobber the user's session.
+- Usage polling reads Claude Bar backup credentials for every account, including
+  the active account. It never reads the live `Claude Code-credentials` item.
+- If a backup access token is within 5 min of expiry, the widget calls
+  `POST https://platform.claude.com/v1/oauth/token` with `refresh_token` and
+  persists the refreshed creds back to that backup keychain entry.
+- Active account live credentials are **never** refreshed by the widget —
+  `claude` itself owns refresh for the live token, and a race could clobber the
+  user's session.
 
 ## Process detection
 

@@ -24,7 +24,9 @@ final class FloatingWindow<Content: View> {
         )
         w.title = title
         w.contentViewController = host
-        w.level = .floating
+        // Use a level above the Settings window, which is elevated to statusBar+1
+        // when opened from the menu bar. .floating (3) would be covered by it.
+        w.level = NSWindow.Level(rawValue: NSWindow.Level.statusBar.rawValue + 2)
         w.collectionBehavior = [.moveToActiveSpace, .fullScreenAuxiliary]
         w.isReleasedWhenClosed = false
         w.center()

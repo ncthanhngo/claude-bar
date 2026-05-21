@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+
+	"github.com/soi/claude-swap-widget/backend/internal/domain"
 )
 
 // SwitchAccount swaps the live Keychain credential to the given account number.
@@ -35,7 +37,7 @@ func (s *Service) SwitchAccount(ctx context.Context, targetNum int) error {
 		return fmt.Errorf("account %d not found", targetNum)
 	}
 	if reg.ActiveAccountNumber == targetNum {
-		return errors.New("already active")
+		return s.rewriteLiveCredentialFromBackup(ctx, target)
 	}
 
 	prevConfig, err := s.Config.Read(ctx)
@@ -43,30 +45,9 @@ func (s *Service) SwitchAccount(ctx context.Context, targetNum int) error {
 		return err
 	}
 
-	// Step 3 — load target backup creds.
-	targetCreds, err := s.Backup.Read(ctx, target.Number, target.Email)
+	targetCreds, err := s.credentialFromBackup(ctx, target)
 	if err != nil {
-		return fmt.Errorf("read target backup: %w", err)
-	}
-	if targetCreds == "" {
-		return fmt.Errorf("no backup credentials for account %d", target.Number)
-	}
-
-	// Step 3b — refresh access token before activating.
-	//
-	// Claude Code continuously refreshes and rewrites the Keychain entry while
-	// an account is active. If we restore a stale access token, Anthropic treats
-	// it as revoked and forces a full re-login. Using refreshToken (long-lived)
-	// to obtain a fresh access token prevents this.
-	if payload, extractErr := targetCreds.Extract(); extractErr == nil && payload.RefreshToken != "" {
-		if fresh, refreshErr := s.Refresh.Refresh(ctx, payload.RefreshToken); refreshErr == nil && fresh != nil {
-			if refreshed, blobErr := targetCreds.WithRefreshed(fresh); blobErr == nil && refreshed != "" {
-				targetCreds = refreshed
-				// Persist the fresh token back so the next swap is also pre-warmed.
-				_ = s.Backup.Write(ctx, target.Number, target.Email, refreshed)
-			}
-		}
-		// If refresh fails, continue with stored creds — better than aborting.
+		return err
 	}
 
 	// Step 4 — write live creds.
@@ -98,4 +79,63 @@ func (s *Service) SwitchAccount(ctx context.Context, targetNum int) error {
 		return fmt.Errorf("save registry: %w", err)
 	}
 	return nil
+}
+
+// RepairLiveCredential rewrites the live Claude Code Keychain item from the
+// active account backup. It is intentionally read-free for the live item, so it
+// can repair a bad ACL without triggering the same macOS permission prompt.
+func (s *Service) RepairLiveCredential(ctx context.Context) error {
+	if err := s.Lock.Acquire(ctx); err != nil {
+		return err
+	}
+	defer s.Lock.Release()
+
+	reg, err := s.Registry.Load(ctx)
+	if err != nil {
+		return err
+	}
+	active, ok := reg.Accounts[reg.ActiveAccountNumber]
+	if !ok || active == nil {
+		return errors.New("no active account")
+	}
+	return s.rewriteLiveCredentialFromBackup(ctx, active)
+}
+
+func (s *Service) rewriteLiveCredentialFromBackup(ctx context.Context, acc *domain.Account) error {
+	creds, err := s.credentialFromBackup(ctx, acc)
+	if err != nil {
+		return err
+	}
+	if err := s.Live.Write(ctx, creds); err != nil {
+		return fmt.Errorf("write live creds: %w", err)
+	}
+	return nil
+}
+
+func (s *Service) credentialFromBackup(ctx context.Context, acc *domain.Account) (domain.CredentialBlob, error) {
+	creds, err := s.Backup.Read(ctx, acc.Number, acc.Email)
+	if err != nil {
+		return "", fmt.Errorf("read target backup: %w", err)
+	}
+	if creds == "" {
+		return "", fmt.Errorf("no backup credentials for account %d", acc.Number)
+	}
+
+	// Refresh access token before activating.
+	//
+	// Claude Code continuously refreshes and rewrites the Keychain entry while
+	// an account is active. If we restore a stale access token, Anthropic treats
+	// it as revoked and forces a full re-login. Using refreshToken (long-lived)
+	// to obtain a fresh access token prevents this.
+	if payload, extractErr := creds.Extract(); extractErr == nil && payload.RefreshToken != "" {
+		if fresh, refreshErr := s.Refresh.Refresh(ctx, payload.RefreshToken); refreshErr == nil && fresh != nil {
+			if refreshed, blobErr := creds.WithRefreshed(fresh); blobErr == nil && refreshed != "" {
+				creds = refreshed
+				// Persist the fresh token back so the next swap is also pre-warmed.
+				_ = s.Backup.Write(ctx, acc.Number, acc.Email, refreshed)
+			}
+		}
+		// If refresh fails, continue with stored creds — better than aborting.
+	}
+	return creds, nil
 }
