@@ -13,6 +13,10 @@ struct SettingsWindowView: View {
     @State private var axGranted = IDEReloader.isAccessibilityGranted
     @State private var ideTestResult: String = ""
     @State private var ideTestRunning = false
+    @State private var showRestoreBackupSheet = false
+    @State private var restoreBackupPassphrase = ""
+    @State private var restoreSelectedSlot: Int?
+    @State private var restoreConfirmSlot: Int?
 
     var body: some View {
         TabView {
@@ -25,6 +29,11 @@ struct SettingsWindowView: View {
         }
         .frame(width: 560, height: 480)
         .sheet(isPresented: $showPassphraseEntry) { passphraseSheet }
+        .sheet(isPresented: $showRestoreBackupSheet, onDismiss: {
+            cloudSync.clearBackups()
+            restoreSelectedSlot = nil
+            restoreConfirmSlot = nil
+        }) { restoreBackupSheet }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             axGranted = IDEReloader.isAccessibilityGranted
         }
@@ -243,6 +252,14 @@ struct SettingsWindowView: View {
                             Text("Last pushed \(relativeDate(pushed))")
                                 .font(.caption).foregroundColor(.secondary)
                         }
+                        if let n = status.backupCount, n > 0 {
+                            Text("· \(n) backup\(n == 1 ? "" : "s")")
+                                .font(.caption).foregroundColor(.secondary)
+                        }
+                        if let seq = status.lastSeenSeq, seq > 0 {
+                            Text("· seq \(seq)")
+                                .font(.caption).foregroundColor(.secondary)
+                        }
                     }
                 } else {
                     badge("NOT SET UP", color: .secondary)
@@ -273,6 +290,20 @@ struct SettingsWindowView: View {
                             Label("Restore", systemImage: "icloud.and.arrow.down")
                         }
                         .buttonStyle(.bordered).disabled(cloudSync.isBusy)
+
+                        if (cloudSync.status?.backupCount ?? 0) > 0 {
+                            Button {
+                                restoreBackupPassphrase = cloudSync.loadPassphrase() ?? ""
+                                restoreSelectedSlot = nil
+                                showRestoreBackupSheet = true
+                                Task {
+                                    await cloudSync.listBackups(passphrase: restoreBackupPassphrase)
+                                }
+                            } label: {
+                                Label("Restore from backup…", systemImage: "clock.arrow.circlepath")
+                            }
+                            .buttonStyle(.bordered).disabled(cloudSync.isBusy)
+                        }
 
                         Button("Forget", role: .destructive) {
                             Task { await cloudSync.forget() }
@@ -569,6 +600,146 @@ struct SettingsWindowView: View {
             }
         }
         .padding(24).frame(width: 360)
+    }
+
+    // MARK: - Restore-from-backup sheet
+
+    private var restoreBackupSheet: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("Restore from backup")
+                .font(.headline)
+            Text("Pick an older bundle to roll back to. Slot 0 is the current bundle; higher slots are progressively older ring-buffer copies. The current bundle is overwritten on restore.")
+                .font(.caption).foregroundColor(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            // Always allow re-entering the passphrase. The saved one may be
+            // wrong (e.g. user rotated passphrase on another device) — in that
+            // case every backup row comes back with decrypted=false and the
+            // user needs a way to retry.
+            if !cloudSync.isBusy && !cloudSync.backups.isEmpty && cloudSync.backups.allSatisfy({ !$0.decrypted }) {
+                Text("Couldn't decrypt with the saved passphrase. Enter a different one to reveal seq and pushed-at for each backup.")
+                    .font(.caption2).foregroundColor(.orange)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            HStack(spacing: 6) {
+                SecureField("Passphrase", text: $restoreBackupPassphrase)
+                    .textFieldStyle(.roundedBorder)
+                Button("Decrypt") {
+                    Task { await cloudSync.listBackups(passphrase: restoreBackupPassphrase) }
+                }
+                .buttonStyle(.bordered).disabled(restoreBackupPassphrase.isEmpty || cloudSync.isBusy)
+            }
+
+            if cloudSync.isBusy && cloudSync.backups.isEmpty {
+                HStack { ProgressView().controlSize(.small); Text("Loading…").font(.caption) }
+            } else if cloudSync.backups.isEmpty {
+                Text("No bundle copies found.")
+                    .font(.caption).foregroundColor(.secondary)
+            } else {
+                ScrollView {
+                    VStack(spacing: 6) {
+                        ForEach(cloudSync.backups) { b in
+                            backupRow(b)
+                        }
+                    }
+                }
+                .frame(maxHeight: 220)
+            }
+
+            if let err = cloudSync.lastError {
+                Text(err).font(.caption).foregroundColor(.red)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            HStack {
+                Button("Close") { showRestoreBackupSheet = false }
+                    .buttonStyle(.bordered)
+                Spacer()
+                Button {
+                    if let slot = restoreSelectedSlot {
+                        restoreConfirmSlot = slot
+                    }
+                } label: {
+                    Label("Restore selected", systemImage: "arrow.uturn.backward")
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(restoreSelectedSlot == nil || cloudSync.isBusy)
+            }
+        }
+        .padding(20)
+        .frame(width: 480)
+        .confirmationDialog(
+            "Restore from slot \(restoreConfirmSlot ?? 0)?",
+            isPresented: Binding(
+                get: { restoreConfirmSlot != nil },
+                set: { if !$0 { restoreConfirmSlot = nil } }
+            ),
+            titleVisibility: .visible
+        ) {
+            Button("Restore now", role: .destructive) {
+                guard let slot = restoreConfirmSlot else { return }
+                let pass = restoreBackupPassphrase.isEmpty
+                    ? (cloudSync.loadPassphrase() ?? "")
+                    : restoreBackupPassphrase
+                restoreConfirmSlot = nil
+                showRestoreBackupSheet = false
+                Task {
+                    await cloudSync.restoreBackup(slot: slot, passphrase: pass)
+                    await store.refreshNow()
+                }
+            }
+            Button("Cancel", role: .cancel) { restoreConfirmSlot = nil }
+        } message: {
+            Text("This overwrites current keychain credentials for every account in the chosen bundle. Anti-rollback is bypassed and the sync state is rewound to this bundle's seq.")
+        }
+    }
+
+    private func backupRow(_ b: CswClient.CloudBackupInfoDTO) -> some View {
+        let selected = restoreSelectedSlot == b.slot
+        return Button {
+            restoreSelectedSlot = b.slot
+        } label: {
+            HStack(alignment: .top, spacing: 10) {
+                Image(systemName: selected ? "largecircle.fill.circle" : "circle")
+                    .foregroundColor(selected ? .accentColor : .secondary)
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 6) {
+                        Text(b.slot == 0 ? "Current" : "Backup #\(b.slot)")
+                            .font(.system(size: 12, weight: .semibold))
+                        if b.decrypted, let seq = b.seq {
+                            Text("seq \(seq)")
+                                .font(.caption).foregroundColor(.secondary)
+                        }
+                        if let n = b.accountCount {
+                            Text("· \(n) account\(n == 1 ? "" : "s")")
+                                .font(.caption).foregroundColor(.secondary)
+                        }
+                    }
+                    HStack(spacing: 6) {
+                        if let pushed = b.pushedAtInBundle {
+                            Text("Pushed \(relativeDate(pushed))")
+                                .font(.caption2).foregroundColor(.secondary)
+                        } else {
+                            Text("Modified \(relativeDate(b.fileModTime))")
+                                .font(.caption2).foregroundColor(.secondary)
+                        }
+                        Text("· \(b.sizeKb) KB")
+                            .font(.caption2).foregroundColor(.secondary)
+                        if !b.decrypted {
+                            Text("· encrypted")
+                                .font(.caption2).foregroundColor(.orange)
+                        }
+                    }
+                }
+                Spacer()
+            }
+            .padding(8)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(selected ? Color.accentColor.opacity(0.12) : Color.primary.opacity(0.04))
+            .clipShape(RoundedRectangle(cornerRadius: 6))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 
     private func relativeDate(_ d: Date) -> String {
