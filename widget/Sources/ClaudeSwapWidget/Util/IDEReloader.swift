@@ -35,27 +35,25 @@ enum IDEReloader {
         let instances = await detect()
         guard !instances.isEmpty else { return [] }
 
+        var reloaded: [String] = []
+
         if isAccessibilityGranted {
-            // Full window reload for the frontmost IDE window.
-            // Do NOT kill extensions first — that disrupts VSCode right as we send keystrokes.
-            var reloaded: [String] = []
-            for ide in instances {
+            // AppleScript window reload — only for VSCode-family IDEs that have a processName.
+            // JetBrains IDEs (GoLand, IntelliJ…) don't support this; they use the kill-backend path below.
+            for ide in instances where ide.processName != nil {
                 if await reload(ide) {
                     reloaded.append(ide.displayName)
                 }
             }
-            if !reloaded.isEmpty {
-                // Also kill remaining extension backends so OTHER open windows
-                // (e.g. multiple VSCode windows) reconnect with fresh credentials.
-                killExtensionSessions()
-                return reloaded
-            }
-            // AppleScript ran but failed — fall through to extension kill
         }
 
-        // Fallback: kill extension backends so they reconnect with fresh credentials.
+        // Kill extension backends for ALL detected IDEs:
+        // - VSCode-family: kills remaining open windows not caught by AppleScript
+        // - JetBrains (GoLand etc.): kills the Claude extension backend so it reconnects
+        //   with the new account credentials on next use
         killExtensionSessions()
-        return instances.map { $0.displayName }
+
+        return reloaded.isEmpty ? instances.map { $0.displayName } : reloaded
     }
 
     /// Kill claude-vscode/IDE backend processes so the extension reconnects
@@ -86,8 +84,8 @@ enum IDEReloader {
     struct IDEInstance {
         let port: Int
         let pid: Int
-        let ideName: String        // "Visual Studio Code", "Cursor", "Windsurf" …
-        let processName: String    // macOS process name for AppleScript
+        let ideName: String        // "Visual Studio Code", "Cursor", "GoLand" …
+        let processName: String?   // macOS process name for AppleScript; nil = use kill-backend fallback
         let displayName: String    // Short name shown in notifications
     }
 
@@ -103,13 +101,12 @@ enum IDEReloader {
                   let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                   let pid  = json["pid"] as? Int,
                   let name = json["ideName"] as? String,
-                  isAlive(pid: pid),
-                  let proc = processName(for: name) else { continue }
+                  isAlive(pid: pid) else { continue }
 
             let port = Int(entry.deletingPathExtension().lastPathComponent) ?? 0
             found.append(IDEInstance(
                 port: port, pid: pid, ideName: name,
-                processName: proc,
+                processName: processName(for: name),
                 displayName: shortName(for: name)
             ))
         }
@@ -219,6 +216,7 @@ enum IDEReloader {
     }
 
     /// Maps Anthropic's ideName to the macOS process name used by System Events.
+    /// Returns nil for JetBrains IDEs — they use the kill-backend fallback instead.
     private static func processName(for ideName: String) -> String? {
         switch ideName {
         case "Visual Studio Code": return "Code"
@@ -226,7 +224,7 @@ enum IDEReloader {
         case "Cursor": return "Cursor"
         case "Windsurf": return "Windsurf"
         case "Zed": return "Zed"
-        default: return nil
+        default: return nil  // GoLand, IntelliJ, etc. → kill-backend fallback
         }
     }
 
@@ -234,6 +232,11 @@ enum IDEReloader {
         switch ideName {
         case "Visual Studio Code": return "VSCode"
         case "Visual Studio Code - Insiders": return "VSCode Insiders"
+        case "GoLand": return "GoLand"
+        case "IntelliJ IDEA": return "IntelliJ"
+        case "PyCharm": return "PyCharm"
+        case "WebStorm": return "WebStorm"
+        case "Rider": return "Rider"
         default: return ideName
         }
     }

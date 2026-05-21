@@ -10,13 +10,16 @@ import (
 //
 // Transaction:
 //  1. Acquire file lock.
-//  2. Snapshot live creds + ~/.claude.json into the currently-active backup slot.
-//  3. Read target backup creds + identity.
-//  4. Write target creds to Keychain.
+//  2. Read ~/.claude.json (needed for step 5 rollback).
+//  3. Read target backup creds + refresh access token.
+//  4. Write target creds to live Keychain slot.
 //  5. Patch ~/.claude.json -> oauthAccount = target identity.
 //  6. Update registry.activeAccountNumber.
 //
-// If any step fails, prior steps roll back.
+// We intentionally do NOT read the live Keychain entry ("Claude Code-credentials")
+// during a switch. That item is owned by the claude CLI and carries a per-app ACL
+// that prompts the user on every access. Backups are kept fresh by AddAccount and
+// the daily token refresh; the token refresh in step 3 handles stale access tokens.
 func (s *Service) SwitchAccount(ctx context.Context, targetNum int) error {
 	if err := s.Lock.Acquire(ctx); err != nil {
 		return err
@@ -35,24 +38,9 @@ func (s *Service) SwitchAccount(ctx context.Context, targetNum int) error {
 		return errors.New("already active")
 	}
 
-	prevCreds, err := s.Live.Read(ctx)
-	if err != nil {
-		return err
-	}
 	prevConfig, err := s.Config.Read(ctx)
 	if err != nil {
 		return err
-	}
-
-	// Step 2 — back up current active slot. Skip if no prior live cred (fresh
-	// machine / right after add-token).
-	prevActive := reg.ActiveAccountNumber
-	if prevActive != 0 && prevCreds != "" {
-		if cur, ok := reg.Accounts[prevActive]; ok {
-			if err := s.Backup.Write(ctx, cur.Number, cur.Email, prevCreds); err != nil {
-				return fmt.Errorf("backup current: %w", err)
-			}
-		}
 	}
 
 	// Step 3 — load target backup creds.
@@ -96,7 +84,11 @@ func (s *Service) SwitchAccount(ctx context.Context, targetNum int) error {
 	}
 	newCfg.OAuthAccount = newOAuthAccount(target.Email, target.OrganizationName, target.OrganizationUUID)
 	if err := s.Config.Write(ctx, newCfg); err != nil {
-		_ = s.Live.Write(ctx, prevCreds) // rollback
+		// Rollback: restore the target account's backup as live creds.
+		// Reading from backup avoids touching the claude-owned keychain item.
+		if rollback, _ := s.Backup.Read(ctx, target.Number, target.Email); rollback != "" {
+			_ = s.Live.Write(ctx, rollback)
+		}
 		return fmt.Errorf("write claude config: %w", err)
 	}
 
