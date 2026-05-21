@@ -10,8 +10,6 @@ package keychain
 #include <string.h>
 
 // kcRead looks up a generic-password item using the modern SecItem API.
-// The item does not need per-app ACL trust — kSecAttrAccessibleAfterFirstUnlock
-// items are accessible by any process after the first post-boot unlock.
 // Returns errSecItemNotFound when absent; caller must free(*outData).
 static OSStatus kcRead(const char* svc, UInt32 svcLen,
                        const char* acc, UInt32 accLen,
@@ -44,9 +42,10 @@ static OSStatus kcRead(const char* svc, UInt32 svcLen,
     return status;
 }
 
-// kcWrite upserts a generic-password item with kSecAttrAccessibleAfterFirstUnlock,
-// which carries no per-app ACL. It deletes any existing item first (which may
-// have been created by another app with a restrictive ACL, e.g. the claude CLI).
+// kcWrite upserts a generic-password item with a world-readable SecAccess object.
+// On macOS, kSecAttrAccessible is ignored — access control is governed by SecAccess.
+// An empty trustedApplications array means any process can read without a prompt.
+// We delete any existing item first so we own the ACL from scratch.
 static OSStatus kcWrite(const char* svc, UInt32 svcLen,
                         const char* acc, UInt32 accLen,
                         const char* pwd, UInt32 pwdLen) {
@@ -56,7 +55,7 @@ static OSStatus kcWrite(const char* svc, UInt32 svcLen,
         (const UInt8*)acc, accLen, kCFStringEncodingUTF8, false);
     CFDataRef password = CFDataCreate(kCFAllocatorDefault, (const UInt8*)pwd, pwdLen);
 
-    // Delete any existing item so we can recreate with our own accessible attribute.
+    // Delete any existing item (may have a restrictive ACL from a previous binary).
     const void* dKeys[]   = { kSecClass, kSecAttrService, kSecAttrAccount };
     const void* dValues[] = { kSecClassGenericPassword, service, account };
     CFDictionaryRef delQuery = CFDictionaryCreate(kCFAllocatorDefault,
@@ -64,17 +63,41 @@ static OSStatus kcWrite(const char* svc, UInt32 svcLen,
     SecItemDelete(delQuery);
     CFRelease(delQuery);
 
-    // Add fresh item — kSecAttrAccessibleAfterFirstUnlock = no per-app ACL prompt.
-    const void* aKeys[]   = { kSecClass, kSecAttrService, kSecAttrAccount, kSecValueData, kSecAttrAccessible };
-    const void* aValues[] = { kSecClassGenericPassword, service, account, password, kSecAttrAccessibleAfterFirstUnlock };
-    CFDictionaryRef addQuery = CFDictionaryCreate(kCFAllocatorDefault,
-        aKeys, aValues, 5, &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
-    OSStatus status = SecItemAdd(addQuery, NULL);
+    // Build a world-readable SecAccess: empty trustedApplications array = any app
+    // may access the item without being prompted for the keychain password.
+    // SecAccessCreate is deprecated in macOS 12 but remains the only available API
+    // for setting a permissive ACL on a generic-password item without a Developer ID.
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+    CFArrayRef emptyList = CFArrayCreate(kCFAllocatorDefault, NULL, 0, &kCFTypeArrayCallBacks);
+    SecAccessRef access = NULL;
+    SecAccessCreate(CFSTR("Claude Bar credential"), emptyList, &access);
+    CFRelease(emptyList);
+#pragma clang diagnostic pop
+
+    // Add the item. kSecAttrAccess is the macOS access-control key for SecItemAdd.
+    OSStatus status;
+    if (access != NULL) {
+        const void* aKeys[]   = { kSecClass, kSecAttrService, kSecAttrAccount, kSecValueData, kSecAttrAccess };
+        const void* aValues[] = { kSecClassGenericPassword, service, account, password, access };
+        CFDictionaryRef addQuery = CFDictionaryCreate(kCFAllocatorDefault,
+            aKeys, aValues, 5, &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
+        status = SecItemAdd(addQuery, NULL);
+        CFRelease(addQuery);
+        CFRelease(access);
+    } else {
+        // SecAccessCreate failed — fall back to adding without explicit ACL.
+        const void* aKeys[]   = { kSecClass, kSecAttrService, kSecAttrAccount, kSecValueData };
+        const void* aValues[] = { kSecClassGenericPassword, service, account, password };
+        CFDictionaryRef addQuery = CFDictionaryCreate(kCFAllocatorDefault,
+            aKeys, aValues, 4, &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
+        status = SecItemAdd(addQuery, NULL);
+        CFRelease(addQuery);
+    }
 
     CFRelease(service);
     CFRelease(account);
     CFRelease(password);
-    CFRelease(addQuery);
     return status;
 }
 
