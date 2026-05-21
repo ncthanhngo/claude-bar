@@ -9,6 +9,12 @@
 
 Completed a three-phase hardening of iCloud credential synchronization across `cloud_push.go`, `cloud_pull.go`, and `AppStore.swift`. The work addressed a critical gap: the bundle could contain stale or incomplete credentials, and pull operations could silently lose local changes to credentials. All 19 tests pass with `-race`, but the solution lives with two unresolved pre-existing gaps and one low-risk trade-off.
 
+## Follow-up: Pull Refresh Removal
+
+The original R1 background refresh was unsafe in the real CLI lifecycle. `cloud pull` is a short-lived `csw` process, while Claude OAuth refresh tokens may rotate on refresh. The goroutine could receive a fresh token from OAuth and invalidate the restored token, then lose the replacement when the process exited before `Backup.Write`. Pulled accounts then appeared in the UI but failed switch with `invalid_grant`.
+
+The follow-up fix removes pull-time background refresh. Pull now restores credentials only; `switch`, `verify`, and scheduled refresh paths own refreshes that run until their Keychain writes finish.
+
 ## The Brutal Truth
 
 This work felt like plugging holes in a dam that's still leaking. We fixed the immediate credential loss scenarios, but the architecture has structural problems that no amount of per-function locking will solve:
