@@ -363,6 +363,13 @@ struct SettingsWindowView: View {
                     Text(appVersionLabel)
                         .foregroundColor(.secondary)
                         .monospacedDigit()
+                    Text("Stable")
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Color.green.opacity(0.8))
+                        .clipShape(Capsule())
                 }
                 .font(.caption)
             }
