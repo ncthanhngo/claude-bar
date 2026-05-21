@@ -73,9 +73,7 @@ func (r *pullTestRegistry) Save(_ context.Context, reg *domain.Registry) error {
 	return nil
 }
 
-// pullTestRefresher counts calls atomically (used to verify R1 fires).
-// Set err to make Refresh return an error (prevents background goroutine from
-// overwriting blobs in option-A assertion tests).
+// pullTestRefresher counts calls atomically.
 type pullTestRefresher struct {
 	calls int64
 	err   error
@@ -156,8 +154,6 @@ func TestCloudPull_OptionA_BundleFresher_WritesBundleBlob(t *testing.T) {
 		Sequence:            []int{},
 	}}
 
-	// Failing refresher prevents the background R1 goroutine from overwriting the
-	// blob we are about to assert on.
 	svc := &Service{
 		Backup:     bak,
 		Registry:   reg,
@@ -372,10 +368,10 @@ func TestCloudPull_PreservesActiveLocalIdentityWhenBundleNumberCollides(t *testi
 	}
 }
 
-// TestCloudPull_R1_RefreshFiredAfterSave — after a successful pull, a background
-// RefreshAllTokens must be triggered. We verify this by waiting briefly and
-// checking the call counter.
-func TestCloudPull_R1_RefreshFiredAfterSave(t *testing.T) {
+// Pull runs in a short-lived CLI process. It must not consume a restored
+// rotating refresh token in a goroutine that can exit before the replacement is
+// written back to Keychain; switch/verify will refresh synchronously later.
+func TestCloudPullDoesNotRefreshRestoredCredentialsInBackground(t *testing.T) {
 	blob := credentialBlob("t", "r", time.Now().Add(time.Hour))
 	passphrase := "test-pass"
 
@@ -402,14 +398,8 @@ func TestCloudPull_R1_RefreshFiredAfterSave(t *testing.T) {
 	if err := svc.CloudPull(context.Background(), passphrase); err != nil {
 		t.Fatalf("CloudPull returned error: %v", err)
 	}
-
-	// Give the background goroutine time to run.
-	deadline := time.Now().Add(2 * time.Second)
-	for time.Now().Before(deadline) {
-		if atomic.LoadInt64(&refresher.calls) > 0 {
-			return
-		}
-		time.Sleep(10 * time.Millisecond)
+	time.Sleep(100 * time.Millisecond)
+	if got := atomic.LoadInt64(&refresher.calls); got != 0 {
+		t.Fatalf("refresh calls after pull = %d, want 0", got)
 	}
-	t.Fatal("RefreshAllTokens was not called in background after successful pull")
 }

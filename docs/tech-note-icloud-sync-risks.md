@@ -39,6 +39,8 @@ Bundle iCloud là **snapshot** của tất cả backup slots tại thời điể
 
 **Hậu quả:** Người dùng tưởng sync thành công, nhưng tài khoản thực ra không dùng được cho đến khi switch và thấy lỗi.
 
+**Cập nhật:** Không chạy refresh nền từ lệnh `cloud pull`. `csw` là process ngắn; refresh token có thể rotate ở OAuth provider rồi process thoát trước khi ghi token mới vào Keychain. Khi đó chính pull làm credential vừa restore trở thành `invalid_grant`. Token được refresh ở các flow đồng bộ đến lúc ghi xong như `switch` hoặc `verify`.
+
 ---
 
 ### R2 — Tài khoản đang hoạt động bị bỏ sót khỏi bundle
@@ -163,17 +165,9 @@ Sau:   lỗi tài khoản N → ghi vào failures[] → tiếp tục N+1...
 ```
 Người dùng nhận được thông báo rõ: "restored 3/4 accounts: account 2 (user@email.com): keychain error".
 
-**R1 — Validate ngay sau pull**
+**R1 — Không refresh nền sau pull**
 
-Sau khi `Registry.Save` thành công, spawn goroutine background gọi `RefreshAllTokens` (timeout 30s). Token nào không còn hợp lệ sẽ được phát hiện ngay và đánh dấu `needs_login` — thay vì chờ đến lần switch.
-
-```
-CloudPull:
-  ...
-  Registry.Save()
-  go RefreshAllTokens()   ← background, không block
-  return (partial error nếu có)
-```
+Sau khi `Registry.Save` thành công, `CloudPull` trả về với credential vừa restore còn nguyên. Refresh chỉ chạy ở command giữ process sống đến lúc ghi rotated token trở lại Keychain (`switch`, `verify`, refresh flow định kỳ). Điều này tránh tình huống goroutine của CLI ngắn hạn consume refresh token rồi bị process exit giữa OAuth response và `Backup.Write`.
 
 ---
 
@@ -191,13 +185,6 @@ await autoPushCloud()   // non-blocking: chạy detached background task
 ```
 
 `autoPushCloud` đã có guard kiểm tra passphrase — nếu chưa cấu hình cloud sync thì là no-op, không hiển thị lỗi cho người dùng.
-
----
-
-## Invariant quan trọng
-
-> **`RefreshAllTokens` không được acquire `FileLock`.**  
-> Trong `CloudPull`, background goroutine R1 được spawn trong khi `defer Lock.Release()` vẫn còn active. Nếu `RefreshAllTokens` gọi `Lock.Acquire`, sẽ xảy ra deadlock. Điều này được document bằng comment INVARIANT trong code.
 
 ---
 

@@ -104,16 +104,6 @@ func (s *Service) CloudPull(ctx context.Context, passphrase string) error {
 		return fmt.Errorf("save registry: %w", saveErr)
 	}
 
-	// R1: validate pulled credentials immediately in the background rather than
-	// waiting until the next scheduled refresh or switch attempt.
-	// INVARIANT: RefreshAllTokens must never call s.Lock.Acquire — the file lock
-	// is still held at this point (defer Release runs on function return).
-	go func() {
-		bgCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer cancel()
-		_ = s.RefreshAllTokens(bgCtx)
-	}()
-
 	if len(failures) > 0 {
 		return fmt.Errorf("partial restore (%d/%d): %s",
 			len(bundle.Accounts)-len(failures), len(bundle.Accounts),
