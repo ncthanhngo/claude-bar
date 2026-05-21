@@ -21,7 +21,7 @@ brew install --cask claude-bar
 - **Credential health** — inactive accounts that can no longer refresh are marked before a broken switch
 - **Usage display** — 5-hour and 7-day quota bars with % and time-until-reset for each account
 - **Auto-swap** — automatically switches to a lower-usage account when the active one hits your threshold; waits for `claude` to exit first, then notifies you
-- **IDE reload** — after a swap, reloads VSCode / Cursor / Windsurf windows so the extension picks up new credentials (requires Accessibility permission)
+- **IDE reload** — after a swap, reloads VSCode / Code Insiders / Cursor / Windsurf / Antigravity windows so the extension picks up new credentials (requires Accessibility permission). Reload shortcut is user-configurable (default `⌃⌘R`) and auto-installed into each editor's `keybindings.json`
 - **CLI auto-restart** — sends SIGINT to running `claude` sessions; use with the bundled `claude-watch` wrapper to auto-restart in your terminal
 - **Session guard** — warns you if Claude is running before a manual switch; option to force-switch anyway
 - **Web fallback** — embedded WKWebView for fetching usage data when the Anthropic API is rate-limited
@@ -48,9 +48,13 @@ Open **Settings → Accounts → Add account**. Each account needs a separate Cl
 
 Enable **Auto-kill CLI sessions** in Settings → General. Claude Bar automatically installs `claude-watch` and adds the shell alias on first launch — no manual steps needed. When a swap happens, your terminal session (including GoLand's integrated terminal) restarts automatically with the new account credentials.
 
-### IDE reload — VSCode / Cursor / Windsurf
+### IDE reload — VSCode / Code Insiders / Cursor / Windsurf / Antigravity
 
-Enable **Auto-reload IDE after swap** in Settings → General, then click **Grant Access** when the Accessibility prompt appears. Claude Bar will reload supported IDE windows after each swap. VS Code uses the `⌘⇧R` reload shortcut; Cursor, Windsurf, and Zed use `⌘⇧P → Developer: Reload Window`.
+Enable **Auto-reload IDE after swap** in Settings → General, then click **Grant Access** when the Accessibility prompt appears. Claude Bar will reload supported IDE windows after each swap.
+
+**Reload shortcut.** Default is `⌃⌘R` (Cmd+Ctrl+R) — picked to avoid clashes with VSCode's `⌘R` (Recent Files) and Cursor's `⇧⌘R` (Rerun). Change it in **Settings → General → Reload shortcut** via the key recorder; the new chord is re-applied to every detected editor instantly.
+
+**How injection works.** With *Install shortcut into IDE keybindings.json* enabled (default), Claude Bar adds one entry to each detected editor's `keybindings.json` tagged with `"when": "!falseClaudeBarManaged"`. Toggle off to revert to the legacy `⌘⇧P → Developer: Reload Window` command-palette flow. Zed uses its own keymap and is unaffected. Managed-state lives at `~/Library/Application Support/claude-bar/managed-shortcuts.json` and is cleaned up automatically when the shortcut changes or injection is disabled.
 
 ### Local MCP connectors (optional)
 
@@ -115,7 +119,7 @@ make install      # builds and copies to /Applications/ClaudeBar.app
 3. **Waits** until no `claude` sessions are busy (`safeToSwap = true`) — Claude Bar never interrupts a running session
 4. **Swaps** to the inactive account with the lowest 5-hour usage
 5. Notification **"Switched to [account]"** — confirmation after the swap completes
-6. Triggers **IDE reload** (VSCode/Cursor/Windsurf) and **CLI restart** (`claude-watch`) if those options are enabled in Settings
+6. Triggers **IDE reload** (VSCode / Code Insiders / Cursor / Windsurf / Antigravity) and **CLI restart** (`claude-watch`) if those options are enabled in Settings
 
 If all inactive accounts are also above the threshold → notification **"All accounts above threshold"**, retry in 10 minutes.
 
