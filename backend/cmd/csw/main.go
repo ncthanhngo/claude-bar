@@ -56,6 +56,8 @@ func main() {
 		err = runMCP(ctx, svc, args)
 	case "briefing":
 		err = runBriefing(ctx, svc, args)
+	case "chat":
+		err = runChat(ctx, svc, args)
 	case "help", "-h", "--help":
 		usage()
 	default:
@@ -99,6 +101,14 @@ Commands:
   briefing show [--date]  Read a cached briefing
   briefing schedule get|set|check       Manage briefing cron schedule
   briefing action toggle --id ID --done Mark an action done/undone
+  chat conversations list|create|load|rename|delete <conv-id>
+                          Manage chat conversations for the active account
+  chat send <conv-id>     Stream a reply for the active conversation
+                          (stdin JSON: {"text":"…","attachment_ids":[…]})
+  chat attach <conv-id> --filename F --media-type M
+                          Upload an encrypted attachment (file bytes on stdin)
+  chat search --query Q [--limit N]
+                          FTS5 search across the active account's messages
   help                    Show this help
 
 All commands accept --json for machine-readable output.`)

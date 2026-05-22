@@ -75,10 +75,24 @@ func Open(
 // AccountUUID returns the account this storage is bound to.
 func (s *Storage) AccountUUID() string { return s.accountUUID }
 
-// Vault exposes the AEAD vault for the chat usecase, which orchestrates
-// attachment write (vault.Write → row insert) and read (row fetch →
-// vault.Read).
+// Vault exposes the AEAD vault. Most callers should prefer VaultWrite /
+// VaultRead (which satisfy the usecase-layer VaultStorage interface and
+// keep the chat usecase free of a direct adapter import).
 func (s *Storage) Vault() *AttachmentVault { return s.vault }
+
+// VaultWrite encrypts plaintext with XChaCha20-Poly1305 (AAD bound to the
+// account + attachment id) and stores the ciphertext under
+// `<attachmentDir>/<attachmentID>.enc`. Returned values are persisted on
+// the attachments row by the chat usecase.
+func (s *Storage) VaultWrite(ctx context.Context, attachmentID string, plaintext []byte) (string, string, error) {
+	return s.vault.Write(ctx, attachmentID, plaintext)
+}
+
+// VaultRead reads + decrypts the attachment file. Returns the AEAD error
+// directly on tamper / wrong-nonce / wrong-key — callers map to user copy.
+func (s *Storage) VaultRead(ctx context.Context, attachmentID, filePath, nonceHex string) ([]byte, error) {
+	return s.vault.Read(ctx, attachmentID, filePath, nonceHex)
+}
 
 // --- port.ChatStorage impl ---
 
