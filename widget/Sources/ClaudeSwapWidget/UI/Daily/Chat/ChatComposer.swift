@@ -52,23 +52,32 @@ struct ChatComposer: View {
     }
 
     @ViewBuilder private var textArea: some View {
-        TextEditor(text: $draft)
-            .font(.system(size: 14.5))
-            .foregroundColor(palette.ink)
-            .scrollContentBackground(.hidden)
-            .background(palette.raisedSurface)
-            .focused($focused)
-            .frame(minHeight: 60, maxHeight: 200)
-            .overlay(alignment: .topLeading) {
-                if draft.isEmpty {
-                    Text("Hỏi gì đó với Claude…")
-                        .font(.system(size: 14.5, design: .serif).italic())
-                        .foregroundColor(palette.ink3)
-                        .padding(.top, 8)
-                        .padding(.leading, 5)
-                        .allowsHitTesting(false)
-                }
+        ChatTextEditor(
+            text: $draft,
+            palette: palette,
+            placeholder: "Hỏi gì đó với Claude…",
+            onSend: { handleReturn() }
+        )
+        .frame(minHeight: 60, maxHeight: 200)
+        .overlay(alignment: .topLeading) {
+            if draft.isEmpty {
+                Text("Hỏi gì đó với Claude…")
+                    .font(.system(size: 14.5, design: .serif).italic())
+                    .foregroundColor(palette.ink3)
+                    .padding(.top, 4)
+                    .padding(.leading, 2)
+                    .allowsHitTesting(false)
             }
+        }
+    }
+
+    /// Plain ↩ in the textarea routes here. Skip when nothing to send / a
+    /// stream is in flight so we don't double-fire while the user is just
+    /// waiting for tokens.
+    private func handleReturn() {
+        guard !chatStore.isSending else { return }
+        guard !draft.isEmpty || !pendingAttachments.isEmpty else { return }
+        sendNow()
     }
 
     @ViewBuilder private var actionsRow: some View {
@@ -76,7 +85,7 @@ struct ChatComposer: View {
             attachButton
             ChatModelPicker(palette: palette)
             Spacer()
-            Text("⌘↩ gửi · ↩ xuống dòng")
+            Text("↩ gửi · ⇧↩ xuống dòng")
                 .font(.system(size: 10.5))
                 .foregroundColor(palette.ink3)
             sendButton
@@ -113,7 +122,7 @@ struct ChatComposer: View {
             HStack(spacing: 6) {
                 Text(chatStore.isSending ? "Đang gửi…" : "Gửi")
                     .font(.system(size: 13, weight: .semibold))
-                Text("⌘↩")
+                Text("↩")
                     .font(.system(size: 10, design: .monospaced))
                     .padding(.horizontal, 5)
                     .padding(.vertical, 1)
@@ -127,7 +136,6 @@ struct ChatComposer: View {
         .buttonStyle(.plain)
         .background(Capsule().fill(palette.coral))
         .disabled(chatStore.isSending || (draft.isEmpty && pendingAttachments.isEmpty))
-        .keyboardShortcut(.return, modifiers: [.command])
     }
 
     // MARK: - Actions
