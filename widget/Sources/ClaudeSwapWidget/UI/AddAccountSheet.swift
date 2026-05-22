@@ -52,6 +52,13 @@ struct AddAccountSheet: View {
             stepRow(2, "We’ll open a Terminal window with `claude` ready to go.")
             stepRow(3, "Run `/login` in that terminal, finish the browser OAuth.")
             stepRow(4, "Return here and click \"I’m logged in\".")
+            Label(
+                "Always add new accounts through this wizard — running `claude /login` outside it can invalidate the active account's saved login.",
+                systemImage: "info.circle"
+            )
+            .font(.caption)
+            .foregroundColor(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
         }
     }
 
@@ -100,8 +107,10 @@ struct AddAccountSheet: View {
             Spacer()
             switch loginCoordinator.step {
             case .intro:
-                Button("Open Terminal") { loginCoordinator.spawnTerminal() }
-                    .keyboardShortcut(.defaultAction)
+                Button("Open Terminal") {
+                    Task { await loginCoordinator.spawnTerminal(client: store.client) }
+                }
+                .keyboardShortcut(.defaultAction)
             case .terminalSpawned:
                 Button("I’m logged in") {
                     Task { await loginCoordinator.performSnapshot(client: store.client) }

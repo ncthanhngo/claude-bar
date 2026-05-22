@@ -48,6 +48,8 @@ func main() {
 		err = runRefreshTokens(ctx, svc, args)
 	case "repair-keychain":
 		err = runRepairKeychain(ctx, svc, args)
+	case "snapshot-active":
+		err = runSnapshotActive(ctx, svc, args)
 	case "cloud":
 		err = runCloud(ctx, svc, args)
 	case "mcp":
@@ -79,6 +81,7 @@ Commands:
   verify                  Verify every account is swap-ready
   refresh-tokens          Refresh OAuth tokens for all inactive accounts
   repair-keychain         Rewrite live Claude Code Keychain item from active backup
+  snapshot-active         Snapshot the active account's live creds into its backup slot
   cloud status            Show iCloud Drive bundle status
   cloud push              Encrypt and push accounts to iCloud Drive
   cloud pull              Restore accounts from iCloud Drive bundle
