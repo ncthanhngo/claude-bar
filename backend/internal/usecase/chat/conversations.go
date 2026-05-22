@@ -2,6 +2,7 @@ package chat
 
 import (
 	"context"
+	"errors"
 	"strings"
 
 	"github.com/soi/claude-swap-widget/backend/internal/domain"
@@ -78,6 +79,30 @@ func (s *Service) RenameConversation(ctx context.Context, accountNum int, conver
 		return err
 	}
 	conv.Title = strings.TrimSpace(newTitle)
+	conv.UpdatedAt = s.Now()
+	return storage.UpdateConversation(ctx, conv)
+}
+
+// SetConversationModel switches the model id used for subsequent
+// SendMessage calls on this conversation. Empty model strings are rejected
+// — the send-message path requires a non-empty id to look up routing in the
+// models catalog. Returns ErrConversationNotFound when the id doesn't exist.
+func (s *Service) SetConversationModel(ctx context.Context, accountNum int, conversationID, model string) error {
+	model = strings.TrimSpace(model)
+	if model == "" {
+		return errors.New("chat: model id is required")
+	}
+	_, accountUUID, storage, err := s.openForAccount(ctx, accountNum)
+	if err != nil {
+		return err
+	}
+	defer storage.Close()
+
+	conv, err := storage.GetConversation(ctx, accountUUID, conversationID)
+	if err != nil {
+		return err
+	}
+	conv.Model = model
 	conv.UpdatedAt = s.Now()
 	return storage.UpdateConversation(ctx, conv)
 }
