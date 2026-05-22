@@ -19,13 +19,18 @@ BACKEND_BIN  := backend/bin/csw
 WIDGET_BUILD := widget/.build/release/$(EXECUTABLE)
 APP_BUNDLE   := release/$(DISPLAY_NAME).app
 
+# sqlite_fts5: enables SQLite FTS5 full-text search inside the SQLCipher
+# amalgamation used by chatstorage/messages_repo.go. Without this tag the
+# messages_fts virtual-table migration fails with "no such module: fts5".
+GO_TAGS := sqlite_fts5
+
 .PHONY: all backend widget app release install test clean
 
 all: app
 
 backend:
 	@mkdir -p backend/bin
-	cd backend && go build -trimpath \
+	cd backend && CGO_ENABLED=1 go build -trimpath -tags $(GO_TAGS) \
 	  -ldflags="-s -w -X main.defaultGDriveClientID=$(GDRIVE_CLIENT_ID)" \
 	  -o bin/csw ./cmd/csw
 
@@ -59,7 +64,8 @@ install: app
 	@echo "Installed /Applications/$(DISPLAY_NAME).app"
 
 test:
-	cd backend && go vet ./... && go test ./...
+	cd backend && CGO_ENABLED=1 go vet -tags $(GO_TAGS) ./... && \
+	  CGO_ENABLED=1 go test -tags $(GO_TAGS) ./...
 	cd widget && swift test
 
 clean:
