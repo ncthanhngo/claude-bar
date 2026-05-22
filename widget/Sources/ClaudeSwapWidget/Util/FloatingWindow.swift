@@ -5,9 +5,16 @@ import SwiftUI
 ///
 /// Use this for sheets that must survive the MenuBarExtra losing focus
 /// (e.g. the Add-account wizard, where the user has to click Terminal mid-flow).
+///
+/// `onClose` lets callers sync back any @State boolean that drives presentation
+/// when the user dismisses via the window's red close button — without it, the
+/// binding stays at true and the next "open" no-ops.
 @MainActor
-final class FloatingWindow<Content: View> {
+final class FloatingWindow<Content: View>: NSObject, NSWindowDelegate {
     private var window: NSWindow?
+    /// Fires when the user closes the window via its title-bar close button.
+    /// Suppressed when `close()` is called programmatically.
+    var onClose: (() -> Void)?
 
     func show(title: String, size: NSSize, @ViewBuilder content: () -> Content) {
         if let existing = window {
@@ -29,6 +36,7 @@ final class FloatingWindow<Content: View> {
         w.level = NSWindow.Level(rawValue: NSWindow.Level.statusBar.rawValue + 2)
         w.collectionBehavior = [.moveToActiveSpace, .fullScreenAuxiliary]
         w.isReleasedWhenClosed = false
+        w.delegate = self
         w.center()
         w.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
@@ -36,7 +44,17 @@ final class FloatingWindow<Content: View> {
     }
 
     func close() {
+        // Clear callback BEFORE close() so windowWillClose doesn't re-notify the
+        // caller — programmatic close already implies the caller is in sync.
+        onClose = nil
         window?.close()
         window = nil
+    }
+
+    func windowWillClose(_ notification: Notification) {
+        let cb = onClose
+        onClose = nil
+        window = nil
+        cb?()
     }
 }
