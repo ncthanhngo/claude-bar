@@ -71,9 +71,14 @@ final class WebFallbackCoordinator: ObservableObject {
             return nil
         }
         _ = await ClaudeWebSessionSync.restore(account: view.account, dataStore: dataStore)
+        // Save cookies BEFORE the fetch — they represent the linked session
+        // and should be persisted (locally + cloud bundle) even if the usage
+        // endpoint returns a transient 404 / rate-limit. Gating save on fetch
+        // success previously meant a single bad poll on app launch could leave
+        // the cloud bundle empty for the entire poll cycle.
+        await ClaudeWebSessionSync.save(account: view.account, dataStore: dataStore)
         do {
             let usage = try await ClaudeWebUsageFetcher(dataStore: dataStore).fetchUsage()
-            await ClaudeWebSessionSync.save(account: view.account, dataStore: dataStore)
             accountStates[view.account.identityKey] = .connected(usage.diagnosticSummary)
             lastCheckedAt = Date()
             return usage
