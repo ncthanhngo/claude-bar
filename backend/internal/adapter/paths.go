@@ -57,3 +57,37 @@ func CloudSyncStateFile() string {
 func EnsureDataDir() error {
 	return os.MkdirAll(WidgetDataDir(), 0o700)
 }
+
+// ChatRootDir is the parent dir for all per-account chat data.
+// ~/Library/Application Support/claude-swap-widget/chat/
+func ChatRootDir() string {
+	return filepath.Join(WidgetDataDir(), "chat")
+}
+
+// ChatAccountDir returns the per-account dir that holds the SQLCipher DB and
+// the attachments subdir. accountUUID is treated opaque — callers must pass
+// a sanitised identifier (OAuthAccount.AccountUUID or the registry
+// IdentityKey fallback used by oauth.TokenProvider).
+func ChatAccountDir(accountUUID string) string {
+	return filepath.Join(ChatRootDir(), accountUUID)
+}
+
+// ChatDBFile returns the SQLCipher database path for accountUUID.
+func ChatDBFile(accountUUID string) string {
+	return filepath.Join(ChatAccountDir(accountUUID), "chat.db")
+}
+
+// ChatAttachmentDir returns the per-account encrypted-attachment dir.
+func ChatAttachmentDir(accountUUID string) string {
+	return filepath.Join(ChatAccountDir(accountUUID), "attachments")
+}
+
+// EnsureChatAccountDir creates the per-account chat + attachments dirs with
+// safe perms (0700). Idempotent — used by storage.Open on first launch and
+// silently OK if the dirs already exist.
+func EnsureChatAccountDir(accountUUID string) error {
+	if err := os.MkdirAll(ChatAttachmentDir(accountUUID), 0o700); err != nil {
+		return err
+	}
+	return os.Chmod(ChatAccountDir(accountUUID), 0o700)
+}
