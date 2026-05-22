@@ -234,7 +234,7 @@ final class ClaudeWebUsageFetcher: NSObject, WKNavigationDelegate {
 
       return JSON.stringify({
         fiveHour: windowFor(/current\\s+session|5\\s*-?\\s*hour/i),
-        sevenDay: windowFor(/weekly\\s+(?:limit|limits)|all\\s+models|7\\s*-?\\s*day/i),
+        sevenDay: windowFor(/weekly|all\\s+models|7\\s*-?\\s*day/i),
         fetchedAtMillis: Date.now()
       });
     })();

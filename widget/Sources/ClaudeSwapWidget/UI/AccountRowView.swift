@@ -200,7 +200,9 @@ struct AccountRowView: View {
             }
             if let usage = view.usage {
                 if let w = usage.fiveHour { UsageBar(label: "5h", window: w) }
+                else                       { UnavailableBar(label: "5h") }
                 if let w = usage.sevenDay  { UsageBar(label: "7d", window: w) }
+                else                       { UnavailableBar(label: "7d") }
                 if let err = view.error    { errorBadge(err) }
             } else if let err = view.error {
                 errorBadge(err)
