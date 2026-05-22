@@ -37,10 +37,13 @@ enum ChatModelCatalog {
     }
 }
 
-/// Compact pill that opens the model picker menu. MVP: per-conversation
-/// model is captured at create time, so this pill is informational while
-/// inside an existing conversation (shows current) and active during the
-/// "new conversation" flow.
+/// Compact pill that opens the model picker menu. Tapping a model:
+///  - With an active conversation: calls the backend to update that
+///    conversation's stored model, so the *next* SendMessage uses it. The
+///    local snapshot is patched immediately so the pill label updates
+///    without waiting for a list refresh.
+///  - Without an active conversation: just updates `preferredModel`, which
+///    is the default used when `newConversation()` runs.
 struct ChatModelPicker: View {
     @EnvironmentObject private var chatStore: ChatStore
     let palette: BriefingPalette
@@ -49,7 +52,7 @@ struct ChatModelPicker: View {
         Menu {
             ForEach(ChatModelCatalog.defaults(palette: palette)) { opt in
                 Button {
-                    chatStore.preferredModel = opt.id
+                    Task { await chatStore.setActiveConversationModel(opt.id) }
                 } label: {
                     HStack {
                         Text(opt.displayName)

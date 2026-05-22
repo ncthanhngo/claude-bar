@@ -145,6 +145,37 @@ final class ChatStore: ObservableObject {
         }
     }
 
+    /// Switch the model on the currently-active conversation. Updates the
+    /// backend row so subsequent sends use the new model, then patches the
+    /// local copy so the picker pill reflects it immediately. Also updates
+    /// `preferredModel` so the next new conversation inherits the choice.
+    func setActiveConversationModel(_ model: String) async {
+        guard let client = appStore?.client else { return }
+        guard let conv = activeConversation else {
+            preferredModel = model
+            return
+        }
+        if conv.model == model {
+            preferredModel = model
+            return
+        }
+        do {
+            try await client.chatConversationSetModel(conv.id, model: model)
+            preferredModel = model
+            let patched = ConversationDTO(
+                id: conv.id, accountUUID: conv.accountUUID, title: conv.title,
+                model: model, systemPrompt: conv.systemPrompt, archived: conv.archived,
+                createdAt: conv.createdAt, updatedAt: Date()
+            )
+            activeConversation = patched
+            if let idx = conversations.firstIndex(where: { $0.id == conv.id }) {
+                conversations[idx] = patched
+            }
+        } catch {
+            lastError = CswError.redact(error.localizedDescription)
+        }
+    }
+
     func deleteConversation(id: String) async {
         guard let client = appStore?.client else { return }
         do {
