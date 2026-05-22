@@ -10,8 +10,6 @@ struct AccountsTab: View {
     @EnvironmentObject var loginCoordinator: LoginCoordinator
     @EnvironmentObject var verifyCoordinator: VerifyCoordinator
     @EnvironmentObject var webFallback: WebFallbackCoordinator
-    @State private var renamingAccount: AccountViewDTO?
-
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
@@ -30,10 +28,11 @@ struct AccountsTab: View {
             .padding(.vertical, 14)
             .frame(maxWidth: .infinity, alignment: .topLeading)
         }
-        .sheet(item: $renamingAccount) { acc in
-            RenameAccountSheet(account: acc) { newName in
-                Task { await store.rename(acc.account.number, to: newName) }
-            }
+    }
+
+    private func promptRename(for acc: AccountViewDTO) {
+        AccountRenamePrompt.run(for: acc) { newName in
+            Task { await store.rename(acc.account.number, to: newName) }
         }
     }
 
@@ -64,7 +63,7 @@ struct AccountsTab: View {
         if let snap = store.snapshot, !snap.accounts.isEmpty {
             VStack(spacing: 4) {
                 ForEach(snap.accounts) { acc in
-                    AccountManageRow(account: acc, onRename: { renamingAccount = acc })
+                    AccountManageRow(account: acc, onRename: { promptRename(for: acc) })
                 }
             }
         } else {

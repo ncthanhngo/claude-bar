@@ -20,7 +20,6 @@ struct ThresholdSliderView: View {
                 }
                 .contentShape(Rectangle())
                 .gesture(dragGesture(width: geo.size.width))
-                .pointingHandCursor()
             }
             .frame(height: 22)
             legend
@@ -60,6 +59,7 @@ struct ThresholdSliderView: View {
             .frame(width: 14, height: 14)
             .overlay(Circle().stroke(thresholdColor, lineWidth: 2))
             .shadow(color: .black.opacity(0.15), radius: 1, y: 1)
+            .pointingHandCursor()
             .position(x: geo.size.width * fraction(threshold), y: geo.size.height / 2)
     }
 
