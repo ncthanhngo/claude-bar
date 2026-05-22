@@ -41,6 +41,14 @@ extension CswClient {
         )
     }
 
+    func chatConversationSetModel(_ id: String, model: String) async throws {
+        struct Resp: Decodable { let id: String; let model: String }
+        _ = try await run(
+            ["chat", "conversations", "set-model", id, "--model", model],
+            decode: Resp.self
+        )
+    }
+
     func chatConversationDelete(_ id: String) async throws {
         struct Resp: Decodable { let id: String; let status: String }
         _ = try await run(

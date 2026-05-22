@@ -17,7 +17,7 @@ import (
 // runChatConversations dispatches `csw chat conversations <sub>`.
 func runChatConversations(ctx context.Context, svc *chat.Service, accountNum int, args []string) error {
 	if len(args) == 0 {
-		return errors.New("usage: csw chat conversations <list|create|load|rename|delete|export|import> ...")
+		return errors.New("usage: csw chat conversations <list|create|load|rename|set-model|delete|export|import> ...")
 	}
 	sub, rest := args[0], args[1:]
 	switch sub {
@@ -29,6 +29,8 @@ func runChatConversations(ctx context.Context, svc *chat.Service, accountNum int
 		return runConvLoad(ctx, svc, accountNum, rest)
 	case "rename":
 		return runConvRename(ctx, svc, accountNum, rest)
+	case "set-model":
+		return runConvSetModel(ctx, svc, accountNum, rest)
 	case "delete":
 		return runConvDelete(ctx, svc, accountNum, rest)
 	case "export":
@@ -171,6 +173,22 @@ func runConvRename(ctx context.Context, svc *chat.Service, accountNum int, args 
 		return err
 	}
 	return writeJSON(map[string]string{"id": convID, "title": *title})
+}
+
+func runConvSetModel(ctx context.Context, svc *chat.Service, accountNum int, args []string) error {
+	if len(args) < 1 {
+		return errors.New("usage: csw chat conversations set-model <conv-id> --model M")
+	}
+	convID := args[0]
+	fs := flag.NewFlagSet("set-model", flag.ContinueOnError)
+	model := fs.String("model", "", "model id (e.g. claude-sonnet-4-6)")
+	if err := fs.Parse(args[1:]); err != nil {
+		return err
+	}
+	if err := svc.SetConversationModel(ctx, accountNum, convID, *model); err != nil {
+		return err
+	}
+	return writeJSON(map[string]string{"id": convID, "model": *model})
 }
 
 func runConvDelete(ctx context.Context, svc *chat.Service, accountNum int, args []string) error {
