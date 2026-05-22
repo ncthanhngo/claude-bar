@@ -89,7 +89,7 @@ func focusBody(actions []PayloadAction) string {
 		return "Không có việc nổi bật — tận hưởng buổi sáng nhẹ nhàng."
 	}
 	a := actions[0]
-	return fmt.Sprintf("Bắt đầu với: %s. %s", a.Title, a.Deadline)
+	return fmt.Sprintf("Bắt đầu với **%s** — %s.", a.Title, a.Deadline)
 }
 
 func vnSpellNumber(n int) string {

@@ -4,6 +4,7 @@ package port
 
 import (
 	"context"
+	"time"
 
 	"github.com/soi/claude-swap-widget/backend/internal/domain"
 )
@@ -43,6 +44,31 @@ type UsageFetcher interface {
 // TokenRefresher exchanges a refresh token for a new access token.
 type TokenRefresher interface {
 	Refresh(ctx context.Context, refreshToken string) (*domain.OAuthPayload, error)
+}
+
+// UsageLogScanner aggregates Claude Code token usage from local JSONL session
+// logs (~/.claude/projects/**/*.jsonl). Adapter decides scanning strategy
+// (mtime cutoff, line-by-line parse) — usecase only sees the final report.
+//
+// Rates are passed in per-scan so the cost column reflects whatever pricing
+// snapshot is currently active (the hosted JSON fetched by PricingProvider,
+// or the bundled fallback on a cold network).
+type UsageLogScanner interface {
+	Scan(ctx context.Context, now time.Time, rates []domain.ModelPricing) (*domain.UsageStatsReport, error)
+}
+
+// PricingProvider is the runtime source for Anthropic's per-model rate table.
+// On launch it bootstraps from the bundled domain.PublishedPricing(), then
+// refreshes from a hosted JSON in the background so existing builds pick up
+// new Anthropic prices without a new release. Current() never blocks: it
+// returns whatever snapshot is in memory right now.
+type PricingProvider interface {
+	// Current returns the active rates plus a human-readable reference
+	// (e.g. "anthropic.com/pricing, snapshot 2026-09").
+	Current() ([]domain.ModelPricing, string)
+	// Refresh kicks off a background HTTP fetch. No-op if a refresh ran
+	// within the provider's TTL. Safe to call from any goroutine.
+	Refresh(ctx context.Context)
 }
 
 // SessionInspector reads ~/.claude/sessions/*.json and reports liveness.

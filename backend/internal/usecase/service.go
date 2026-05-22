@@ -3,8 +3,10 @@ package usecase
 
 import (
 	"sync"
+	"time"
 
 	"github.com/soi/claude-swap-widget/backend/internal/adapter/cache"
+	"github.com/soi/claude-swap-widget/backend/internal/domain"
 	"github.com/soi/claude-swap-widget/backend/internal/port"
 )
 
@@ -19,6 +21,8 @@ type Service struct {
 	Sessions   port.SessionInspector
 	Lock       port.FileLock
 	MCPSecrets port.MCPSecretStore
+	UsageLog   port.UsageLogScanner
+	Pricing    port.PricingProvider
 	UsageCache *cache.UsageCache
 	Backoff    *cache.Backoff
 
@@ -26,7 +30,20 @@ type Service struct {
 	// callers (list, verify, refresh-all, switch) cannot race on the same backup
 	// when the OAuth provider rotates the refresh token on first use.
 	backupRefreshMu sync.Map // value: *sync.Mutex
+
+	// usageStats cache. The widget polls UsageStats every refreshIntervalSec
+	// (default 30s); each scan walks ~/.claude/projects/**/*.jsonl which adds
+	// up. Cache the report for usageStatsCacheTTL but always invalidate when
+	// the current hour slot rolls over so the Hourly/Daily/Monthly series stay
+	// in sync with the calendar boundary they advertise.
+	usageStatsMu       sync.Mutex
+	usageStatsCached   *domain.UsageStatsReport
+	usageStatsCachedAt time.Time
 }
+
+// UsageStatsCacheTTL is the maximum age a cached report can serve before
+// re-scanning the projects directory. Exposed for tests.
+const UsageStatsCacheTTL = 5 * time.Minute
 
 // lockBackupRefresh acquires the per-account mutex and returns an unlock func.
 func (s *Service) lockBackupRefresh(accountNum int) func() {

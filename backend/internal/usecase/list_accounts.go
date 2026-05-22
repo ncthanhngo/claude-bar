@@ -31,6 +31,23 @@ type ListAccountsResult struct {
 // Usage reads the Claude Bar backup credentials for every account, including
 // the active account, so polling never touches Claude Code's live Keychain item.
 func (s *Service) ListAccounts(ctx context.Context) (*ListAccountsResult, error) {
+	return s.listAccounts(ctx, map[int]bool{})
+}
+
+// ListAccountsMetadata returns account identity and active-state only.
+// The widget uses it when web usage already has the active quota so a menu
+// refresh does not also call the OAuth usage endpoint.
+func (s *Service) ListAccountsMetadata(ctx context.Context) (*ListAccountsResult, error) {
+	return s.listAccounts(ctx, nil)
+}
+
+// ListAccountsUsageFor returns account rows while fetching usage only for the
+// requested registry numbers. Web-first clients use it for fallback accounts.
+func (s *Service) ListAccountsUsageFor(ctx context.Context, accountNumbers map[int]bool) (*ListAccountsResult, error) {
+	return s.listAccounts(ctx, accountNumbers)
+}
+
+func (s *Service) listAccounts(ctx context.Context, usageAccounts map[int]bool) (*ListAccountsResult, error) {
 	reg, err := s.Registry.Load(ctx)
 	if err != nil {
 		return nil, err
@@ -55,20 +72,36 @@ func (s *Service) ListAccounts(ctx context.Context) (*ListAccountsResult, error)
 		})
 	}
 
-	var wg sync.WaitGroup
-	for _, v := range views {
-		wg.Add(1)
-		go func(v *AccountView) {
-			defer wg.Done()
-			s.fillUsage(ctx, v)
-		}(v)
+	if usageAccounts != nil {
+		if len(usageAccounts) == 0 {
+			usageAccounts = allUsageAccounts(views)
+		}
+		var wg sync.WaitGroup
+		for _, v := range views {
+			if !usageAccounts[v.Account.Number] {
+				continue
+			}
+			wg.Add(1)
+			go func(v *AccountView) {
+				defer wg.Done()
+				s.fillUsage(ctx, v)
+			}(v)
+		}
+		wg.Wait()
 	}
-	wg.Wait()
 
 	return &ListAccountsResult{
 		Accounts:            views,
 		ActiveAccountNumber: activeNum,
 	}, nil
+}
+
+func allUsageAccounts(views []*AccountView) map[int]bool {
+	accountNumbers := make(map[int]bool, len(views))
+	for _, v := range views {
+		accountNumbers[v.Account.Number] = true
+	}
+	return accountNumbers
 }
 
 func (s *Service) fillUsage(ctx context.Context, v *AccountView) {

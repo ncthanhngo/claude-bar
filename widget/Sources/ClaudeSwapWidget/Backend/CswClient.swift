@@ -49,8 +49,14 @@ actor CswClient {
         return d
     }()
 
-    func list() async throws -> ListAccountsDTO {
-        try await run(["list", "--json"], decode: ListAccountsDTO.self)
+    func list(includeUsage: Bool = true, usageAccounts: [Int]? = nil) async throws -> ListAccountsDTO {
+        var args = ["list", "--json"]
+        if let usageAccounts {
+            args.append("--usage-accounts=\(usageAccounts.map(String.init).joined(separator: ","))")
+        } else if !includeUsage {
+            args.append("--metadata-only")
+        }
+        return try await run(args, decode: ListAccountsDTO.self)
     }
 
     func sessions() async throws -> SessionReportDTO {
@@ -81,6 +87,10 @@ actor CswClient {
 
     func verify() async throws -> VerificationReportDTO {
         try await run(["verify", "--json"], decode: VerificationReportDTO.self)
+    }
+
+    func usageStats() async throws -> UsageStatsDTO {
+        try await run(["usage-stats", "--json"], decode: UsageStatsDTO.self)
     }
 
     func refreshAllTokens() async throws {

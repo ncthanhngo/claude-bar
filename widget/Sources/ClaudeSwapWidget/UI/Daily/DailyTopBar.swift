@@ -17,7 +17,7 @@ struct DailyTopBar: View {
 
     var body: some View {
         HStack(spacing: 22) {
-            brand
+            DailyProfileBrand(palette: palette)
             DailyModeSwitcher(mode: $mode, palette: palette)
                 .padding(.leading, 4)
 
@@ -50,17 +50,5 @@ struct DailyTopBar: View {
         }
         .padding(.bottom, 14)
         .overlay(Divider().background(palette.line), alignment: .bottom)
-    }
-
-    @ViewBuilder private var brand: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 12) {
-            Text("đẹp.")
-                .font(.system(size: 28, weight: .semibold, design: .serif).italic())
-                .foregroundColor(palette.coral)
-            Text("DAILY · CLAUDE BAR")
-                .font(.system(size: 11))
-                .kerning(1.5)
-                .foregroundColor(palette.ink3)
-        }
     }
 }

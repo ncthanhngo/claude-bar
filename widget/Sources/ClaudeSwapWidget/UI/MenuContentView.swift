@@ -8,7 +8,7 @@ struct MenuContentView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            HeaderBar()
+            MenuHeaderBar()
             Divider().opacity(0.5)
             SectionHeaderView(title: "Accounts",
                               trailing: store.snapshot.map { "\($0.accounts.count)" },
@@ -32,84 +32,9 @@ struct MenuContentView: View {
     }
 }
 
-// MARK: - Header
-
-private struct HeaderBar: View {
-    @EnvironmentObject var store: AppStore
-    @State private var isHealthChecking = false
-    @State private var healthResult: HealthCheckResult? = nil
-    @State private var showHealthPopover = false
-
-    var body: some View {
-        HStack(spacing: 8) {
-            Circle()
-                .fill(statusDotColor)
-                .frame(width: 6, height: 6)
-            Text(statusText)
-                .font(.system(size: 11))
-                .foregroundColor(store.lastError == nil ? Color.secondary : Color.red)
-                .lineLimit(1)
-            Spacer()
-            if store.isRefreshing || isHealthChecking {
-                ProgressView().controlSize(.mini)
-            } else {
-                Button(action: runHealthCheck) {
-                    Image(systemName: "arrow.clockwise")
-                        .font(.system(size: 11))
-                        .foregroundColor(.secondary)
-                }
-                .buttonStyle(.borderless)
-                .help("Check account health & refresh credentials")
-                .pointingHandCursor()
-                .popover(isPresented: $showHealthPopover, arrowEdge: .bottom) {
-                    if let result = healthResult {
-                        HealthCheckPopoverView(result: result, isPresented: $showHealthPopover)
-                    }
-                }
-            }
-        }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 6)
-    }
-
-    private func runHealthCheck() {
-        guard !isHealthChecking && !store.isRefreshing else { return }
-        showHealthPopover = false
-        isHealthChecking = true
-        Task {
-            do {
-                let report = try await store.client.verify()
-                let failed = report.results.filter { !$0.swapReady }
-                healthResult = failed.isEmpty ? .healthy(report.total) : .issues(failed: failed)
-            } catch {
-                healthResult = .failed(error.localizedDescription)
-            }
-            await store.refreshNow()
-            isHealthChecking = false
-            showHealthPopover = true
-        }
-    }
-
-    private var statusDotColor: Color {
-        if store.lastError != nil { return .red }
-        if store.isRefreshing || isHealthChecking { return .orange }
-        return .green
-    }
-
-    private var statusText: String {
-        if isHealthChecking { return "Checking health…" }
-        if let err = store.lastError { return err }
-        guard let when = store.lastRefreshAt else { return "Loading…" }
-        let secs = max(0, Int(Date().timeIntervalSince(when)))
-        if secs < 5  { return "Updated just now" }
-        if secs < 60 { return "Updated \(secs)s ago" }
-        return "Updated \(secs / 60)m ago"
-    }
-}
-
 // MARK: - Account list
 
-private struct AccountListSection: View {
+struct AccountListSection: View {
     @EnvironmentObject var store: AppStore
     @Binding var renaming: AccountViewDTO?
 
@@ -138,7 +63,7 @@ private struct AccountListSection: View {
     }
 }
 
-private struct EmptyAccountsView: View {
+struct EmptyAccountsView: View {
     @EnvironmentObject var loginCoordinator: LoginCoordinator
 
     var body: some View {
@@ -161,22 +86,22 @@ private struct EmptyAccountsView: View {
 
 // MARK: - Auto-swap
 
-private struct AutoSwapSection: View {
+struct AutoSwapSection: View {
     @EnvironmentObject var store: AppStore
     @ObservedObject private var settings = AppSettings.shared
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 8) {
                 Toggle("", isOn: $settings.autoSwapEnabled)
                     .toggleStyle(.switch).controlSize(.small).labelsHidden()
                 Text(statusLabel)
-                    .font(.callout)
+                    .font(.system(size: 12, weight: .medium))
                     .foregroundColor(statusColor)
-                Spacer()
                 if let sess = store.sessions {
                     sessionsBadge(sess)
                 }
+                Spacer()
             }
             ThresholdSliderView(
                 threshold: $settings.thresholdPct,
@@ -186,7 +111,7 @@ private struct AutoSwapSection: View {
             if settings.autoSwapEnabled && !isOperational {
                 HStack(spacing: 4) {
                     Image(systemName: "pause.circle.fill")
-                        .font(.system(size: 10)).foregroundColor(.orange)
+                        .font(.system(size: 10)).foregroundColor(UsagePalette.color(for: 70))
                     Text("Paused — no usage data. Will resume when fetch succeeds.")
                         .font(.system(size: 10)).foregroundColor(.secondary)
                 }
@@ -219,15 +144,24 @@ private struct AutoSwapSection: View {
                   : "exclamationmark.shield.fill")
                 .font(.system(size: 10))
             Text(sess.safeToSwap ? "Safe" : "claude busy")
-                .font(.system(size: 10))
+                .font(.system(size: 10, weight: .medium))
         }
-        .foregroundColor(sess.safeToSwap ? .green : .orange)
+        .padding(.horizontal, 7)
+        .padding(.vertical, 3)
+        .background(
+            Capsule().fill(sess.safeToSwap
+                ? UsagePalette.color(for: 40).opacity(0.12)
+                : UsagePalette.color(for: 70).opacity(0.15))
+        )
+        .foregroundColor(sess.safeToSwap
+            ? UsagePalette.color(for: 40)
+            : UsagePalette.color(for: 70))
     }
 }
 
 // MARK: - Footer
 
-private struct FooterActions: View {
+struct FooterActions: View {
     @ObservedObject private var settings = AppSettings.shared
     @EnvironmentObject private var briefingCoord: BriefingCoordinator
 
@@ -237,6 +171,8 @@ private struct FooterActions: View {
             Image(systemName: "sun.max").font(.system(size: 13)).foregroundColor(.secondary)
         case .dark:
             Image(systemName: "moon").font(.system(size: 13)).foregroundColor(.secondary)
+        case .apple:
+            Image(systemName: "apple.logo").font(.system(size: 13)).foregroundColor(.secondary)
         case .rainbow:
             Circle()
                 .fill(AngularGradient(
@@ -248,50 +184,60 @@ private struct FooterActions: View {
     }
 
     var body: some View {
-        HStack(spacing: 2) {
-            Button {
-                NotificationCenter.default.post(name: .openSettings, object: nil)
-            } label: {
-                Image(systemName: "gearshape")
-                    .font(.system(size: 13))
-                    .foregroundColor(.secondary)
-            }
-            .buttonStyle(.borderless).help("Settings")
-            .pointingHandCursor()
-
-            Button {
-                briefingCoord.show()
-            } label: {
+        HStack(spacing: 22) {
+            footerButton(
+                label: "Daily",
+                help: "Open Daily Briefing window",
+                action: { briefingCoord.show() }
+            ) {
                 Image(systemName: "sun.haze")
-                    .font(.system(size: 13))
+                    .font(.system(size: 14))
                     .foregroundColor(.secondary)
             }
-            .buttonStyle(.borderless).help("Mở Daily Briefing")
-            .pointingHandCursor()
 
-            Spacer()
-
-            Button {
-                settings.widgetTheme = settings.widgetTheme.next
-            } label: {
+            footerButton(
+                label: "Theme",
+                help: "Theme: \(settings.widgetTheme.rawValue) — click to cycle",
+                action: { settings.widgetTheme = settings.widgetTheme.next }
+            ) {
                 themeIcon
             }
-            .buttonStyle(.borderless)
-            .help("Theme: \(settings.widgetTheme.rawValue) — click to cycle")
-            .pointingHandCursor()
 
-            Spacer()
-
-            Button { NSApplication.shared.terminate(nil) } label: {
+            footerButton(
+                label: "Quit",
+                help: "Quit Claude Bar",
+                action: { NSApplication.shared.terminate(nil) }
+            ) {
                 Image(systemName: "power")
-                    .font(.system(size: 13))
+                    .font(.system(size: 14))
                     .foregroundColor(.secondary)
             }
-            .buttonStyle(.borderless).help("Quit")
-            .pointingHandCursor()
         }
-        .padding(.horizontal, 14)
-        .padding(.top, 8)
+        .frame(maxWidth: .infinity)
+        .padding(.top, 6)
+    }
+
+    @ViewBuilder
+    private func footerButton<Icon: View>(
+        label: String,
+        help: String,
+        action: @escaping () -> Void,
+        @ViewBuilder icon: () -> Icon
+    ) -> some View {
+        Button(action: action) {
+            VStack(spacing: 2) {
+                icon()
+                Text(label)
+                    .font(.system(size: 9, weight: .medium))
+                    .foregroundColor(.secondary)
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 4)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.borderless)
+        .help(help)
+        .pointingHandCursor()
     }
 }
 

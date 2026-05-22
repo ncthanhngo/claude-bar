@@ -88,11 +88,18 @@ func (e *UnauthorizedError) Error() string {
 }
 
 // RateLimitedError carries the optional Retry-After header value (seconds).
+// When the server omits the header, RetryAfter is empty and Error() renders
+// an approximate fallback ("~60s") so users always see a wait hint.
 type RateLimitedError struct{ RetryAfter string }
+
+// defaultRetryAfterSec is the conservative fallback used when Anthropic omits
+// the Retry-After header on a 429. 60s matches common OAuth provider windows
+// and is short enough that retry guidance stays actionable.
+const defaultRetryAfterSec = "60"
 
 func (e *RateLimitedError) Error() string {
 	if e.RetryAfter != "" {
 		return "rate limited (retry after " + e.RetryAfter + "s)"
 	}
-	return "rate limited"
+	return "rate limited (retry after ~" + defaultRetryAfterSec + "s)"
 }

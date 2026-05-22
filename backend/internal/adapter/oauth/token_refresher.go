@@ -52,6 +52,9 @@ func (r *TokenRefresher) Refresh(ctx context.Context, refreshToken string) (*dom
 	}
 	defer resp.Body.Close()
 	raw, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode == http.StatusTooManyRequests {
+		return nil, &RateLimitedError{RetryAfter: resp.Header.Get("Retry-After")}
+	}
 	if resp.StatusCode >= 400 {
 		return nil, fmt.Errorf("oauth refresh %d: %s", resp.StatusCode, string(raw))
 	}

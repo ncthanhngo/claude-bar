@@ -10,6 +10,7 @@ import UserNotifications
 final class AppStore: ObservableObject {
     @Published private(set) var snapshot: ListAccountsDTO?
     @Published private(set) var sessions: SessionReportDTO?
+    @Published private(set) var tokenStats: UsageStatsDTO?
     @Published private(set) var lastError: String?
     @Published private(set) var isRefreshing: Bool = false
     @Published private(set) var lastRefreshAt: Date?
@@ -18,6 +19,7 @@ final class AppStore: ObservableObject {
     let settings = AppSettings.shared
     let autoSwap: AutoSwapStateMachine
     var cloudSync: CloudSyncCoordinator?
+    var webUsageProvider: (([AccountViewDTO]) async -> [Int: UsageDTO])?
 
     private var refreshTask: Task<Void, Never>?
 
@@ -99,11 +101,28 @@ final class AppStore: ObservableObject {
         isRefreshing = true
         defer { isRefreshing = false }
         do {
-            async let listAsync = client.list()
             async let sessionsAsync = client.sessions()
-            let (list, sess) = try await (listAsync, sessionsAsync)
+            async let tokenStatsAsync = client.usageStats()
+            let metadata = try await client.list(includeUsage: false)
+                .preservingUsageState(from: snapshot)
+            let webUsages = await webUsageProvider?(metadata.accounts) ?? [:]
+            let fallbackNumbers = metadata.accounts
+                .map(\.id)
+                .filter { webUsages[$0] == nil }
+            let fallback = fallbackNumbers.isEmpty
+                ? metadata
+                : try await client.list(usageAccounts: fallbackNumbers)
+            let list = metadata
+                .mergingUsageRows(fallback)
+                .replacingUsage(webUsages)
+            let sess = try await sessionsAsync
             self.snapshot = list
             self.sessions = sess
+            // Token-stats failure is non-fatal — keep the last good value so
+            // the UI doesn't blank out on a transient scan error.
+            if let stats = try? await tokenStatsAsync {
+                self.tokenStats = stats
+            }
             self.lastError = nil
             self.lastRefreshAt = Date()
         } catch {

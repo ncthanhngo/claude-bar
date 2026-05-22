@@ -101,6 +101,7 @@ extension WidgetTheme {
         case .light:   return .light
         case .dark:    return .dark
         case .rainbow: return .rainbow
+        case .apple:   return .light  // Apple theme briefing falls back to light palette
         }
     }
 }

@@ -89,14 +89,7 @@ struct ThresholdSliderView: View {
         CGFloat(max(1, min(100, pct))) / 100
     }
 
-    private var thresholdColor: Color {
-        switch threshold {
-        case ..<50: return .green
-        case ..<75: return .yellow
-        case ..<90: return .orange
-        default:    return .red
-        }
-    }
+    private var thresholdColor: Color { UsagePalette.color(for: threshold) }
 
     private func dragGesture(width: CGFloat) -> some Gesture {
         DragGesture(minimumDistance: 0).onChanged { value in

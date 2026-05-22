@@ -1,36 +1,110 @@
+import AppKit
 import Foundation
 import SwiftUI
-import AppKit
+import WebKit
 
-/// Owns the floating window that hosts the embedded claude.ai WebView.
-///
-/// Tracks whether the user has a live web session (cookies present) so the
-/// menu UI can show "web fallback available" when the OAuth usage API is
-/// rate-limited.
-@MainActor
-final class WebFallbackCoordinator: ObservableObject {
-    @Published var isConnected: Bool = false
-    @Published var lastCheckedAt: Date?
-    @Published var lastScrapedQuotaText: String?
+enum WebUsageAccountState {
+    case notLinked
+    case linked
+    case connected(String)
+    case fallback(String)
 
-    private let window = FloatingWindow<AnyView>()
-    private weak var store: AppStore?
-
-    func attach(store: AppStore) {
-        self.store = store
-        Task { await refreshConnectionState() }
+    var label: String {
+        switch self {
+        case .notLinked: return "Terminal fallback"
+        case .linked: return "Web linked"
+        case .connected(let summary): return "Web connected: \(summary)"
+        case .fallback: return "Web unavailable"
+        }
     }
 
-    /// Open the floating window with the embedded claude.ai browser.
-    func open() {
-        guard let store else { return }
-        window.show(title: "Claude.ai — web fallback",
-                    size: NSSize(width: 720, height: 640)) {
+    var detail: String? {
+        if case .fallback(let message) = self { return message }
+        return nil
+    }
+}
+
+@MainActor
+final class WebFallbackCoordinator: ObservableObject {
+    @AppStorage("webUsageProfileIdentifiersJSON")
+    private var profileIdentifiersJSON: String = "{}"
+
+    @Published private(set) var accountStates: [String: WebUsageAccountState] = [:]
+    @Published private(set) var lastCheckedAt: Date?
+
+    private let window = FloatingWindow<AnyView>()
+
+    func attach(store: AppStore) {
+        store.webUsageProvider = { [weak self] accounts in
+            await self?.fetchWebUsages(for: accounts) ?? [:]
+        }
+    }
+
+    func state(for account: AccountDTO) -> WebUsageAccountState {
+        accountStates[account.identityKey] ?? (profileID(for: account) == nil ? .notLinked : .linked)
+    }
+
+    func isLinked(_ account: AccountDTO) -> Bool {
+        profileID(for: account) != nil
+    }
+
+    func open(for view: AccountViewDTO) {
+        guard let dataStore = linkedDataStore(for: view.account, createIfNeeded: true) else {
+            accountStates[view.account.identityKey] = .fallback("Unable to create web usage profile.")
+            return
+        }
+        window.show(
+            title: "Web Usage - \(view.account.displayName)",
+            size: NSSize(width: 720, height: 640)
+        ) {
             AnyView(
-                WebFallbackSheet()
-                    .environmentObject(store)
+                WebFallbackSheet(accountView: view, dataStore: dataStore)
                     .environmentObject(self)
             )
+        }
+        accountStates[view.account.identityKey] = .linked
+    }
+
+    func refreshWebUsage(for view: AccountViewDTO) async -> UsageDTO? {
+        guard let dataStore = linkedDataStore(for: view.account, createIfNeeded: false) else {
+            accountStates[view.account.identityKey] = .notLinked
+            return nil
+        }
+        _ = await ClaudeWebSessionSync.restore(account: view.account, dataStore: dataStore)
+        do {
+            let usage = try await ClaudeWebUsageFetcher(dataStore: dataStore).fetchUsage()
+            await ClaudeWebSessionSync.save(account: view.account, dataStore: dataStore)
+            accountStates[view.account.identityKey] = .connected(usage.diagnosticSummary)
+            lastCheckedAt = Date()
+            return usage
+        } catch {
+            accountStates[view.account.identityKey] = .fallback(error.localizedDescription)
+            lastCheckedAt = Date()
+            return nil
+        }
+    }
+
+    func disconnect(_ account: AccountDTO) async {
+        if let dataStore = linkedDataStore(for: account, createIfNeeded: false) {
+            await ClaudeWebSession.clear(dataStore: dataStore)
+        }
+        var identifiers = loadProfileIdentifiers()
+        identifiers.removeValue(forKey: account.identityKey)
+        saveProfileIdentifiers(identifiers)
+        ClaudeWebSessionSync.remove(account: account)
+        accountStates[account.identityKey] = .notLinked
+    }
+
+    func refreshConnectionState(for account: AccountDTO, dataStore: WKWebsiteDataStore) async {
+        let connected = await ClaudeWebSession.isConnected(dataStore: dataStore)
+        if !connected {
+            accountStates[account.identityKey] = .fallback("Sign in to this Claude web profile.")
+        } else if case .connected = accountStates[account.identityKey] {
+            await ClaudeWebSessionSync.save(account: account, dataStore: dataStore)
+            return
+        } else {
+            await ClaudeWebSessionSync.save(account: account, dataStore: dataStore)
+            accountStates[account.identityKey] = .linked
         }
     }
 
@@ -38,16 +112,69 @@ final class WebFallbackCoordinator: ObservableObject {
         window.close()
     }
 
-    /// Probe cookies to decide whether the user is signed in to claude.ai.
-    func refreshConnectionState() async {
-        isConnected = await ClaudeWebSession.isConnected()
-        lastCheckedAt = Date()
+    private func fetchWebUsages(for accounts: [AccountViewDTO]) async -> [Int: UsageDTO] {
+        var usages: [Int: UsageDTO] = [:]
+        for account in accounts {
+            await restoreSyncedProfile(for: account.account)
+            guard isLinked(account.account) else { continue }
+            if let usage = await refreshWebUsage(for: account) {
+                usages[account.id] = usage
+            }
+        }
+        return usages
     }
 
-    /// Clear claude.ai cookies. User will need to log in again next open.
-    func disconnect() async {
-        await ClaudeWebSession.clear()
-        lastScrapedQuotaText = nil
-        await refreshConnectionState()
+    private func linkedDataStore(for account: AccountDTO, createIfNeeded: Bool) -> WKWebsiteDataStore? {
+        var identifiers = loadProfileIdentifiers()
+        let rawID: String
+        if let existing = identifiers[account.identityKey] {
+            rawID = existing
+        } else if createIfNeeded {
+            rawID = UUID().uuidString
+            identifiers[account.identityKey] = rawID
+            saveProfileIdentifiers(identifiers)
+        } else {
+            return nil
+        }
+        guard let id = UUID(uuidString: rawID) else { return nil }
+        return WKWebsiteDataStore(forIdentifier: id)
+    }
+
+    private func restoreSyncedProfile(for account: AccountDTO) async {
+        guard profileID(for: account) == nil,
+              ClaudeWebSessionSync.hasSession(for: account),
+              let dataStore = linkedDataStore(for: account, createIfNeeded: true) else {
+            return
+        }
+        if await ClaudeWebSessionSync.restore(account: account, dataStore: dataStore) {
+            accountStates[account.identityKey] = .linked
+        }
+    }
+
+    private func profileID(for account: AccountDTO) -> UUID? {
+        guard let rawID = loadProfileIdentifiers()[account.identityKey] else { return nil }
+        return UUID(uuidString: rawID)
+    }
+
+    private func loadProfileIdentifiers() -> [String: String] {
+        guard let data = profileIdentifiersJSON.data(using: .utf8),
+              let decoded = try? JSONDecoder().decode([String: String].self, from: data) else {
+            return [:]
+        }
+        return decoded
+    }
+
+    private func saveProfileIdentifiers(_ identifiers: [String: String]) {
+        guard let data = try? JSONEncoder().encode(identifiers),
+              let json = String(data: data, encoding: .utf8) else { return }
+        profileIdentifiersJSON = json
+    }
+}
+
+private extension UsageDTO {
+    var diagnosticSummary: String {
+        let fiveHour = fiveHour.map { "5h \($0.percentInt)%" } ?? "5h unavailable"
+        let sevenDay = sevenDay.map { "7d \($0.percentInt)%" } ?? "7d unavailable"
+        return "\(fiveHour), \(sevenDay)"
     }
 }
