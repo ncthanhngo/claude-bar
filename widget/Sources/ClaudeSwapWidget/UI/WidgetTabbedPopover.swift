@@ -171,7 +171,6 @@ private struct WidgetTabBarButton: View {
 struct ClaudeTabContent: View {
     @EnvironmentObject var store: AppStore
     @ObservedObject private var settings = AppSettings.shared
-    @State private var renamingAccount: AccountViewDTO?
 
     var body: some View {
         // GeometryReader → ScrollView → VStack with `minHeight: geo.height`
@@ -186,7 +185,7 @@ struct ClaudeTabContent: View {
                 VStack(alignment: .leading, spacing: 4) {
                     sectionTitle(title: "Accounts",
                                  trailing: store.snapshot.map { "\($0.accounts.count)" })
-                    AccountListSection(renaming: $renamingAccount)
+                    AccountListSection()
                     sectionTitle(title: "Auto-swap").padding(.top, 6)
                     AutoSwapSection()
                     sectionTitle(title: "Token usage").padding(.top, 6)
@@ -195,11 +194,6 @@ struct ClaudeTabContent: View {
                 }
                 .padding(.vertical, 6)
                 .frame(minHeight: geo.size.height, alignment: .top)
-            }
-        }
-        .sheet(item: $renamingAccount) { acc in
-            RenameAccountSheet(account: acc) { newName in
-                Task { await store.rename(acc.account.number, to: newName) }
             }
         }
     }

@@ -78,7 +78,14 @@ struct ChatModelPicker: View {
             .overlay(Capsule().stroke(palette.line2, lineWidth: 1))
             .clipShape(Capsule())
         }
-        .menuStyle(.borderlessButton)
+        // `.borderlessButton` style strips the label content down to just the
+        // first Text node — the badge and the chevron disappear, leaving the
+        // pill looking like a bare "S". Use `.button` so SwiftUI renders the
+        // full custom HStack label, and hide the system arrow with
+        // `.menuIndicator(.hidden)`. `.buttonStyle(.plain)` keeps macOS from
+        // wrapping it in the default bordered button chrome.
+        .menuStyle(.button)
+        .buttonStyle(.plain)
         .menuIndicator(.hidden)
         .fixedSize()
     }

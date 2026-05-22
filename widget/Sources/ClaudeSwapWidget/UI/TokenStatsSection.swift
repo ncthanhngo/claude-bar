@@ -125,6 +125,7 @@ struct TokenStatsSection: View {
             .pickerStyle(.segmented)
             .labelsHidden()
             .frame(maxWidth: 220)
+            .pointingHandCursor()
 
             Picker("", selection: $metric) {
                 ForEach(ChartMetric.allCases) { m in
@@ -134,6 +135,7 @@ struct TokenStatsSection: View {
             .pickerStyle(.segmented)
             .labelsHidden()
             .frame(maxWidth: 140)
+            .pointingHandCursor()
 
             if metric == .cost, let stats = store.tokenStats, !stats.pricing.isEmpty {
                 detailsButton(stats: stats)

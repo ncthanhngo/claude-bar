@@ -4,7 +4,6 @@ struct MenuContentView: View {
     @EnvironmentObject var store: AppStore
     @EnvironmentObject var loginCoordinator: LoginCoordinator
     @ObservedObject private var settings = AppSettings.shared
-    @State private var renamingAccount: AccountViewDTO?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -13,7 +12,7 @@ struct MenuContentView: View {
             SectionHeaderView(title: "Accounts",
                               trailing: store.snapshot.map { "\($0.accounts.count)" },
                               color: settings.widgetTheme.sectionHeaderColor)
-            AccountListSection(renaming: $renamingAccount)
+            AccountListSection()
             Divider().opacity(0.5).padding(.top, 4)
             SectionHeaderView(title: "Auto-swap",
                               color: settings.widgetTheme.sectionHeaderColor)
@@ -24,11 +23,6 @@ struct MenuContentView: View {
         .padding(.vertical, 6)
         .background(settings.widgetTheme.background)
         .background(WindowAppearanceSetter(theme: settings.widgetTheme))
-        .sheet(item: $renamingAccount) { acc in
-            RenameAccountSheet(account: acc) { newName in
-                Task { await store.rename(acc.account.number, to: newName) }
-            }
-        }
     }
 }
 
@@ -36,7 +30,6 @@ struct MenuContentView: View {
 
 struct AccountListSection: View {
     @EnvironmentObject var store: AppStore
-    @Binding var renaming: AccountViewDTO?
 
     private static let scrollThreshold = 6
 
@@ -46,7 +39,7 @@ struct AccountListSection: View {
             let needsScroll = sorted.count > Self.scrollThreshold
             let rows = VStack(alignment: .leading, spacing: 3) {
                 ForEach(sorted) { acc in
-                    AccountRowView(view: acc, onRename: { renaming = acc })
+                    AccountRowView(view: acc, onRename: { promptRename(for: acc) })
                 }
             }
             .padding(.horizontal, 8)
@@ -59,6 +52,12 @@ struct AccountListSection: View {
             }
         } else {
             EmptyAccountsView()
+        }
+    }
+
+    private func promptRename(for acc: AccountViewDTO) {
+        AccountRenamePrompt.run(for: acc) { newName in
+            Task { await store.rename(acc.account.number, to: newName) }
         }
     }
 }
