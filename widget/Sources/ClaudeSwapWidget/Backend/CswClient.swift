@@ -87,6 +87,13 @@ actor CswClient {
         _ = try await runRaw(["refresh-tokens", "--json"])
     }
 
+    /// Snapshot the active account's live Keychain creds into its backup slot.
+    /// Call before any flow that overwrites the live slot outside claude-bar
+    /// (notably `claude /login`) so the rotated refresh token is preserved.
+    func snapshotActiveLive() async throws {
+        _ = try await runRaw(["snapshot-active", "--json"])
+    }
+
     // MARK: - Cloud sync
 
     struct CloudStatusDTO: Codable {

@@ -38,7 +38,13 @@ final class LoginCoordinator: ObservableObject {
         }
     }
 
-    func spawnTerminal() {
+    func spawnTerminal(client: CswClient) async {
+        // Snapshot the currently-active account before `claude /login` overwrites
+        // the live Keychain slot. Best-effort: a Keychain read failure here is
+        // recoverable (user can `claude /login` the old account again later), so
+        // do not block the new-account flow on it.
+        try? await client.snapshotActiveLive()
+
         let script = """
         tell application "Terminal"
             activate
