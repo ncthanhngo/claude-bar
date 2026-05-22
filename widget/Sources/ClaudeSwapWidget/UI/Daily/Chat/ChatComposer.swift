@@ -76,15 +76,26 @@ struct ChatComposer: View {
     }
 
     @ViewBuilder private var attachButton: some View {
-        Button(action: pickFile) {
-            Image(systemName: "paperclip")
-                .font(.system(size: 13, weight: .medium))
-                .foregroundColor(palette.ink2)
-                .frame(width: 28, height: 28)
+        HStack(spacing: 4) {
+            Button(action: pickFile) {
+                Image(systemName: "paperclip")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundColor(palette.ink2)
+                    .frame(width: 28, height: 28)
+            }
+            .buttonStyle(.plain)
+            .help("Đính kèm ảnh / PDF / text (kéo-thả cũng được)")
+
+            Button(action: pasteFromClipboard) {
+                Image(systemName: "doc.on.clipboard")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(palette.ink2)
+                    .frame(width: 24, height: 24)
+            }
+            .buttonStyle(.plain)
+            .help("Dán ảnh từ clipboard (⌘⇧V)")
+            .keyboardShortcut("v", modifiers: [.command, .shift])
         }
-        .buttonStyle(.plain)
-        .background(palette.paper2.opacity(0.0001))
-        .help("Đính kèm ảnh / PDF / text")
     }
 
     @ViewBuilder private var sendButton: some View {
@@ -150,5 +161,28 @@ struct ChatComposer: View {
         if let att = await chatStore.attachFile(url: url) {
             pendingAttachments.append(att)
         }
+    }
+
+    private func pasteFromClipboard() {
+        let pb = NSPasteboard.general
+        // Prefer file URL paste (matches what Finder copies); fall back to
+        // raw image data (screenshot paste).
+        if let urls = pb.readObjects(forClasses: [NSURL.self], options: nil) as? [URL],
+           let first = urls.first {
+            Task { await uploadAttachment(url: first) }
+            return
+        }
+        if let image = NSImage(pasteboard: pb),
+           let tiff = image.tiffRepresentation,
+           let rep = NSBitmapImageRep(data: tiff),
+           let png = rep.representation(using: .png, properties: [:]) {
+            Task {
+                if let att = await chatStore.pasteImage(png) {
+                    await MainActor.run { pendingAttachments.append(att) }
+                }
+            }
+            return
+        }
+        chatStore.dismissError() // no-op if nil; harmless reset
     }
 }

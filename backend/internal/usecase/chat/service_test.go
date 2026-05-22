@@ -355,7 +355,8 @@ func TestSendMessage_AttachmentInflated(t *testing.T) {
 		ID: "conv1", AccountUUID: "acc-uuid-1", Model: "claude-sonnet-4-6",
 	}
 	storage.atts["att1"] = &domain.Attachment{
-		ID: "att1", ConversationID: "conv1", MediaType: "image/png",
+		ID: "att1", ConversationID: "conv1", Kind: domain.AttachImage,
+		MediaType: "image/png",
 		FilePath: "raw-bytes-go-here", NonceHex: "nonce",
 	}
 
