@@ -10,8 +10,6 @@ struct DiagnosticsTab: View {
     @State private var showPassphraseEntry = false
     @State private var passphraseField = ""
     @State private var passphraseError: String?
-    @State private var ideTestResult: String = ""
-    @State private var ideTestRunning = false
     @State private var showRestoreBackupSheet = false
     @State private var restoreBackupPassphrase = ""
     @State private var restoreSelectedSlot: Int?
@@ -33,7 +31,6 @@ struct DiagnosticsTab: View {
         ScrollView {
             SettingsPage {
                 iCloudGroup
-                ideReloadTestGroup
                 verifyGroup
                 webUsageGroup
             }
@@ -182,32 +179,6 @@ struct DiagnosticsTab: View {
                     }
                     .buttonStyle(.borderless).disabled(cloudSync.isBusy)
                 }
-            }
-        }
-    }
-
-    private var ideReloadTestGroup: some View {
-        SettingsGroup("IDE reload test", subtitle: "Runs the full reload flow now so you can see exactly what happens.") {
-            Button {
-                ideTestRunning = true
-                ideTestResult = ""
-                Task {
-                    ideTestResult = await IDEReloader.diagnose()
-                    ideTestRunning = false
-                }
-            } label: {
-                Label(ideTestRunning ? "Testing..." : "Test IDE Reload", systemImage: "play.circle")
-            }
-            .buttonStyle(.borderedProminent)
-            .disabled(ideTestRunning)
-
-            if !ideTestResult.isEmpty {
-                Text(ideTestResult)
-                    .font(.system(size: 11, design: .monospaced))
-                    .padding(10)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color.primary.opacity(0.05))
-                    .clipShape(RoundedRectangle(cornerRadius: 6))
             }
         }
     }

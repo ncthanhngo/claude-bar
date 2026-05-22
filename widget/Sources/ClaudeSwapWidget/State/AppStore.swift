@@ -106,9 +106,18 @@ final class AppStore: ObservableObject {
             let metadata = try await client.list(includeUsage: false)
                 .preservingUsageState(from: snapshot)
             let webUsages = await webUsageProvider?(metadata.accounts) ?? [:]
+            // Include accounts where the web scraper returned only a partial
+            // window (5h or 7d missing) — claude.ai often hydrates the weekly
+            // block later than the 5h block, so without an OAuth top-up the
+            // missing bar would never render until a subsequent poll happened
+            // to catch a fully-hydrated scrape. `merging(over:)` below keeps
+            // the web values where present and fills gaps from OAuth.
             let fallbackNumbers = metadata.accounts
                 .map(\.id)
-                .filter { webUsages[$0] == nil }
+                .filter { id in
+                    guard let usage = webUsages[id] else { return true }
+                    return usage.fiveHour == nil || usage.sevenDay == nil
+                }
             let fallback = fallbackNumbers.isEmpty
                 ? metadata
                 : try await client.list(usageAccounts: fallbackNumbers)

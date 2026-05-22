@@ -10,35 +10,29 @@ struct AccountRowView: View {
     @State private var isHovering = false
 
     var body: some View {
-        Button(action: trySwap) {
-            HStack(spacing: 0) {
-                // Left accent bar for active account
-                if view.isActive {
-                    RoundedRectangle(cornerRadius: 2)
-                        .fill(settings.widgetTheme.activeAccent)
-                        .frame(width: 3)
-                        .padding(.vertical, 6)
-                }
-                VStack(alignment: .leading, spacing: 6) {
-                    titleLine
-                    subtitleLine
-                    usageBlock
-                }
-                .padding(.vertical, 8)
-                .padding(.leading, view.isActive ? 9 : 10)
-                .padding(.trailing, 10)
-                .frame(maxWidth: .infinity, alignment: .leading)
+        HStack(spacing: 0) {
+            // Left accent bar for active account
+            if view.isActive {
+                RoundedRectangle(cornerRadius: 2)
+                    .fill(settings.widgetTheme.activeAccent)
+                    .frame(width: 3)
+                    .padding(.vertical, 6)
             }
-            .background(isHovering && !view.isActive ? Color.primary.opacity(0.06) : Color.clear)
-            .clipShape(RoundedRectangle(cornerRadius: 8))
-            .contentShape(Rectangle())
+            VStack(alignment: .leading, spacing: 6) {
+                titleLine
+                subtitleLine
+                usageBlock
+            }
+            .padding(.vertical, 8)
+            .padding(.leading, view.isActive ? 9 : 10)
+            .padding(.trailing, 10)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .buttonStyle(.plain)
-        // Keep row menus available for the active account; trySwap blocks a
-        // no-op account switch in the button action.
+        .background(isHovering && !view.isActive ? Color.primary.opacity(0.06) : Color.clear)
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .contentShape(Rectangle())
         .allowsHitTesting(store.swappingTo == nil)
         .onHover { isHovering = $0 }
-        .pointingHandCursor(when: !view.isActive)
         .contextMenu { contextMenuBody }
     }
 
@@ -68,10 +62,8 @@ struct AccountRowView: View {
                 ProgressView().controlSize(.small)
             } else if view.isActive {
                 activeChip
-            } else if isHovering {
-                Text("Switch →")
-                    .font(.system(size: 10, weight: .medium))
-                    .foregroundColor(.accentColor)
+            } else {
+                switchButton
             }
 
             moreButton.opacity(isHovering ? 1 : 0.45)
@@ -86,6 +78,20 @@ struct AccountRowView: View {
                 .frame(width: 8, height: 8)
                 .overlay(Circle().stroke(Color.white, lineWidth: 1.5))
         }
+    }
+
+    private var switchButton: some View {
+        Button(action: trySwap) {
+            Text("Switch")
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundColor(.white)
+                .padding(.horizontal, 8).padding(.vertical, 3)
+                .background(Color.accentColor)
+                .clipShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .pointingHandCursor()
+        .help("Switch to this account")
     }
 
     private var activeChip: some View {
