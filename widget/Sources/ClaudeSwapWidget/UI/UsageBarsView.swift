@@ -24,7 +24,7 @@ struct UsageBar: View {
             Text(window.resetLabel())
                 .font(.system(size: 11, weight: .medium))
                 .monospacedDigit()
-                .foregroundColor(.primary.opacity(0.65))
+                .foregroundColor(.primary.opacity(0.55))
                 .frame(width: 60, alignment: .trailing)
         }
     }
@@ -32,21 +32,28 @@ struct UsageBar: View {
     private var bar: some View {
         GeometryReader { geo in
             ZStack(alignment: .leading) {
-                Capsule().fill(Color.primary.opacity(0.08))
+                Capsule().fill(Color.primary.opacity(0.07))
                 Capsule()
                     .fill(barColor)
                     .frame(width: max(3, geo.size.width * window.fractionForBar))
             }
         }
-        .frame(height: 5)
+        .frame(height: 4)
     }
 
-    private var barColor: Color {
-        switch window.percentInt {
-        case ..<50:  return .green
-        case ..<75:  return .yellow
-        case ..<90:  return .orange
-        default:     return .red
+    private var barColor: Color { UsagePalette.color(for: window.percentInt) }
+}
+
+// Unified usage colour scheme — used by UsageBar + ThresholdSliderView so the
+// whole popover speaks one visual language. 3 buckets only: safe / warn /
+// critical. The previous palette also had an "orange" tier that was visually
+// indistinguishable from the warn/critical pair next to it.
+enum UsagePalette {
+    static func color(for percent: Int) -> Color {
+        switch percent {
+        case ..<60:  return Color(red: 0.13, green: 0.77, blue: 0.37)   // green #22C55E
+        case ..<85:  return Color(red: 0.92, green: 0.70, blue: 0.03)   // amber #EAB308
+        default:     return Color(red: 0.94, green: 0.27, blue: 0.27)   // red #EF4444
         }
     }
 }

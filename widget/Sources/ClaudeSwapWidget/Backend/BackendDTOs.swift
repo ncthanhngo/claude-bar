@@ -26,6 +26,10 @@ struct AccountDTO: Codable, Hashable {
         let src = displayName.trimmingCharacters(in: .whitespaces)
         return src.isEmpty ? "?" : String(src.prefix(1)).uppercased()
     }
+
+    var identityKey: String {
+        email + "|" + (organizationUuid ?? "")
+    }
 }
 
 /// Mirrors backend/internal/domain/usage.go Window.
@@ -78,6 +82,31 @@ struct AccountViewDTO: Codable, Hashable, Identifiable {
 
     var id: Int { account.number }
 
+    func replacingUsage(_ usage: UsageDTO) -> AccountViewDTO {
+        AccountViewDTO(
+            account: account,
+            isActive: isActive,
+            usage: usage,
+            error: error,
+            credentialState: credentialState,
+            credentialError: credentialError,
+            subscriptionType: subscriptionType
+        )
+    }
+
+    func preservingUsageState(from previous: AccountViewDTO?) -> AccountViewDTO {
+        guard let previous else { return self }
+        return AccountViewDTO(
+            account: account,
+            isActive: isActive,
+            usage: usage ?? previous.usage,
+            error: error ?? previous.error,
+            credentialState: credentialState ?? previous.credentialState,
+            credentialError: credentialError ?? previous.credentialError,
+            subscriptionType: subscriptionType ?? previous.subscriptionType
+        )
+    }
+
     /// Tier for auto-swap selection: Max 200 = 3, Max 100 = 2, Pro = 1, other = 0.
     var subscriptionTier: Int {
         guard let t = subscriptionType?.lowercased() else { return 0 }
@@ -94,6 +123,44 @@ struct ListAccountsDTO: Codable, Hashable {
     let activeAccountNumber: Int
 
     var active: AccountViewDTO? { accounts.first(where: { $0.isActive }) }
+
+    func replacingActiveUsage(_ usage: UsageDTO) -> ListAccountsDTO {
+        ListAccountsDTO(
+            accounts: accounts.map { $0.isActive ? $0.replacingUsage(usage) : $0 },
+            activeAccountNumber: activeAccountNumber
+        )
+    }
+
+    func preservingUsageState(from previous: ListAccountsDTO?) -> ListAccountsDTO {
+        guard let previous else { return self }
+        return ListAccountsDTO(
+            accounts: accounts.map { account in
+                account.preservingUsageState(
+                    from: previous.accounts.first(where: { $0.id == account.id })
+                )
+            },
+            activeAccountNumber: activeAccountNumber
+        )
+    }
+
+    func mergingUsageRows(_ rows: ListAccountsDTO) -> ListAccountsDTO {
+        ListAccountsDTO(
+            accounts: accounts.map { account in
+                rows.accounts.first(where: { $0.id == account.id }) ?? account
+            },
+            activeAccountNumber: activeAccountNumber
+        )
+    }
+
+    func replacingUsage(_ usages: [Int: UsageDTO]) -> ListAccountsDTO {
+        ListAccountsDTO(
+            accounts: accounts.map { account in
+                guard let usage = usages[account.id] else { return account }
+                return account.replacingUsage(usage)
+            },
+            activeAccountNumber: activeAccountNumber
+        )
+    }
 }
 
 /// Mirrors backend/internal/domain/session.go SessionReport.
@@ -211,4 +278,59 @@ struct MCPAccountSummaryDTO: Codable, Hashable, Identifiable {
     let connectors: [MCPConnectorSummaryDTO]
 
     var id: Int { accountNumber }
+}
+
+// MARK: - Token usage stats
+
+/// Mirrors backend/internal/domain/usage_stats.go UsageStatsReport.
+/// Source = local ~/.claude/projects/**/*.jsonl session logs.
+struct UsageStatsDTO: Codable, Hashable {
+    let today: UsageBucketDTO
+    let thisWeek: UsageBucketDTO
+    let thisMonth: UsageBucketDTO
+    let hourly: [TimedBucketDTO]
+    let daily: [TimedBucketDTO]
+    let monthly: [TimedBucketDTO]
+    /// Rate table the `estimatedCostUsd` column was computed against.
+    /// Shipped from backend (domain.PublishedPricing) so the "Details"
+    /// popover and the chart never drift.
+    let pricing: [ModelPricingDTO]
+    /// Free-form snapshot tag for the pricing table (e.g. source URL + date).
+    let pricingReference: String
+    let fetchedAt: Date
+}
+
+/// Mirrors backend/internal/domain/pricing.go ModelPricing.
+/// Values are USD per 1,000,000 tokens for one model family.
+struct ModelPricingDTO: Codable, Hashable, Identifiable {
+    let family: String
+    let input: Double
+    let output: Double
+    let cacheWrite: Double
+    let cacheRead: Double
+
+    var id: String { family }
+}
+
+/// One slot in a histogram series. `start` is the inclusive lower bound; the
+/// upper bound is implicit (next slot, or now for the final slot).
+struct TimedBucketDTO: Codable, Hashable, Identifiable {
+    let start: Date
+    let bucket: UsageBucketDTO
+
+    var id: Date { start }
+}
+
+struct UsageBucketDTO: Codable, Hashable {
+    let inputTokens: Int64
+    let outputTokens: Int64
+    let cacheCreationTokens: Int64
+    let cacheReadTokens: Int64
+    /// Sum of input + output + cache_write. Cache reads are tracked separately
+    /// because they would otherwise dominate the headline number.
+    let totalTokens: Int64
+    /// Estimated dollar cost at Anthropic's published per-model rates,
+    /// computed across all four token flows (including cache reads).
+    let estimatedCostUsd: Double
+    let requests: Int
 }

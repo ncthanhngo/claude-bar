@@ -34,9 +34,9 @@ struct AccountRowView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        // Do NOT use .disabled() — it dims the whole row via SwiftUI opacity.
-        // Block interaction manually instead.
-        .allowsHitTesting(!view.isActive && store.swappingTo == nil)
+        // Keep row menus available for the active account; trySwap blocks a
+        // no-op account switch in the button action.
+        .allowsHitTesting(store.swappingTo == nil)
         .onHover { isHovering = $0 }
         .pointingHandCursor(when: !view.isActive)
         .contextMenu { contextMenuBody }
@@ -60,6 +60,8 @@ struct AccountRowView: View {
                 .foregroundColor(.primary)
                 .lineLimit(1)
 
+            webUsageBadge
+
             Spacer(minLength: 4)
 
             if isSwappingThisRow {
@@ -72,7 +74,7 @@ struct AccountRowView: View {
                     .foregroundColor(.accentColor)
             }
 
-            moreButton.opacity(isHovering ? 1 : 0)
+            moreButton.opacity(isHovering ? 1 : 0.45)
         }
     }
 
@@ -133,6 +135,55 @@ struct AccountRowView: View {
         .padding(.leading, 32)
     }
 
+    private var webUsageBadge: some View {
+        HStack(spacing: 3) {
+            Image(systemName: webUsageIcon)
+                .font(.system(size: 8, weight: .semibold))
+            Text(webUsageLabel)
+                .font(.system(size: 9, weight: .medium))
+                .lineLimit(1)
+        }
+        .foregroundColor(webUsageColor)
+        .padding(.horizontal, 5)
+        .padding(.vertical, 2)
+        .background(webUsageColor.opacity(0.12))
+        .clipShape(Capsule())
+        .help(webUsageHelp)
+    }
+
+    private var webUsageIcon: String {
+        switch webFallback.state(for: view.account) {
+        case .connected: return "checkmark.icloud"
+        case .linked: return "globe"
+        case .fallback: return "exclamationmark.icloud"
+        case .notLinked: return "terminal"
+        }
+    }
+
+    private var webUsageLabel: String {
+        switch webFallback.state(for: view.account) {
+        case .connected, .linked, .fallback: return "Web"
+        case .notLinked: return "Terminal"
+        }
+    }
+
+    private var webUsageColor: Color {
+        switch webFallback.state(for: view.account) {
+        case .connected: return .green
+        case .fallback: return .orange
+        case .linked, .notLinked: return .secondary
+        }
+    }
+
+    private var webUsageHelp: String {
+        switch webFallback.state(for: view.account) {
+        case .connected(let summary): return "Web usage linked: \(summary)"
+        case .linked: return "Web usage linked for this account."
+        case .fallback(let detail): return "Web usage linked but unavailable: \(detail)"
+        case .notLinked: return "Web usage not linked. Terminal usage fallback is active."
+        }
+    }
+
     // MARK: - Usage block
 
     @ViewBuilder
@@ -183,8 +234,8 @@ struct AccountRowView: View {
             Text(friendly)
                 .font(.system(size: 10)).foregroundColor(.secondary).lineLimit(1)
             if isRateLimit {
-                Button { webFallback.open() } label: {
-                    Text("Use web fallback")
+                Button { webFallback.open(for: view) } label: {
+                    Text("Open web usage")
                         .font(.system(size: 10, weight: .medium))
                         .foregroundColor(.accentColor).underline()
                 }
@@ -203,6 +254,22 @@ struct AccountRowView: View {
 
     @ViewBuilder
     private var accountMenuItems: some View {
+        if webFallback.isLinked(view.account) {
+            Button("Open web usage") {
+                webFallback.open(for: view)
+            }
+            Button("Refresh web usage") {
+                Task { await store.refreshNow() }
+            }
+            Button("Disconnect web usage", role: .destructive) {
+                Task { await webFallback.disconnect(view.account) }
+            }
+        } else {
+            Button("Connect web usage") {
+                webFallback.open(for: view)
+            }
+        }
+        Divider()
         Button("Rename…", action: onRename)
         if !view.isActive {
             Button("Switch to this account", action: trySwap)

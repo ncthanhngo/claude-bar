@@ -6,6 +6,8 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/soi/claude-swap-widget/backend/internal/domain"
@@ -15,9 +17,19 @@ import (
 func runList(ctx context.Context, svc *usecase.Service, args []string) error {
 	fs := flag.NewFlagSet("list", flag.ExitOnError)
 	asJSON := fs.Bool("json", false, "machine-readable output")
+	metadataOnly := fs.Bool("metadata-only", false, "skip usage fetches")
+	usageAccountsFlag := fs.String("usage-accounts", "", "comma-separated account numbers to fetch usage for")
 	_ = fs.Parse(args)
 
-	res, err := svc.ListAccounts(ctx)
+	var res *usecase.ListAccountsResult
+	var err error
+	if *metadataOnly {
+		res, err = svc.ListAccountsMetadata(ctx)
+	} else if *usageAccountsFlag != "" {
+		res, err = svc.ListAccountsUsageFor(ctx, parseUsageAccounts(*usageAccountsFlag))
+	} else {
+		res, err = svc.ListAccounts(ctx)
+	}
 	if err != nil {
 		return err
 	}
@@ -26,6 +38,17 @@ func runList(ctx context.Context, svc *usecase.Service, args []string) error {
 	}
 	printList(res)
 	return nil
+}
+
+func parseUsageAccounts(raw string) map[int]bool {
+	out := map[int]bool{}
+	for _, part := range strings.Split(raw, ",") {
+		num, err := strconv.Atoi(strings.TrimSpace(part))
+		if err == nil && num > 0 {
+			out[num] = true
+		}
+	}
+	return out
 }
 
 func printList(r *usecase.ListAccountsResult) {

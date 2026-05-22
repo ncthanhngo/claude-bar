@@ -22,6 +22,7 @@ struct WindowAppearanceSetter: NSViewRepresentable {
         switch theme {
         case .light, .rainbow: window.appearance = NSAppearance(named: .aqua)
         case .dark:            window.appearance = NSAppearance(named: .darkAqua)
+        case .apple:           window.appearance = nil  // follow system appearance
         }
     }
 }

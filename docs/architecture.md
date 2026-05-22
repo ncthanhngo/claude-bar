@@ -62,7 +62,13 @@ Swift widget is a thin client that calls the Go backend via subprocess + JSON.
 
 ## Usage fetch
 
-- Endpoint: `GET https://api.anthropic.com/api/oauth/usage`
+- Accounts may link isolated persistent WKWebView profiles. The widget tries
+  each linked account's `claude.ai/settings/usage` web profile first.
+- Web usage profile IDs stay local to each Mac. Claude web cookies sync
+  separately through iCloud Keychain by lowercased account email and are
+  imported into a new local profile before usage fetch on another Mac.
+- Accounts without web usage, expired web sessions, or parse failures fall back
+  to terminal/backend `GET https://api.anthropic.com/api/oauth/usage`.
   - `Authorization: Bearer <accessToken>`
   - `anthropic-beta: oauth-2025-04-20`
 - Response: `{five_hour: {utilization, resets_at}, seven_day: {utilization, resets_at}}`

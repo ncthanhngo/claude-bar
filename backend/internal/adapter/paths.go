@@ -54,6 +54,15 @@ func UsageCacheFile() string {
 	return filepath.Join(WidgetDataDir(), "usage-cache.json")
 }
 
+// PricingCacheFile holds the most recent pricing snapshot fetched from the
+// hosted JSON (raw.githubusercontent.com). On launch the pricing provider
+// loads this if present so the app can show last-known rates while a fresh
+// fetch runs in the background. Validated before write, so a corrupt file
+// won't poison the cache.
+func PricingCacheFile() string {
+	return filepath.Join(WidgetDataDir(), "pricing-cache.json")
+}
+
 // CloudSyncStateFile holds per-device sync state (seq + bundle hash) for
 // anti-rollback. Local-only — never synced.
 func CloudSyncStateFile() string {

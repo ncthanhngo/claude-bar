@@ -123,6 +123,65 @@ func TestListAccountsUsesBackupForActiveAccount(t *testing.T) {
 	}
 }
 
+func TestListAccountsMetadataSkipsUsageFetch(t *testing.T) {
+	usage := &listTestUsageFetcher{}
+	svc := &Service{
+		Registry: listTestRegistryStore{reg: &domain.Registry{
+			ActiveAccountNumber: 1,
+			Sequence:            []int{1},
+			Accounts: map[int]*domain.Account{
+				1: {Number: 1, Email: "active@example.com"},
+			},
+		}},
+		Usage: usage,
+	}
+
+	res, err := svc.ListAccountsMetadata(context.Background())
+	if err != nil {
+		t.Fatalf("ListAccountsMetadata returned error: %v", err)
+	}
+	if len(res.Accounts) != 1 || !res.Accounts[0].IsActive {
+		t.Fatalf("unexpected metadata view: %+v", res.Accounts)
+	}
+	if len(usage.tokens) != 0 {
+		t.Fatalf("metadata list usage tokens = %v, want none", usage.tokens)
+	}
+}
+
+func TestListAccountsUsageForFetchesRequestedAccounts(t *testing.T) {
+	usage := &listTestUsageFetcher{}
+	svc := &Service{
+		Backup: &listTestBackupStore{
+			blobs: map[int]domain.CredentialBlob{
+				1: credentialBlob("one-token", "one-refresh", time.Now().Add(time.Hour)),
+				2: credentialBlob("two-token", "two-refresh", time.Now().Add(time.Hour)),
+			},
+			writes: map[int]domain.CredentialBlob{},
+		},
+		Registry: listTestRegistryStore{reg: &domain.Registry{
+			ActiveAccountNumber: 1,
+			Sequence:            []int{1, 2},
+			Accounts: map[int]*domain.Account{
+				1: {Number: 1, Email: "one@example.com"},
+				2: {Number: 2, Email: "two@example.com"},
+			},
+		}},
+		Usage:   usage,
+		Refresh: &listTestTokenRefresher{},
+	}
+
+	res, err := svc.ListAccountsUsageFor(context.Background(), map[int]bool{2: true})
+	if err != nil {
+		t.Fatalf("ListAccountsUsageFor returned error: %v", err)
+	}
+	if res.Accounts[0].Usage != nil || res.Accounts[1].Usage == nil {
+		t.Fatalf("usage rows = %+v, want only account 2 filled", res.Accounts)
+	}
+	if len(usage.tokens) != 1 || usage.tokens[0] != "two-token" {
+		t.Fatalf("usage tokens = %v, want only account 2 token", usage.tokens)
+	}
+}
+
 func TestListAccountsShowsConfigActiveAccountWhenRegistryDrifts(t *testing.T) {
 	backup := &listTestBackupStore{
 		blobs: map[int]domain.CredentialBlob{

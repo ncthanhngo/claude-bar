@@ -31,7 +31,7 @@ struct BriefingView: View {
                     isRunning: coord.isRunning,
                     onRun: { Task { await coord.runNow() } },
                     onNewChat: { Task { await chatStore.newConversation() } },
-                    onSettings: { NotificationCenter.default.post(name: .openSettings, object: nil) },
+                    onSettings: { MenuBarPopoverToggle.toggle() },
                     onClose: { coord.close() }
                 )
                 bodyStage

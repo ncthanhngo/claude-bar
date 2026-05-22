@@ -58,6 +58,8 @@ func main() {
 		err = runBriefing(ctx, svc, args)
 	case "chat":
 		err = runChat(ctx, svc, args)
+	case "usage-stats":
+		err = runUsageStats(ctx, svc, args)
 	case "help", "-h", "--help":
 		usage()
 	default:

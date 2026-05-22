@@ -104,7 +104,7 @@ func FallbackRank(raw *RawSourceData, today time.Time) *BriefingPayload {
 	for i, p := range pool {
 		a := p.action
 		switch {
-		case i < 3 && p.w >= 50:
+		case i < 3:
 			a.Priority = "urgent"
 			a.DeadlineTone = "urgent"
 			urgentN++
@@ -121,7 +121,7 @@ func FallbackRank(raw *RawSourceData, today time.Time) *BriefingPayload {
 
 	hero := PayloadHero{
 		Eyebrow:     "Hôm nay bạn cần làm",
-		Title:       fmt.Sprintf("%s việc đang chờ — tóm tắt theo quy tắc.", vnSpellNumber(len(actions))),
+		Title:       fmt.Sprintf("%s *việc* đang chờ — sẵn sàng cho ngày mới.", vnSpellNumber(len(actions))),
 		FocusBadge:  "trước tiên",
 		FocusBody:   focusBody(actions),
 		CountNumber: len(actions),

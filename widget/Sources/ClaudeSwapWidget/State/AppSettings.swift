@@ -106,6 +106,19 @@ final class AppSettings: ObservableObject {
     @AppStorage("lastBackupTokenRefreshSuccessAt") var lastBackupTokenRefreshSuccessAt: Double = 0
     @AppStorage("menuBarIconColor") var menuBarIconColor: MenuBarIconColor = .system
 
+    /// Display name shown in the Daily window's top-left profile chip.
+    /// Empty falls back to "Bạn" so the chip still renders something readable.
+    @AppStorage("dailyProfileName") var dailyProfileName: String = ""
+
+    /// Absolute path to the user-selected avatar PNG copied into
+    /// `~/Library/Application Support/claude-swap-widget/avatar.png`.
+    /// Empty means use the initial-letter placeholder.
+    @AppStorage("dailyProfileAvatarPath") var dailyProfileAvatarPath: String = ""
+
+    /// Bumped every time the avatar file is rewritten so SwiftUI views observing
+    /// this counter re-decode the on-disk image without us mutating its URL.
+    @AppStorage("dailyProfileAvatarVersion") var dailyProfileAvatarVersion: Int = 0
+
     /// Parsed view of `reloadShortcut`, with default fallback if the stored
     /// string is malformed (e.g. user-edited UserDefaults).
     var parsedReloadShortcut: KeyboardShortcut {

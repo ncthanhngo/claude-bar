@@ -20,11 +20,12 @@ brew install --cask claude-bar
 - **Multi-account management** — add, rename, and switch Claude Code accounts from the menu bar
 - **Credential health** — inactive accounts that can no longer refresh are marked before a broken switch
 - **Usage display** — 5-hour and 7-day quota bars with % and time-until-reset for each account
+- **Token usage chart** — Hour / Day / Month histogram of tokens and estimated USD cost across all local Claude Code sessions (CLI + IDE extensions). Click **Details** next to USD to see Anthropic's per-model rate table; rates auto-refresh in the background from a hosted JSON so updated Anthropic pricing flows in without a new release
 - **Auto-swap** — automatically switches to a lower-usage account when the active one hits your threshold; waits for `claude` to exit first, then notifies you
 - **IDE reload** — after a swap, reloads VSCode / Code Insiders / Cursor / Windsurf / Antigravity windows so the extension picks up new credentials (requires Accessibility permission). Reload shortcut is user-configurable (default `⌃⌘R`) and auto-installed into each editor's `keybindings.json`
 - **CLI auto-restart** — sends SIGINT to running `claude` sessions; use with the bundled `claude-watch` wrapper to auto-restart in your terminal
 - **Session guard** — warns you if Claude is running before a manual switch; option to force-switch anyway
-- **Web fallback** — embedded WKWebView for fetching usage data when the Anthropic API is rate-limited
+- **Web-first usage** — each account can link its own embedded claude.ai web profile for usage before falling back to terminal OAuth usage; web sessions sync separately through iCloud Keychain by account email
 - **Themes** — Light, Dark, and Rainbow
 - **Icon color** — 11 preset tint colors for the menu bar icon (Settings → General)
 
