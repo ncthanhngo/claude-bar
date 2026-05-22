@@ -17,7 +17,7 @@ import (
 // runChatConversations dispatches `csw chat conversations <sub>`.
 func runChatConversations(ctx context.Context, svc *chat.Service, accountNum int, args []string) error {
 	if len(args) == 0 {
-		return errors.New("usage: csw chat conversations <list|create|load|rename|delete> ...")
+		return errors.New("usage: csw chat conversations <list|create|load|rename|delete|export|import> ...")
 	}
 	sub, rest := args[0], args[1:]
 	switch sub {
@@ -31,6 +31,10 @@ func runChatConversations(ctx context.Context, svc *chat.Service, accountNum int
 		return runConvRename(ctx, svc, accountNum, rest)
 	case "delete":
 		return runConvDelete(ctx, svc, accountNum, rest)
+	case "export":
+		return runChatExport(ctx, svc, accountNum, rest)
+	case "import":
+		return runChatImport(ctx, svc, accountNum, rest)
 	default:
 		return fmt.Errorf("unknown conversations subcommand: %s", sub)
 	}

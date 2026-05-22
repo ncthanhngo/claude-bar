@@ -37,6 +37,8 @@ func runChat(ctx context.Context, svc *usecase.Service, args []string) error {
 		return runChatAttach(ctx, chatSvc, accountNum, rest)
 	case "attachment":
 		return runChatAttachment(ctx, chatSvc, accountNum, rest)
+	case "diagnostics":
+		return runChatDiagnostics(ctx, chatSvc, accountNum, rest)
 	case "search":
 		return runChatSearch(ctx, chatSvc, accountNum, rest)
 	default:
