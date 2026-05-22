@@ -17,6 +17,11 @@ struct SettingsWindowView: View {
     @State private var restoreBackupPassphrase = ""
     @State private var restoreSelectedSlot: Int?
     @State private var restoreConfirmSlot: Int?
+    // Restore-preview sheet: opened after passphrase entry / slot selection.
+    @State private var showRestorePreviewSheet = false
+    @State private var restorePreviewSlot: Int = 0
+    @State private var restorePreviewPassphrase: String = ""
+    @State private var restorePreviewSelection: Set<String> = []
     @State private var installedKeybindingTargets: [KeybindingsInstaller.Target] = KeybindingsInstaller.detectInstalled()
     @State private var keybindingApplyStatus: String?
 
@@ -36,6 +41,10 @@ struct SettingsWindowView: View {
             restoreSelectedSlot = nil
             restoreConfirmSlot = nil
         }) { restoreBackupSheet }
+        .sheet(isPresented: $showRestorePreviewSheet, onDismiss: {
+            cloudSync.clearPreview()
+            restorePreviewSelection = []
+        }) { restorePreviewSheet }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             axGranted = IDEReloader.isAccessibilityGranted
         }
@@ -56,6 +65,7 @@ struct SettingsWindowView: View {
                     .foregroundColor(.secondary).font(.callout)
             }
             Divider()
+            AddAccountGuidanceCard()
             Button {
                 loginCoordinator.begin()
             } label: {
@@ -744,19 +754,30 @@ struct SettingsWindowView: View {
             HStack {
                 Button("Cancel") { showPassphraseEntry = false }.buttonStyle(.bordered)
                 Spacer()
-                Button(cloudSync.passphraseIntent == .pull ? "Restore" : "Save & Push") {
+                Button(cloudSync.passphraseIntent == .pull ? "Continue…" : "Save & Push") {
                     guard !passphraseField.isEmpty else {
                         passphraseError = "Passphrase cannot be empty."
                         return
                     }
                     showPassphraseEntry = false
-                    Task {
-                        if cloudSync.passphraseIntent == .pull {
-                            await cloudSync.pull(passphrase: passphraseField)
-                            await store.refreshNow()
-                        } else {
-                            await cloudSync.push(passphrase: passphraseField)
+                    if cloudSync.passphraseIntent == .pull {
+                        // Open preview-table sheet instead of restoring directly,
+                        // so the user can compare CreatedAt and pick accounts.
+                        restorePreviewSlot = 0
+                        restorePreviewPassphrase = passphraseField
+                        restorePreviewSelection = []
+                        showRestorePreviewSheet = true
+                        Task {
+                            await cloudSync.preview(slot: 0, passphrase: passphraseField)
+                            // Default-select every remote-only + both row.
+                            restorePreviewSelection = Set(
+                                cloudSync.previewRows
+                                    .filter { $0.status != "localOnly" }
+                                    .map { $0.identity }
+                            )
                         }
+                    } else {
+                        Task { await cloudSync.push(passphrase: passphraseField) }
                     }
                 }
                 .buttonStyle(.borderedProminent)
@@ -840,21 +861,29 @@ struct SettingsWindowView: View {
             ),
             titleVisibility: .visible
         ) {
-            Button("Restore now", role: .destructive) {
+            Button("Choose accounts…") {
                 guard let slot = restoreConfirmSlot else { return }
                 let pass = restoreBackupPassphrase.isEmpty
                     ? (cloudSync.loadPassphrase() ?? "")
                     : restoreBackupPassphrase
                 restoreConfirmSlot = nil
                 showRestoreBackupSheet = false
+                restorePreviewSlot = slot
+                restorePreviewPassphrase = pass
+                restorePreviewSelection = []
+                showRestorePreviewSheet = true
                 Task {
-                    await cloudSync.restoreBackup(slot: slot, passphrase: pass)
-                    await store.refreshNow()
+                    await cloudSync.preview(slot: slot, passphrase: pass)
+                    restorePreviewSelection = Set(
+                        cloudSync.previewRows
+                            .filter { $0.status != "localOnly" }
+                            .map { $0.identity }
+                    )
                 }
             }
             Button("Cancel", role: .cancel) { restoreConfirmSlot = nil }
         } message: {
-            Text("This overwrites current keychain credentials for every account in the chosen bundle. Anti-rollback is bypassed and the sync state is rewound to this bundle's seq.")
+            Text("You'll see a side-by-side table of local vs bundle accounts and choose which ones to restore. Anti-rollback is bypassed for backup slots and the sync state is rewound to this bundle's seq.")
         }
     }
 
@@ -904,6 +933,171 @@ struct SettingsWindowView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+    }
+
+    // MARK: - Restore preview sheet
+
+    private var restorePreviewSheet: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 8) {
+                Text(restorePreviewSlot == 0 ? "Review restore" : "Review restore (backup #\(restorePreviewSlot))")
+                    .font(.headline)
+                Spacer()
+                if cloudSync.isBusy {
+                    ProgressView().controlSize(.small)
+                }
+            }
+            Text("Tick the accounts you want to bring in from the cloud bundle. Local-only accounts stay untouched. Both-side rows are overwritten with the bundle's credentials if ticked.")
+                .font(.caption).foregroundColor(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            previewTableHeader
+            ScrollView {
+                VStack(spacing: 4) {
+                    ForEach(cloudSync.previewRows) { row in
+                        previewRow(row)
+                    }
+                }
+            }
+            .frame(maxHeight: 300)
+            .background(Color.primary.opacity(0.03))
+            .clipShape(RoundedRectangle(cornerRadius: 6))
+
+            if let err = cloudSync.lastError {
+                Text(err).font(.caption).foregroundColor(.red)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            HStack {
+                Button("Select all incoming") {
+                    restorePreviewSelection = Set(
+                        cloudSync.previewRows
+                            .filter { $0.status != "localOnly" }
+                            .map { $0.identity }
+                    )
+                }
+                .buttonStyle(.borderless).font(.caption)
+                Button("Deselect all") { restorePreviewSelection = [] }
+                    .buttonStyle(.borderless).font(.caption)
+                Spacer()
+                Text("\(restorePreviewSelection.count) selected")
+                    .font(.caption).foregroundColor(.secondary)
+            }
+
+            HStack {
+                Button("Cancel") { showRestorePreviewSheet = false }
+                    .buttonStyle(.bordered)
+                Spacer()
+                Button {
+                    let identities = Array(restorePreviewSelection)
+                    let slot = restorePreviewSlot
+                    let pass = restorePreviewPassphrase
+                    showRestorePreviewSheet = false
+                    Task {
+                        await cloudSync.pullSelective(slot: slot, passphrase: pass, identities: identities)
+                        await store.refreshNow()
+                    }
+                } label: {
+                    Label("Restore selected (\(restorePreviewSelection.count))",
+                          systemImage: "checkmark.circle.fill")
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(restorePreviewSelection.isEmpty || cloudSync.isBusy)
+            }
+        }
+        .padding(20)
+        .frame(width: 620)
+    }
+
+    private var previewTableHeader: some View {
+        HStack(spacing: 8) {
+            Text("").frame(width: 22)
+            Text("Account").font(.caption2).foregroundColor(.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            Text("Local Created").font(.caption2).foregroundColor(.secondary)
+                .frame(width: 130, alignment: .leading)
+            Text("Bundle Created").font(.caption2).foregroundColor(.secondary)
+                .frame(width: 130, alignment: .leading)
+            Text("Status").font(.caption2).foregroundColor(.secondary)
+                .frame(width: 80, alignment: .leading)
+        }
+        .padding(.horizontal, 8)
+    }
+
+    private func previewRow(_ row: CswClient.CloudPreviewRowDTO) -> some View {
+        let isLocalOnly = row.status == "localOnly"
+        let selected = restorePreviewSelection.contains(row.identity)
+        return HStack(spacing: 8) {
+            if isLocalOnly {
+                // Local-only rows are not restore-able — show a dash instead.
+                Image(systemName: "minus")
+                    .foregroundColor(.secondary)
+                    .frame(width: 22)
+            } else {
+                Button {
+                    if selected {
+                        restorePreviewSelection.remove(row.identity)
+                    } else {
+                        restorePreviewSelection.insert(row.identity)
+                    }
+                } label: {
+                    Image(systemName: selected ? "checkmark.square.fill" : "square")
+                        .foregroundColor(selected ? .accentColor : .secondary)
+                }
+                .buttonStyle(.plain)
+                .frame(width: 22)
+            }
+
+            VStack(alignment: .leading, spacing: 1) {
+                Text(displayName(row))
+                    .font(.system(size: 12, weight: .medium))
+                    .lineLimit(1)
+                Text(row.email)
+                    .font(.caption2).foregroundColor(.secondary)
+                    .lineLimit(1)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            Text(formatPreviewDate(row.localCreatedAt))
+                .font(.caption).foregroundColor(.secondary).monospacedDigit()
+                .frame(width: 130, alignment: .leading)
+            Text(formatPreviewDate(row.remoteCreatedAt))
+                .font(.caption).foregroundColor(.secondary).monospacedDigit()
+                .frame(width: 130, alignment: .leading)
+            statusBadge(row.status)
+                .frame(width: 80, alignment: .leading)
+        }
+        .padding(.vertical, 6)
+        .padding(.horizontal, 8)
+        .background(selected ? Color.accentColor.opacity(0.08) : Color.clear)
+        .clipShape(RoundedRectangle(cornerRadius: 4))
+    }
+
+    private func displayName(_ row: CswClient.CloudPreviewRowDTO) -> String {
+        if let nick = row.nickname, !nick.isEmpty { return nick }
+        if let org = row.organizationName, !org.isEmpty { return org }
+        return row.email
+    }
+
+    private func formatPreviewDate(_ d: Date?) -> String {
+        guard let d = d else { return "—" }
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd HH:mm"
+        return f.string(from: d)
+    }
+
+    @ViewBuilder
+    private func statusBadge(_ status: String) -> some View {
+        switch status {
+        case "remoteOnly":
+            badge("NEW", color: .blue)
+        case "both":
+            badge("MATCH", color: .green)
+        case "localOnly":
+            badge("LOCAL", color: .secondary)
+        default:
+            badge(status.uppercased(), color: .secondary)
+        }
     }
 
     private func relativeDate(_ d: Date) -> String {
