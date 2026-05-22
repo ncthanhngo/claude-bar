@@ -6,6 +6,7 @@ import SwiftUI
 /// expensive briefing re-fetch.
 struct BriefingView: View {
     @EnvironmentObject private var coord: BriefingCoordinator
+    @EnvironmentObject private var chatStore: ChatStore
     @ObservedObject private var settings = AppSettings.shared
 
     private var palette: BriefingPalette { settings.widgetTheme.briefingPalette }
@@ -29,7 +30,7 @@ struct BriefingView: View {
                     nextRun: nextRunLabel,
                     isRunning: coord.isRunning,
                     onRun: { Task { await coord.runNow() } },
-                    onNewChat: { /* Phase 06+ wires ChatStore.newConversation() */ },
+                    onNewChat: { Task { await chatStore.newConversation() } },
                     onSettings: { NotificationCenter.default.post(name: .openSettings, object: nil) },
                     onClose: { coord.close() }
                 )

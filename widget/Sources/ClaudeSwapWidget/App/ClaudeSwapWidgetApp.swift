@@ -21,6 +21,7 @@ struct ClaudeSwapWidgetApp: App {
     @StateObject private var cloudSync = CloudSyncCoordinator(client: CswClient())
     @StateObject private var localMCP = LocalMCPCoordinator(client: CswClient())
     @StateObject private var briefingCoord = BriefingCoordinator(client: CswClient())
+    @StateObject private var chatStore = ChatStore()
     @ObservedObject private var settings = AppSettings.shared
     @Environment(\.openSettings) private var openSettings
 
@@ -111,7 +112,12 @@ struct ClaudeSwapWidgetApp: App {
                     store.cloudSync = cloudSync
                     store.start()
                     briefingCoord.start()
-                    BriefingWindowController.shared.attach(coordinator: briefingCoord, store: store)
+                    chatStore.bind(to: store)
+                    BriefingWindowController.shared.attach(
+                        coordinator: briefingCoord,
+                        store: store,
+                        chatStore: chatStore
+                    )
                     registerBriefingHotkeys(open: openSettings, briefing: briefingCoord)
                     await cloudSync.refreshStatus()
                     await cloudSync.checkOnboarding(snapshot: store.snapshot)
