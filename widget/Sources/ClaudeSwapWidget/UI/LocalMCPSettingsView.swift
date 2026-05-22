@@ -249,19 +249,44 @@ struct LocalMCPSettingsView: View {
     @ViewBuilder private func promptDisclosureButton(account: Int, service: String) -> some View {
         let key = promptKey(account: account, service: service)
         let isOpen = expandedConnectorPrompt == key
+        let filled = !connectorPromptIsEmpty(service: service)
         Button {
             expandedConnectorPrompt = isOpen ? nil : key
         } label: {
-            HStack(spacing: 3) {
-                Image(systemName: isOpen ? "chevron.down" : "chevron.right")
-                    .font(.system(size: 9, weight: .semibold))
-                Text(isOpen ? "Ẩn prompt" : "Sửa prompt")
-                    .font(.caption)
+            HStack(spacing: 4) {
+                Image(systemName: filled ? "text.badge.checkmark" : "square.and.pencil")
+                    .font(.system(size: 10, weight: .semibold))
+                Text(isOpen ? "Ẩn prompt" : (filled ? "Sửa prompt ✓" : "Sửa prompt"))
+                    .font(.system(size: 11, weight: .semibold))
             }
-            .foregroundColor(.secondary)
+            .foregroundColor(.white)
+            .padding(.horizontal, 9)
+            .padding(.vertical, 4)
+            .background(
+                Capsule().fill(filled ? Color.green : Color.accentColor)
+            )
+            .overlay(
+                Capsule().stroke(Color.white.opacity(0.25), lineWidth: 0.5)
+            )
+            .shadow(color: Color.black.opacity(0.12), radius: 1, y: 1)
         }
-        .buttonStyle(.borderless)
-        .help("Markdown hướng dẫn Claude khi đọc dữ liệu từ connector này.")
+        .buttonStyle(.plain)
+        .help("Markdown hướng dẫn Claude khi đọc dữ liệu từ connector này. Tự lưu khi gõ.")
+    }
+
+    /// True when this connector's prompt (or any of its Google sub-tags) is
+    /// still blank — drives the "Sửa prompt" vs "Sửa prompt ✓" + colour
+    /// swap on the disclosure pill.
+    private func connectorPromptIsEmpty(service: String) -> Bool {
+        switch service.lowercased() {
+        case "slack":   return connectorPrompts.slack.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        case "clickup": return connectorPrompts.clickup.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        case "gdrive":
+            return [connectorPrompts.gdrive, connectorPrompts.gmail,
+                    connectorPrompts.gcal, connectorPrompts.gsheets]
+                .allSatisfy { $0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+        default: return true
+        }
     }
 
     /// For non-Google services: one TextEditor mapped to the matching Tag.
