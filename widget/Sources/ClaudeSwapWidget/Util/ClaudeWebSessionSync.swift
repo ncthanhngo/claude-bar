@@ -2,16 +2,27 @@ import Foundation
 import Security
 import WebKit
 
-/// Syncs Claude web usage cookies by account email through iCloud Keychain.
+/// Persists Claude web usage cookies by account email.
 ///
-/// WKWebsiteDataStore profile identifiers stay local to each Mac. A synced
-/// cookie payload lets another Mac recreate its own profile for the same email.
+/// Two layers:
+///   1. **Local Keychain** (this file) — non-synchronizable items in
+///      login.keychain-db. Fast lookups; survives app relaunch on the same Mac.
+///   2. **Encrypted iCloud Drive bundle** ([[WebCookieCloudSync]]) — pushed
+///      alongside the accounts `cloud-bundle.enc` when the user has configured
+///      the cloud-sync passphrase. Provides cross-device sync.
+///
+/// History: an earlier version used `kSecAttrSynchronizable: true` to ride
+/// iCloud Keychain. That path silently fails with `errSecMissingEntitlement`
+/// because the app is ad-hoc-signed (no iCloud entitlement available without
+/// an Apple Developer Program identity). Dropping the flag makes local
+/// persistence actually work; cross-device sync moves to the bundle layer.
 @MainActor
 enum ClaudeWebSessionSync {
     private static let service = "claude-bar-web-usage-session"
 
     static func hasSession(for account: AccountDTO) -> Bool {
-        load(for: account) != nil
+        if loadLocal(for: account) != nil { return true }
+        return WebCookieCloudSync.hasSession(for: account)
     }
 
     static func save(account: AccountDTO, dataStore: WKWebsiteDataStore) async {
@@ -22,32 +33,46 @@ enum ClaudeWebSessionSync {
               let data = try? JSONEncoder().encode(SyncedSession(cookies: cookies)) else {
             return
         }
-
-        let query = itemQuery(for: account)
-        let update: [CFString: Any] = [kSecValueData: data]
-        if SecItemUpdate(query as CFDictionary, update as CFDictionary) == errSecItemNotFound {
-            var item = query
-            item[kSecValueData] = data
-            item[kSecAttrAccessible] = kSecAttrAccessibleAfterFirstUnlock
-            SecItemAdd(item as CFDictionary, nil)
-        }
+        saveLocal(account: account, data: data)
+        await WebCookieCloudSync.save(account: account, dataStore: dataStore)
     }
 
     static func restore(account: AccountDTO, dataStore: WKWebsiteDataStore) async -> Bool {
-        guard let session = load(for: account) else { return false }
-        var restored = false
-        for cookie in session.cookies.compactMap(\.httpCookie) {
-            await dataStore.httpCookieStore.setCookie(cookie)
-            restored = true
+        if let session = loadLocal(for: account) {
+            return await apply(session: session, to: dataStore)
+        }
+        let restored = await WebCookieCloudSync.restore(account: account, dataStore: dataStore)
+        if restored {
+            // Warm the local cache so subsequent restores skip the encrypt/decrypt.
+            await save(account: account, dataStore: dataStore)
         }
         return restored
     }
 
     static func remove(account: AccountDTO) {
         SecItemDelete(itemQuery(for: account) as CFDictionary)
+        WebCookieCloudSync.remove(account: account)
     }
 
-    private static func load(for account: AccountDTO) -> SyncedSession? {
+    // MARK: - Local Keychain
+
+    private static func saveLocal(account: AccountDTO, data: Data) {
+        let query = itemQuery(for: account)
+        let updateStatus = SecItemUpdate(query as CFDictionary, [kSecValueData: data] as CFDictionary)
+        if updateStatus == errSecItemNotFound {
+            var item = query
+            item[kSecValueData] = data
+            item[kSecAttrAccessible] = kSecAttrAccessibleAfterFirstUnlock
+            let addStatus = SecItemAdd(item as CFDictionary, nil)
+            if addStatus != errSecSuccess {
+                NSLog("[ClaudeWebSessionSync] SecItemAdd failed (status=\(addStatus)) for \(account.email)")
+            }
+        } else if updateStatus != errSecSuccess {
+            NSLog("[ClaudeWebSessionSync] SecItemUpdate failed (status=\(updateStatus)) for \(account.email)")
+        }
+    }
+
+    private static func loadLocal(for account: AccountDTO) -> SyncedSession? {
         var query = itemQuery(for: account)
         query[kSecReturnData] = true
         query[kSecMatchLimit] = kSecMatchLimitOne
@@ -61,12 +86,23 @@ enum ClaudeWebSessionSync {
         return try? JSONDecoder().decode(SyncedSession.self, from: data)
     }
 
+    private static func apply(session: SyncedSession, to dataStore: WKWebsiteDataStore) async -> Bool {
+        var restored = false
+        for cookie in session.cookies.compactMap(\.httpCookie) {
+            await dataStore.httpCookieStore.setCookie(cookie)
+            restored = true
+        }
+        return restored
+    }
+
     private static func itemQuery(for account: AccountDTO) -> [CFString: Any] {
+        // No `kSecAttrSynchronizable` here — iCloud Keychain sync requires an
+        // entitlement that ad-hoc-signed builds don't carry. Cross-device sync
+        // happens through [[WebCookieCloudSync]] instead.
         [
             kSecClass: kSecClassGenericPassword,
             kSecAttrService: service,
-            kSecAttrAccount: syncAccount(for: account),
-            kSecAttrSynchronizable: true
+            kSecAttrAccount: syncAccount(for: account)
         ]
     }
 
