@@ -4,12 +4,32 @@ import (
 	"context"
 	"crypto/sha1"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"os"
 	"time"
 
 	"github.com/soi/claude-swap-widget/backend/internal/adapter"
 )
+
+// ConnectorPrompts mirrors the widget's MCPConnectorPrompts JSON shape.
+// All fields are optional; an empty string means "no user override for
+// this connector". JSON keys match the Tag.rawValue on the Swift side.
+type ConnectorPrompts struct {
+	Slack   string `json:"slack,omitempty"`
+	Clickup string `json:"clickup,omitempty"`
+	GDrive  string `json:"gdrive,omitempty"`
+	Gmail   string `json:"gmail,omitempty"`
+	GCal    string `json:"gcal,omitempty"`
+	GSheets string `json:"gsheets,omitempty"`
+}
+
+// allEmpty short-circuits the prompt-injection branch when the user
+// hasn't customised any per-connector instructions.
+func (c ConnectorPrompts) allEmpty() bool {
+	return c.Slack == "" && c.Clickup == "" && c.GDrive == "" &&
+		c.Gmail == "" && c.GCal == "" && c.GSheets == ""
+}
 
 // Runner is the public entry point combining MCP fan-out + Claude summarize
 // + rule-based fallback + final Briefing assembly.
@@ -25,10 +45,11 @@ func (r *Runner) Run(ctx context.Context, accountNumber int) (*Briefing, error) 
 	today := time.Now()
 
 	userPrompt := loadUserPrompt()
+	connectorPrompts := loadConnectorPrompts()
 
 	var payload *BriefingPayload
 	if r.Summarizer != nil {
-		p, err := r.Summarizer.Summarize(ctx, buildPrompt(raw, today, userPrompt))
+		p, err := r.Summarizer.Summarize(ctx, buildPrompt(raw, today, userPrompt, connectorPrompts))
 		if err == nil {
 			payload = p
 		}
@@ -49,6 +70,22 @@ func loadUserPrompt() string {
 		return ""
 	}
 	return string(bytes)
+}
+
+// loadConnectorPrompts decodes the per-MCP-source markdown overrides the
+// widget Settings UI persists. Returns a zero ConnectorPrompts on any
+// read / decode failure — the runner treats that as "no per-connector
+// overrides" and falls through with the stock prompt.
+func loadConnectorPrompts() ConnectorPrompts {
+	bytes, err := os.ReadFile(adapter.MCPConnectorPromptsFile())
+	if err != nil {
+		return ConnectorPrompts{}
+	}
+	var out ConnectorPrompts
+	if err := json.Unmarshal(bytes, &out); err != nil {
+		return ConnectorPrompts{}
+	}
+	return out
 }
 
 // assembleBriefing merges Claude/fallback payload with raw stats + IDs into

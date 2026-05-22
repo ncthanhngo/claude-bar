@@ -97,6 +97,13 @@ func BriefingUserPromptFile() string {
 	return filepath.Join(WidgetDataDir(), "briefing-user-prompt.md")
 }
 
+// MCPConnectorPromptsFile holds the per-MCP-connector markdown prompts
+// (slack / clickup / gdrive / gmail / gcal / gsheets). JSON-encoded shape
+// of the widget's MCPConnectorPrompts struct.
+func MCPConnectorPromptsFile() string {
+	return filepath.Join(WidgetDataDir(), "mcp-connector-prompts.json")
+}
+
 // EnsureChatAccountDir creates the per-account chat + attachments dirs with
 // safe perms (0700). Idempotent — used by storage.Open on first launch and
 // silently OK if the dirs already exist.
