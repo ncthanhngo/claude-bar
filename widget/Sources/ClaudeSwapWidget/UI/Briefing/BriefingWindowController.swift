@@ -18,16 +18,19 @@ final class BriefingWindowController: NSObject, NSWindowDelegate {
     private var coordinatorObserver: AnyCancellable?
     private weak var coordinator: BriefingCoordinator?
     private weak var store: AppStore?
+    private weak var chatStore: ChatStore?
 
     // MARK: - Public API
 
     /// Attach to a coordinator's `isWindowOpen` flag — opening / closing the
     /// window is driven from the @Published binding, so any caller (hotkey,
     /// menu link, Telegram callback) just flips `coord.show()` / `close()`.
-    /// `store` is injected so `DailyAccountChip` can read the active account.
-    func attach(coordinator: BriefingCoordinator, store: AppStore) {
+    /// `store` + `chatStore` are injected so the Daily UI can read account /
+    /// chat state directly.
+    func attach(coordinator: BriefingCoordinator, store: AppStore, chatStore: ChatStore) {
         self.coordinator = coordinator
         self.store = store
+        self.chatStore = chatStore
         coordinatorObserver = coordinator.$isWindowOpen.sink { [weak self] open in
             guard let self else { return }
             Task { @MainActor in
@@ -48,13 +51,14 @@ final class BriefingWindowController: NSObject, NSWindowDelegate {
         // If this assertion ever trips, the hotkey path opened the window
         // before app start-up finished — fix the caller, never spin up a
         // phantom AppStore here (would split swappingTo / snapshot state).
-        guard let store else {
-            assertionFailure("BriefingWindowController.present called before attach(coordinator:store:)")
+        guard let store, let chatStore else {
+            assertionFailure("BriefingWindowController.present called before attach(coordinator:store:chatStore:)")
             return
         }
         let view = BriefingView()
             .environmentObject(coordinator)
             .environmentObject(store)
+            .environmentObject(chatStore)
         let host = NSHostingController(rootView: AnyView(view))
         self.hostingController = host
 

@@ -31,7 +31,7 @@ struct DailyTopBar: View {
                         nextRun: nextRun
                     )
                 case .chat:
-                    DailyChatSubBar(palette: palette, isReady: false, onNewChat: onNewChat)
+                    DailyChatSubBar(palette: palette, isReady: true, onNewChat: onNewChat)
                 }
             }
             .padding(.leading, 6)
