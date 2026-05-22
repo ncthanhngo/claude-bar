@@ -7,10 +7,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 }
 
-extension Notification.Name {
-    static let openSettings = Notification.Name("claudebar.openSettings")
-}
-
 @main
 struct ClaudeSwapWidgetApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
@@ -22,8 +18,8 @@ struct ClaudeSwapWidgetApp: App {
     @StateObject private var localMCP = LocalMCPCoordinator(client: CswClient())
     @StateObject private var briefingCoord = BriefingCoordinator(client: CswClient())
     @StateObject private var chatStore = ChatStore()
+    @StateObject private var newsCoord = NewsFeedCoordinator()
     @ObservedObject private var settings = AppSettings.shared
-    @Environment(\.openSettings) private var openSettings
 
     init() {
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
@@ -33,7 +29,7 @@ struct ClaudeSwapWidgetApp: App {
     }
 
     @MainActor
-    private func registerBriefingHotkeys(open: OpenSettingsAction, briefing: BriefingCoordinator) {
+    private func registerBriefingHotkeys(briefing: BriefingCoordinator) {
         let s = AppSettings.shared
         // ⌥Z by default — toggles the menu bar popover (xổ xuống / thu lên).
         HotkeyRegistry.shared.register(
@@ -97,14 +93,14 @@ struct ClaudeSwapWidgetApp: App {
 
     var body: some Scene {
         MenuBarExtra {
-            MenuContentView()
+            WidgetTabbedPopover()
                 .environmentObject(store)
                 .environmentObject(loginCoordinator)
                 .environmentObject(verifyCoordinator)
                 .environmentObject(webFallback)
                 .environmentObject(cloudSync)
                 .environmentObject(briefingCoord)
-                .frame(width: 400)
+                .environmentObject(localMCP)
                 .task {
                     loginCoordinator.attach(store: store)
                     verifyCoordinator.attach(store: store)
@@ -113,44 +109,21 @@ struct ClaudeSwapWidgetApp: App {
                     store.start()
                     briefingCoord.start()
                     chatStore.bind(to: store)
+                    newsCoord.start()
                     BriefingWindowController.shared.attach(
                         coordinator: briefingCoord,
                         store: store,
-                        chatStore: chatStore
+                        chatStore: chatStore,
+                        newsCoord: newsCoord
                     )
-                    registerBriefingHotkeys(open: openSettings, briefing: briefingCoord)
+                    registerBriefingHotkeys(briefing: briefingCoord)
                     await cloudSync.refreshStatus()
                     await cloudSync.checkOnboarding(snapshot: store.snapshot)
-                }
-                .onReceive(NotificationCenter.default.publisher(for: .openSettings)) { _ in
-                    openSettings()
-                    let abovePopup = NSWindow.Level(rawValue: NSWindow.Level.statusBar.rawValue + 1)
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-                        NSApp.activate(ignoringOtherApps: true)
-                        NSApp.windows
-                            .filter { $0.isVisible && $0.canBecomeKey }
-                            .filter { $0.level == .normal }
-                            .forEach { win in
-                                win.level = abovePopup
-                                win.makeKeyAndOrderFront(nil)
-                            }
-                    }
                 }
         } label: {
             MenuBarLabelView()
                 .environmentObject(store)
         }
         .menuBarExtraStyle(.window)
-
-        Settings {
-            SettingsWindowView()
-                .environmentObject(store)
-                .environmentObject(loginCoordinator)
-                .environmentObject(verifyCoordinator)
-                .environmentObject(webFallback)
-                .environmentObject(cloudSync)
-                .environmentObject(localMCP)
-                .environmentObject(briefingCoord)
-        }
     }
 }
