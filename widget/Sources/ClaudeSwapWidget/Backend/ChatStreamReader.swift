@@ -34,6 +34,14 @@ enum ChatStreamReader {
             let task = Process()
             task.executableURL = bin
             task.arguments = ["chat", "send", conversationID]
+            // Forward the user's chosen chat-tool tier through an env var so
+            // the Go ChatClient can pick the matching `claude -p` flag set
+            // without us threading another CLI argument through the chain.
+            // UserDefaults reads are MainActor-isolated; the @AppStorage value
+            // is captured up-front and the stream itself runs nonisolated.
+            var env = ProcessInfo.processInfo.environment
+            env["CB_CHAT_TOOL_MODE"] = ChatStreamReader.currentToolMode().rawValue
+            task.environment = env
 
             let stdin = Pipe()
             let stdout = Pipe()
@@ -93,6 +101,15 @@ enum ChatStreamReader {
                 continuation.finish(throwing: error)
             }
         }
+    }
+
+    /// Reads the currently-selected chat tool mode off UserDefaults directly.
+    /// We bypass `AppSettings.shared` (MainActor-isolated) so this can be
+    /// called from the nonisolated `send(...)` factory without an actor hop —
+    /// the cost is the default fallback if the user never opened the MCP tab.
+    private static func currentToolMode() -> ChatToolMode {
+        let raw = UserDefaults.standard.string(forKey: "chatToolMode") ?? ChatToolMode.safe.rawValue
+        return ChatToolMode(rawValue: raw) ?? .safe
     }
 
     private static func decode(

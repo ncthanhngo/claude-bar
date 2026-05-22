@@ -46,6 +46,13 @@ final class AppSettings: ObservableObject {
     /// whichever mode the user last used.
     @AppStorage("dailyMode") var dailyMode: String = DailyMode.plan.rawValue
 
+    /// Tool-permission level for the in-app chat ("Hỏi gì đó với Claude…").
+    /// Read by `ChatStreamReader` and forwarded to the Go chat client via the
+    /// `CB_CHAT_TOOL_MODE` env var. Three tiers: `.off` (no tools / no skills,
+    /// safest), `.safe` (read-only + MCP + skills, no Bash/Write/Edit), `.full`
+    /// (everything, equivalent to `--dangerously-skip-permissions`).
+    @AppStorage("chatToolMode") var chatToolMode: ChatToolMode = .safe
+
     // MARK: - Daily Briefing hotkeys (Carbon key codes + modifier bitmask)
 
     @AppStorage("briefingHotkeyOpenAppKeyCode")
@@ -211,6 +218,45 @@ enum MenuBarIconColor: String, CaseIterable, Identifiable {
         case .red:    return .red
         case .pink:   return Color(red: 1.0, green: 0.45, blue: 0.70)
         case .purple: return .purple
+        }
+    }
+}
+
+/// Tool-permission tier for in-app chat. Wire-format string is the same value
+/// passed through the `CB_CHAT_TOOL_MODE` env var so the Go backend can
+/// switch on it without knowing about Swift enums.
+enum ChatToolMode: String, CaseIterable, Identifiable {
+    case off
+    case safe
+    case full
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .off:  return "Chỉ chat — không tool"
+        case .safe: return "Đọc + MCP + skill (khuyên dùng)"
+        case .full: return "Agentic full — bash, ghi file, thực thi"
+        }
+    }
+
+    var subtitle: String {
+        switch self {
+        case .off:
+            return "Claude chỉ sinh text. Không gọi skill, không MCP, không đọc/sửa file."
+        case .safe:
+            return "Cho phép Read/Glob/Grep, WebFetch/WebSearch, mọi MCP server (Slack/Gmail/Drive/Calendar/ClickUp…), và slash commands (skill). KHÔNG có Bash/Write/Edit nên Claude không thể chạy lệnh hay sửa file của bạn."
+        case .full:
+            return "Toàn bộ tool bao gồm Bash, Write, Edit. Claude chạy từ $HOME nên có thể đọc/ghi mọi file trong home directory và chạy lệnh shell. Bỏ qua mọi confirm — nếu prompt injection xảy ra có thể mất dữ liệu."
+        }
+    }
+
+    /// Severity badge: 0 = safe, 1 = caution, 2 = danger.
+    var riskTier: Int {
+        switch self {
+        case .off:  return 0
+        case .safe: return 1
+        case .full: return 2
         }
     }
 }
