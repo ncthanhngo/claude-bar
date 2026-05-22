@@ -229,6 +229,7 @@ private struct AutoSwapSection: View {
 
 private struct FooterActions: View {
     @ObservedObject private var settings = AppSettings.shared
+    @EnvironmentObject private var briefingCoord: BriefingCoordinator
 
     @ViewBuilder private var themeIcon: some View {
         switch settings.widgetTheme {
@@ -256,6 +257,16 @@ private struct FooterActions: View {
                     .foregroundColor(.secondary)
             }
             .buttonStyle(.borderless).help("Settings")
+            .pointingHandCursor()
+
+            Button {
+                briefingCoord.show()
+            } label: {
+                Image(systemName: "sun.haze")
+                    .font(.system(size: 13))
+                    .foregroundColor(.secondary)
+            }
+            .buttonStyle(.borderless).help("Mở Daily Briefing")
             .pointingHandCursor()
 
             Spacer()

@@ -20,6 +20,7 @@ struct ClaudeSwapWidgetApp: App {
     @StateObject private var webFallback = WebFallbackCoordinator()
     @StateObject private var cloudSync = CloudSyncCoordinator(client: CswClient())
     @StateObject private var localMCP = LocalMCPCoordinator(client: CswClient())
+    @StateObject private var briefingCoord = BriefingCoordinator(client: CswClient())
     @ObservedObject private var settings = AppSettings.shared
     @Environment(\.openSettings) private var openSettings
 
@@ -80,6 +81,7 @@ struct ClaudeSwapWidgetApp: App {
                 .environmentObject(verifyCoordinator)
                 .environmentObject(webFallback)
                 .environmentObject(cloudSync)
+                .environmentObject(briefingCoord)
                 .frame(width: 400)
                 .task {
                     loginCoordinator.attach(store: store)
@@ -87,6 +89,14 @@ struct ClaudeSwapWidgetApp: App {
                     webFallback.attach(store: store)
                     store.cloudSync = cloudSync
                     store.start()
+                    briefingCoord.start()
+                    BriefingWindowController.shared.attach(coordinator: briefingCoord)
+                    BriefingHotkey.shared.register(
+                        keyCode: BriefingHotkeyDefault.keyCode,
+                        modifiers: BriefingHotkeyDefault.modifiers
+                    ) {
+                        Task { @MainActor in briefingCoord.show() }
+                    }
                     await cloudSync.refreshStatus()
                     await cloudSync.checkOnboarding(snapshot: store.snapshot)
                 }
@@ -118,6 +128,7 @@ struct ClaudeSwapWidgetApp: App {
                 .environmentObject(webFallback)
                 .environmentObject(cloudSync)
                 .environmentObject(localMCP)
+                .environmentObject(briefingCoord)
         }
     }
 }
