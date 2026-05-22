@@ -80,6 +80,7 @@ final class ChatStore: ObservableObject {
         activeConversation = nil
         messages = []
         lastError = nil
+        AttachmentPreviewCache.shared.clear()
         await refreshConversations()
     }
 
@@ -250,21 +251,31 @@ final class ChatStore: ObservableObject {
 
     // MARK: - Attachments
 
-    /// Reads file bytes from `url` and uploads via `csw chat attach`. Returns
-    /// the AttachmentDTO so the composer can stash the id for the next send.
+    /// Validates URL extension + size via MediaTypeDetector, reads bytes,
+    /// uploads via `csw chat attach`. Returns the AttachmentDTO on success
+    /// or sets `lastError` and returns nil on validation / upload failure.
     func attachFile(url: URL) async -> AttachmentDTO? {
         guard let client = appStore?.client else { return nil }
         guard let conv = activeConversation else {
             lastError = "Hãy mở một đoạn chat trước khi đính kèm."
             return nil
         }
+        guard let resolved = MediaTypeDetector.detect(url: url) else {
+            lastError = "Định dạng không hỗ trợ: \(url.lastPathComponent)"
+            return nil
+        }
         do {
             let data = try Data(contentsOf: url)
-            let mediaType = mediaTypeForExtension(url.pathExtension)
+            let cap = MediaTypeDetector.sizeCap(for: resolved.kind)
+            if Int64(data.count) > cap {
+                let mb = MediaTypeDetector.sizeCapMB(for: resolved.kind)
+                lastError = "File quá lớn (giới hạn \(mb) MB cho \(resolved.kind.rawValue))"
+                return nil
+            }
             return try await client.chatAttach(
                 conversationID: conv.id,
                 filename: url.lastPathComponent,
-                mediaType: mediaType,
+                mediaType: resolved.mediaType,
                 data: data
             )
         } catch {
@@ -273,18 +284,47 @@ final class ChatStore: ObservableObject {
         }
     }
 
-    private func mediaTypeForExtension(_ ext: String) -> String {
-        switch ext.lowercased() {
-        case "png":  return "image/png"
-        case "jpg", "jpeg": return "image/jpeg"
-        case "gif":  return "image/gif"
-        case "webp": return "image/webp"
-        case "heic": return "image/heic"
-        case "pdf":  return "application/pdf"
-        case "md", "markdown": return "text/markdown"
-        case "txt":  return "text/plain"
-        case "json": return "application/json"
-        default:     return "application/octet-stream"
+    /// Uploads raw image bytes from a Cmd+V paste action. Caller passes
+    /// PNG-encoded bytes; we fabricate a filename so the row carries
+    /// something useful for the rail preview.
+    func pasteImage(_ data: Data) async -> AttachmentDTO? {
+        guard let client = appStore?.client else { return nil }
+        guard let conv = activeConversation else {
+            lastError = "Hãy mở một đoạn chat trước khi dán ảnh."
+            return nil
+        }
+        if Int64(data.count) > MediaTypeDetector.sizeCap(for: .image) {
+            lastError = "Ảnh dán quá lớn (giới hạn 5 MB)."
+            return nil
+        }
+        let filename = "clipboard-\(Int(Date().timeIntervalSince1970)).png"
+        do {
+            return try await client.chatAttach(
+                conversationID: conv.id,
+                filename: filename,
+                mediaType: "image/png",
+                data: data
+            )
+        } catch {
+            lastError = CswError.redact(error.localizedDescription)
+            return nil
+        }
+    }
+
+    /// Returns the decrypted plaintext bytes for an attachment, hitting the
+    /// preview cache first. Used by message-bubble thumbnails for history.
+    func loadAttachmentBytes(id: String) async -> Data? {
+        if let cached = AttachmentPreviewCache.shared.read(id) {
+            return cached
+        }
+        guard let client = appStore?.client else { return nil }
+        do {
+            let data = try await client.chatAttachmentRead(id: id)
+            AttachmentPreviewCache.shared.write(id, data: data)
+            return data
+        } catch {
+            lastError = CswError.redact(error.localizedDescription)
+            return nil
         }
     }
 

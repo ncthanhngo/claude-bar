@@ -14,10 +14,10 @@ import (
 	"github.com/soi/claude-swap-widget/backend/internal/usecase/chat"
 )
 
-// runChat dispatches `csw chat <conversations|send|attach|search>`.
+// runChat dispatches `csw chat <conversations|send|attach|attachment|search>`.
 func runChat(ctx context.Context, svc *usecase.Service, args []string) error {
 	if len(args) == 0 {
-		return errors.New("usage: csw chat <conversations|send|attach|search> ...")
+		return errors.New("usage: csw chat <conversations|send|attach|attachment|search> ...")
 	}
 	chatSvc, err := buildChatService(svc)
 	if err != nil {
@@ -35,10 +35,27 @@ func runChat(ctx context.Context, svc *usecase.Service, args []string) error {
 		return runChatSend(ctx, chatSvc, accountNum, rest)
 	case "attach":
 		return runChatAttach(ctx, chatSvc, accountNum, rest)
+	case "attachment":
+		return runChatAttachment(ctx, chatSvc, accountNum, rest)
 	case "search":
 		return runChatSearch(ctx, chatSvc, accountNum, rest)
 	default:
 		return fmt.Errorf("unknown chat subcommand: %s", sub)
+	}
+}
+
+// runChatAttachment dispatches `csw chat attachment <sub>`. Currently only
+// `read` is implemented; reserved for future write / list variants.
+func runChatAttachment(ctx context.Context, svc *chat.Service, accountNum int, args []string) error {
+	if len(args) == 0 {
+		return errors.New("usage: csw chat attachment <read> ...")
+	}
+	sub, rest := args[0], args[1:]
+	switch sub {
+	case "read":
+		return runChatAttachmentRead(ctx, svc, accountNum, rest)
+	default:
+		return fmt.Errorf("unknown attachment subcommand: %s", sub)
 	}
 }
 

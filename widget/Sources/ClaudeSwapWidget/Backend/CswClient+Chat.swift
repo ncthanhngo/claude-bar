@@ -82,6 +82,13 @@ extension CswClient {
         )
     }
 
+    /// Streams the decrypted attachment bytes from `csw chat attachment read`.
+    /// Used by the historical-preview path — UI clicks a chip on a past
+    /// message, we fetch + cache via AttachmentPreviewCache.
+    func chatAttachmentRead(id: String) async throws -> Data {
+        try await runRaw(["chat", "attachment", "read", id])
+    }
+
     // MARK: - Search
 
     func chatSearch(query: String, limit: Int = 50) async throws -> [MessageDTO] {

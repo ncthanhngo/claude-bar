@@ -85,21 +85,14 @@ struct ChatMessageBubble: View {
     @ViewBuilder private func attachmentChips(alignment: HorizontalAlignment) -> some View {
         let atts = message.content.filter { $0.attachmentID != nil }
         if !atts.isEmpty {
-            HStack(spacing: 6) {
+            HStack(spacing: 8) {
                 ForEach(atts.indices, id: \.self) { i in
                     let a = atts[i]
-                    HStack(spacing: 5) {
-                        Image(systemName: a.kind == "image" ? "photo" : "doc.text")
-                            .font(.system(size: 9, weight: .semibold))
-                        Text(a.mediaType ?? a.kind)
-                            .font(.system(size: 10.5))
-                    }
-                    .foregroundColor(palette.ink2)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(palette.paper2)
-                    .overlay(Capsule().stroke(palette.line2, lineWidth: 1))
-                    .clipShape(Capsule())
+                    ChatAttachmentThumbnail(
+                        attachmentID: a.attachmentID ?? "",
+                        mediaType: a.mediaType,
+                        palette: palette
+                    )
                 }
             }
         }
