@@ -7,11 +7,13 @@ import AppKit
 /// via chatStore.attachFile.
 struct ChatComposer: View {
     @EnvironmentObject private var chatStore: ChatStore
+    @EnvironmentObject private var appStore: AppStore
     let palette: BriefingPalette
 
     @Binding var draft: String
     @Binding var pendingAttachments: [AttachmentDTO]
     @FocusState private var focused: Bool
+    @State private var pendingQuotaConfirm: Bool = false
 
     var body: some View {
         VStack(spacing: 10) {
@@ -21,6 +23,14 @@ struct ChatComposer: View {
         .padding(.horizontal, 32)
         .padding(.bottom, 24)
         .padding(.top, 4)
+        .confirmationDialog(
+            "Quota 5h đang ở \(currentQuotaPctText). Có thể trigger auto-swap. Vẫn gửi?",
+            isPresented: $pendingQuotaConfirm,
+            titleVisibility: .visible
+        ) {
+            Button("Gửi đi", role: .destructive) { reallySend() }
+            Button("Huỷ", role: .cancel) {}
+        }
     }
 
     @ViewBuilder private var card: some View {
@@ -123,11 +133,26 @@ struct ChatComposer: View {
     // MARK: - Actions
 
     private func sendNow() {
+        // Guard rail: if 5h quota >= 90% the next send may trip auto-swap
+        // mid-conversation. Ask user to confirm before firing.
+        if let pct = appStore.snapshot?.active?.usage?.fiveHour?.percentInt, pct >= 90 {
+            pendingQuotaConfirm = true
+            return
+        }
+        reallySend()
+    }
+
+    private func reallySend() {
         let attIDs = pendingAttachments.map(\.id)
         let text = draft
         chatStore.sendCurrent(text: text, attachmentIDs: attIDs)
         draft = ""
         pendingAttachments = []
+    }
+
+    private var currentQuotaPctText: String {
+        guard let pct = appStore.snapshot?.active?.usage?.fiveHour?.percentInt else { return "≥ 90%" }
+        return "\(pct)%"
     }
 
     private func retryLastSend() {
