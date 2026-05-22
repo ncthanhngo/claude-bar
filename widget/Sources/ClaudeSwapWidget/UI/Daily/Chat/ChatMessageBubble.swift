@@ -48,12 +48,7 @@ struct ChatMessageBubble: View {
                 ForEach(ChatFenceParser.segments(of: message.plainText)) { seg in
                     switch seg {
                     case .text(let body):
-                        Text(body)
-                            .font(palette.chatBodyFont)
-                            .foregroundColor(palette.ink)
-                            .multilineTextAlignment(.leading)
-                            .textSelection(.enabled)
-                            .frame(maxWidth: .infinity, alignment: .leading)
+                        ChatMarkdownView(text: body, palette: palette)
                     case .code(let lang, let body):
                         ChatCodeBlock(code: body, language: lang, palette: palette)
                     }

@@ -6,9 +6,11 @@ import SwiftUI
 ///    cycling through `✻✺✹✸✷` + "Đang nghĩ" + animated three-dot ellipsis.
 ///    Reassures the user that the request is in flight before the first
 ///    token lands.
-///  - **Typing** (at least one chunk decoded): the typewritten text from
-///    `chatStore.streamingText` with a blinking caret at the tail. The pace
-///    is smoothed by `TypewriterRenderer` so chunks reveal at reading speed.
+///  - **Typing** (at least one chunk decoded): the streamed text rendered
+///    through `ChatMarkdownView` so headings / lists / emphasis show as
+///    formatted output instead of raw `#`, `**`, `-` markers. A blinking
+///    caret is appended inline to the last paragraph via the view's
+///    `trailingInline` parameter.
 ///
 /// Isolated from the message list so its high-frequency redraws don't churn
 /// the LazyVStack above it.
@@ -52,11 +54,11 @@ struct ChatStreamingBubble: View {
 
     @ViewBuilder private var bodyContent: some View {
         if hasVisibleText, let text = chatStore.streamingText {
-            Text(displayText(text))
-                .font(palette.chatBodyFont)
-                .foregroundColor(palette.ink)
-                .multilineTextAlignment(.leading)
-                .frame(maxWidth: .infinity, alignment: .leading)
+            ChatMarkdownView(
+                text: text,
+                palette: palette,
+                trailingInline: caretInline
+            )
         } else {
             ThinkingIndicator(palette: palette)
         }
@@ -67,14 +69,12 @@ struct ChatStreamingBubble: View {
         return false
     }
 
-    /// Append a trailing caret block to the typewritten text. Caret is a
-    /// unicode left-half block we toggle opacity on via `caretOn` — keeps the
-    /// redraw cheap (no view-tree churn, just an attribute swap).
-    private func displayText(_ text: String) -> AttributedString {
-        var attr = AttributedString(text)
-        var caret = AttributedString("▍")
-        caret.foregroundColor = caretOn ? palette.coral : .clear
-        attr.append(caret)
+    /// Caret as a pre-styled AttributedString. Toggling `caretOn` swaps the
+    /// foreground between coral and clear — fixed-width glyph means the
+    /// layout never reflows on blink.
+    private var caretInline: AttributedString {
+        var attr = AttributedString("▍")
+        attr.foregroundColor = caretOn ? palette.coral : .clear
         return attr
     }
 
@@ -93,8 +93,11 @@ struct ChatStreamingBubble: View {
 
 /// "✻ Đang nghĩ ..." indicator shown before the first token arrives. The
 /// sparkle glyph cycles through five Unicode asterisks at ~6 fps and the
-/// trailing ellipsis grows from one to three dots at ~3 fps — the same
-/// rhythm Claude CLI uses in the terminal.
+/// trailing ellipsis grows from one to three dots at ~3 fps — same rhythm
+/// Claude CLI uses in the terminal. Each dot occupies a fixed slot whose
+/// visibility toggles via opacity, so the row never reflows mid-cycle (the
+/// previous implementation used a variable-width `String(repeating:)` that
+/// caused the third dot to wrap onto a new line at certain widths).
 private struct ThinkingIndicator: View {
     let palette: BriefingPalette
 
@@ -104,7 +107,7 @@ private struct ThinkingIndicator: View {
         TimelineView(.animation(minimumInterval: 1.0 / 12.0)) { ctx in
             let t = ctx.date.timeIntervalSinceReferenceDate
             let sparkleIdx = Int(t * 6) % Self.sparkles.count
-            let dotCount = (Int(t * 3) % 4)
+            let dotCount = (Int(t * 3) % 3) + 1
             HStack(spacing: 8) {
                 Text(Self.sparkles[sparkleIdx])
                     .font(.system(size: 15, weight: .semibold))
@@ -112,10 +115,14 @@ private struct ThinkingIndicator: View {
                 Text("Đang nghĩ")
                     .font(.system(size: 13.5, design: .serif).italic())
                     .foregroundColor(palette.ink2)
-                Text(String(repeating: ".", count: dotCount))
-                    .font(.system(size: 14, weight: .semibold, design: .monospaced))
-                    .foregroundColor(palette.ink2)
-                    .frame(width: 22, alignment: .leading)
+                HStack(spacing: 2) {
+                    ForEach(0..<3, id: \.self) { i in
+                        Text(".")
+                            .font(.system(size: 14, weight: .semibold, design: .monospaced))
+                            .foregroundColor(palette.ink2)
+                            .opacity(i < dotCount ? 1 : 0)
+                    }
+                }
             }
         }
     }
