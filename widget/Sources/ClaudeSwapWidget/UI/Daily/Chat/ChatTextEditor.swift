@@ -24,8 +24,11 @@ struct ChatTextEditor: NSViewRepresentable {
         let scroll = NSScrollView()
         scroll.borderType = .noBorder
         scroll.drawsBackground = false
-        scroll.hasVerticalScroller = true
-        scroll.verticalScrollElasticity = .none
+        // Scrollbar hidden entirely — chat composer should feel like a soft
+        // expanding textarea; the wheel still scrolls when content overflows.
+        scroll.hasVerticalScroller = false
+        scroll.hasHorizontalScroller = false
+        scroll.verticalScrollElasticity = .allowed
         scroll.autohidesScrollers = true
 
         let textView = ReturnInterceptingTextView()
@@ -43,7 +46,9 @@ struct ChatTextEditor: NSViewRepresentable {
         textView.isAutomaticLinkDetectionEnabled = false
         textView.isAutomaticDataDetectionEnabled = false
         textView.allowsUndo = true
-        textView.textContainerInset = NSSize(width: 0, height: 4)
+        // Generous internal padding so the text never hugs the card edge —
+        // matches the soft feel of claude.ai's composer.
+        textView.textContainerInset = NSSize(width: 4, height: 8)
         textView.textContainer?.lineFragmentPadding = 0
         textView.string = text
 

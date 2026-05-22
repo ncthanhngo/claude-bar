@@ -34,18 +34,19 @@ struct ChatComposer: View {
     }
 
     @ViewBuilder private var card: some View {
-        VStack(spacing: 10) {
+        VStack(spacing: 8) {
             ChatComposerAttachments(items: $pendingAttachments, palette: palette)
             textArea
             actionsRow
         }
-        .padding(14)
+        .padding(.horizontal, 18)
+        .padding(.vertical, 14)
         .background(palette.raisedSurface)
         .overlay(
-            RoundedRectangle(cornerRadius: 14).stroke(palette.line, lineWidth: 1)
+            RoundedRectangle(cornerRadius: 18).stroke(palette.line, lineWidth: 1)
         )
-        .clipShape(RoundedRectangle(cornerRadius: 14))
-        .shadow(color: palette.cardShadow, radius: 8, x: 0, y: 2)
+        .clipShape(RoundedRectangle(cornerRadius: 18))
+        .shadow(color: palette.cardShadow, radius: 12, x: 0, y: 3)
         .frame(maxWidth: 760)
         .frame(maxWidth: .infinity)
         .onDrop(of: ["public.file-url"], isTargeted: nil, perform: handleDrop(providers:))
@@ -58,14 +59,14 @@ struct ChatComposer: View {
             placeholder: "Hỏi gì đó với Claude…",
             onSend: { handleReturn() }
         )
-        .frame(minHeight: 60, maxHeight: 200)
+        .frame(minHeight: 84, maxHeight: 220)
         .overlay(alignment: .topLeading) {
             if draft.isEmpty {
                 Text("Hỏi gì đó với Claude…")
                     .font(.system(size: 14.5, design: .serif).italic())
                     .foregroundColor(palette.ink3)
-                    .padding(.top, 4)
-                    .padding(.leading, 2)
+                    .padding(.top, 8)
+                    .padding(.leading, 4)
                     .allowsHitTesting(false)
             }
         }
@@ -90,8 +91,6 @@ struct ChatComposer: View {
                 .foregroundColor(palette.ink3)
             sendButton
         }
-        .padding(.top, 6)
-        .overlay(Divider().background(palette.line), alignment: .top)
     }
 
     @ViewBuilder private var attachButton: some View {
