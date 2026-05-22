@@ -31,6 +31,27 @@ struct ClaudeSwapWidgetApp: App {
         syncReloadShortcutIfNeeded()
     }
 
+    @MainActor
+    private func registerBriefingHotkeys(open: OpenSettingsAction, briefing: BriefingCoordinator) {
+        let s = AppSettings.shared
+        // ⌥Z by default — toggles the menu bar popover (xổ xuống / thu lên).
+        HotkeyRegistry.shared.register(
+            name: BriefingHotkeySlot.openApp,
+            keyCode: UInt32(s.briefingHotkeyOpenAppKeyCode),
+            modifiers: UInt32(s.briefingHotkeyOpenAppModifiers)
+        ) {
+            MenuBarPopoverToggle.toggle()
+        }
+        // ⌥X by default — toggles the Daily Briefing window.
+        HotkeyRegistry.shared.register(
+            name: BriefingHotkeySlot.openBriefing,
+            keyCode: UInt32(s.briefingHotkeyOpenBriefingKeyCode),
+            modifiers: UInt32(s.briefingHotkeyOpenBriefingModifiers)
+        ) {
+            briefing.toggle()
+        }
+    }
+
     /// Keep the configured reload shortcut in sync with each VSCode-family
     /// editor's keybindings.json on launch. Skips work when state file already
     /// reflects the current shortcut + all detected targets.
@@ -90,13 +111,8 @@ struct ClaudeSwapWidgetApp: App {
                     store.cloudSync = cloudSync
                     store.start()
                     briefingCoord.start()
-                    BriefingWindowController.shared.attach(coordinator: briefingCoord)
-                    BriefingHotkey.shared.register(
-                        keyCode: BriefingHotkeyDefault.keyCode,
-                        modifiers: BriefingHotkeyDefault.modifiers
-                    ) {
-                        Task { @MainActor in briefingCoord.show() }
-                    }
+                    BriefingWindowController.shared.attach(coordinator: briefingCoord, store: store)
+                    registerBriefingHotkeys(open: openSettings, briefing: briefingCoord)
                     await cloudSync.refreshStatus()
                     await cloudSync.checkOnboarding(snapshot: store.snapshot)
                 }

@@ -17,14 +17,17 @@ final class BriefingWindowController: NSObject, NSWindowDelegate {
     private var hostingController: NSHostingController<AnyView>?
     private var coordinatorObserver: AnyCancellable?
     private weak var coordinator: BriefingCoordinator?
+    private weak var store: AppStore?
 
     // MARK: - Public API
 
     /// Attach to a coordinator's `isWindowOpen` flag — opening / closing the
     /// window is driven from the @Published binding, so any caller (hotkey,
     /// menu link, Telegram callback) just flips `coord.show()` / `close()`.
-    func attach(coordinator: BriefingCoordinator) {
+    /// `store` is injected so `DailyAccountChip` can read the active account.
+    func attach(coordinator: BriefingCoordinator, store: AppStore) {
         self.coordinator = coordinator
+        self.store = store
         coordinatorObserver = coordinator.$isWindowOpen.sink { [weak self] open in
             guard let self else { return }
             Task { @MainActor in
@@ -41,8 +44,17 @@ final class BriefingWindowController: NSObject, NSWindowDelegate {
             existing.makeKeyAndOrderFront(nil)
             return
         }
+        // attach(coordinator:store:) wires both before any hotkey can fire.
+        // If this assertion ever trips, the hotkey path opened the window
+        // before app start-up finished — fix the caller, never spin up a
+        // phantom AppStore here (would split swappingTo / snapshot state).
+        guard let store else {
+            assertionFailure("BriefingWindowController.present called before attach(coordinator:store:)")
+            return
+        }
         let view = BriefingView()
             .environmentObject(coordinator)
+            .environmentObject(store)
         let host = NSHostingController(rootView: AnyView(view))
         self.hostingController = host
 
@@ -88,15 +100,21 @@ final class BriefingWindowController: NSObject, NSWindowDelegate {
         return w
     }
 
-    /// Small pill near the top-right corner — approximates menu-bar icon area.
+    /// Small rect anchored to the Claude Bar status item — gives the animation
+    /// an honest origin so the window "grows out of the menu bar icon".
+    /// Falls back to a top-right pill when the status item can't be located.
     private var startFrame: NSRect {
-        guard let screen = NSScreen.main else { return NSRect(x: 0, y: 0, width: 240, height: 56) }
+        if let icon = MenuBarPopoverToggle.statusItemScreenFrame() {
+            let pad: CGFloat = 6
+            let w: CGFloat = max(icon.width + pad * 2, 36)
+            let h: CGFloat = max(icon.height, 22)
+            let x = icon.midX - w / 2
+            let y = icon.minY
+            return NSRect(x: x, y: y, width: w, height: h)
+        }
+        guard let screen = NSScreen.main else { return NSRect(x: 0, y: 0, width: 36, height: 22) }
         let v = screen.visibleFrame
-        let w: CGFloat = 240, h: CGFloat = 56
-        // 24px below the menu bar, 220px from the right edge of the visible frame.
-        let x = v.maxX - w - 220
-        let y = v.maxY - h - 8
-        return NSRect(x: x, y: y, width: w, height: h)
+        return NSRect(x: v.maxX - 240, y: v.maxY - 22, width: 36, height: 22)
     }
 
     /// Near-fullscreen, centered, with 32px inset on each side.
@@ -125,9 +143,18 @@ final class BriefingWindowController: NSObject, NSWindowDelegate {
             w.animator().setFrame(endFrame, display: true, animate: true)
             w.animator().alphaValue = 1.0
         })
+
+        // Tether anchors the window to the menu-bar icon — drop in once the
+        // window has reached its full size.
+        let palette = AppSettings.shared.widgetTheme.briefingPalette
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.40) { [weak w] in
+            guard let w else { return }
+            TetherWindowController.shared.show(below: w, palette: palette)
+        }
     }
 
     private func animateClose(window w: NSWindow, completion: @escaping () -> Void) {
+        TetherWindowController.shared.hide()
         NSAnimationContext.runAnimationGroup({ ctx in
             ctx.duration = 0.30
             ctx.timingFunction = CAMediaTimingFunction(controlPoints: 0.4, 0.0, 0.7, 0.2) // easeInQuint-ish
