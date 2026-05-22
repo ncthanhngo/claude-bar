@@ -18,6 +18,11 @@ DerivedData/
 # Go
 *.test
 *.out
+backend/csw
+
+# Local preview artifacts
+*-preview.html
+images.jpeg
 
 # IDE
 .vscode/
