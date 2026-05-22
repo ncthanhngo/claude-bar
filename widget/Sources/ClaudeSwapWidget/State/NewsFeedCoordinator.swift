@@ -11,6 +11,10 @@ final class NewsFeedCoordinator: ObservableObject {
     @Published private(set) var lastError: String?
     @Published private(set) var isLoading: Bool = false
     @Published private(set) var lastUpdated: Date?
+    /// True when there's at least one enabled RSS feed configured — even if
+    /// fetching returned no items. Lets the empty state distinguish "user
+    /// hasn't added a feed yet" from "feed URL is wrong / returned HTML".
+    @Published private(set) var hasConfiguredFeeds: Bool = false
 
     private let settings = AppSettings.shared
     private var refreshTask: Task<Void, Never>?
@@ -35,6 +39,7 @@ final class NewsFeedCoordinator: ObservableObject {
     private func runRefresh() async {
         let feeds = [NewsFeedConfig].decode(from: settings.briefingNewsFeedsJSON)
             .filter { $0.enabled && $0.mode == .rss && !$0.url.isEmpty }
+        self.hasConfiguredFeeds = !feeds.isEmpty
         guard !feeds.isEmpty else {
             self.items = []
             self.lastError = nil
@@ -45,21 +50,35 @@ final class NewsFeedCoordinator: ObservableObject {
 
         var aggregated: [NewsItemDTO] = []
         var firstError: String?
+        var zeroItemFeeds: [String] = []
         for feed in feeds {
             if Task.isCancelled { return }
             do {
                 let parsed = try await fetchAndParse(feed: feed)
-                aggregated.append(contentsOf: parsed.prefix(perFeedLimit))
+                if parsed.isEmpty {
+                    zeroItemFeeds.append(feed.label)
+                } else {
+                    aggregated.append(contentsOf: parsed.prefix(perFeedLimit))
+                }
             } catch {
-                if firstError == nil { firstError = "\(feed.label): \(error.localizedDescription)" }
+                if firstError == nil {
+                    firstError = "\(feed.label): \(error.localizedDescription)"
+                }
             }
         }
         aggregated.sort { (a, b) in
             (a.publishedAt ?? .distantPast) > (b.publishedAt ?? .distantPast)
         }
         self.items = aggregated
-        self.lastError = firstError
         self.lastUpdated = Date()
+        // Synthesize a helpful error when fetch succeeded but the URL is not
+        // an actual RSS / Atom document — common when users paste a tag /
+        // listing page instead of the feed permalink.
+        if firstError == nil && !zeroItemFeeds.isEmpty && aggregated.isEmpty {
+            let labels = zeroItemFeeds.joined(separator: ", ")
+            firstError = "\(labels): không phải feed RSS hợp lệ (URL có thể là trang HTML, không phải feed). Ví dụ TechCrunch: dùng https://techcrunch.com/feed/"
+        }
+        self.lastError = firstError
     }
 
     private nonisolated func fetchAndParse(feed: NewsFeedConfig) async throws -> [NewsItemDTO] {

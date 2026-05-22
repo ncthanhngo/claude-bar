@@ -45,20 +45,26 @@ struct PlanReadingCard: View {
 
     @ViewBuilder private var emptyState: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(news.lastError != nil
-                 ? "Không tải được feed."
-                 : "Chưa có nguồn tin nào — thêm RSS qua Cài đặt → Daily.")
+            Text(headlineForEmpty)
                 .font(.system(size: 12.5, design: .serif).italic())
                 .foregroundColor(palette.ink3)
             if let err = news.lastError {
                 Text(err)
                     .font(.system(size: 11))
                     .foregroundColor(palette.coral)
-                    .lineLimit(2)
+                    .lineLimit(3)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.vertical, 6)
+    }
+
+    private var headlineForEmpty: String {
+        if news.hasConfiguredFeeds {
+            return "Feed đã cấu hình nhưng chưa lấy được bài nào."
+        }
+        return "Chưa có nguồn tin nào — thêm RSS qua Cài đặt → Daily."
     }
 
     @ViewBuilder private var list: some View {
