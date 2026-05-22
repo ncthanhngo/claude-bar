@@ -5,8 +5,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/soi/claude-swap-widget/backend/internal/adapter/anthropic"
 	"github.com/soi/claude-swap-widget/backend/internal/adapter/chatstorage"
+	"github.com/soi/claude-swap-widget/backend/internal/adapter/claudecli"
 	"github.com/soi/claude-swap-widget/backend/internal/adapter/keychain"
 	"github.com/soi/claude-swap-widget/backend/internal/adapter/oauth"
 	"github.com/soi/claude-swap-widget/backend/internal/port"
@@ -61,13 +61,22 @@ func runChatAttachment(ctx context.Context, svc *chat.Service, accountNum int, a
 	}
 }
 
-// buildChatService wires the chat usecase service from the existing csw
-// adapters. We re-use service.Live / Refresh / Config / Registry rather
-// than re-instantiating them so the same Keychain + on-disk state backs
-// both the swap flow and the chat flow.
+// buildChatService wires the chat usecase service. Transport is the
+// Claude CLI (`claude -p --output-format=stream-json`) — Anthropic
+// rate-limits OAuth Bearer hitting /v1/messages too tightly for an
+// interactive chat. The CLI uses its own internal endpoint that gets
+// the user's actual plan quota.
+//
+// We still use the OAuth TokenProvider because the chat usecase reads
+// the active account's UUID through it for storage scoping. The token
+// itself goes unused by the claudecli transport (the CLI reads OAuth
+// from its own keychain entry that csw already manages).
 func buildChatService(svc *usecase.Service) (*chat.Service, error) {
 	tokenProvider := oauth.NewTokenProvider(svc.Live, svc.Refresh, svc.Config, svc.Registry)
-	chatClient := anthropic.NewChatClient()
+	chatClient, err := claudecli.NewChatClient()
+	if err != nil {
+		return nil, fmt.Errorf("chat init: %w", err)
+	}
 	chatDBKeyStore := keychain.NewChatDBKeyStore()
 
 	openStorage := func(ctx context.Context, accountUUID string) (port.ChatStorage, error) {
