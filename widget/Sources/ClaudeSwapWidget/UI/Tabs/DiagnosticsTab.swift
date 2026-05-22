@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 struct DiagnosticsTab: View {
@@ -20,6 +21,14 @@ struct DiagnosticsTab: View {
     @State private var restorePreviewPassphrase: String = ""
     @State private var restorePreviewSelection: Set<String> = []
 
+    // SwiftUI .sheet() attaches to the popover window, which dismisses on
+    // focus loss — every click inside the sheet collapses the menu bar
+    // popover and orphans the flow. Host these sheets in standalone NSWindow
+    // instances instead so the restore wizard survives losing menu bar focus.
+    @State private var passphraseWindow = FloatingWindow<AnyView>()
+    @State private var backupWindow = FloatingWindow<AnyView>()
+    @State private var previewWindow = FloatingWindow<AnyView>()
+
     var body: some View {
         ScrollView {
             SettingsPage {
@@ -29,42 +38,79 @@ struct DiagnosticsTab: View {
                 webUsageGroup
             }
         }
-        .sheet(isPresented: $showPassphraseEntry) {
-            PassphraseSheet(
-                passphraseField: $passphraseField,
-                passphraseError: $passphraseError,
-                showPassphraseEntry: $showPassphraseEntry,
-                restorePreviewSlot: $restorePreviewSlot,
-                restorePreviewPassphrase: $restorePreviewPassphrase,
-                restorePreviewSelection: $restorePreviewSelection,
-                showRestorePreviewSheet: $showRestorePreviewSheet
+        .onChange(of: showPassphraseEntry) { _, newValue in
+            if newValue { presentPassphraseWindow() } else { passphraseWindow.close() }
+        }
+        .onChange(of: showRestoreBackupSheet) { _, newValue in
+            if newValue {
+                presentBackupWindow()
+            } else {
+                backupWindow.close()
+                cloudSync.clearBackups()
+                restoreSelectedSlot = nil
+                restoreConfirmSlot = nil
+            }
+        }
+        .onChange(of: showRestorePreviewSheet) { _, newValue in
+            if newValue {
+                presentPreviewWindow()
+            } else {
+                previewWindow.close()
+                cloudSync.clearPreview()
+                restorePreviewSelection = []
+            }
+        }
+    }
+
+    private func presentPassphraseWindow() {
+        passphraseWindow.onClose = { showPassphraseEntry = false }
+        passphraseWindow.show(title: "iCloud Sync", size: NSSize(width: 380, height: 240)) {
+            AnyView(
+                PassphraseSheet(
+                    passphraseField: $passphraseField,
+                    passphraseError: $passphraseError,
+                    showPassphraseEntry: $showPassphraseEntry,
+                    restorePreviewSlot: $restorePreviewSlot,
+                    restorePreviewPassphrase: $restorePreviewPassphrase,
+                    restorePreviewSelection: $restorePreviewSelection,
+                    showRestorePreviewSheet: $showRestorePreviewSheet
+                )
+                .environmentObject(cloudSync)
             )
         }
-        .sheet(isPresented: $showRestoreBackupSheet, onDismiss: {
-            cloudSync.clearBackups()
-            restoreSelectedSlot = nil
-            restoreConfirmSlot = nil
-        }) {
-            RestoreBackupSheet(
-                showRestoreBackupSheet: $showRestoreBackupSheet,
-                restoreBackupPassphrase: $restoreBackupPassphrase,
-                restoreSelectedSlot: $restoreSelectedSlot,
-                restoreConfirmSlot: $restoreConfirmSlot,
-                restorePreviewSlot: $restorePreviewSlot,
-                restorePreviewPassphrase: $restorePreviewPassphrase,
-                restorePreviewSelection: $restorePreviewSelection,
-                showRestorePreviewSheet: $showRestorePreviewSheet
+    }
+
+    private func presentBackupWindow() {
+        backupWindow.onClose = { showRestoreBackupSheet = false }
+        backupWindow.show(title: "Restore from backup", size: NSSize(width: 500, height: 460)) {
+            AnyView(
+                RestoreBackupSheet(
+                    showRestoreBackupSheet: $showRestoreBackupSheet,
+                    restoreBackupPassphrase: $restoreBackupPassphrase,
+                    restoreSelectedSlot: $restoreSelectedSlot,
+                    restoreConfirmSlot: $restoreConfirmSlot,
+                    restorePreviewSlot: $restorePreviewSlot,
+                    restorePreviewPassphrase: $restorePreviewPassphrase,
+                    restorePreviewSelection: $restorePreviewSelection,
+                    showRestorePreviewSheet: $showRestorePreviewSheet
+                )
+                .environmentObject(cloudSync)
             )
         }
-        .sheet(isPresented: $showRestorePreviewSheet, onDismiss: {
-            cloudSync.clearPreview()
-            restorePreviewSelection = []
-        }) {
-            RestorePreviewSheet(
-                showRestorePreviewSheet: $showRestorePreviewSheet,
-                restorePreviewSlot: $restorePreviewSlot,
-                restorePreviewPassphrase: $restorePreviewPassphrase,
-                restorePreviewSelection: $restorePreviewSelection
+    }
+
+    private func presentPreviewWindow() {
+        previewWindow.onClose = { showRestorePreviewSheet = false }
+        previewWindow.show(title: "Review restore", size: NSSize(width: 640, height: 520)) {
+            AnyView(
+                RestorePreviewSheet(
+                    showRestorePreviewSheet: $showRestorePreviewSheet,
+                    restorePreviewSlot: $restorePreviewSlot,
+                    restorePreviewPassphrase: $restorePreviewPassphrase,
+                    restorePreviewSelection: $restorePreviewSelection
+                )
+                .environmentObject(cloudSync)
+                .environmentObject(store)
             )
         }
     }
