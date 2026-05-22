@@ -31,6 +31,7 @@ struct SettingsWindowView: View {
             generalTab.tabItem { Label("General", systemImage: "gearshape") }
             autoSwapTab.tabItem { Label("Auto-swap", systemImage: "arrow.triangle.2.circlepath") }
             LocalMCPSettingsView().tabItem { Label("Local MCP", systemImage: "puzzlepiece.extension") }
+            BriefingSettingsView().tabItem { Label("Briefing", systemImage: "sun.haze") }
             diagnosticsTab.tabItem { Label("Diagnostics", systemImage: "stethoscope") }
             aboutTab.tabItem { Label("About", systemImage: "info.circle") }
         }

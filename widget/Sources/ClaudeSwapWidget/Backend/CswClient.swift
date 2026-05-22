@@ -363,7 +363,7 @@ actor CswClient {
         }
     }
 
-    private func run<T: Decodable>(_ args: [String], decode: T.Type) async throws -> T {
+    func run<T: Decodable>(_ args: [String], decode: T.Type) async throws -> T {
         let raw = try await runRaw(args)
         do {
             return try decoder.decode(T.self, from: raw)
@@ -373,7 +373,7 @@ actor CswClient {
         }
     }
 
-    private func runRaw(_ args: [String]) async throws -> Data {
+    func runRaw(_ args: [String]) async throws -> Data {
         guard let bin = CswBinary.resolve() else {
             throw CswError.binaryNotFound
         }
