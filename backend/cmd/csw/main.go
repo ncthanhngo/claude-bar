@@ -54,6 +54,8 @@ func main() {
 		err = runCloud(ctx, svc, args)
 	case "mcp":
 		err = runMCP(ctx, svc, args)
+	case "briefing":
+		err = runBriefing(ctx, svc, args)
 	case "help", "-h", "--help":
 		usage()
 	default:
@@ -93,6 +95,10 @@ Commands:
   mcp connectors list     List connectors per account
   mcp connectors connect --account N --service slack|clickup|gdrive [--token=- | --client-id ID]
   mcp connectors disconnect --account N --service slack|clickup|gdrive
+  briefing run [--force]  Generate today's Daily Briefing (uses MCPs + Claude)
+  briefing show [--date]  Read a cached briefing
+  briefing schedule get|set|check       Manage briefing cron schedule
+  briefing action toggle --id ID --done Mark an action done/undone
   help                    Show this help
 
 All commands accept --json for machine-readable output.`)
