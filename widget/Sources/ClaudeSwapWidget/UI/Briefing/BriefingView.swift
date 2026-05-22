@@ -1,77 +1,74 @@
 import SwiftUI
 
-/// Root Daily Briefing view. Two-column landscape layout:
-/// left (1.55fr) = hero + action list; right (1fr) = calendar + minis.
+/// Root view of the Daily window. Composition only — actual content lives in
+/// `DailyTopBar`, `PlanModeBody`, `ChatModeBody`. Plan and Chat bodies are
+/// kept alive simultaneously via opacity so a mode flip doesn't trigger an
+/// expensive briefing re-fetch.
 struct BriefingView: View {
     @EnvironmentObject private var coord: BriefingCoordinator
     @ObservedObject private var settings = AppSettings.shared
 
     private var palette: BriefingPalette { settings.widgetTheme.briefingPalette }
 
+    private var modeBinding: Binding<DailyMode> {
+        Binding(
+            get: { DailyMode.from(settings.dailyMode) },
+            set: { settings.dailyMode = $0.rawValue }
+        )
+    }
+
     var body: some View {
         ZStack {
             backgroundLayer.ignoresSafeArea()
             VStack(spacing: 16) {
-                topBar
-                if let b = coord.briefing {
-                    mainGrid(b)
-                } else {
-                    BriefingSkeleton(palette: palette).frame(maxHeight: .infinity)
-                }
-                BriefingFooterTickerView(palette: palette, sourcesCount: sourcesCount)
+                DailyTopBar(
+                    mode: modeBinding,
+                    palette: palette,
+                    dateLabel: dateLabel,
+                    lastGenerated: lastGeneratedLabel,
+                    nextRun: nextRunLabel,
+                    isRunning: coord.isRunning,
+                    onRun: { Task { await coord.runNow() } },
+                    onNewChat: { /* Phase 06+ wires ChatStore.newConversation() */ },
+                    onSettings: { NotificationCenter.default.post(name: .openSettings, object: nil) },
+                    onClose: { coord.close() }
+                )
+                bodyStage
             }
             .padding(EdgeInsets(top: 22, leading: 28, bottom: 22, trailing: 28))
+
+            hiddenShortcuts
         }
         .frame(minWidth: 1280, minHeight: 800)
     }
 
-    @ViewBuilder private var topBar: some View {
-        BriefingTopBarView(
-            palette: palette,
-            dateLabel: dateLabel,
-            lastGenerated: lastGeneratedLabel,
-            nextRun: nextRunLabel,
-            isRunning: coord.isRunning,
-            onRun: { Task { await coord.runNow() } },
-            onSettings: { NotificationCenter.default.post(name: .openSettings, object: nil) },
-            onClose: { coord.close() }
-        )
+    @ViewBuilder private var bodyStage: some View {
+        let mode = DailyMode.from(settings.dailyMode)
+        ZStack {
+            PlanModeBody(palette: palette)
+                .opacity(mode == .plan ? 1 : 0)
+                .allowsHitTesting(mode == .plan)
+            ChatModeBody(palette: palette)
+                .opacity(mode == .chat ? 1 : 0)
+                .allowsHitTesting(mode == .chat)
+        }
+        .animation(.easeInOut(duration: 0.18), value: mode)
     }
 
-    @ViewBuilder private func mainGrid(_ briefing: BriefingDTO) -> some View {
-        HStack(alignment: .top, spacing: 32) {
-            leftColumn(briefing)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .layoutPriority(2)
-            rightColumn(briefing)
-                .frame(maxWidth: 420, alignment: .leading)
-                .layoutPriority(1)
+    @ViewBuilder private var hiddenShortcuts: some View {
+        // ESC closes; ⌘1 / ⌘2 swap the body mode. Buttons are invisible —
+        // SwiftUI only needs them in the hierarchy for the shortcut to bind.
+        Group {
+            Button("") { coord.close() }
+                .keyboardShortcut(.cancelAction)
+            Button("") { settings.dailyMode = DailyMode.plan.rawValue }
+                .keyboardShortcut("1", modifiers: .command)
+            Button("") { settings.dailyMode = DailyMode.chat.rawValue }
+                .keyboardShortcut("2", modifiers: .command)
         }
-    }
-
-    @ViewBuilder private func leftColumn(_ briefing: BriefingDTO) -> some View {
-        VStack(alignment: .leading, spacing: 18) {
-            HeroHeaderView(hero: briefing.hero, palette: palette)
-            ScrollView(showsIndicators: false) {
-                VStack(spacing: 0) {
-                    ForEach(briefing.actions) { action in
-                        ActionRowView(action: action, palette: palette) {
-                            Task { await coord.toggleAction(id: action.id, done: !action.done) }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    @ViewBuilder private func rightColumn(_ briefing: BriefingDTO) -> some View {
-        VStack(alignment: .leading, spacing: 14) {
-            CalendarTimelineView(events: briefing.calendar, palette: palette)
-            HStack(spacing: 14) {
-                MiniNewsCard(palette: palette).frame(maxWidth: .infinity)
-                MiniTelegramCard(palette: palette).frame(maxWidth: .infinity)
-            }
-        }
+        .opacity(0)
+        .frame(width: 0, height: 0)
+        .accessibilityHidden(true)
     }
 
     @ViewBuilder private var backgroundLayer: some View {
@@ -108,28 +105,5 @@ struct BriefingView: View {
     private var nextRunLabel: String {
         guard let s = coord.schedule, !s.cronExpr.isEmpty else { return "—" }
         return "08:33 mai"
-    }
-
-    private var sourcesCount: Int {
-        guard let b = coord.briefing else { return 4 }
-        return b.sourcesHealth.values.filter { $0 == "ok" }.count
-    }
-}
-
-/// Minimal loading skeleton while briefing is fetching.
-struct BriefingSkeleton: View {
-    let palette: BriefingPalette
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 24) {
-            ForEach(0..<5, id: \.self) { _ in
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(palette.line)
-                    .frame(height: 28)
-                    .opacity(0.6)
-            }
-            Spacer()
-        }
-        .padding(.top, 24)
     }
 }

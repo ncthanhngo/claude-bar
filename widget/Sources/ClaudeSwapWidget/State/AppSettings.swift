@@ -40,6 +40,38 @@ final class AppSettings: ObservableObject {
     @AppStorage("injectReloadShortcut") var injectReloadShortcut: Bool = true
 
     @AppStorage("widgetTheme") var widgetTheme: WidgetTheme = .light
+
+    /// Active body of the Daily window: "plan" (editorial briefing) or "chat"
+    /// (OAuth-bound conversation thread). Persisted so the window opens in
+    /// whichever mode the user last used.
+    @AppStorage("dailyMode") var dailyMode: String = DailyMode.plan.rawValue
+
+    // MARK: - Daily Briefing hotkeys (Carbon key codes + modifier bitmask)
+
+    @AppStorage("briefingHotkeyOpenAppKeyCode")
+    var briefingHotkeyOpenAppKeyCode: Int = 6   // kVK_ANSI_Z
+
+    @AppStorage("briefingHotkeyOpenAppModifiers")
+    var briefingHotkeyOpenAppModifiers: Int = 2048 // optionKey
+
+    @AppStorage("briefingHotkeyOpenBriefingKeyCode")
+    var briefingHotkeyOpenBriefingKeyCode: Int = 7  // kVK_ANSI_X
+
+    @AppStorage("briefingHotkeyOpenBriefingModifiers")
+    var briefingHotkeyOpenBriefingModifiers: Int = 2048 // optionKey
+
+    // MARK: - News feeds (JSON-encoded list of NewsFeedConfig)
+
+    @AppStorage("briefingNewsFeedsJSON")
+    var briefingNewsFeedsJSON: String = "[]"
+
+    /// "08:00" — fetch news at this local time. Empty disables auto fetch.
+    @AppStorage("briefingNewsFetchTime")
+    var briefingNewsFetchTime: String = "08:00"
+
+    /// How many times per day to refresh news. 1 = once at fetch time.
+    @AppStorage("briefingNewsFetchesPerDay")
+    var briefingNewsFetchesPerDay: Int = 1
     /// Timestamp of the last backup token refresh attempt (written before RPC).
     /// Used to throttle attempt frequency — prevents hammering Anthropic on
     /// repeated grant failures. Transient failures retry after a shorter window;

@@ -102,6 +102,11 @@ final class BriefingCoordinator: ObservableObject {
 
     func close() { isWindowOpen = false }
 
+    /// Toggle window visibility — used by the global hotkey (⌥X by default).
+    func toggle() {
+        if isWindowOpen { close() } else { show() }
+    }
+
     // MARK: - Private helpers
 
     private func safeShow() async -> BriefingDTO? {
