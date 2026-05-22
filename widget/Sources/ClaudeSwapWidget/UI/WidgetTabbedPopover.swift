@@ -60,6 +60,7 @@ struct WidgetTabbedPopover: View {
         .frame(width: 620, height: 860)
         .background(popoverBackground)
         .background(WindowAppearanceSetter(theme: settings.widgetTheme))
+        .background(PopoverWindowCapture())
         .focusable()
         .focusEffectDisabled()
         .onMoveCommand { direction in

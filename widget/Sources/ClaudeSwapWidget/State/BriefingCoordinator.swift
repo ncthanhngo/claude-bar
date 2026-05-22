@@ -1,5 +1,6 @@
 import Foundation
 import Combine
+import AppKit
 
 /// Bridges the SwiftUI views to the Go `csw briefing` subcommands.
 /// Owns the polling loop that triggers `runNow()` when the scheduler says
@@ -14,6 +15,7 @@ final class BriefingCoordinator: ObservableObject {
 
     private let client: CswClient
     private var pollTask: Task<Void, Never>?
+    private var keyWindowObserver: NSObjectProtocol?
 
     init(client: CswClient) { self.client = client }
 
@@ -26,6 +28,37 @@ final class BriefingCoordinator: ObservableObject {
                 // Re-check every 5 minutes whether a run is due.
                 try? await Task.sleep(nanoseconds: 5 * 60 * 1_000_000_000)
                 await self?.checkAndRunIfDue()
+            }
+        }
+        Task { @MainActor [weak self] in
+            await self?.attachPopoverObserver()
+        }
+    }
+
+    /// Daily window and menu-bar popover are mutually exclusive: opening one
+    /// dismisses the other. The "open Daily → close popover" half is handled
+    /// by `MenuBarPopoverToggle.closeIfOpen()` in `BriefingWindowController`;
+    /// this observer handles the reverse — close Daily when the popover
+    /// specifically becomes key.
+    ///
+    /// Match the popover by identity against `PopoverWindowRegistry` instead of
+    /// "any non-Daily window becomes key" — the broad check caused Daily to
+    /// close on incidental focus shifts (SwiftUI sheets/popovers/menus inside
+    /// Daily, NSAlert modals, NSOpenPanel) and on the brief intermediate key
+    /// state during the popover-dismiss → Daily-makeKey handoff, which made
+    /// in-Daily actions like "Đoạn chat mới" feel broken.
+    private func attachPopoverObserver() async {
+        keyWindowObserver = NotificationCenter.default.addObserver(
+            forName: NSWindow.didBecomeKeyNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] note in
+            let window = note.object as? NSWindow
+            Task { @MainActor [weak self] in
+                guard let self, self.isWindowOpen else { return }
+                guard let popover = PopoverWindowRegistry.shared.window,
+                      window === popover else { return }
+                self.close()
             }
         }
     }
@@ -102,9 +135,22 @@ final class BriefingCoordinator: ObservableObject {
 
     func close() { isWindowOpen = false }
 
-    /// Toggle window visibility — used by the global hotkey (⌥X by default).
+    /// Three-state hotkey behaviour (⌥X by default):
+    /// - Window not open → open it.
+    /// - Window open but buried behind another app (not key) → pull it to the
+    ///   front. The user just asked to see Daily; do not punish them by
+    ///   closing it because the visibility flag happens to be `true`.
+    /// - Window open AND already key (foreground) → close.
     func toggle() {
-        if isWindowOpen { close() } else { show() }
+        if !isWindowOpen {
+            show()
+            return
+        }
+        if BriefingWindowController.shared.isKeyAndVisible {
+            close()
+        } else {
+            BriefingWindowController.shared.bringToFront()
+        }
     }
 
     // MARK: - Private helpers
