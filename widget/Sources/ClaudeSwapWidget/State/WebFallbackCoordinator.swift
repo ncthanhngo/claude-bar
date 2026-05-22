@@ -79,6 +79,15 @@ final class WebFallbackCoordinator: ObservableObject {
         await ClaudeWebSessionSync.save(account: view.account, dataStore: dataStore)
         do {
             let usage = try await ClaudeWebUsageFetcher(dataStore: dataStore).fetchUsage()
+            // If any scraped window's resetsAt is already in the past the SPA
+            // re-rendered a pre-reset cached state. Drop the result so the
+            // OAuth fallback can fetch the new window — otherwise the widget
+            // keeps replacing fresh data with the same stale scrape forever.
+            if usage.hasPastResetWindow {
+                accountStates[view.account.identityKey] = .fallback("Web profile returned stale usage (post-reset)")
+                lastCheckedAt = Date()
+                return nil
+            }
             accountStates[view.account.identityKey] = .connected(usage.diagnosticSummary)
             lastCheckedAt = Date()
             return usage

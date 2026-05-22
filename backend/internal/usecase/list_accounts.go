@@ -164,10 +164,15 @@ func (s *Service) fillUsage(ctx context.Context, v *AccountView) {
 
 	// Fresh usage cache still short-circuits the API call, but credential
 	// inspection above runs every poll so stale backups surface promptly.
+	// Skip the short-circuit when the cached resetsAt has already passed:
+	// the quota window has rolled over, so the cached utilization% no longer
+	// reflects reality and we want a live API call to pick up the new window.
 	if s.UsageCache != nil {
 		if entry, fresh := s.UsageCache.Get(v.Account.Number); fresh && entry != nil {
-			v.Usage = entry.Usage
-			return
+			if !entry.Usage.HasPastResetWindow(time.Now()) {
+				v.Usage = entry.Usage
+				return
+			}
 		}
 	}
 
@@ -230,10 +235,18 @@ func shortDuration(d time.Duration) string {
 
 // fallbackToCache prefers showing stale data over an error message. The UI
 // can still surface "stale" via the FetchedAt timestamp.
+//
+// When the cached usage references a quota window that has already rolled
+// over, also propagate the fetch error so the UI shows a "couldn't refresh"
+// badge alongside the stale numbers — otherwise a broken backup token would
+// silently freeze the row at the pre-reset utilization% forever.
 func (s *Service) fallbackToCache(v *AccountView, err error) {
 	if s.UsageCache != nil {
 		if entry, _ := s.UsageCache.Get(v.Account.Number); entry != nil && entry.Usage != nil {
 			v.Usage = entry.Usage
+			if entry.Usage.HasPastResetWindow(time.Now()) {
+				v.Error = err.Error()
+			}
 			return
 		}
 	}

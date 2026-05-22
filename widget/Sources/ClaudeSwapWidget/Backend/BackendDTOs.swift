@@ -68,6 +68,15 @@ struct UsageDTO: Codable, Hashable {
     let fiveHour: UsageWindowDTO?
     let sevenDay: UsageWindowDTO?
     let fetchedAt: Date
+
+    /// True when any present window already rolled over. Mirrors
+    /// `domain.Usage.HasPastResetWindow` on the backend side.
+    var hasPastResetWindow: Bool {
+        let now = Date()
+        if let five = fiveHour, five.resetsAt < now { return true }
+        if let seven = sevenDay, seven.resetsAt < now { return true }
+        return false
+    }
 }
 
 /// Mirrors backend/internal/usecase/list_accounts.go AccountView.
