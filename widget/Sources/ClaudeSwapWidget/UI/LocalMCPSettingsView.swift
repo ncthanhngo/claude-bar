@@ -19,6 +19,7 @@ struct LocalMCPSettingsView: View {
     var body: some View {
         SettingsPage {
             privacyNotice
+            chatToolModeSection
             gatewaySection
             connectorsSection
         }
@@ -86,6 +87,83 @@ struct LocalMCPSettingsView: View {
                 .stroke(Color.yellow.opacity(0.5), lineWidth: 1)
         )
         .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+
+    private var chatToolModeSection: some View {
+        SettingsGroup(
+            "Quyền tool cho chat",
+            subtitle: "Áp dụng cho khung \"Hỏi gì đó với Claude…\" ở tab chat của Daily. Mỗi lần gửi tin, Claude sẽ được phép gọi bộ tool tương ứng. Đổi mức nào áp dụng ngay cho tin tiếp theo, không cần khởi động lại."
+        ) {
+            VStack(alignment: .leading, spacing: 8) {
+                ForEach(ChatToolMode.allCases) { mode in
+                    chatToolModeRow(mode)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder private func chatToolModeRow(_ mode: ChatToolMode) -> some View {
+        let selected = settings.chatToolMode == mode
+        Button {
+            settings.chatToolMode = mode
+        } label: {
+            HStack(alignment: .top, spacing: 10) {
+                Image(systemName: selected ? "largecircle.fill.circle" : "circle")
+                    .foregroundColor(selected ? .accentColor : .secondary)
+                    .font(.system(size: 16))
+                    .padding(.top, 1)
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 6) {
+                        Text(mode.label)
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundColor(.primary)
+                        chatToolModeBadge(mode)
+                    }
+                    Text(mode.subtitle)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(10)
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(selected ? Color.accentColor.opacity(0.08) : Color.secondary.opacity(0.04))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(chatToolModeBorderColor(mode, selected: selected), lineWidth: selected ? 1.5 : 1)
+            )
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    @ViewBuilder private func chatToolModeBadge(_ mode: ChatToolMode) -> some View {
+        let (text, color): (String, Color) = {
+            switch mode.riskTier {
+            case 0:  return ("AN TOÀN",   .green)
+            case 1:  return ("ĐỀ XUẤT",   .blue)
+            default: return ("RỦI RO CAO", .red)
+            }
+        }()
+        Text(text)
+            .font(.system(size: 9, weight: .bold))
+            .tracking(0.6)
+            .foregroundColor(.white)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .background(color)
+            .clipShape(Capsule())
+    }
+
+    private func chatToolModeBorderColor(_ mode: ChatToolMode, selected: Bool) -> Color {
+        guard selected else { return Color.secondary.opacity(0.25) }
+        switch mode.riskTier {
+        case 2:  return Color.red.opacity(0.6)
+        default: return Color.accentColor.opacity(0.6)
+        }
     }
 
     private var gatewaySection: some View {

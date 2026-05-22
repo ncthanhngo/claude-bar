@@ -40,16 +40,14 @@ final class ChatStore: ObservableObject {
     private var accountObservation: Task<Void, Never>?
     private var streamTask: Task<Void, Never>?
     private var lastObservedAccountNumber: Int?
-    private var deltaBatcher: DeltaBatcher!
+    private var typewriter: TypewriterRenderer!
 
     // MARK: - Wiring
 
     init() {
-        // DeltaBatcher captures `self` weakly via the closure; safe.
         let store = self
-        self.deltaBatcher = DeltaBatcher(interval: 0.033) { [weak store] chunk in
-            guard let store else { return }
-            store.streamingText = (store.streamingText ?? "") + chunk
+        self.typewriter = TypewriterRenderer { [weak store] displayed in
+            store?.streamingText = displayed
         }
     }
 
@@ -74,7 +72,7 @@ final class ChatStore: ObservableObject {
     private func handleAccountChange() async {
         streamTask?.cancel()
         streamTask = nil
-        deltaBatcher.reset()
+        typewriter.reset()
         streamingText = nil
         isSending = false
         activeConversation = nil
@@ -203,9 +201,8 @@ final class ChatStore: ObservableObject {
                 if Task.isCancelled { break }
                 await handleStreamEvent(event, conv: conv)
             }
-            deltaBatcher.flush()
         } catch {
-            deltaBatcher.reset()
+            typewriter.reset()
             streamingText = nil
             lastError = CswError.redact(error.localizedDescription)
         }
@@ -214,15 +211,14 @@ final class ChatStore: ObservableObject {
     private func handleStreamEvent(_ event: ChatStreamEvent, conv: ConversationDTO) async {
         switch event {
         case .textDelta(let chunk):
-            deltaBatcher.append(chunk)
+            typewriter.append(chunk)
         case .thinkingDelta:
             // Phase 07 will render an extended-thinking bubble; for now drop.
             break
         case .usage:
             break
         case .done(let msgID, _, let inTok, let outTok):
-            deltaBatcher.flush()
-            let finalText = streamingText ?? ""
+            let finalText = typewriter.flushNow()
             if !finalText.isEmpty {
                 let asst = MessageDTO.finalizedAssistant(
                     id: msgID.isEmpty ? UUID().uuidString : "asst-" + msgID,
@@ -233,9 +229,10 @@ final class ChatStore: ObservableObject {
                 )
                 messages.append(asst)
             }
+            typewriter.reset()
             streamingText = nil
         case .error(let code, let message, let retryAfter):
-            deltaBatcher.reset()
+            typewriter.reset()
             streamingText = nil
             let suffix = retryAfter.map { " (retry sau \($0)s)" } ?? ""
             lastError = "[\(code)] \(message)\(suffix)"
@@ -244,7 +241,7 @@ final class ChatStore: ObservableObject {
 
     func cancelCurrentSend() {
         streamTask?.cancel()
-        deltaBatcher.reset()
+        typewriter.reset()
         streamingText = nil
         isSending = false
     }

@@ -34,9 +34,12 @@ struct ChatTextEditor: NSViewRepresentable {
         let textView = ReturnInterceptingTextView()
         textView.delegate = context.coordinator
         textView.coordinator = context.coordinator
+        textView.isEditable = true
+        textView.isSelectable = true
         textView.isRichText = false
         textView.font = .systemFont(ofSize: 14.5)
         textView.textColor = NSColor(palette.ink)
+        textView.insertionPointColor = NSColor(palette.ink)
         textView.backgroundColor = .clear
         textView.drawsBackground = false
         textView.isAutomaticQuoteSubstitutionEnabled = false
@@ -50,6 +53,22 @@ struct ChatTextEditor: NSViewRepresentable {
         // matches the soft feel of claude.ai's composer.
         textView.textContainerInset = NSSize(width: 4, height: 8)
         textView.textContainer?.lineFragmentPadding = 0
+        // Without the resize masks + widthTracksTextView, an NSTextView created
+        // via `init()` keeps its zero frame inside the NSScrollView — clicks
+        // can't land on a glyph row, the caret has nowhere to draw, and every
+        // keystroke is silently dropped. This is the canonical AppKit
+        // boilerplate for "make this scroll view behave like a textarea".
+        textView.minSize = NSSize(width: 0, height: 0)
+        textView.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude,
+                                  height: CGFloat.greatestFiniteMagnitude)
+        textView.isVerticallyResizable = true
+        textView.isHorizontallyResizable = false
+        textView.autoresizingMask = [.width]
+        textView.textContainer?.widthTracksTextView = true
+        textView.textContainer?.containerSize = NSSize(
+            width: scroll.contentSize.width,
+            height: CGFloat.greatestFiniteMagnitude
+        )
         textView.string = text
 
         scroll.documentView = textView

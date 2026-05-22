@@ -69,9 +69,10 @@ func (c *ChatClient) Stream(
 		"--verbose",
 		"--include-partial-messages",
 		"--model", model,
-		"--allowedTools", "",
-		"--disable-slash-commands",
 	}
+	// Tool-permission tier is picked in the widget's MCP tab and forwarded
+	// via env var; default is "safe" (read-only + MCP + skills) if unset.
+	args = append(args, toolModeArgs(os.Getenv("CB_CHAT_TOOL_MODE"))...)
 	if req.MaxTokens > 0 {
 		// Claude CLI doesn't expose max_tokens directly; we soft-cap via
 		// --max-budget-usd as a coarse safety. Skip for MVP.
@@ -145,6 +146,31 @@ func (s stderrLineWriter) Write(p []byte) (int, error) {
 		s.w.Write(p)
 	}
 	return len(p), nil
+}
+
+// toolModeArgs maps the widget's CB_CHAT_TOOL_MODE ("off" / "safe" / "full")
+// to the matching `claude -p` flag set. Unknown / empty values fall back to
+// "safe" — same default the widget enum uses — so a forgotten env var never
+// silently upgrades the user to full agentic.
+//
+//	off  → no tools, no skills (text-only chat)
+//	safe → Read/Glob/Grep + WebFetch/WebSearch + SlashCommand + every MCP
+//	       tool; no Bash/Write/Edit so Claude can't shell out or mutate files
+//	full → all built-ins, all skills, all MCP, plus
+//	       --dangerously-skip-permissions so the CLI doesn't hang waiting
+//	       for a confirm prompt that has no UI to answer it
+func toolModeArgs(mode string) []string {
+	switch mode {
+	case "off":
+		return []string{"--allowedTools", "", "--disable-slash-commands"}
+	case "full":
+		return []string{"--dangerously-skip-permissions"}
+	case "safe", "":
+		fallthrough
+	default:
+		return []string{"--allowedTools",
+			"Read Glob Grep WebFetch WebSearch SlashCommand mcp__*"}
+	}
 }
 
 // classifyExit infers the error code from process exit + stderr content.
