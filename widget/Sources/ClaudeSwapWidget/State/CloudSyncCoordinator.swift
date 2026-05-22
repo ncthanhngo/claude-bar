@@ -19,6 +19,10 @@ final class CloudSyncCoordinator: ObservableObject {
     /// Cleared whenever a fresh fetch starts so the UI can show a spinner.
     @Published private(set) var backups: [CswClient.CloudBackupInfoDTO] = []
 
+    /// Rows fetched by `preview` for the restore-preview table. Cleared on
+    /// sheet dismiss + before each fresh fetch.
+    @Published private(set) var previewRows: [CswClient.CloudPreviewRowDTO] = []
+
     enum PassphraseIntent { case push, pull, changePassphrase, restoreFromBackup }
 
     private let client: CswClient
@@ -148,6 +152,39 @@ final class CloudSyncCoordinator: ObservableObject {
     /// reopened sheet refetches and reflects any state change from elsewhere.
     func clearBackups() {
         backups = []
+    }
+
+    /// Loads the side-by-side preview rows (local vs bundle) for `slot`.
+    /// Result published via `previewRows`. Read-only — never mutates keychain.
+    func preview(slot: Int, passphrase: String) async {
+        isBusy = true; lastError = nil
+        previewRows = []
+        defer { isBusy = false }
+        do {
+            previewRows = try await client.cloudPreview(slot: slot, passphrase: passphrase)
+        } catch {
+            lastError = error.localizedDescription
+        }
+    }
+
+    /// Applies the bundle entries whose identity is in `identities` only.
+    /// Wraps `cloudPullSelective` + saves passphrase + refreshes status.
+    /// Caller must `store.refreshNow()` afterwards so the menu picks up new rows.
+    func pullSelective(slot: Int, passphrase: String, identities: [String]) async {
+        isBusy = true; lastError = nil
+        defer { isBusy = false }
+        do {
+            try await client.cloudPullSelective(slot: slot, passphrase: passphrase, identities: identities)
+            savePassphrase(passphrase)
+            previewRows = []
+            await refreshStatus()
+        } catch {
+            lastError = error.localizedDescription
+        }
+    }
+
+    func clearPreview() {
+        previewRows = []
     }
 
     /// Called on startup: if no local accounts exist but a cloud bundle does,

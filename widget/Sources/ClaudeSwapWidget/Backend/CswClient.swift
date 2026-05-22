@@ -159,6 +159,42 @@ actor CswClient {
         )
     }
 
+    /// One row in the restore-preview table. `status` is one of
+    /// "remoteOnly", "both", "localOnly".
+    struct CloudPreviewRowDTO: Codable, Identifiable {
+        let identity: String
+        let email: String
+        let nickname: String?
+        let organizationName: String?
+        let organizationUuid: String?
+        let localCreatedAt: Date?
+        let remoteCreatedAt: Date?
+        let status: String
+
+        var id: String { identity }
+    }
+
+    /// Decrypts the bundle at `slot` (0 = current) and returns a merged view
+    /// of local registry vs bundle accounts. Read-only.
+    func cloudPreview(slot: Int, passphrase: String) async throws -> [CloudPreviewRowDTO] {
+        try await runWithPassphraseDecoding(
+            ["cloud", "preview", String(slot), "--json"],
+            passphrase: passphrase,
+            decode: [CloudPreviewRowDTO].self
+        )
+    }
+
+    /// Restores only the bundle entries whose identity is in `identities`.
+    /// Identity = "email|orgUUID" (matches `CloudPreviewRowDTO.identity`).
+    func cloudPullSelective(slot: Int, passphrase: String, identities: [String]) async throws {
+        let json = try String(data: JSONEncoder().encode(identities), encoding: .utf8) ?? "[]"
+        try await runWithPassphrase(
+            ["cloud", "pull-selective", String(slot), "--json"],
+            passphrase: passphrase,
+            extraStdin: json
+        )
+    }
+
     // MARK: - Local MCP
 
     func mcpStatus() async throws -> MCPInstallStatusDTO {
@@ -272,16 +308,17 @@ actor CswClient {
         }
     }
 
-    private func runWithPassphrase(_ args: [String], passphrase: String) async throws {
-        _ = try await runWithPassphraseRaw(args, passphrase: passphrase)
+    private func runWithPassphrase(_ args: [String], passphrase: String, extraStdin: String? = nil) async throws {
+        _ = try await runWithPassphraseRaw(args, passphrase: passphrase, extraStdin: extraStdin)
     }
 
     private func runWithPassphraseDecoding<T: Decodable>(
         _ args: [String],
         passphrase: String,
-        decode: T.Type
+        decode: T.Type,
+        extraStdin: String? = nil
     ) async throws -> T {
-        let raw = try await runWithPassphraseRaw(args, passphrase: passphrase)
+        let raw = try await runWithPassphraseRaw(args, passphrase: passphrase, extraStdin: extraStdin)
         do {
             return try decoder.decode(T.self, from: raw)
         } catch {
@@ -290,7 +327,7 @@ actor CswClient {
         }
     }
 
-    private func runWithPassphraseRaw(_ args: [String], passphrase: String) async throws -> Data {
+    private func runWithPassphraseRaw(_ args: [String], passphrase: String, extraStdin: String? = nil) async throws -> Data {
         guard let bin = CswBinary.resolve() else { throw CswError.binaryNotFound }
         return try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Data, Error>) in
             let task = Process()
@@ -314,8 +351,11 @@ actor CswClient {
             }
             do {
                 try task.run()
-                let line = (passphrase + "\n").data(using: .utf8)!
-                stdin.fileHandleForWriting.write(line)
+                var payload = passphrase + "\n"
+                if let extra = extraStdin {
+                    payload += extra + "\n"
+                }
+                stdin.fileHandleForWriting.write(payload.data(using: .utf8)!)
                 stdin.fileHandleForWriting.closeFile()
             } catch {
                 cont.resume(throwing: error)

@@ -98,6 +98,10 @@ type BundleAccount struct {
 	MCPConnectors    []BundleMCPConnector `json:"mcpConnectors,omitempty"`
 	UpdatedAt        string               `json:"updatedAt"`
 	UpdatedAtTime    time.Time            `json:"updatedAtTime,omitempty"`
+	// CreatedAt is the local registry "first seen" timestamp from the source
+	// device. Empty for V1/V2 bundles. Used by the restore preview UI to show
+	// how each account was originally added vs the local copy.
+	CreatedAt        time.Time            `json:"createdAt,omitempty"`
 }
 
 // CloudBundle is the plaintext payload stored inside the encrypted file.

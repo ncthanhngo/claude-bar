@@ -86,6 +86,7 @@ func (s *Service) CloudPush(ctx context.Context, passphrase string) error {
 			MCPConnectors:    connectors,
 			UpdatedAt:        now.Format(time.RFC3339),
 			UpdatedAtTime:    now,
+			CreatedAt:        acc.CreatedAt,
 		})
 	}
 
