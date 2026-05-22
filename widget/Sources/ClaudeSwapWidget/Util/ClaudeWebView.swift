@@ -82,22 +82,45 @@ final class ClaudeWebUsageFetcher: NSObject, WKNavigationDelegate {
 
     func fetchUsage() async throws -> UsageDTO {
         try await reloadUsagePage()
-        let result = try await webView.evaluateJavaScript(Self.scrapeScript)
-        guard let raw = result as? String,
-              let data = raw.data(using: .utf8) else {
-            throw ClaudeWebUsageError.usageUnavailable
+        // claude.ai is a React SPA — `didFinish` fires when HTML+JS is loaded
+        // but the usage numbers arrive via a follow-up XHR. Polling the scrape
+        // until the progressbars render keeps us from extracting an empty DOM
+        // (which would surface as "usageUnavailable" and force OAuth fallback
+        // every poll even when the linked profile is healthy).
+        let decoder = JSONDecoder()
+        var lastError: Error = ClaudeWebUsageError.usageUnavailable
+        for attempt in 0..<8 {
+            let result = try await webView.evaluateJavaScript(Self.scrapeScript)
+            if let raw = result as? String,
+               let data = raw.data(using: .utf8) {
+                do {
+                    let payload = try decoder.decode(WebUsagePayload.self, from: data)
+                    if payload.fiveHour != nil || payload.sevenDay != nil {
+                        return payload.usage
+                    }
+                    lastError = ClaudeWebUsageError.usageUnavailable
+                } catch {
+                    lastError = error
+                }
+            }
+            if attempt < 7 {
+                try await Task.sleep(nanoseconds: 500_000_000) // 0.5s
+            }
         }
-        let payload = try JSONDecoder().decode(WebUsagePayload.self, from: data)
-        guard payload.fiveHour != nil || payload.sevenDay != nil else {
-            throw ClaudeWebUsageError.usageUnavailable
-        }
-        return payload.usage
+        throw lastError
     }
 
     private func reloadUsagePage() async throws {
         try await withCheckedThrowingContinuation { continuation in
             loadContinuation = continuation
-            webView.load(URLRequest(url: usageURL))
+            // Bypass HTTP cache so a recent reset isn't masked by a 304 that
+            // re-renders the pre-reset DOM. The default protocol policy lets
+            // WKWebView serve `claude.ai/settings/usage` from disk cache,
+            // which encodes the old <time datetime> and locks the widget on
+            // a `resetsAt` in the past.
+            var request = URLRequest(url: usageURL)
+            request.cachePolicy = .reloadIgnoringLocalAndRemoteCacheData
+            webView.load(request)
         }
     }
 
