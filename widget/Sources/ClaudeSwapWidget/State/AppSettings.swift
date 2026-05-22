@@ -86,6 +86,13 @@ final class AppSettings: ObservableObject {
     @AppStorage("briefingUserPrompt")
     var briefingUserPrompt: String = ""
 
+    /// Per-MCP-connector markdown prompts. JSON encoded shape of
+    /// `MCPConnectorPrompts` (slack / clickup / gdrive / gmail / gcal /
+    /// gsheets). Same file-bridge pattern as briefingUserPrompt — the Go
+    /// briefing runner reads them on each run.
+    @AppStorage("mcpConnectorPromptsJSON")
+    var mcpConnectorPromptsJSON: String = "{}"
+
     /// Timestamp of the last backup token refresh attempt (written before RPC).
     /// Used to throttle attempt frequency — prevents hammering Anthropic on
     /// repeated grant failures. Transient failures retry after a shorter window;

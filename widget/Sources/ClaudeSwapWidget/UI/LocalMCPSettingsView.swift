@@ -4,7 +4,10 @@ import SwiftUI
 struct LocalMCPSettingsView: View {
     @EnvironmentObject var coordinator: LocalMCPCoordinator
     @EnvironmentObject var cloudSync: CloudSyncCoordinator
+    @ObservedObject private var settings = AppSettings.shared
     @State private var pendingDisconnect: PendingDisconnect?
+    @State private var connectorPrompts: MCPConnectorPrompts = .empty
+    @State private var expandedConnectorPrompt: String?  // "service-key" of expanded row
 
     private struct PendingDisconnect: Identifiable {
         let id = UUID()
@@ -19,7 +22,10 @@ struct LocalMCPSettingsView: View {
             gatewaySection
             connectorsSection
         }
-        .task { await coordinator.refresh() }
+        .task {
+            await coordinator.refresh()
+            connectorPrompts = MCPConnectorPrompts.decode(from: settings.mcpConnectorPromptsJSON)
+        }
         .sheet(item: $coordinator.connectSheet) { target in
             ConnectTokenSheet(target: target)
                 .environmentObject(coordinator)
@@ -195,36 +201,131 @@ struct LocalMCPSettingsView: View {
     }
 
     private func connectorRow(account: Int, connector: MCPConnectorSummaryDTO) -> some View {
-        HStack(spacing: 8) {
-            Image(systemName: connector.systemImageName)
-                .frame(width: 18)
-                .foregroundColor(connector.enabled && connector.hasSecret ? .accentColor : .secondary)
-            Text(connector.labelTitle).font(.system(size: 12))
-            Text("·").foregroundColor(.secondary)
-            Text(connector.state)
-                .font(.caption)
-                .foregroundColor(stateColor(for: connector))
-            Spacer()
-            if connector.enabled && connector.hasSecret {
-                Button("Disconnect") {
-                    pendingDisconnect = .init(
-                        accountNumber: account,
-                        service: connector.service,
-                        serviceLabel: connector.labelTitle
-                    )
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 8) {
+                Image(systemName: connector.systemImageName)
+                    .frame(width: 18)
+                    .foregroundColor(connector.enabled && connector.hasSecret ? .accentColor : .secondary)
+                Text(connector.labelTitle).font(.system(size: 12))
+                Text("·").foregroundColor(.secondary)
+                Text(connector.state)
+                    .font(.caption)
+                    .foregroundColor(stateColor(for: connector))
+                Spacer()
+                promptDisclosureButton(account: account, service: connector.service)
+                if connector.enabled && connector.hasSecret {
+                    Button("Disconnect") {
+                        pendingDisconnect = .init(
+                            accountNumber: account,
+                            service: connector.service,
+                            serviceLabel: connector.labelTitle
+                        )
+                    }
+                    .buttonStyle(.borderless)
+                    .foregroundColor(.red)
+                    .font(.caption)
+                } else {
+                    Button("Connect") {
+                        presentConnect(account: account, service: connector.service, label: connector.labelTitle)
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
                 }
-                .buttonStyle(.borderless)
-                .foregroundColor(.red)
-                .font(.caption)
-            } else {
-                Button("Connect") {
-                    presentConnect(account: account, service: connector.service, label: connector.labelTitle)
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
+            }
+            .padding(.vertical, 2)
+            if expandedConnectorPrompt == promptKey(account: account, service: connector.service) {
+                connectorPromptEditor(service: connector.service)
+                    .padding(.leading, 26)
+                    .padding(.top, 6)
+                    .padding(.bottom, 4)
             }
         }
-        .padding(.vertical, 2)
+    }
+
+    private func promptKey(account: Int, service: String) -> String {
+        "\(account):\(service)"
+    }
+
+    @ViewBuilder private func promptDisclosureButton(account: Int, service: String) -> some View {
+        let key = promptKey(account: account, service: service)
+        let isOpen = expandedConnectorPrompt == key
+        Button {
+            expandedConnectorPrompt = isOpen ? nil : key
+        } label: {
+            HStack(spacing: 3) {
+                Image(systemName: isOpen ? "chevron.down" : "chevron.right")
+                    .font(.system(size: 9, weight: .semibold))
+                Text(isOpen ? "Ẩn prompt" : "Sửa prompt")
+                    .font(.caption)
+            }
+            .foregroundColor(.secondary)
+        }
+        .buttonStyle(.borderless)
+        .help("Markdown hướng dẫn Claude khi đọc dữ liệu từ connector này.")
+    }
+
+    /// For non-Google services: one TextEditor mapped to the matching Tag.
+    /// For service=="gdrive" we surface 4 sub-tag editors (Drive / Gmail /
+    /// Calendar / Sheets) since the Google OAuth scope covers all four.
+    @ViewBuilder private func connectorPromptEditor(service: String) -> some View {
+        switch service.lowercased() {
+        case "slack":
+            singleTagEditor(.slack, blurb: "Ví dụ: chỉ DMs, mention urgent, channel #engineering")
+        case "clickup":
+            singleTagEditor(.clickup, blurb: "Ví dụ: list 'Đang làm hôm nay' + tasks due trong 24h")
+        case "gdrive":
+            googleSubTagsEditor()
+        default:
+            EmptyView()
+        }
+    }
+
+    @ViewBuilder private func singleTagEditor(_ tag: MCPConnectorPrompts.Tag, blurb: String) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(blurb).font(.caption).foregroundStyle(.tertiary)
+            promptTextEditor(tag: tag, minHeight: 70)
+        }
+    }
+
+    @ViewBuilder private func googleSubTagsEditor() -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Google bao gồm nhiều surface — ghi hướng dẫn riêng cho từng phần. Claude sẽ đọc đúng block trước khi gọi tool tương ứng.")
+                .font(.caption).foregroundStyle(.tertiary)
+            ForEach([MCPConnectorPrompts.Tag.gdrive,
+                     .gmail, .gcal, .gsheets]) { tag in
+                VStack(alignment: .leading, spacing: 3) {
+                    HStack(spacing: 5) {
+                        Image(systemName: tag.symbolName)
+                            .font(.system(size: 10))
+                            .foregroundColor(.accentColor)
+                        Text(tag.displayName)
+                            .font(.system(size: 11, weight: .semibold))
+                    }
+                    promptTextEditor(tag: tag, minHeight: 56)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder private func promptTextEditor(tag: MCPConnectorPrompts.Tag, minHeight: CGFloat) -> some View {
+        let binding = Binding<String>(
+            get: { connectorPrompts.value(for: tag) },
+            set: { newValue in
+                connectorPrompts.set(tag, to: newValue)
+                settings.mcpConnectorPromptsJSON = connectorPrompts.encodeToJSON()
+                MCPConnectorPromptsWriter.write(connectorPrompts)
+            }
+        )
+        TextEditor(text: binding)
+            .font(.system(.body, design: .monospaced))
+            .frame(minHeight: minHeight, maxHeight: 160)
+            .padding(5)
+            .background(Color(NSColor.textBackgroundColor))
+            .overlay(
+                RoundedRectangle(cornerRadius: 5)
+                    .stroke(Color.secondary.opacity(0.3), lineWidth: 1)
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 5))
     }
 
     private func presentConnect(account: Int, service: String, label: String) {

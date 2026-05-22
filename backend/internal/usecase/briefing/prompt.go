@@ -46,10 +46,17 @@ type PayloadCal struct {
 }
 
 // buildPrompt returns the full Vietnamese system+user prompt fed to Claude.
-// Embeds the raw source data as JSON. `userPrompt` (optional, may be empty)
-// is injected as an early section so the model treats it as priority
-// instructions over the generic ranking rules.
-func buildPrompt(raw *RawSourceData, today time.Time, userPrompt string) string {
+// Embeds the raw source data as JSON. `userPrompt` (optional) is the global
+// priority block; `connectorPrompts` carries per-MCP-source overrides
+// (slack, gmail, gcal, etc.) the user wrote in Settings — injected as
+// labelled sub-sections so Claude reads each before scanning the matching
+// raw source data.
+func buildPrompt(
+	raw *RawSourceData,
+	today time.Time,
+	userPrompt string,
+	connectorPrompts ConnectorPrompts,
+) string {
 	rawJSON, _ := json.MarshalIndent(raw, "", "  ")
 	weekday := vnWeekday(today)
 	dateStr := today.Format("02/01/2006")
@@ -65,6 +72,18 @@ func buildPrompt(raw *RawSourceData, today time.Time, userPrompt string) string 
 		b.WriteString("Hướng dẫn dưới đây do user viết — luôn tôn trọng khi rank actions:\n\n")
 		b.WriteString(up)
 		b.WriteString("\n\n")
+	}
+
+	if !connectorPrompts.allEmpty() {
+		b.WriteString("# Hướng dẫn theo nguồn MCP\n")
+		b.WriteString("User đã ghi hướng dẫn riêng cho từng connector dưới đây. ")
+		b.WriteString("ĐỌC kỹ block của connector tương ứng TRƯỚC KHI scan raw data của connector đó:\n\n")
+		appendConnectorSection(&b, "Slack",            connectorPrompts.Slack)
+		appendConnectorSection(&b, "ClickUp",          connectorPrompts.Clickup)
+		appendConnectorSection(&b, "Google Drive",     connectorPrompts.GDrive)
+		appendConnectorSection(&b, "Gmail",            connectorPrompts.Gmail)
+		appendConnectorSection(&b, "Google Calendar",  connectorPrompts.GCal)
+		appendConnectorSection(&b, "Google Sheets",    connectorPrompts.GSheets)
 	}
 
 	b.WriteString("# Yêu cầu output\n")
@@ -91,6 +110,21 @@ func buildPrompt(raw *RawSourceData, today time.Time, userPrompt string) string 
 	b.WriteString("Hãy sinh JSON briefing ngay bây giờ.")
 
 	return b.String()
+}
+
+// appendConnectorSection emits a "## <Label>" sub-block when the user
+// supplied text for that connector. Trimmed empties are skipped so the
+// prompt only carries blocks the user actually authored.
+func appendConnectorSection(b *strings.Builder, label, body string) {
+	t := strings.TrimSpace(body)
+	if t == "" {
+		return
+	}
+	b.WriteString("## ")
+	b.WriteString(label)
+	b.WriteString("\n")
+	b.WriteString(t)
+	b.WriteString("\n\n")
 }
 
 const promptSchema = `{
