@@ -77,6 +77,20 @@ struct UsageDTO: Codable, Hashable {
         if let seven = sevenDay, seven.resetsAt < now { return true }
         return false
     }
+
+    /// Merge per-window with a previous snapshot: when this fetch is missing
+    /// a window, keep the previous one as long as it has not rolled over.
+    /// The web scraper occasionally returns `sevenDay: nil` because the
+    /// weekly-limit block hydrates later than the 5h block on claude.ai, and
+    /// the OAuth API can also omit one window on a transient response. Without
+    /// this merge the 7d bar would flicker on/off between refresh ticks.
+    func merging(over previous: UsageDTO?) -> UsageDTO {
+        guard let previous else { return self }
+        let now = Date()
+        let mergedFive = fiveHour ?? (previous.fiveHour?.resetsAt ?? .distantPast > now ? previous.fiveHour : nil)
+        let mergedSeven = sevenDay ?? (previous.sevenDay?.resetsAt ?? .distantPast > now ? previous.sevenDay : nil)
+        return UsageDTO(fiveHour: mergedFive, sevenDay: mergedSeven, fetchedAt: fetchedAt)
+    }
 }
 
 /// Mirrors backend/internal/usecase/list_accounts.go AccountView.
@@ -95,7 +109,7 @@ struct AccountViewDTO: Codable, Hashable, Identifiable {
         AccountViewDTO(
             account: account,
             isActive: isActive,
-            usage: usage,
+            usage: usage.merging(over: self.usage),
             error: error,
             credentialState: credentialState,
             credentialError: credentialError,
@@ -155,7 +169,18 @@ struct ListAccountsDTO: Codable, Hashable {
     func mergingUsageRows(_ rows: ListAccountsDTO) -> ListAccountsDTO {
         ListAccountsDTO(
             accounts: accounts.map { account in
-                rows.accounts.first(where: { $0.id == account.id }) ?? account
+                guard let row = rows.accounts.first(where: { $0.id == account.id }) else {
+                    return account
+                }
+                // Backend returns every account but only fills `usage` for
+                // those in `--usage-accounts`. For web-linked accounts the
+                // fallback batch intentionally excludes them, so `row.usage`
+                // is nil — keep this account's preserved usage in that case,
+                // otherwise the subsequent web overlay sees `self.usage = nil`
+                // and merge-over-previous can't recover the 7d window when
+                // the scraper only returns the 5h block.
+                guard row.usage != nil else { return account }
+                return row
             },
             activeAccountNumber: activeAccountNumber
         )
