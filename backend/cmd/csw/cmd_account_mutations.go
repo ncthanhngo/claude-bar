@@ -5,10 +5,13 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"log"
 	"os"
 	"strconv"
 
+	"github.com/soi/claude-swap-widget/backend/internal/adapter/keychain"
 	"github.com/soi/claude-swap-widget/backend/internal/usecase"
+	"github.com/soi/claude-swap-widget/backend/internal/usecase/chat"
 )
 
 func runAdd(ctx context.Context, svc *usecase.Service, args []string) error {
@@ -80,13 +83,52 @@ func runRemove(ctx context.Context, svc *usecase.Service, args []string) error {
 	if err != nil {
 		return fmt.Errorf("invalid account number: %s", fs.Arg(0))
 	}
+
+	// Look up the account's UUID before removal so we can purge its chat
+	// data using a stable identifier. Look-up failures are tolerated — we
+	// still want the swap-related removal to proceed.
+	accountUUID := lookupAccountUUID(ctx, svc, num)
+
 	if err := svc.RemoveAccount(ctx, num); err != nil {
 		return err
 	}
+
+	// Chat purge runs AFTER the registry / backup deletion. We treat purge
+	// errors as warnings — the user-visible operation succeeded; orphaned
+	// chat data is recoverable manually if Keychain access flakes.
+	if accountUUID != "" {
+		opts := chat.PurgeOptions{KeyStore: keychain.NewChatDBKeyStore()}
+		if err := chat.PurgeAccount(ctx, accountUUID, opts); err != nil {
+			log.Printf("[remove] chat purge for %s failed: %v", accountUUID, err)
+		}
+	}
+
 	if *asJSON {
 		_ = json.NewEncoder(os.Stdout).Encode(map[string]any{"ok": true, "number": num})
 		return nil
 	}
 	fmt.Printf("Removed Account-%d.\n", num)
 	return nil
+}
+
+// lookupAccountUUID returns the AccountUUID for `num`, preferring the
+// claude.json oauthAccount value when the target is currently active and
+// falling back to the registry IdentityKey (email|orgUUID) otherwise.
+// Mirrors oauth.TokenProvider.accountUUID for chat-storage scoping.
+func lookupAccountUUID(ctx context.Context, svc *usecase.Service, num int) string {
+	reg, err := svc.Registry.Load(ctx)
+	if err != nil || reg == nil {
+		return ""
+	}
+	if num == reg.ActiveAccountNumber {
+		if cfg, err := svc.Config.Read(ctx); err == nil && cfg != nil && cfg.OAuthAccount != nil {
+			if u := cfg.OAuthAccount.AccountUUID; u != "" {
+				return u
+			}
+		}
+	}
+	if acc := reg.Accounts[num]; acc != nil {
+		return acc.IdentityKey()
+	}
+	return ""
 }
