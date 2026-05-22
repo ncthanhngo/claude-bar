@@ -23,6 +23,29 @@ final class BriefingWindowController: NSObject, NSWindowDelegate {
 
     // MARK: - Public API
 
+    /// `true` only when the briefing window is BOTH visible and the current
+    /// key window — i.e. genuinely in the foreground in front of every other
+    /// app. Lets `BriefingCoordinator.toggle()` decide "bring to front" vs
+    /// "close" instead of toggling blindly on `isWindowOpen`, which is just a
+    /// logical "should be shown" flag and can't tell that the window is
+    /// buried behind Chrome / Xcode / etc.
+    var isKeyAndVisible: Bool {
+        guard let w = window else { return false }
+        return w.isVisible && w.isKeyWindow
+    }
+
+    /// Raise the briefing window above every other app and make it key. Used
+    /// by the global hotkey when Daily is open-but-buried so a single press
+    /// pulls it forward instead of dismissing it. Also dismisses the menu-bar
+    /// popover so the two never overlap.
+    func bringToFront() {
+        MenuBarPopoverToggle.closeIfOpen()
+        guard let w = window else { return }
+        NSApp.activate(ignoringOtherApps: true)
+        w.makeKeyAndOrderFront(nil)
+    }
+
+
     /// Attach to a coordinator's `isWindowOpen` flag — opening / closing the
     /// window is driven from the @Published binding, so any caller (hotkey,
     /// menu link, Telegram callback) just flips `coord.show()` / `close()`.
@@ -50,8 +73,15 @@ final class BriefingWindowController: NSObject, NSWindowDelegate {
     // MARK: - Window plumbing
 
     private func present(with coordinator: BriefingCoordinator) {
+        // Collapse the menu-bar popover back into the status item so it
+        // doesn't sit on top of the Daily window. `NSApp.activate` below would
+        // dismiss it on focus loss anyway, but in practice the dismissal is
+        // unreliable when activate races with the popover's own click handler,
+        // so click the status button explicitly when it's still on.
+        MenuBarPopoverToggle.closeIfOpen()
         if let existing = window {
-            bringToFrontPreservingPopover(existing)
+            existing.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
             return
         }
         // attach(coordinator:store:) wires both before any hotkey can fire.
@@ -88,23 +118,6 @@ final class BriefingWindowController: NSObject, NSWindowDelegate {
         }
     }
 
-    // Show the window without yanking key status away from a MenuBarExtra
-    // popover that is already open. `.window`-style MenuBarExtra dismisses the
-    // moment another window in the app becomes key OR the app gets activated
-    // via `NSApp.activate`, so when ClaudeBar is already the active app
-    // (popover open, or user clicked something in our UI) we just `orderFront`
-    // and let the user click the briefing window to focus it. When opened from
-    // a global hotkey while another app is frontmost, we must activate + make
-    // key, otherwise the window would slide in behind the foreground app.
-    private func bringToFrontPreservingPopover(_ w: NSWindow) {
-        if NSApp.isActive {
-            w.orderFront(nil)
-        } else {
-            NSApp.activate(ignoringOtherApps: true)
-            w.makeKeyAndOrderFront(nil)
-        }
-    }
-
     // MARK: - Frames
 
     private func makeWindow() -> NSWindow {
@@ -118,8 +131,17 @@ final class BriefingWindowController: NSObject, NSWindowDelegate {
             backing: .buffered,
             defer: false
         )
-        w.level = NSWindow.Level(rawValue: NSWindow.Level.statusBar.rawValue + 1)
-        w.collectionBehavior = [.moveToActiveSpace, .fullScreenAuxiliary]
+        // Plain `.normal` level — sitting above status bar (`statusBar+1`)
+        // makes the popover appear behind the Daily window, and forces macOS
+        // to treat this as system UI which blocks horizontal Mission-Control
+        // swipes between Spaces. With `.normal` the popover (popUpMenu level)
+        // overlays Daily naturally and Spaces work like with any other window.
+        w.level = .normal
+        // Tie the window to whichever Space it was opened on. Omitting
+        // `.moveToActiveSpace` means swiping to another Space leaves Daily
+        // behind on its original Space instead of dragging it along — the
+        // behaviour the user expects from a normal app window.
+        w.collectionBehavior = []
         w.isReleasedWhenClosed = false
         w.isMovableByWindowBackground = true
         w.titlebarAppearsTransparent = true
@@ -167,7 +189,8 @@ final class BriefingWindowController: NSObject, NSWindowDelegate {
     private func animateOpen(window w: NSWindow) {
         w.setFrame(startFrame, display: false)
         w.alphaValue = 0
-        bringToFrontPreservingPopover(w)
+        w.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
 
         // Use NSAnimationContext for smooth resize + fade-in.
         NSAnimationContext.runAnimationGroup({ ctx in
@@ -178,12 +201,14 @@ final class BriefingWindowController: NSObject, NSWindowDelegate {
             w.animator().alphaValue = 1.0
         })
 
-        // Tether anchors the window to the menu-bar icon — drop in once the
-        // window has reached its full size.
-        let palette = AppSettings.shared.widgetTheme.briefingPalette
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.40) { [weak w] in
+        // Light beam projects from the icon onto the briefing — drop in
+        // partway through the open animation so the user sees the page
+        // arriving inside the cone of light, not after. Beam color matches
+        // the menu-bar icon tint so the light visibly comes from the icon.
+        let beamColor = AppSettings.shared.menuBarIconColor.color ?? Color.primary
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.20) { [weak w] in
             guard let w else { return }
-            TetherWindowController.shared.show(below: w, palette: palette)
+            TetherWindowController.shared.show(below: w, beamColor: beamColor)
         }
     }
 
