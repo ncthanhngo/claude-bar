@@ -115,7 +115,7 @@ final class RSSAtomParser: NSObject, XMLParserDelegate {
 
     private var items: [NewsItemDTO] = []
 
-    private enum Capture { case none, title, link, pubDate }
+    private enum Capture { case none, title, link, pubDate, summary }
 
     init(feedID: UUID, feedLabel: String) {
         self.feedID = feedID
@@ -158,6 +158,17 @@ final class RSSAtomParser: NSObject, XMLParserDelegate {
         case "pubdate", "published", "updated":
             captureMode = .pubDate
             captureBuffer = ""
+        case "description", "summary", "content", "content:encoded":
+            // Only grab the first summary-like field per item — feeds that
+            // emit both <description> and <content:encoded> would otherwise
+            // overwrite each other (the second usually being the longer
+            // HTML body which we'd rather not show as a tooltip).
+            if current?.summary == nil {
+                captureMode = .summary
+                captureBuffer = ""
+            } else {
+                captureMode = .none
+            }
         default:
             captureMode = .none
         }
@@ -166,6 +177,13 @@ final class RSSAtomParser: NSObject, XMLParserDelegate {
     func parser(_ parser: XMLParser, foundCharacters string: String) {
         if captureMode != .none {
             captureBuffer += string
+        }
+    }
+
+    func parser(_ parser: XMLParser, foundCDATA CDATABlock: Data) {
+        if captureMode != .none,
+           let s = String(data: CDATABlock, encoding: .utf8) {
+            captureBuffer += s
         }
     }
 
@@ -187,6 +205,10 @@ final class RSSAtomParser: NSObject, XMLParserDelegate {
             }
         case "pubdate", "published", "updated":
             current?.publishedAt = Self.parseDate(captureBuffer.trimmed())
+        case "description", "summary", "content", "content:encoded":
+            if current?.summary == nil {
+                current?.summary = Self.cleanSummary(captureBuffer)
+            }
         case "item", "entry":
             if let item = current?.build(feedID: feedID, feedLabel: feedLabel) {
                 items.append(item)
@@ -196,6 +218,37 @@ final class RSSAtomParser: NSObject, XMLParserDelegate {
             break
         }
         captureMode = .none
+    }
+
+    /// Strip HTML tags, collapse whitespace, decode the common entities, and
+    /// truncate to a tooltip-friendly length. `nil` for empty input.
+    static func cleanSummary(_ raw: String) -> String? {
+        var s = raw
+        // Drop any tag with `<…>` — RSS descriptions are almost always HTML.
+        s = s.replacingOccurrences(of: "<[^>]+>",
+                                    with: " ",
+                                    options: .regularExpression)
+        let entities: [(String, String)] = [
+            ("&nbsp;", " "), ("&amp;", "&"),
+            ("&quot;", "\""), ("&apos;", "'"),
+            ("&lt;", "<"), ("&gt;", ">"),
+            ("&hellip;", "…"),
+            ("&#8217;", "'"), ("&#8216;", "'"),
+            ("&#8220;", "\u{201C}"), ("&#8221;", "\u{201D}"),
+            ("&#8211;", "–"), ("&#8212;", "—"),
+        ]
+        for (k, v) in entities {
+            s = s.replacingOccurrences(of: k, with: v)
+        }
+        s = s.replacingOccurrences(of: "\\s+",
+                                    with: " ",
+                                    options: .regularExpression)
+        s = s.trimmingCharacters(in: .whitespacesAndNewlines)
+        if s.isEmpty { return nil }
+        let cap = 400
+        if s.count <= cap { return s }
+        let idx = s.index(s.startIndex, offsetBy: cap)
+        return s[..<idx].trimmingCharacters(in: .whitespacesAndNewlines) + "…"
     }
 
     // MARK: - Helpers
@@ -228,6 +281,7 @@ private struct PartialItem {
     var title: String?
     var link: String?
     var publishedAt: Date?
+    var summary: String?
 
     func build(feedID: UUID, feedLabel: String) -> NewsItemDTO? {
         guard let title, !title.isEmpty, let link, !link.isEmpty else { return nil }
@@ -236,7 +290,8 @@ private struct PartialItem {
             feedLabel: feedLabel,
             title: title,
             link: link,
-            publishedAt: publishedAt
+            publishedAt: publishedAt,
+            summary: summary
         )
     }
 }

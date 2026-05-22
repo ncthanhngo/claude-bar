@@ -10,6 +10,10 @@ struct NewsItemDTO: Identifiable, Hashable {
     let title: String
     let link: String
     let publishedAt: Date?
+    /// Short teaser pulled from `<description>` (RSS) or `<summary>` /
+    /// `<content>` (Atom). HTML tags stripped, whitespace collapsed,
+    /// truncated to ~400 chars so the hover tooltip stays readable.
+    let summary: String?
 
     /// Composite ID since RSS items don't carry a stable URN we can trust
     /// across renders.

@@ -7,6 +7,7 @@ import AppKit
 struct PlanReadingCard: View {
     @EnvironmentObject private var news: NewsFeedCoordinator
     let palette: BriefingPalette
+    @State private var hoveredID: String?
 
     var body: some View {
         PlanCardChrome(
@@ -101,11 +102,66 @@ struct PlanReadingCard: View {
                     .lineLimit(2)
             }
             .padding(.vertical, 9)
+            .padding(.horizontal, 8)
             .frame(maxWidth: .infinity, alignment: .leading)
+            .background(hoveredID == item.id ? palette.paper2 : Color.clear)
+            .clipShape(RoundedRectangle(cornerRadius: 6))
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .padding(.horizontal, -8) // bleed background into card padding edges
         .overlay(Divider().background(palette.line), alignment: .top)
+        .onHover { hovering in
+            hoveredID = hovering ? item.id : nil
+        }
+        .popover(
+            isPresented: Binding(
+                get: { hoveredID == item.id && (item.summary?.isEmpty == false) },
+                set: { _ in }
+            ),
+            arrowEdge: .leading
+        ) {
+            summaryPopover(for: item)
+        }
+        .help(item.summary ?? item.title) // native tooltip as fallback
+    }
+
+    @ViewBuilder private func summaryPopover(for item: NewsItemDTO) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 6) {
+                Text(item.feedLabel.uppercased())
+                    .font(.system(size: 10, weight: .bold))
+                    .kerning(1.4)
+                    .foregroundColor(palette.coral)
+                if let d = item.publishedAt {
+                    Text("·").foregroundColor(palette.line2)
+                    Text(relativeDate(d))
+                        .font(.system(size: 10))
+                        .foregroundColor(palette.ink3)
+                }
+            }
+            Text(item.title)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundColor(palette.ink)
+                .lineLimit(3)
+            if let summary = item.summary {
+                Text(summary)
+                    .font(.system(size: 12.5))
+                    .foregroundColor(palette.ink2)
+                    .lineSpacing(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            HStack(spacing: 4) {
+                Image(systemName: "arrow.up.right.square")
+                    .font(.system(size: 9))
+                Text("Click để mở bài viết")
+                    .font(.system(size: 10.5))
+            }
+            .foregroundColor(palette.ink3)
+        }
+        .padding(14)
+        .frame(width: 360)
+        .background(palette.raisedSurface)
     }
 
     private func relativeDate(_ date: Date) -> String {
