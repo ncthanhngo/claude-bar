@@ -54,7 +54,7 @@ func (s *Service) CloudPull(ctx context.Context, passphrase string) error {
 	}
 	defer s.Lock.Release()
 
-	if err := s.applyBundle(ctx, bundle, passphrase); err != nil {
+	if err := s.applyBundle(ctx, bundle, passphrase, nil); err != nil {
 		return err
 	}
 
@@ -252,7 +252,7 @@ func (s *Service) CloudRestoreBackup(ctx context.Context, passphrase string, slo
 	}
 	defer s.Lock.Release()
 
-	if err := s.applyBundle(ctx, bundle, passphrase); err != nil {
+	if err := s.applyBundle(ctx, bundle, passphrase, nil); err != nil {
 		return err
 	}
 
@@ -270,7 +270,10 @@ func (s *Service) CloudRestoreBackup(ctx context.Context, passphrase string, slo
 // applyBundle writes bundle contents into the registry + keychain. Extracted
 // so CloudPull and CloudRestoreBackup share one code path for everything
 // after the decrypt + lock-acquire dance.
-func (s *Service) applyBundle(ctx context.Context, bundle *cloudsync.CloudBundle, passphrase string) error {
+//
+// If selectedIdentities is non-nil, only bundle accounts whose identity key
+// (email|orgUUID) is in the set are applied. A nil selection means "all".
+func (s *Service) applyBundle(ctx context.Context, bundle *cloudsync.CloudBundle, passphrase string, selectedIdentities map[string]bool) error {
 	reg, err := s.Registry.Load(ctx)
 	if err != nil {
 		return fmt.Errorf("load registry: %w", err)
@@ -286,6 +289,9 @@ func (s *Service) applyBundle(ctx context.Context, bundle *cloudsync.CloudBundle
 
 	var failures []string
 	for _, ba := range bundle.Accounts {
+		if selectedIdentities != nil && !selectedIdentities[bundleIdentityKey(ba)] {
+			continue
+		}
 		accountNum, exists := pullAccountNumber(reg, ba)
 		bundleBlob := domain.CredentialBlob(ba.CredentialBlob)
 		writeBlob := bundleBlob
@@ -322,7 +328,11 @@ func (s *Service) applyBundle(ctx context.Context, bundle *cloudsync.CloudBundle
 			acc.MCPConnectors = connectors
 		}
 		if acc.CreatedAt.IsZero() {
-			acc.CreatedAt = time.Now().UTC()
+			if !ba.CreatedAt.IsZero() {
+				acc.CreatedAt = ba.CreatedAt.UTC()
+			} else {
+				acc.CreatedAt = time.Now().UTC()
+			}
 		}
 	}
 
@@ -334,6 +344,199 @@ func (s *Service) applyBundle(ctx context.Context, bundle *cloudsync.CloudBundle
 		return fmt.Errorf("partial restore (%d/%d): %s",
 			len(bundle.Accounts)-len(failures), len(bundle.Accounts),
 			strings.Join(failures, "; "))
+	}
+	return nil
+}
+
+// bundleIdentityKey is the cross-device identity for a bundle account.
+// Matches domain.Account.IdentityKey on the local side.
+func bundleIdentityKey(a cloudsync.BundleAccount) string {
+	return a.Email + "|" + a.OrganizationUUID
+}
+
+// CloudPreviewRow describes one account that exists locally, in the bundle,
+// or both. Used by the restore-preview UI to let the user pick which entries
+// to apply.
+//
+// Status:
+//   - "both"        — same identity exists locally and in the bundle
+//   - "remoteOnly"  — only in the bundle (new account on restore)
+//   - "localOnly"   — only locally (restore does not touch this row)
+type CloudPreviewRow struct {
+	Identity         string    `json:"identity"`
+	Email            string    `json:"email"`
+	Nickname         string    `json:"nickname,omitempty"`
+	OrganizationName string    `json:"organizationName,omitempty"`
+	OrganizationUUID string    `json:"organizationUuid,omitempty"`
+	LocalCreatedAt   time.Time `json:"localCreatedAt,omitempty"`
+	RemoteCreatedAt  time.Time `json:"remoteCreatedAt,omitempty"`
+	Status           string    `json:"status"`
+}
+
+// CloudPreview decrypts the bundle at the given slot and returns a merged
+// list comparing local registry vs bundle accounts by identity (email|orgUUID).
+// Slot 0 is the current bundle; slot >= 1 walks the ring-buffer backups.
+// Read-only — does not touch keychain or registry.
+func (s *Service) CloudPreview(ctx context.Context, passphrase string, slot int) ([]CloudPreviewRow, error) {
+	if passphrase == "" {
+		return nil, fmt.Errorf("passphrase must not be empty")
+	}
+	if slot < 0 {
+		return nil, fmt.Errorf("slot must be >= 0")
+	}
+
+	primary := cloudsync.BundlePath()
+	path := primary
+	if slot > 0 {
+		backups := cloudsync.BackupPaths(primary)
+		if slot > len(backups) {
+			return nil, fmt.Errorf("slot %d does not exist (have %d backups)", slot, len(backups))
+		}
+		path = backups[slot-1]
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("read bundle slot %d: %w", slot, err)
+	}
+	bundle, err := cloudsync.Decrypt(data, passphrase)
+	if err != nil {
+		return nil, err
+	}
+
+	reg, err := s.Registry.Load(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("load registry: %w", err)
+	}
+
+	rows := map[string]*CloudPreviewRow{}
+	for _, acc := range reg.Accounts {
+		key := acc.IdentityKey()
+		rows[key] = &CloudPreviewRow{
+			Identity:         key,
+			Email:            acc.Email,
+			Nickname:         acc.Nickname,
+			OrganizationName: acc.OrganizationName,
+			OrganizationUUID: acc.OrganizationUUID,
+			LocalCreatedAt:   acc.CreatedAt,
+			Status:           "localOnly",
+		}
+	}
+	for _, ba := range bundle.Accounts {
+		key := bundleIdentityKey(ba)
+		if row, ok := rows[key]; ok {
+			row.RemoteCreatedAt = ba.CreatedAt
+			row.Status = "both"
+			// Prefer remote nickname/orgName if the local copy is missing them
+			// — small UX nicety so the table is not blank.
+			if row.Nickname == "" {
+				row.Nickname = ba.Nickname
+			}
+			if row.OrganizationName == "" {
+				row.OrganizationName = ba.OrganizationName
+			}
+			continue
+		}
+		rows[key] = &CloudPreviewRow{
+			Identity:         key,
+			Email:            ba.Email,
+			Nickname:         ba.Nickname,
+			OrganizationName: ba.OrganizationName,
+			OrganizationUUID: ba.OrganizationUUID,
+			RemoteCreatedAt:  ba.CreatedAt,
+			Status:           "remoteOnly",
+		}
+	}
+
+	out := make([]CloudPreviewRow, 0, len(rows))
+	for _, r := range rows {
+		out = append(out, *r)
+	}
+	// Stable order: remoteOnly first, then both, then localOnly; alpha by email within.
+	statusRank := map[string]int{"remoteOnly": 0, "both": 1, "localOnly": 2}
+	sortPreviewRows(out, statusRank)
+	return out, nil
+}
+
+func sortPreviewRows(rows []CloudPreviewRow, rank map[string]int) {
+	// Tiny insertion sort — rows are O(10s), not worth importing sort for one place.
+	for i := 1; i < len(rows); i++ {
+		for j := i; j > 0; j-- {
+			a, b := rows[j-1], rows[j]
+			ra, rb := rank[a.Status], rank[b.Status]
+			if ra < rb || (ra == rb && a.Email <= b.Email) {
+				break
+			}
+			rows[j-1], rows[j] = b, a
+		}
+	}
+}
+
+// CloudPullSelective restores only the bundle accounts whose identity key is
+// present in `identities`. Identities = "email|orgUUID". Slot 0 enforces
+// anti-rollback; slot > 0 bypasses it (same as CloudRestoreBackup).
+func (s *Service) CloudPullSelective(ctx context.Context, passphrase string, slot int, identities []string) error {
+	if passphrase == "" {
+		return fmt.Errorf("passphrase must not be empty")
+	}
+	if slot < 0 {
+		return fmt.Errorf("slot must be >= 0")
+	}
+	if len(identities) == 0 {
+		return fmt.Errorf("no accounts selected")
+	}
+
+	primary := cloudsync.BundlePath()
+	path := primary
+	if slot > 0 {
+		backups := cloudsync.BackupPaths(primary)
+		if slot > len(backups) {
+			return fmt.Errorf("slot %d does not exist (have %d backups)", slot, len(backups))
+		}
+		path = backups[slot-1]
+	}
+
+	data, err := readBundleWithFallback(path)
+	if err != nil {
+		return fmt.Errorf("read bundle: %w", err)
+	}
+	bundle, err := cloudsync.Decrypt(data, passphrase)
+	if err != nil {
+		return err
+	}
+
+	state, err := cloudsync.LoadSyncState(adapter.CloudSyncStateFile())
+	if err != nil {
+		return fmt.Errorf("load sync state: %w", err)
+	}
+	if slot == 0 {
+		if err := checkAntiRollback(bundle, state); err != nil {
+			return err
+		}
+	}
+
+	selected := make(map[string]bool, len(identities))
+	for _, id := range identities {
+		selected[id] = true
+	}
+
+	if err := s.Lock.Acquire(ctx); err != nil {
+		return err
+	}
+	defer s.Lock.Release()
+
+	if err := s.applyBundle(ctx, bundle, passphrase, selected); err != nil {
+		return err
+	}
+
+	if slot == 0 {
+		state.LastSeq = maxU64(state.LastSeq, bundle.Seq)
+	} else {
+		state.LastSeq = bundle.Seq
+	}
+	state.LastBundleHash = cloudsync.HashCiphertext(data)
+	if err := cloudsync.SaveSyncState(adapter.CloudSyncStateFile(), state); err != nil {
+		return fmt.Errorf("save sync state: %w", err)
 	}
 	return nil
 }
