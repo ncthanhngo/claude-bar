@@ -32,13 +32,14 @@ struct PlanModeBody: View {
     }
 
     @ViewBuilder private func cardsGrid(_ b: BriefingDTO) -> some View {
+        // Fixed-width right column (420pt) prevents the hero's long serif
+        // title from squeezing it. Left column flexes with the window —
+        // looks balanced at the 1280pt + Daily inset where most users sit.
         HStack(alignment: .top, spacing: 24) {
             leftColumn(b)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .layoutPriority(1.1)
             rightColumn(b)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .layoutPriority(1)
+                .frame(width: 420, alignment: .leading)
         }
     }
 
@@ -63,6 +64,7 @@ struct PlanModeBody: View {
     @ViewBuilder private func rightColumn(_ b: BriefingDTO) -> some View {
         VStack(alignment: .leading, spacing: 16) {
             PlanCalendarCard(events: b.calendar, palette: palette)
+            PlanReadingCard(palette: palette)
             PlanActionsBySourceCard(
                 variant: .clickup,
                 actions: actions(from: b, source: .task),
