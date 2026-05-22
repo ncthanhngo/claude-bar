@@ -51,7 +51,7 @@ final class BriefingWindowController: NSObject, NSWindowDelegate {
 
     private func present(with coordinator: BriefingCoordinator) {
         if let existing = window {
-            existing.makeKeyAndOrderFront(nil)
+            bringToFrontPreservingPopover(existing)
             return
         }
         // attach(coordinator:store:) wires both before any hotkey can fire.
@@ -85,6 +85,23 @@ final class BriefingWindowController: NSObject, NSWindowDelegate {
         animateClose(window: w) { [weak self] in
             self?.window = nil
             self?.hostingController = nil
+        }
+    }
+
+    // Show the window without yanking key status away from a MenuBarExtra
+    // popover that is already open. `.window`-style MenuBarExtra dismisses the
+    // moment another window in the app becomes key OR the app gets activated
+    // via `NSApp.activate`, so when ClaudeBar is already the active app
+    // (popover open, or user clicked something in our UI) we just `orderFront`
+    // and let the user click the briefing window to focus it. When opened from
+    // a global hotkey while another app is frontmost, we must activate + make
+    // key, otherwise the window would slide in behind the foreground app.
+    private func bringToFrontPreservingPopover(_ w: NSWindow) {
+        if NSApp.isActive {
+            w.orderFront(nil)
+        } else {
+            NSApp.activate(ignoringOtherApps: true)
+            w.makeKeyAndOrderFront(nil)
         }
     }
 
@@ -150,8 +167,7 @@ final class BriefingWindowController: NSObject, NSWindowDelegate {
     private func animateOpen(window w: NSWindow) {
         w.setFrame(startFrame, display: false)
         w.alphaValue = 0
-        w.makeKeyAndOrderFront(nil)
-        NSApp.activate(ignoringOtherApps: true)
+        bringToFrontPreservingPopover(w)
 
         // Use NSAnimationContext for smooth resize + fade-in.
         NSAnimationContext.runAnimationGroup({ ctx in
