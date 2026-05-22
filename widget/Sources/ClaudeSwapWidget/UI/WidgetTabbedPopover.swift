@@ -174,17 +174,28 @@ struct ClaudeTabContent: View {
     @State private var renamingAccount: AccountViewDTO?
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 4) {
-                sectionTitle(title: "Accounts",
-                             trailing: store.snapshot.map { "\($0.accounts.count)" })
-                AccountListSection(renaming: $renamingAccount)
-                sectionTitle(title: "Auto-swap").padding(.top, 6)
-                AutoSwapSection()
-                sectionTitle(title: "Token usage").padding(.top, 6)
-                TokenStatsSection()
+        // GeometryReader → ScrollView → VStack with `minHeight: geo.height`
+        // makes the content stretch to fill the tab area when it's shorter
+        // than the popover (1–2 accounts case), so TokenStatsSection's chart
+        // expands to absorb the slack instead of leaving a blank strip below
+        // the summary cards. Content longer than the tab area (6+ accounts
+        // before the inner list scroll kicks in) still scrolls normally —
+        // `minHeight` only sets a floor.
+        GeometryReader { geo in
+            ScrollView {
+                VStack(alignment: .leading, spacing: 4) {
+                    sectionTitle(title: "Accounts",
+                                 trailing: store.snapshot.map { "\($0.accounts.count)" })
+                    AccountListSection(renaming: $renamingAccount)
+                    sectionTitle(title: "Auto-swap").padding(.top, 6)
+                    AutoSwapSection()
+                    sectionTitle(title: "Token usage").padding(.top, 6)
+                    TokenStatsSection()
+                        .frame(maxHeight: .infinity, alignment: .top)
+                }
+                .padding(.vertical, 6)
+                .frame(minHeight: geo.size.height, alignment: .top)
             }
-            .padding(.vertical, 6)
         }
         .sheet(item: $renamingAccount) { acc in
             RenameAccountSheet(account: acc) { newName in
