@@ -81,7 +81,11 @@ final class BriefingWindowController: NSObject, NSWindowDelegate {
     // MARK: - Frames
 
     private func makeWindow() -> NSWindow {
-        let w = NSWindow(
+        // KeyableBorderlessWindow overrides canBecomeKey/Main so TextEditor
+        // and TextField inside Chat mode actually receive keystrokes — a
+        // plain borderless NSWindow returns canBecomeKey=false by default
+        // and silently swallows every keypress.
+        let w = KeyableBorderlessWindow(
             contentRect: startFrame,
             styleMask: [.borderless, .resizable, .fullSizeContentView],
             backing: .buffered,
@@ -177,4 +181,13 @@ final class BriefingWindowController: NSObject, NSWindowDelegate {
         coordinator?.close()
         return false // we drive close via the coordinator binding
     }
+}
+
+/// Borderless NSWindow that can become key + main. AppKit defaults both
+/// flags to false for `.borderless` style mask, which silently disables
+/// every TextField / TextEditor inside the window — keystrokes never reach
+/// SwiftUI because the window can't take first responder.
+final class KeyableBorderlessWindow: NSWindow {
+    override var canBecomeKey: Bool { true }
+    override var canBecomeMain: Bool { true }
 }
