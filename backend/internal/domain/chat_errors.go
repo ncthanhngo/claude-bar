@@ -30,4 +30,14 @@ var (
 	// ErrInvalidContentBlock: ContentBlock.Validate failed — Kind doesn't
 	// match populated fields. Always a programmer bug; never user-facing.
 	ErrInvalidContentBlock = errors.New("chat: invalid content block")
+
+	// ErrUnauthorized: Anthropic returned 401. The adapter does not refresh
+	// on its own; the usecase catches this, calls OAuthTokenProvider.GetFresh
+	// to rotate, and retries once. A second 401 surfaces as auth error to UI.
+	ErrUnauthorized = errors.New("chat: unauthorized (token refresh needed)")
+
+	// ErrNotActive: caller asked to chat as account N, but N is not the
+	// currently-active account. MVP only chats as the active account so the
+	// OAuth credentials always come from the live credential store.
+	ErrNotActive = errors.New("chat: account is not the currently-active one")
 )

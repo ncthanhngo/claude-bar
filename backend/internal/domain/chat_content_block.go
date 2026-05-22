@@ -31,6 +31,12 @@ type ContentBlock struct {
 	// adapter — domain stays unaware of any specific tool schema.
 	ToolName  string
 	ToolInput map[string]any
+
+	// Base64Data is a transient field — populated by the usecase right before
+	// handing the block to ChatClient.Stream (it reads + decrypts the on-disk
+	// attachment file and fills it). Never stored on disk, never returned
+	// from storage. The adapter consumes and discards.
+	Base64Data string `json:"-"`
 }
 
 // Validate reports whether the block's populated fields match its Kind.
