@@ -19,6 +19,7 @@ struct ClaudeSwapWidgetApp: App {
     @StateObject private var briefingCoord = BriefingCoordinator(client: CswClient())
     @StateObject private var chatStore = ChatStore()
     @StateObject private var newsCoord = NewsFeedCoordinator()
+    @StateObject private var prefsCloudSync = PreferencesCloudSync.shared
     @ObservedObject private var settings = AppSettings.shared
 
     init() {
@@ -117,6 +118,7 @@ struct ClaudeSwapWidgetApp: App {
                         newsCoord: newsCoord
                     )
                     registerBriefingHotkeys(briefing: briefingCoord)
+                    prefsCloudSync.start()
                     await cloudSync.refreshStatus()
                     await cloudSync.checkOnboarding(snapshot: store.snapshot)
                 }
