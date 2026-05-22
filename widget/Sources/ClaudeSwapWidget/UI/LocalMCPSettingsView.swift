@@ -334,7 +334,7 @@ struct LocalMCPSettingsView: View {
             HStack(spacing: 4) {
                 Image(systemName: filled ? "text.badge.checkmark" : "square.and.pencil")
                     .font(.system(size: 10, weight: .semibold))
-                Text(isOpen ? "Ẩn prompt" : (filled ? "Sửa prompt ✓" : "Sửa prompt"))
+                Text(isOpen ? "Hide Prompt" : (filled ? "Edit Prompt ✓" : "Edit Prompt"))
                     .font(.system(size: 11, weight: .semibold))
             }
             .foregroundColor(.white)

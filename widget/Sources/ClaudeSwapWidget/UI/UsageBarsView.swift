@@ -58,6 +58,39 @@ enum UsagePalette {
     }
 }
 
+/// Static placeholder shown when usage exists but this window is missing
+/// from the scrape. The web settings DOM intermittently omits the weekly
+/// row; rendering an empty slot keeps the row layout stable instead of
+/// collapsing the 7d line on every refresh.
+struct UnavailableBar: View {
+    let label: String
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Text(label)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundColor(.secondary.opacity(0.5))
+                .frame(width: 18, alignment: .leading)
+            GeometryReader { geo in
+                Capsule()
+                    .fill(Color.primary.opacity(0.07))
+                    .frame(width: geo.size.width)
+            }
+            .frame(height: 4)
+            Text("—")
+                .font(.system(size: 12, weight: .bold))
+                .monospacedDigit()
+                .foregroundColor(.secondary.opacity(0.5))
+                .frame(width: 42, alignment: .trailing)
+            Text("unavailable")
+                .font(.system(size: 10, weight: .medium))
+                .foregroundColor(.secondary.opacity(0.5))
+                .frame(width: 60, alignment: .trailing)
+        }
+        .help("This window wasn't reported in the latest usage refresh.")
+    }
+}
+
 /// Skeleton placeholder shown while usage is still loading.
 struct SkeletonBar: View {
     let label: String
