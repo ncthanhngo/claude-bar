@@ -37,9 +37,9 @@ struct BriefingSettingsView: View {
     @State private var showAdvancedCron: Bool = false
 
     @ViewBuilder private var schedSection: some View {
-        GroupBox("Lịch chạy hàng ngày") {
+        GroupBox("Daily schedule") {
             VStack(alignment: .leading, spacing: 10) {
-                Text("Thêm các thời điểm trong ngày để briefing tự chạy. Mỗi lần khoảng ~30s.")
+                Text("Add times of day for the briefing to run automatically. Each run takes ~30s.")
                     .font(.caption).foregroundStyle(.secondary)
 
                 // Chip list of existing times
@@ -50,7 +50,7 @@ struct BriefingSettingsView: View {
                         }
                     }
                 } else {
-                    Text("Chưa có thời điểm nào — thêm bên dưới.")
+                    Text("No times yet — add one below.")
                         .font(.caption).foregroundStyle(.tertiary)
                 }
 
@@ -59,14 +59,14 @@ struct BriefingSettingsView: View {
                         .frame(width: 80)
                         .textFieldStyle(.roundedBorder)
                         .font(.system(.body, design: .monospaced))
-                    Button("Thêm giờ") { addTime() }
+                    Button("Add time") { addTime() }
                         .disabled(!isValidTime(newTimeDraft) || times.contains(newTimeDraft))
                     Spacer()
                 }
 
-                Toggle("Bật scheduler tự động", isOn: $enabledDraft)
+                Toggle("Enable automatic scheduler", isOn: $enabledDraft)
 
-                DisclosureGroup("Chỉnh cron thủ công (nâng cao)", isExpanded: $showAdvancedCron) {
+                DisclosureGroup("Edit cron manually (advanced)", isExpanded: $showAdvancedCron) {
                     HStack {
                         Text("Cron").frame(width: 40, alignment: .leading)
                         TextField("0 8,12,17 * * *", text: $cronDraft)
@@ -78,14 +78,14 @@ struct BriefingSettingsView: View {
                 .font(.caption)
 
                 HStack {
-                    Button("Lưu lịch") { saveSchedule() }
+                    Button("Save schedule") { saveSchedule() }
                         .disabled(times.isEmpty && cronDraft.isEmpty)
                     if let s = saveStatus {
                         Text(s).font(.caption).foregroundStyle(.secondary)
                     }
                 }
                 if let sched = coord.schedule {
-                    Text("Hiện tại: `\(sched.cronExpr)` · \(sched.enabled ? "đang bật" : "đã tắt")")
+                    Text("Current: `\(sched.cronExpr)` · \(sched.enabled ? "enabled" : "disabled")")
                         .font(.caption).foregroundStyle(.secondary)
                 }
             }
@@ -115,9 +115,9 @@ struct BriefingSettingsView: View {
     // MARK: - User markdown prompt
 
     @ViewBuilder private var promptSection: some View {
-        GroupBox("Ưu tiên cho Claude (markdown)") {
+        GroupBox("Priorities for Claude (markdown)") {
             VStack(alignment: .leading, spacing: 8) {
-                Text("Mô tả nhu cầu để Claude rank actions theo ý bạn. Ví dụ: \"tập trung kỹ thuật, bỏ marketing\", hoặc danh sách các project quan trọng.")
+                Text("Describe what you care about so Claude ranks actions accordingly. Example: \"focus on engineering, skip marketing\", or a list of priority projects.")
                     .font(.caption).foregroundStyle(.secondary)
 
                 TextEditor(text: $settings.briefingUserPrompt)
@@ -134,7 +134,7 @@ struct BriefingSettingsView: View {
                         BriefingUserPromptWriter.write(newValue)
                     }
 
-                Text("Tự lưu mỗi lần gõ. Mỗi lần `Chạy lại` Daily sẽ inject văn bản này vào prompt của Claude.")
+                Text("Auto-saves as you type. Every Daily run injects this text into Claude's prompt.")
                     .font(.caption).foregroundStyle(.tertiary)
             }
             .padding(10)
@@ -215,8 +215,8 @@ struct BriefingSettingsView: View {
         Task {
             await coord.saveSchedule(cron: cron, enabled: enabledDraft)
             saveStatus = coord.lastError ?? (mixed
-                ? "Đã lưu — lưu ý: cron đơn giản chỉ giữ thời điểm đầu khi các phút khác nhau."
-                : "Đã lưu.")
+                ? "Saved — note: the simple cron form only keeps the first time when minutes differ."
+                : "Saved.")
         }
     }
 
@@ -226,18 +226,18 @@ struct BriefingSettingsView: View {
         GroupBox("Hotkey") {
             VStack(alignment: .leading, spacing: 10) {
                 hotkeyRow(
-                    title: "Mở Claude Bar",
+                    title: "Open Claude Bar",
                     keyCode: $settings.briefingHotkeyOpenAppKeyCode,
                     modifiers: $settings.briefingHotkeyOpenAppModifiers
                 )
                 hotkeyRow(
-                    title: "Mở Daily Briefing",
+                    title: "Open Daily Briefing",
                     keyCode: $settings.briefingHotkeyOpenBriefingKeyCode,
                     modifiers: $settings.briefingHotkeyOpenBriefingModifiers
                 )
-                Text("ESC trong cửa sổ briefing = đóng. Bấm 'Áp dụng' sau khi đổi.")
+                Text("ESC inside the briefing window closes it. Click 'Apply' after changes.")
                     .font(.caption).foregroundStyle(.secondary)
-                Button("Áp dụng hotkey") { applyHotkeys() }
+                Button("Apply hotkeys") { applyHotkeys() }
             }
             .padding(10)
         }
@@ -246,21 +246,21 @@ struct BriefingSettingsView: View {
     // MARK: - News
 
     @ViewBuilder private var newsSection: some View {
-        GroupBox("Tin tức (tùy chọn)") {
+        GroupBox("News (optional)") {
             VStack(alignment: .leading, spacing: 10) {
                 HStack {
-                    Text("Giờ fetch hằng ngày")
+                    Text("Daily fetch time")
                     TextField("08:00", text: $settings.briefingNewsFetchTime)
                         .frame(width: 80)
                         .textFieldStyle(.roundedBorder)
                     Stepper(value: $settings.briefingNewsFetchesPerDay, in: 1...6) {
-                        Text("\(settings.briefingNewsFetchesPerDay) lần/ngày")
+                        Text("\(settings.briefingNewsFetchesPerDay)x per day")
                     }
                 }
                 Divider()
                 Text("Feeds").font(.subheadline.bold())
                 NewsFeedsEditor()
-                Text("Mode 'AI tóm tắt': Claude mở URL và viết tóm tắt thay vì pull RSS.")
+                Text("'AI summary' mode: Claude opens the URL and writes a summary instead of pulling RSS.")
                     .font(.caption).foregroundStyle(.secondary)
             }
             .padding(10)
@@ -270,17 +270,17 @@ struct BriefingSettingsView: View {
     // MARK: - Actions & health
 
     @ViewBuilder private var actionsSection: some View {
-        GroupBox("Hành động") {
+        GroupBox("Actions") {
             VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 10) {
-                    Button("Chạy briefing ngay") {
+                    Button("Run briefing now") {
                         Task { await coord.runNow() }
                     }
                     .disabled(coord.isRunning)
-                    Button("Mở cửa sổ briefing") { coord.show() }
+                    Button("Open briefing window") { coord.show() }
                     if coord.isRunning {
                         ProgressView().controlSize(.small)
-                        Text("Đang tổng hợp…").font(.caption)
+                        Text("Generating…").font(.caption)
                     }
                 }
                 if let err = coord.lastError {
@@ -292,7 +292,7 @@ struct BriefingSettingsView: View {
     }
 
     @ViewBuilder private var healthSection: some View {
-        GroupBox("Trạng thái nguồn") {
+        GroupBox("Source status") {
             VStack(alignment: .leading, spacing: 6) {
                 if let b = coord.briefing {
                     ForEach(Array(b.sourcesHealth.keys.sorted()), id: \.self) { key in
@@ -303,7 +303,7 @@ struct BriefingSettingsView: View {
                         }
                     }
                 } else {
-                    Text("Chưa có briefing nào — bấm 'Chạy briefing ngay'.")
+                    Text("No briefing yet — click 'Run briefing now'.")
                         .font(.caption).foregroundStyle(.secondary)
                 }
             }.padding(10)
@@ -368,8 +368,8 @@ struct BriefingSettingsView: View {
             switch state {
             case "ok":           return (.green, "OK")
             case "down":         return (.red, "Down")
-            case "unauthorized": return (.orange, "Chưa cấp quyền")
-            case "disabled":     return (.gray, "Tắt")
+            case "unauthorized": return (.orange, "Not authorized")
+            case "disabled":     return (.gray, "Disabled")
             default:             return (.secondary, state)
             }
         }()
@@ -384,7 +384,7 @@ struct BriefingSettingsView: View {
         if m & optionKey  != 0 { parts.append("⌥") }
         if m & shiftKey   != 0 { parts.append("⇧") }
         if m & cmdKey     != 0 { parts.append("⌘") }
-        return parts.isEmpty ? "Chọn modifier…" : parts.joined()
+        return parts.isEmpty ? "Choose modifier…" : parts.joined()
     }
 
     private func syncDraftFromSchedule() {

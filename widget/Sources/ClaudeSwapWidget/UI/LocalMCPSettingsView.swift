@@ -91,8 +91,8 @@ struct LocalMCPSettingsView: View {
 
     private var chatToolModeSection: some View {
         SettingsGroup(
-            "Quyền tool cho chat",
-            subtitle: "Áp dụng cho khung \"Hỏi gì đó với Claude…\" ở tab chat của Daily. Mỗi lần gửi tin, Claude sẽ được phép gọi bộ tool tương ứng. Đổi mức nào áp dụng ngay cho tin tiếp theo, không cần khởi động lại."
+            "Tool permissions for chat",
+            subtitle: "Applies to the \"Ask Claude anything…\" box in Daily's chat tab. Each time you send a message, Claude is allowed to call the matching tool set. Changes take effect on the next message — no restart needed."
         ) {
             VStack(alignment: .leading, spacing: 8) {
                 ForEach(ChatToolMode.allCases) { mode in
@@ -143,9 +143,9 @@ struct LocalMCPSettingsView: View {
     @ViewBuilder private func chatToolModeBadge(_ mode: ChatToolMode) -> some View {
         let (text, color): (String, Color) = {
             switch mode.riskTier {
-            case 0:  return ("AN TOÀN",   .green)
-            case 1:  return ("ĐỀ XUẤT",   .blue)
-            default: return ("RỦI RO CAO", .red)
+            case 0:  return ("SAFE",        .green)
+            case 1:  return ("RECOMMENDED", .blue)
+            default: return ("HIGH RISK",   .red)
             }
         }()
         Text(text)
