@@ -26,6 +26,13 @@ func ClaudeSessionsDir() string {
 	return filepath.Join(ClaudeConfigDir(), "sessions")
 }
 
+// ClaudeProjectsDir returns ~/.claude/projects, where Claude Code (CLI + IDE
+// extensions) stores per-project JSONL conversation logs that include token
+// usage per assistant message.
+func ClaudeProjectsDir() string {
+	return filepath.Join(ClaudeConfigDir(), "projects")
+}
+
 // WidgetDataDir returns ~/Library/Application Support/claude-swap-widget on macOS.
 func WidgetDataDir() string {
 	home, _ := os.UserHomeDir()
@@ -80,6 +87,14 @@ func ChatDBFile(accountUUID string) string {
 // ChatAttachmentDir returns the per-account encrypted-attachment dir.
 func ChatAttachmentDir(accountUUID string) string {
 	return filepath.Join(ChatAccountDir(accountUUID), "attachments")
+}
+
+// BriefingUserPromptFile holds the user-authored markdown prompt the
+// briefing runner injects into Claude's prompt as a "# Ưu tiên người
+// dùng" section. Widget Settings writes it on change; backend reads it
+// on each `csw briefing run`. Missing file = no extra context.
+func BriefingUserPromptFile() string {
+	return filepath.Join(WidgetDataDir(), "briefing-user-prompt.md")
 }
 
 // EnsureChatAccountDir creates the per-account chat + attachments dirs with

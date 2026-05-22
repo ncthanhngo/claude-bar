@@ -72,6 +72,20 @@ final class AppSettings: ObservableObject {
     /// How many times per day to refresh news. 1 = once at fetch time.
     @AppStorage("briefingNewsFetchesPerDay")
     var briefingNewsFetchesPerDay: Int = 1
+
+    /// Comma-separated "HH:mm" times at which the briefing auto-runs.
+    /// Persisted in addition to the cron expression so the Settings UI can
+    /// show a friendly time-picker; cron is regenerated from this on save.
+    @AppStorage("briefingScheduleTimes")
+    var briefingScheduleTimes: String = "08:33"
+
+    /// Free-form markdown the user pastes to steer the briefing summariser
+    /// — e.g. "tập trung vào việc kỹ thuật, bỏ qua marketing". Persisted
+    /// to a file the Go briefing runner reads so Claude's prompt sees it
+    /// as a "# Ưu tiên người dùng" section.
+    @AppStorage("briefingUserPrompt")
+    var briefingUserPrompt: String = ""
+
     /// Timestamp of the last backup token refresh attempt (written before RPC).
     /// Used to throttle attempt frequency — prevents hammering Anthropic on
     /// repeated grant failures. Transient failures retry after a shorter window;
@@ -93,7 +107,7 @@ final class AppSettings: ObservableObject {
 }
 
 enum WidgetTheme: String, CaseIterable, Identifiable {
-    case light, dark, rainbow
+    case light, dark, rainbow, apple
 
     var id: String { rawValue }
 
@@ -103,17 +117,24 @@ enum WidgetTheme: String, CaseIterable, Identifiable {
         switch self {
         case .light:   return .dark
         case .dark:    return .rainbow
-        case .rainbow: return .light
+        case .rainbow: return .apple
+        case .apple:   return .light
         }
     }
 
     // MARK: Colors
+
+    /// True when the popover should paint vibrancy (`.menuBar` material) instead
+    /// of a flat `background` fill. Read by `WidgetTabbedPopover` so the rest of
+    /// the theme API stays Color-based.
+    var useVibrancy: Bool { self == .apple }
 
     var background: Color {
         switch self {
         case .light:   return .white
         case .dark:    return Color(white: 0.14)
         case .rainbow: return Color(red: 0.99, green: 0.95, blue: 1.0)
+        case .apple:   return .clear   // vibrancy material applied at popover root
         }
     }
 
@@ -121,6 +142,7 @@ enum WidgetTheme: String, CaseIterable, Identifiable {
         switch self {
         case .light, .dark: return .green
         case .rainbow:      return Color(red: 0.75, green: 0.2, blue: 0.85)
+        case .apple:        return Color(nsColor: .systemGreen)
         }
     }
 
@@ -128,6 +150,7 @@ enum WidgetTheme: String, CaseIterable, Identifiable {
         switch self {
         case .light, .dark: return .green
         case .rainbow:      return Color(red: 0.85, green: 0.15, blue: 0.65)
+        case .apple:        return Color(nsColor: .systemGreen)
         }
     }
 
@@ -135,6 +158,7 @@ enum WidgetTheme: String, CaseIterable, Identifiable {
         switch self {
         case .light, .dark: return .secondary
         case .rainbow:      return Color(red: 0.6, green: 0.2, blue: 0.8)
+        case .apple:        return .secondary
         }
     }
 }

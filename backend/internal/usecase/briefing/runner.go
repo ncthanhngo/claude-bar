@@ -5,7 +5,10 @@ import (
 	"crypto/sha1"
 	"encoding/hex"
 	"fmt"
+	"os"
 	"time"
+
+	"github.com/soi/claude-swap-widget/backend/internal/adapter"
 )
 
 // Runner is the public entry point combining MCP fan-out + Claude summarize
@@ -21,9 +24,11 @@ func (r *Runner) Run(ctx context.Context, accountNumber int) (*Briefing, error) 
 	raw := r.Orchestrator.Fetch(ctx, accountNumber)
 	today := time.Now()
 
+	userPrompt := loadUserPrompt()
+
 	var payload *BriefingPayload
 	if r.Summarizer != nil {
-		p, err := r.Summarizer.Summarize(ctx, buildPrompt(raw, today))
+		p, err := r.Summarizer.Summarize(ctx, buildPrompt(raw, today, userPrompt))
 		if err == nil {
 			payload = p
 		}
@@ -33,6 +38,17 @@ func (r *Runner) Run(ctx context.Context, accountNumber int) (*Briefing, error) 
 	}
 
 	return assembleBriefing(payload, raw, today), nil
+}
+
+// loadUserPrompt reads the user-authored markdown the widget Settings UI
+// persists. Empty / missing file is treated as "no extra context" — the
+// runner falls back to the stock prompt.
+func loadUserPrompt() string {
+	bytes, err := os.ReadFile(adapter.BriefingUserPromptFile())
+	if err != nil {
+		return ""
+	}
+	return string(bytes)
 }
 
 // assembleBriefing merges Claude/fallback payload with raw stats + IDs into

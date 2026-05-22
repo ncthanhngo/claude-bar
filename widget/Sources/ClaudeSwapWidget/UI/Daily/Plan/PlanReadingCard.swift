@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import Foundation
 
 /// "Tin đáng đọc" card — pulls headlines from the user-configured RSS
 /// feeds (Settings → Briefing → Nguồn tin). Empty state surfaces a hint
@@ -78,9 +79,7 @@ struct PlanReadingCard: View {
 
     @ViewBuilder private func row(_ item: NewsItemDTO) -> some View {
         Button {
-            if let url = URL(string: item.link) {
-                NSWorkspace.shared.open(url)
-            }
+            openExternalURL(item.link)
         } label: {
             VStack(alignment: .leading, spacing: 5) {
                 HStack(spacing: 6) {
@@ -169,5 +168,27 @@ struct PlanReadingCard: View {
         f.locale = Locale(identifier: "vi_VN")
         f.unitsStyle = .abbreviated
         return f.localizedString(for: date, relativeTo: Date())
+    }
+
+    /// Open an article link. RSS / Atom feeds occasionally ship URLs with
+    /// stray whitespace, ampersand entities, or angle brackets; sanitise +
+    /// percent-encode before handing to NSWorkspace so the system actually
+    /// opens the right page rather than silently rejecting the URL string.
+    private func openExternalURL(_ raw: String) {
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: "&amp;", with: "&")
+        guard !trimmed.isEmpty else { return }
+        // First try the URL string as-is.
+        if let url = URL(string: trimmed), url.scheme != nil {
+            NSWorkspace.shared.open(url)
+            return
+        }
+        // Fallback: percent-encode any extra characters.
+        if let encoded = trimmed.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
+           let url = URL(string: encoded), url.scheme != nil {
+            NSWorkspace.shared.open(url)
+            return
+        }
+        print("[PlanReadingCard] could not open URL: \(trimmed)")
     }
 }

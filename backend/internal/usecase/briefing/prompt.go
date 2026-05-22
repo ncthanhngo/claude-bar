@@ -46,8 +46,10 @@ type PayloadCal struct {
 }
 
 // buildPrompt returns the full Vietnamese system+user prompt fed to Claude.
-// Embeds the raw source data as JSON.
-func buildPrompt(raw *RawSourceData, today time.Time) string {
+// Embeds the raw source data as JSON. `userPrompt` (optional, may be empty)
+// is injected as an early section so the model treats it as priority
+// instructions over the generic ranking rules.
+func buildPrompt(raw *RawSourceData, today time.Time, userPrompt string) string {
 	rawJSON, _ := json.MarshalIndent(raw, "", "  ")
 	weekday := vnWeekday(today)
 	dateStr := today.Format("02/01/2006")
@@ -57,6 +59,13 @@ func buildPrompt(raw *RawSourceData, today time.Time) string {
 	b.WriteString("Đọc dữ liệu thô từ 4 nguồn (Gmail/GCal/ClickUp/Slack) và sinh JSON briefing thuần.\n\n")
 
 	b.WriteString(fmt.Sprintf("# Bối cảnh hôm nay\n- Ngày: %s, %s\n- Múi giờ: Asia/Saigon\n\n", weekday, dateStr))
+
+	if up := strings.TrimSpace(userPrompt); up != "" {
+		b.WriteString("# Ưu tiên người dùng\n")
+		b.WriteString("Hướng dẫn dưới đây do user viết — luôn tôn trọng khi rank actions:\n\n")
+		b.WriteString(up)
+		b.WriteString("\n\n")
+	}
 
 	b.WriteString("# Yêu cầu output\n")
 	b.WriteString("Trả về DUY NHẤT một JSON object hợp lệ theo schema dưới. KHÔNG markdown, KHÔNG ``` fence, KHÔNG bình luận thêm.\n\n")
