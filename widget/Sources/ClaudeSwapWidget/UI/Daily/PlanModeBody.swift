@@ -1,65 +1,99 @@
 import SwiftUI
 
-/// Editorial planner body — extracted from the original `BriefingView`. Owns
-/// the hero + action list (left column) and calendar + minis (right column),
-/// plus the footer ticker. Renders only when `DailyMode == .plan`.
+/// Editorial planner body. Adds a top MCP source bar then a 2-column grid
+/// of MCP-derived cards: left = hero + action list + Slack mentions; right
+/// = Calendar timeline, ClickUp due, Email follow-ups.
+///
+/// Backed by the existing BriefingDTO from BriefingCoordinator; phase 10
+/// regroups + restyles the data the briefing pipeline already pulls from
+/// MCP connectors (Google Calendar / Gmail / Slack / ClickUp).
 struct PlanModeBody: View {
     @EnvironmentObject private var coord: BriefingCoordinator
     let palette: BriefingPalette
 
     var body: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 0) {
             if let b = coord.briefing {
-                mainGrid(b)
+                PlanMCPSourceBar(
+                    sourcesHealth: b.sourcesHealth,
+                    lastUpdatedLabel: lastUpdatedShort(b.generatedAt),
+                    palette: palette
+                )
+                ScrollView(.vertical, showsIndicators: false) {
+                    cardsGrid(b)
+                        .padding(.horizontal, 28)
+                        .padding(.vertical, 24)
+                }
+                BriefingFooterTickerView(palette: palette, sourcesCount: sourcesCount)
             } else {
                 BriefingSkeleton(palette: palette).frame(maxHeight: .infinity)
             }
-            BriefingFooterTickerView(palette: palette, sourcesCount: sourcesCount)
         }
     }
 
-    @ViewBuilder private func mainGrid(_ briefing: BriefingDTO) -> some View {
-        HStack(alignment: .top, spacing: 32) {
-            leftColumn(briefing)
+    @ViewBuilder private func cardsGrid(_ b: BriefingDTO) -> some View {
+        HStack(alignment: .top, spacing: 24) {
+            leftColumn(b)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .layoutPriority(2)
-            rightColumn(briefing)
-                .frame(width: 400, alignment: .leading)
+                .layoutPriority(1.1)
+            rightColumn(b)
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .layoutPriority(1)
         }
     }
 
-    @ViewBuilder private func leftColumn(_ briefing: BriefingDTO) -> some View {
+    @ViewBuilder private func leftColumn(_ b: BriefingDTO) -> some View {
         VStack(alignment: .leading, spacing: 18) {
-            HeroHeaderView(hero: briefing.hero, palette: palette)
-            ScrollView(showsIndicators: false) {
-                VStack(spacing: 0) {
-                    ForEach(briefing.actions) { action in
-                        ActionRowView(action: action, palette: palette) {
-                            Task { await coord.toggleAction(id: action.id, done: !action.done) }
-                        }
+            HeroHeaderView(hero: b.hero, palette: palette)
+            VStack(spacing: 0) {
+                ForEach(b.actions.prefix(4)) { action in
+                    ActionRowView(action: action, palette: palette) {
+                        Task { await coord.toggleAction(id: action.id, done: !action.done) }
                     }
                 }
             }
+            PlanActionsBySourceCard(
+                variant: .slack,
+                actions: actions(from: b, source: .slack),
+                palette: palette
+            )
         }
     }
 
-    @ViewBuilder private func rightColumn(_ briefing: BriefingDTO) -> some View {
-        VStack(alignment: .leading, spacing: 14) {
-            CalendarTimelineView(events: briefing.calendar, palette: palette)
-            MiniNewsCard(palette: palette)
-            MiniTelegramCard(palette: palette)
+    @ViewBuilder private func rightColumn(_ b: BriefingDTO) -> some View {
+        VStack(alignment: .leading, spacing: 16) {
+            PlanCalendarCard(events: b.calendar, palette: palette)
+            PlanActionsBySourceCard(
+                variant: .clickup,
+                actions: actions(from: b, source: .task),
+                palette: palette
+            )
+            PlanActionsBySourceCard(
+                variant: .email,
+                actions: actions(from: b, source: .email),
+                palette: palette
+            )
         }
+    }
+
+    private func actions(from b: BriefingDTO, source: ActionDTO.Source) -> [ActionDTO] {
+        b.actions.filter { $0.source == source }
     }
 
     private var sourcesCount: Int {
         guard let b = coord.briefing else { return 4 }
         return b.sourcesHealth.values.filter { $0 == "ok" }.count
     }
+
+    private func lastUpdatedShort(_ d: Date) -> String {
+        let f = DateFormatter()
+        f.dateFormat = "HH:mm"
+        return f.string(from: d)
+    }
 }
 
-/// Minimal loading skeleton while the briefing is fetching. Re-housed here so
-/// `BriefingView` can shrink to a pure composition root.
+/// Minimal loading skeleton while the briefing is fetching. Re-housed here
+/// so `BriefingView` can stay a pure composition root.
 struct BriefingSkeleton: View {
     let palette: BriefingPalette
 
