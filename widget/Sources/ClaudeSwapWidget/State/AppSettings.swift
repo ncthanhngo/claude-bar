@@ -234,20 +234,20 @@ enum ChatToolMode: String, CaseIterable, Identifiable {
 
     var label: String {
         switch self {
-        case .off:  return "Chỉ chat — không tool"
-        case .safe: return "Đọc + MCP + skill (khuyên dùng)"
-        case .full: return "Agentic full — bash, ghi file, thực thi"
+        case .off:  return "Chat only — no tools"
+        case .safe: return "Read + MCP + skills (recommended)"
+        case .full: return "Full agent — bash, write files, run commands"
         }
     }
 
     var subtitle: String {
         switch self {
         case .off:
-            return "Claude chỉ sinh text. Không gọi skill, không MCP, không đọc/sửa file."
+            return "Claude only replies with text. No skills, no MCP, no file access."
         case .safe:
-            return "Cho phép Read/Glob/Grep, WebFetch/WebSearch, mọi MCP server (Slack/Gmail/Drive/Calendar/ClickUp…), và slash commands (skill). KHÔNG có Bash/Write/Edit nên Claude không thể chạy lệnh hay sửa file của bạn."
+            return "Lets Claude read files (Read/Glob/Grep), browse the web (WebFetch/WebSearch), use any MCP server (Slack/Gmail/Drive/Calendar/ClickUp…), and run slash commands (skills). No Bash/Write/Edit, so Claude can't run shell commands or change your files."
         case .full:
-            return "Toàn bộ tool bao gồm Bash, Write, Edit. Claude chạy từ $HOME nên có thể đọc/ghi mọi file trong home directory và chạy lệnh shell. Bỏ qua mọi confirm — nếu prompt injection xảy ra có thể mất dữ liệu."
+            return "All tools enabled, including Bash, Write, and Edit. Claude runs from $HOME, so it can read and write any file in your home folder and run shell commands. All confirmations are skipped — a prompt injection could destroy data."
         }
     }
 

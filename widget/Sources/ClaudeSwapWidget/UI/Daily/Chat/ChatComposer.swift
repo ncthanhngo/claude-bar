@@ -56,13 +56,13 @@ struct ChatComposer: View {
         ChatTextEditor(
             text: $draft,
             palette: palette,
-            placeholder: "Hỏi gì đó với Claude…",
+            placeholder: "Ask Claude anything…",
             onSend: { handleReturn() }
         )
         .frame(minHeight: 84, maxHeight: 220)
         .overlay(alignment: .topLeading) {
             if draft.isEmpty {
-                Text("Hỏi gì đó với Claude…")
+                Text("Ask Claude anything…")
                     .font(.system(size: 14.5, design: .serif).italic())
                     .foregroundColor(palette.ink3)
                     .padding(.top, 8)

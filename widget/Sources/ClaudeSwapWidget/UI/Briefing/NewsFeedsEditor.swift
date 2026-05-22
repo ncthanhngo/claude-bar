@@ -15,14 +15,14 @@ struct NewsFeedsEditor: View {
                 row(for: feed)
             }
             if feeds.isEmpty {
-                Text("Chưa có feed nào.")
+                Text("No feeds yet.")
                     .font(.caption).foregroundStyle(.secondary)
             }
 
             Divider().padding(.vertical, 4)
 
             HStack(spacing: 8) {
-                TextField("Tên (vd: Hacker News)", text: $newLabel)
+                TextField("Name (e.g. Hacker News)", text: $newLabel)
                     .textFieldStyle(.roundedBorder)
                     .frame(width: 160)
                 TextField("https://…", text: $newURL)
@@ -34,7 +34,7 @@ struct NewsFeedsEditor: View {
                 }
                 .labelsHidden()
                 .frame(width: 170)
-                Button("Thêm") { addFeed() }
+                Button("Add") { addFeed() }
                     .disabled(newURL.trimmingCharacters(in: .whitespaces).isEmpty
                               || newLabel.trimmingCharacters(in: .whitespaces).isEmpty)
             }

@@ -16,7 +16,7 @@ struct NewsFeedConfig: Codable, Hashable, Identifiable {
         var label: String {
             switch self {
             case .rss:       return "RSS / Atom"
-            case .aiSummary: return "AI tóm tắt từ trang"
+            case .aiSummary: return "AI summary from page"
             }
         }
     }
