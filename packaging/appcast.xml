@@ -12,6 +12,26 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 10.4</title>
+      <sparkle:version>10.4</sparkle:version>
+      <sparkle:shortVersionString>10.4</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li>Welcome onboarding now scrolls and surfaces the bilingual add-account guidance card up front, so first-time users see the /logout explainer before adding their first account.</li>
+          <li>Onboarding window grew from 460 → 620 px so the new card fits comfortably without forcing a scroll on standard displays.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Sat, 23 May 2026 19:49:56 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v10.4/ClaudeBar.zip"
+        sparkle:version="10.4"
+        sparkle:shortVersionString="10.4"
+        sparkle:edSignature="Ym9Z20q8rZJmtOALzlTPACSjCmhBXbjYlugxzDts5fMnuk4WAyDlz5RFGtrZiaDmwMwLlmtRQpshlFzR0zVqAA=="
+        length="7796005"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 10.3</title>
       <sparkle:version>10.3</sparkle:version>
       <sparkle:shortVersionString>10.3</sparkle:shortVersionString>
