@@ -106,32 +106,48 @@ final class CloudSyncCoordinator: ObservableObject {
         }
     }
 
-    /// Background-friendly pull: same as `pull` but swallows errors silently.
-    /// Used by the auto-sync loop where transient failures (anti-rollback,
-    /// missing bundle, wrong passphrase after a rotation) must not surface in
-    /// the diagnostics UI — manual Push/Restore still surfaces them.
-    func pullQuiet(passphrase: String) async {
+    /// Outcome of a quiet pull/push: ok or a short reason string the caller
+    /// can persist for the "Last sync" indicator. Errors are not surfaced via
+    /// `lastError` — those are reserved for user-initiated ops.
+    enum QuietResult {
+        case ok
+        case failed(String)
+
+        var isOk: Bool { if case .ok = self { return true }; return false }
+        var message: String { if case .failed(let m) = self { return m }; return "" }
+    }
+
+    /// Background-friendly pull: same as `pull` but doesn't write to
+    /// `lastError`. Used by the auto-sync loop where transient failures
+    /// (anti-rollback, missing bundle, wrong passphrase after a rotation)
+    /// must not surface in the diagnostics UI — manual Push/Restore still
+    /// surfaces them.
+    @discardableResult
+    func pullQuiet(passphrase: String) async -> QuietResult {
         isBusy = true
         defer { isBusy = false }
         do {
             try await client.cloudPull(passphrase: passphrase)
             await refreshStatus()
+            return .ok
         } catch {
-            // Silent on purpose.
+            return .failed(error.localizedDescription)
         }
     }
 
-    /// Background-friendly push: same as `push` but swallows errors silently.
-    /// Used by the auto-sync loop so a transient push failure (e.g. iCloud
-    /// hasn't mounted yet) doesn't show as a red error in Diagnostics.
-    func pushQuiet(passphrase: String) async {
+    /// Background-friendly push: same as `push` but doesn't write to
+    /// `lastError`. Returns the outcome so the auto-sync loop can record
+    /// success/failure timestamps for the Diagnostics indicator.
+    @discardableResult
+    func pushQuiet(passphrase: String) async -> QuietResult {
         isBusy = true
         defer { isBusy = false }
         do {
             try await client.cloudPush(passphrase: passphrase)
             await refreshStatus()
+            return .ok
         } catch {
-            // Silent on purpose.
+            return .failed(error.localizedDescription)
         }
     }
 
