@@ -164,6 +164,11 @@ private struct BackupRow: View {
 
 // Side-by-side table of local vs bundle accounts. User ticks which incoming
 // accounts to overwrite/import; local-only rows are unselectable.
+//
+// Sources two flows: iCloud bundle slot (restorePreviewImportPath == nil) or
+// an externally-supplied bundle file (path set, used for the cross-Apple-ID
+// share feature). Headline + "Restore selected" button route through the
+// right CloudSyncCoordinator call based on which is active.
 struct RestorePreviewSheet: View {
     @EnvironmentObject var cloudSync: CloudSyncCoordinator
     @EnvironmentObject var store: AppStore
@@ -172,18 +177,39 @@ struct RestorePreviewSheet: View {
     @Binding var restorePreviewSlot: Int
     @Binding var restorePreviewPassphrase: String
     @Binding var restorePreviewSelection: Set<String>
+    @Binding var restorePreviewImportPath: String?
+
+    private var isImport: Bool { restorePreviewImportPath != nil }
+
+    private var headlineText: String {
+        if isImport { return "Review import" }
+        return restorePreviewSlot == 0
+            ? "Review restore"
+            : "Review restore (backup #\(restorePreviewSlot))"
+    }
+
+    private var subtitleText: String {
+        if isImport {
+            return "Tick the accounts you want to bring in from the imported file. Local-only accounts stay untouched. Both-side rows are overwritten with the bundle's credentials if ticked. Your iCloud sync chain is not affected."
+        }
+        return "Tick the accounts you want to bring in from the cloud bundle. Local-only accounts stay untouched. Both-side rows are overwritten with the bundle's credentials if ticked."
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 8) {
-                Text(restorePreviewSlot == 0 ? "Review restore" : "Review restore (backup #\(restorePreviewSlot))")
-                    .font(.headline)
+                Text(headlineText).font(.headline)
                 Spacer()
                 if cloudSync.isBusy {
                     ProgressView().controlSize(.small)
                 }
             }
-            Text("Tick the accounts you want to bring in from the cloud bundle. Local-only accounts stay untouched. Both-side rows are overwritten with the bundle's credentials if ticked.")
+            if let path = restorePreviewImportPath {
+                Text(path)
+                    .font(.caption2.monospaced()).foregroundColor(.secondary)
+                    .lineLimit(1).truncationMode(.middle)
+            }
+            Text(subtitleText)
                 .font(.caption).foregroundColor(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
 
@@ -198,6 +224,12 @@ struct RestorePreviewSheet: View {
                             }
                             .frame(maxWidth: .infinity, alignment: .center)
                             .padding(.vertical, 24)
+                        } else if let err = cloudSync.lastError, !err.isEmpty {
+                            Text(err)
+                                .font(.caption).foregroundColor(.red)
+                                .frame(maxWidth: .infinity, alignment: .center)
+                                .padding(.vertical, 24)
+                                .fixedSize(horizontal: false, vertical: true)
                         } else {
                             Text("No accounts in this bundle.")
                                 .font(.caption).foregroundColor(.secondary)
@@ -244,13 +276,18 @@ struct RestorePreviewSheet: View {
                     let identities = Array(restorePreviewSelection)
                     let slot = restorePreviewSlot
                     let pass = restorePreviewPassphrase
+                    let importPath = restorePreviewImportPath
                     showRestorePreviewSheet = false
                     Task {
-                        await cloudSync.pullSelective(slot: slot, passphrase: pass, identities: identities)
+                        if let path = importPath {
+                            await cloudSync.importSelective(passphrase: pass, srcPath: path, identities: identities)
+                        } else {
+                            await cloudSync.pullSelective(slot: slot, passphrase: pass, identities: identities)
+                        }
                         await store.refreshNow()
                     }
                 } label: {
-                    Label("Restore selected (\(restorePreviewSelection.count))",
+                    Label("\(isImport ? "Import" : "Restore") selected (\(restorePreviewSelection.count))",
                           systemImage: "checkmark.circle.fill")
                 }
                 .buttonStyle(.borderedProminent)

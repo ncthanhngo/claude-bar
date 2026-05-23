@@ -15,6 +15,10 @@ struct DiagnosticsTab: View {
     @State private var restorePreviewSlot: Int = 0
     @State private var restorePreviewPassphrase: String = ""
     @State private var restorePreviewSelection: Set<String> = []
+    // Non-nil = preview sheet is reviewing an imported bundle file (cross-
+    // Apple-ID share), nil = reviewing an iCloud bundle slot. The sheet uses
+    // this to pick between cloudPullSelective and cloudImportSelective.
+    @State private var restorePreviewImportPath: String? = nil
 
     // SwiftUI .sheet() attaches to the popover window, which dismisses on
     // focus loss — every click inside the sheet collapses the menu bar
@@ -30,6 +34,7 @@ struct DiagnosticsTab: View {
         ScrollView {
             SettingsPage {
                 iCloudGroup
+                bundleFileGroup
                 verifyGroup
                 webUsageGroup
             }
@@ -51,6 +56,7 @@ struct DiagnosticsTab: View {
                 previewWindow.close()
                 cloudSync.clearPreview()
                 restorePreviewSelection = []
+                restorePreviewImportPath = nil
             }
         }
     }
@@ -76,13 +82,15 @@ struct DiagnosticsTab: View {
 
     private func presentPreviewWindow() {
         previewWindow.onClose = { showRestorePreviewSheet = false }
-        previewWindow.show(title: "Review restore", size: NSSize(width: 640, height: 520)) {
+        let title = restorePreviewImportPath == nil ? "Review restore" : "Review import"
+        previewWindow.show(title: title, size: NSSize(width: 640, height: 520)) {
             AnyView(
                 RestorePreviewSheet(
                     showRestorePreviewSheet: $showRestorePreviewSheet,
                     restorePreviewSlot: $restorePreviewSlot,
                     restorePreviewPassphrase: $restorePreviewPassphrase,
-                    restorePreviewSelection: $restorePreviewSelection
+                    restorePreviewSelection: $restorePreviewSelection,
+                    restorePreviewImportPath: $restorePreviewImportPath
                 )
                 .environmentObject(cloudSync)
                 .environmentObject(store)
@@ -101,6 +109,64 @@ struct DiagnosticsTab: View {
             initial: cloudSync.loadPassphrase() ?? ""
         ) else { return }
         Task { await cloudSync.push(passphrase: pass) }
+    }
+
+    /// Export the local bundle to a user-chosen file (for sharing across
+    /// Apple IDs). The file is AES-256-GCM encrypted with the user's
+    /// passphrase — safe to deliver via AirDrop, Slack, etc.
+    private func runExportPrompt() {
+        guard let pass = CloudPassphrasePrompt.run(
+            intent: .push,
+            initial: cloudSync.loadPassphrase() ?? ""
+        ) else { return }
+
+        let panel = NSSavePanel()
+        panel.title = "Export Claude Bar bundle"
+        panel.nameFieldStringValue = "claude-bar-bundle-\(Self.exportDateSlug()).cbb"
+        panel.allowedContentTypes = [.data]
+        panel.canCreateDirectories = true
+        panel.isExtensionHidden = false
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+
+        Task { await cloudSync.exportBundle(passphrase: pass, destPath: url.path) }
+    }
+
+    /// Import a bundle file received from another Apple ID. Opens the same
+    /// preview UI as iCloud-restore so the user can pick which accounts to
+    /// bring in (anti-rollback bypassed; iCloud sync state is untouched).
+    private func runImportPrompt() {
+        let panel = NSOpenPanel()
+        panel.title = "Import Claude Bar bundle"
+        panel.allowsMultipleSelection = false
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.allowedContentTypes = [.data]
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+
+        guard let pass = CloudPassphrasePrompt.run(
+            intent: .pull,
+            initial: cloudSync.loadPassphrase() ?? ""
+        ) else { return }
+
+        restorePreviewSlot = 0
+        restorePreviewPassphrase = pass
+        restorePreviewSelection = []
+        restorePreviewImportPath = url.path
+        showRestorePreviewSheet = true
+        Task {
+            await cloudSync.importPreview(passphrase: pass, srcPath: url.path)
+            restorePreviewSelection = Set(
+                cloudSync.previewRows
+                    .filter { $0.status != "localOnly" }
+                    .map { $0.identity }
+            )
+        }
+    }
+
+    private static func exportDateSlug() -> String {
+        let f = DateFormatter()
+        f.dateFormat = "yyyyMMdd-HHmm"
+        return f.string(from: Date())
     }
 
     /// Pull/restore from iCloud. Passphrase via NSAlert; the follow-up
@@ -125,7 +191,10 @@ struct DiagnosticsTab: View {
     }
 
     private var iCloudGroup: some View {
-        SettingsGroup("iCloud Sync", subtitle: "Encrypt and store accounts plus local MCP connectors in iCloud Drive. Restore on any Mac with the same Apple ID and passphrase.") {
+        SettingsGroup(
+            "iCloud Sync",
+            subtitle: "Encrypt and store accounts plus local MCP connectors in iCloud Drive. Background sync runs automatically every ~6h once enabled — Sync now is only needed to push changes immediately."
+        ) {
             if let status = cloudSync.status, status.exists {
                 HStack(spacing: 6) {
                     SettingsBadge(text: "BUNDLE FOUND", color: .green)
@@ -149,16 +218,18 @@ struct DiagnosticsTab: View {
                 Text(err).font(.caption).foregroundColor(.red)
                     .fixedSize(horizontal: false, vertical: true)
             }
-            HStack(spacing: 8) {
-                Button {
-                    runPushPrompt()
-                } label: {
-                    Label(cloudSync.status?.exists == true ? "Push update" : "Enable sync",
-                          systemImage: "icloud.and.arrow.up")
-                }
-                .buttonStyle(.borderedProminent).disabled(cloudSync.isBusy)
+            if cloudSync.status?.exists == true {
+                // Bundle already enabled — auto-sync handles the steady state.
+                // Manual buttons are for force-sync, recovery, and rotation.
+                HStack(spacing: 8) {
+                    Button {
+                        runPushPrompt()
+                    } label: {
+                        Label("Sync now", systemImage: "arrow.triangle.2.circlepath")
+                    }
+                    .buttonStyle(.bordered).disabled(cloudSync.isBusy)
+                    .help("Background sync runs every ~6h. Click to push your latest changes to iCloud immediately, or to rotate the passphrase.")
 
-                if cloudSync.status?.exists == true {
                     Button {
                         runPullPrompt()
                     } label: {
@@ -180,11 +251,48 @@ struct DiagnosticsTab: View {
                         .buttonStyle(.bordered).disabled(cloudSync.isBusy)
                     }
 
+                    Spacer()
+
                     Button("Forget", role: .destructive) {
                         Task { await cloudSync.forget() }
                     }
                     .buttonStyle(.borderless).disabled(cloudSync.isBusy)
                 }
+            } else {
+                // No bundle yet — the prominent CTA is the one-time enablement.
+                // Without this click the passphrase is never saved and auto-sync
+                // can't kick in.
+                HStack(spacing: 8) {
+                    Button {
+                        runPushPrompt()
+                    } label: {
+                        Label("Enable sync", systemImage: "icloud.and.arrow.up")
+                    }
+                    .buttonStyle(.borderedProminent).disabled(cloudSync.isBusy)
+                }
+            }
+        }
+    }
+
+    private var bundleFileGroup: some View {
+        SettingsGroup(
+            "Bundle file (cross-Apple-ID share)",
+            subtitle: "Export an encrypted bundle file to share accounts with someone on a different iCloud. Recipient imports it with the same passphrase — no iCloud sync involved."
+        ) {
+            HStack(spacing: 8) {
+                Button {
+                    runExportPrompt()
+                } label: {
+                    Label("Export to file…", systemImage: "square.and.arrow.up")
+                }
+                .buttonStyle(.bordered).disabled(cloudSync.isBusy)
+
+                Button {
+                    runImportPrompt()
+                } label: {
+                    Label("Import from file…", systemImage: "square.and.arrow.down")
+                }
+                .buttonStyle(.bordered).disabled(cloudSync.isBusy)
             }
         }
     }

@@ -25,7 +25,7 @@ import (
 //	restore-backup <slot> — pull from a specific backup slot (bypasses anti-rollback)
 func runCloud(ctx context.Context, svc *usecase.Service, args []string) error {
 	if len(args) == 0 {
-		return fmt.Errorf("usage: csw cloud <status|push|pull|forget|list-backups|restore-backup|preview|pull-selective> [args] [--json]")
+		return fmt.Errorf("usage: csw cloud <status|push|pull|forget|list-backups|restore-backup|preview|pull-selective|export|import-preview|import-selective> [args] [--json]")
 	}
 
 	jsonOut := len(args) > 1 && args[len(args)-1] == "--json"
@@ -205,6 +205,85 @@ func runCloud(ctx context.Context, svc *usecase.Service, args []string) error {
 			return json.NewEncoder(os.Stdout).Encode(map[string]any{"ok": true})
 		}
 		fmt.Println("Bundle removed from iCloud Drive.")
+		return nil
+
+	case "export":
+		// csw cloud export <dest-path> [--json]
+		// Encrypts the local bundle to an arbitrary file for sharing across
+		// Apple IDs (no iCloud involvement, no sync-state mutation).
+		if len(args) < 2 {
+			return fmt.Errorf("usage: csw cloud export <dest-path> [--json]")
+		}
+		dest := args[1]
+		pass, err := readPassphrase("Passphrase: ")
+		if err != nil {
+			return err
+		}
+		if err := svc.CloudExport(ctx, pass, dest); err != nil {
+			return err
+		}
+		if jsonOut {
+			return json.NewEncoder(os.Stdout).Encode(map[string]any{"ok": true, "path": dest})
+		}
+		fmt.Printf("Bundle exported to %s\n", dest)
+		return nil
+
+	case "import-preview":
+		// csw cloud import-preview <src-path> [--json]
+		// Decrypts an externally-supplied bundle and returns preview rows.
+		if len(args) < 2 {
+			return fmt.Errorf("usage: csw cloud import-preview <src-path> [--json]")
+		}
+		src := args[1]
+		pass, err := readPassphrase("Passphrase: ")
+		if err != nil {
+			return err
+		}
+		rows, err := svc.CloudImportPreview(ctx, pass, src)
+		if err != nil {
+			return err
+		}
+		if jsonOut {
+			return json.NewEncoder(os.Stdout).Encode(rows)
+		}
+		if len(rows) == 0 {
+			fmt.Println("No accounts in bundle.")
+			return nil
+		}
+		for _, r := range rows {
+			fmt.Printf("  [%s] %s  local=%s  remote=%s\n",
+				r.Status, r.Email,
+				formatTimeOrDash(r.LocalCreatedAt),
+				formatTimeOrDash(r.RemoteCreatedAt))
+		}
+		return nil
+
+	case "import-selective":
+		// csw cloud import-selective <src-path> [--json]
+		// stdin: line 1 = passphrase, line 2 = JSON array of identity strings.
+		if len(args) < 2 {
+			return fmt.Errorf("usage: csw cloud import-selective <src-path> [--json]")
+		}
+		src := args[1]
+		pass, err := readPassphrase("Passphrase: ")
+		if err != nil {
+			return err
+		}
+		identsLine, err := readLine("Identities (JSON array): ")
+		if err != nil {
+			return err
+		}
+		var identities []string
+		if err := json.Unmarshal([]byte(identsLine), &identities); err != nil {
+			return fmt.Errorf("decode identities: %w", err)
+		}
+		if err := svc.CloudImportSelective(ctx, pass, src, identities); err != nil {
+			return err
+		}
+		if jsonOut {
+			return json.NewEncoder(os.Stdout).Encode(map[string]any{"ok": true, "count": len(identities)})
+		}
+		fmt.Printf("Imported %d account(s) from %s.\n", len(identities), src)
 		return nil
 
 	default:

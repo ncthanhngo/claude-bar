@@ -205,6 +205,39 @@ actor CswClient {
         )
     }
 
+    /// Encrypts the local bundle to an arbitrary file path. Used for the
+    /// cross-Apple-ID share flow — the recipient imports the file with the
+    /// same passphrase via `cloudImportPreview` + `cloudImportSelective`.
+    func cloudExport(passphrase: String, destPath: String) async throws {
+        try await runWithPassphrase(
+            ["cloud", "export", destPath, "--json"],
+            passphrase: passphrase
+        )
+    }
+
+    /// Decrypts an externally-supplied bundle file and returns the side-by-side
+    /// comparison rows (mirrors `cloudPreview` but reads from `srcPath` instead
+    /// of an iCloud ring-buffer slot). Read-only.
+    func cloudImportPreview(passphrase: String, srcPath: String) async throws -> [CloudPreviewRowDTO] {
+        try await runWithPassphraseDecoding(
+            ["cloud", "import-preview", srcPath, "--json"],
+            passphrase: passphrase,
+            decode: [CloudPreviewRowDTO].self
+        )
+    }
+
+    /// Applies selected accounts from an externally-supplied bundle file.
+    /// Bypasses anti-rollback (imported bundle is on a different sync chain)
+    /// and does NOT update the local iCloud sync state.
+    func cloudImportSelective(passphrase: String, srcPath: String, identities: [String]) async throws {
+        let json = try String(data: JSONEncoder().encode(identities), encoding: .utf8) ?? "[]"
+        try await runWithPassphrase(
+            ["cloud", "import-selective", srcPath, "--json"],
+            passphrase: passphrase,
+            extraStdin: json
+        )
+    }
+
     // MARK: - Local MCP
 
     func mcpStatus() async throws -> MCPInstallStatusDTO {
