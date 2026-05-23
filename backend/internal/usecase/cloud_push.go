@@ -54,51 +54,9 @@ func (s *Service) CloudPush(ctx context.Context, passphrase string) error {
 	}
 	defer s.Lock.Release()
 
-	reg, err := s.Registry.Load(ctx)
-	if err != nil {
-		return fmt.Errorf("load registry: %w", err)
-	}
-
-	now := time.Now().UTC()
-	bundle := &cloudsync.CloudBundle{
-		Version:  3,
-		PushedAt: now,
-	}
-
-	sharedConnectors, err := s.bundleMCPConnectors(ctx, 0, reg.SharedMCPConnectors, passphrase)
+	bundle, err := s.buildLocalBundle(ctx, passphrase)
 	if err != nil {
 		return err
-	}
-	bundle.SharedMCPConnectors = sharedConnectors
-
-	for _, acc := range reg.Accounts {
-		blob, err := s.readAccountBlobForPush(ctx, reg, acc)
-		if err != nil {
-			return err
-		}
-		if blob == "" {
-			continue
-		}
-		connectors, err := s.bundleMCPConnectors(ctx, acc.Number, acc.MCPConnectors, passphrase)
-		if err != nil {
-			return err
-		}
-		bundle.Accounts = append(bundle.Accounts, cloudsync.BundleAccount{
-			Number:           acc.Number,
-			Email:            acc.Email,
-			Nickname:         acc.Nickname,
-			OrganizationName: acc.OrganizationName,
-			OrganizationUUID: acc.OrganizationUUID,
-			CredentialBlob:   blob,
-			MCPConnectors:    connectors,
-			UpdatedAt:        now.Format(time.RFC3339),
-			UpdatedAtTime:    now,
-			CreatedAt:        acc.CreatedAt,
-		})
-	}
-
-	if len(bundle.Accounts) == 0 {
-		return fmt.Errorf("no accounts with credentials to push")
 	}
 
 	dest := cloudsync.BundlePath()
@@ -135,6 +93,63 @@ func (s *Service) CloudPush(ctx context.Context, passphrase string) error {
 		return fmt.Errorf("save sync state: %w", err)
 	}
 	return nil
+}
+
+// buildLocalBundle reads the registry + shared MCP + per-account credentials
+// and returns a V3 bundle stamped with the current push time. Seq/PrevHash are
+// left zero — the caller fills those in for iCloud push, or leaves them zero
+// for file-export (anti-rollback is bypassed on the receiving side).
+//
+// Caller must hold the push lock so live-credential reads don't race
+// SwitchAccount.
+func (s *Service) buildLocalBundle(ctx context.Context, passphrase string) (*cloudsync.CloudBundle, error) {
+	reg, err := s.Registry.Load(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("load registry: %w", err)
+	}
+
+	now := time.Now().UTC()
+	bundle := &cloudsync.CloudBundle{
+		Version:  3,
+		PushedAt: now,
+	}
+
+	sharedConnectors, err := s.bundleMCPConnectors(ctx, 0, reg.SharedMCPConnectors, passphrase)
+	if err != nil {
+		return nil, err
+	}
+	bundle.SharedMCPConnectors = sharedConnectors
+
+	for _, acc := range reg.Accounts {
+		blob, err := s.readAccountBlobForPush(ctx, reg, acc)
+		if err != nil {
+			return nil, err
+		}
+		if blob == "" {
+			continue
+		}
+		connectors, err := s.bundleMCPConnectors(ctx, acc.Number, acc.MCPConnectors, passphrase)
+		if err != nil {
+			return nil, err
+		}
+		bundle.Accounts = append(bundle.Accounts, cloudsync.BundleAccount{
+			Number:           acc.Number,
+			Email:            acc.Email,
+			Nickname:         acc.Nickname,
+			OrganizationName: acc.OrganizationName,
+			OrganizationUUID: acc.OrganizationUUID,
+			CredentialBlob:   blob,
+			MCPConnectors:    connectors,
+			UpdatedAt:        now.Format(time.RFC3339),
+			UpdatedAtTime:    now,
+			CreatedAt:        acc.CreatedAt,
+		})
+	}
+
+	if len(bundle.Accounts) == 0 {
+		return nil, fmt.Errorf("no accounts with credentials to push")
+	}
+	return bundle, nil
 }
 
 // readAccountBlobForPush returns the credential blob to push for one account.

@@ -404,6 +404,13 @@ func (s *Service) CloudPreview(ctx context.Context, passphrase string, slot int)
 		return nil, err
 	}
 
+	return s.previewBundleAgainstLocal(ctx, bundle)
+}
+
+// previewBundleAgainstLocal merges the bundle's accounts with the local
+// registry into a side-by-side row list. Extracted so CloudPreview (iCloud
+// slot) and CloudImportPreview (arbitrary file path) share one comparator.
+func (s *Service) previewBundleAgainstLocal(ctx context.Context, bundle *cloudsync.CloudBundle) ([]CloudPreviewRow, error) {
 	reg, err := s.Registry.Load(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("load registry: %w", err)

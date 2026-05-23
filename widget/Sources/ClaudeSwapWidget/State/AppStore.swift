@@ -70,9 +70,20 @@ final class AppStore: ObservableObject {
         settings.lastBackupTokenRefreshAt = now
         isRefreshing = true
         defer { isRefreshing = false }
+
+        // Pull first so we refresh against the freshest cross-device tokens.
+        // Anthropic rotates refresh tokens on every use — if device A rotated
+        // an inactive account's RT overnight and pushed to iCloud, B's locally
+        // cached RT is already invalid. Pulling closes that race before our
+        // own refresh tries the stale RT and trips invalid_grant.
+        await autoPullCloud()
+
         do {
             try await client.refreshAllTokens()
             settings.lastBackupTokenRefreshSuccessAt = now
+            // Push so other devices pick up our newly-rotated tokens before
+            // their next refresh cycle (mirrors the pull above on the peer).
+            await autoPushCloud()
         } catch {
             print("[AppStore] Backup token refresh failed: \(error.localizedDescription)")
             // lastBackupTokenRefreshSuccessAt intentionally not updated on failure.
@@ -252,10 +263,23 @@ final class AppStore: ObservableObject {
 
     private func autoPushCloud() async {
         // Read passphrase on main actor first, then push in background.
+        // pushQuiet swallows errors so background sync failures (iCloud not
+        // mounted yet, transient network) don't pollute the diagnostics panel
+        // — manual Push still surfaces errors via the regular `push` entry.
         guard let cloud = cloudSync,
               let pass = cloud.loadPassphrase() else { return }
         Task.detached(priority: .background) { [weak cloud, pass] in
-            await cloud?.push(passphrase: pass)
+            await cloud?.pushQuiet(passphrase: pass)
         }
+    }
+
+    /// Pulls the iCloud bundle synchronously before our own refresh-tokens
+    /// cycle runs, so we never refresh against a refresh-token that another
+    /// device has already rotated. Silent on failure (no UI error surface).
+    /// Not detached — the caller relies on the pull completing first.
+    private func autoPullCloud() async {
+        guard let cloud = cloudSync,
+              let pass = cloud.loadPassphrase() else { return }
+        await cloud.pullQuiet(passphrase: pass)
     }
 }

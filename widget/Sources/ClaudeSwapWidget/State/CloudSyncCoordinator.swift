@@ -106,6 +106,35 @@ final class CloudSyncCoordinator: ObservableObject {
         }
     }
 
+    /// Background-friendly pull: same as `pull` but swallows errors silently.
+    /// Used by the auto-sync loop where transient failures (anti-rollback,
+    /// missing bundle, wrong passphrase after a rotation) must not surface in
+    /// the diagnostics UI — manual Push/Restore still surfaces them.
+    func pullQuiet(passphrase: String) async {
+        isBusy = true
+        defer { isBusy = false }
+        do {
+            try await client.cloudPull(passphrase: passphrase)
+            await refreshStatus()
+        } catch {
+            // Silent on purpose.
+        }
+    }
+
+    /// Background-friendly push: same as `push` but swallows errors silently.
+    /// Used by the auto-sync loop so a transient push failure (e.g. iCloud
+    /// hasn't mounted yet) doesn't show as a red error in Diagnostics.
+    func pushQuiet(passphrase: String) async {
+        isBusy = true
+        defer { isBusy = false }
+        do {
+            try await client.cloudPush(passphrase: passphrase)
+            await refreshStatus()
+        } catch {
+            // Silent on purpose.
+        }
+    }
+
     func forget() async {
         isBusy = true; lastError = nil
         defer { isBusy = false }
@@ -185,6 +214,49 @@ final class CloudSyncCoordinator: ObservableObject {
 
     func clearPreview() {
         previewRows = []
+    }
+
+    /// Encrypts the local bundle to `destPath` for cross-Apple-ID sharing.
+    /// No sync-state mutation, no ring-buffer rotation — purely an out-of-band
+    /// snapshot for the recipient to import.
+    func exportBundle(passphrase: String, destPath: String) async {
+        isBusy = true; lastError = nil
+        defer { isBusy = false }
+        do {
+            try await client.cloudExport(passphrase: passphrase, destPath: destPath)
+            savePassphrase(passphrase)
+        } catch {
+            lastError = error.localizedDescription
+        }
+    }
+
+    /// Loads preview rows for an externally-supplied bundle file. Mirrors
+    /// `preview(slot:)` but reads `srcPath` instead. Result published via
+    /// `previewRows` so the same RestorePreviewSheet UI can render either path.
+    func importPreview(passphrase: String, srcPath: String) async {
+        isBusy = true; lastError = nil
+        previewRows = []
+        defer { isBusy = false }
+        do {
+            previewRows = try await client.cloudImportPreview(passphrase: passphrase, srcPath: srcPath)
+        } catch {
+            lastError = error.localizedDescription
+        }
+    }
+
+    /// Applies selected accounts from an externally-supplied bundle file.
+    /// Bypasses anti-rollback and leaves the iCloud sync chain untouched.
+    /// Caller must `store.refreshNow()` afterwards so the menu picks up new rows.
+    func importSelective(passphrase: String, srcPath: String, identities: [String]) async {
+        isBusy = true; lastError = nil
+        defer { isBusy = false }
+        do {
+            try await client.cloudImportSelective(passphrase: passphrase, srcPath: srcPath, identities: identities)
+            previewRows = []
+            await refreshStatus()
+        } catch {
+            lastError = error.localizedDescription
+        }
     }
 
     /// Called on startup: if no local accounts exist but a cloud bundle does,
