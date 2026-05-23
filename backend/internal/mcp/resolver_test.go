@@ -35,6 +35,8 @@ func (f fakeSecrets) DeleteAll(_ context.Context, n int) error {
 	}
 	return nil
 }
+func (f fakeSecrets) IsMigratedToShared(_ context.Context) (bool, error)  { return false, nil }
+func (f fakeSecrets) MarkMigratedToShared(_ context.Context, _ time.Time) error { return nil }
 
 func newResolverFixture(active int, enabled bool, hasSecret bool) *Resolver {
 	reg := domain.NewRegistry()

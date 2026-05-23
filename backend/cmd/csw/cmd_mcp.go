@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/soi/claude-swap-widget/backend/internal/adapter/claudeconfig"
+	"github.com/soi/claude-swap-widget/backend/internal/adapter/keychain"
 	"github.com/soi/claude-swap-widget/backend/internal/domain"
 	"github.com/soi/claude-swap-widget/backend/internal/mcp"
 	"github.com/soi/claude-swap-widget/backend/internal/usecase"
@@ -59,6 +60,16 @@ func runMCP(ctx context.Context, svc *usecase.Service, args []string) error {
 }
 
 func runMCPServe(ctx context.Context, svc *usecase.Service) error {
+	// Phase 1 of the Command Center plan: canonicalise per-account MCP
+	// secrets under the shared account-key on every boot. Idempotent
+	// (sentinel-tracked), retry-safe (sentinel withheld on per-service
+	// failure). Best-effort: a migration error must not prevent the
+	// gateway from serving — under soft-deprecate the resolver still
+	// falls back to per-account entries if shared canonicalisation
+	// hasn't completed yet.
+	if reg, err := svc.Registry.Load(ctx); err == nil && reg != nil {
+		_, _ = keychain.MigrateToShared(ctx, svc.MCPSecrets, reg)
+	}
 	gw := mcp.New(svc.Registry, svc.MCPSecrets, cswVersion)
 	return gw.ServeStdio(ctx)
 }

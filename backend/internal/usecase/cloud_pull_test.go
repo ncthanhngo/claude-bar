@@ -105,6 +105,8 @@ func (pullTestMCPSecretStore) Delete(_ context.Context, _ int, _ domain.MCPServi
 	return nil
 }
 func (pullTestMCPSecretStore) DeleteAll(_ context.Context, _ int) error { return nil }
+func (pullTestMCPSecretStore) IsMigratedToShared(_ context.Context) (bool, error)  { return false, nil }
+func (pullTestMCPSecretStore) MarkMigratedToShared(_ context.Context, _ time.Time) error { return nil }
 
 // writeBundleFile writes an encrypted bundle to a temp file and patches
 // cloudsync.BundlePathForTest so BundlePath() returns that path for the test.
