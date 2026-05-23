@@ -8,6 +8,7 @@ import (
 	mcpgo "github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 
+	"github.com/soi/claude-swap-widget/backend/internal/adapter/bwcli"
 	"github.com/soi/claude-swap-widget/backend/internal/port"
 )
 
@@ -38,6 +39,16 @@ type Gateway struct {
 	// SSHRunner executes ssh against tracked hosts. Defaults to a real
 	// ssh-binary runner when SSHStore is set.
 	SSHRunner SSHExec
+
+	// GitLabInstances is the registry of self-hosted GitLab instances. nil
+	// disables GitLab tools.
+	GitLabInstances *GitLabInstanceStore
+
+	// BWSession is the Bitwarden in-memory session holder. nil disables BW.
+	BWSession *BitwardenSession
+
+	// BWRunner runs the `bw` CLI. Defaults to ExecRunner when BWSession is set.
+	BWRunner bwcli.Runner
 }
 
 // New builds a Gateway with sane defaults.
@@ -62,12 +73,15 @@ func (g *Gateway) BuildServer() *server.MCPServer {
 	g.registerSlackTools(srv)
 	g.registerClickUpTools(srv)
 	g.registerClickUpWriteTools(srv)
+	g.registerClickUpCaptureTool(srv)
 	g.registerGDriveTools(srv)
 	g.registerGCalTools(srv)
 	g.registerGmailTools(srv)
 	g.registerGitHubTools(srv)
 	g.registerGitHubWriteTools(srv)
 	g.registerSSHTools(srv)
+	g.registerGitLabTools(srv)
+	g.registerBitwardenTools(srv)
 	return srv
 }
 
