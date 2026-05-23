@@ -44,6 +44,7 @@ enum WidgetTab: String, CaseIterable, Identifiable {
 // reachable from every tab.
 struct WidgetTabbedPopover: View {
     @EnvironmentObject var store: AppStore
+    @EnvironmentObject private var updateController: UpdateController
     @ObservedObject private var settings = AppSettings.shared
     @State private var selectedTab: WidgetTab = .claude
 
@@ -63,6 +64,10 @@ struct WidgetTabbedPopover: View {
         .background(popoverBackground)
         .background(WindowAppearanceSetter(theme: settings.widgetTheme))
         .background(PopoverWindowCapture())
+        // Sparkle update flow renders here, on top of the popover content,
+        // so the popover never loses key status during the check/download/
+        // install cycle. See InPopoverUpdateDriver for the rationale.
+        .overlay(UpdateOverlayView(driver: updateController.driver))
         .focusable()
         .focusEffectDisabled()
         .onMoveCommand { direction in

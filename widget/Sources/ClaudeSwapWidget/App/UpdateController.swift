@@ -1,59 +1,79 @@
 import SwiftUI
 import Sparkle
 
-/// SwiftUI-friendly wrapper around Sparkle's `SPUStandardUpdaterController`.
-/// Owned by the app root so the embedded `SPUUpdater` lives for the entire
-/// session and the daily scheduled check fires reliably.
+/// SwiftUI-friendly wrapper around Sparkle's `SPUUpdater`. Owned by the app
+/// root so the embedded `SPUUpdater` lives for the entire session and the
+/// daily scheduled check fires reliably.
+///
+/// Unlike `SPUStandardUpdaterController` we run a custom `SPUUserDriver`
+/// (`InPopoverUpdateDriver`) so the entire update UI renders inside the
+/// menu-bar popover. This keeps the popover key during the whole flow —
+/// MenuBarExtra(.window) dismisses the popover the moment any other window
+/// becomes key, so Sparkle's default external panel would snap the popover
+/// shut every time the user clicked "Check for updates…".
 ///
 /// Update verification: every download is EdDSA-signed; Sparkle refuses to
 /// install if the signature doesn't match `SUPublicEDKey` in Info.plist.
-/// The signed appcast at `SUFeedURL` lists each release's signature.
 @MainActor
 final class UpdateController: ObservableObject {
-    /// The actual Sparkle controller. nil when `SUPublicEDKey` in Info.plist
-    /// is the placeholder string — we refuse to start the updater because
-    /// every signature verification would fail and surface a daily error
-    /// dialog. Once a real EdDSA public key replaces the placeholder, the
-    /// controller initialises on next launch.
-    let controller: SPUStandardUpdaterController?
+    /// The driver SwiftUI binds to for the overlay UI. Always present so the
+    /// overlay can be wired into the view tree once at app start.
+    let driver: InPopoverUpdateDriver
+
+    /// nil when `SUPublicEDKey` in Info.plist is the placeholder string —
+    /// we refuse to start the updater because every signature verification
+    /// would fail and surface a daily error dialog.
+    private let updater: SPUUpdater?
 
     /// Whether the user can currently invoke "Check for updates…".
-    /// False when the controller didn't start (placeholder pubkey).
     @Published private(set) var canCheck: Bool = false
 
-    /// Surfaced in About so the UI can explain WHY updates are disabled
-    /// instead of silently disabling the button.
+    /// Surfaced in About so the UI can explain WHY updates are disabled.
     let placeholderKey: Bool
 
     init() {
         let pub = Bundle.main.object(forInfoDictionaryKey: "SUPublicEDKey") as? String ?? ""
         let isPlaceholder = pub.isEmpty || pub.hasPrefix("REPLACE_WITH_")
         self.placeholderKey = isPlaceholder
+        let driver = InPopoverUpdateDriver()
+        self.driver = driver
+
         if isPlaceholder {
-            controller = nil
-            canCheck = false
-        } else {
-            let c = SPUStandardUpdaterController(
-                startingUpdater: true,
-                updaterDelegate: nil,
-                userDriverDelegate: nil
-            )
-            controller = c
-            canCheck = c.updater.canCheckForUpdates
+            self.updater = nil
+            self.canCheck = false
+            return
+        }
+
+        let u = SPUUpdater(
+            hostBundle: Bundle.main,
+            applicationBundle: Bundle.main,
+            userDriver: driver,
+            delegate: nil
+        )
+        do {
+            try u.start()
+            self.updater = u
+            self.canCheck = u.canCheckForUpdates
+        } catch {
+            // Starting failed (e.g. malformed appcast URL). Leave the
+            // controller disabled rather than crashing — About will show
+            // the standard "updates disabled" hint.
+            self.updater = nil
+            self.canCheck = false
         }
     }
 
     /// User-initiated update check from the About tab. No-op when the
     /// updater isn't running.
     func checkForUpdates() {
-        controller?.checkForUpdates(nil)
+        updater?.checkForUpdates()
     }
 
     /// Bind to a SwiftUI Toggle in Settings → General. Mirrors Sparkle's
     /// `UserDefaults`-backed `SUEnableAutomaticChecks` so the setting
     /// survives relaunches. No-op when the updater isn't running.
     var automaticChecksEnabled: Bool {
-        get { controller?.updater.automaticallyChecksForUpdates ?? false }
-        set { controller?.updater.automaticallyChecksForUpdates = newValue }
+        get { updater?.automaticallyChecksForUpdates ?? false }
+        set { updater?.automaticallyChecksForUpdates = newValue }
     }
 }
