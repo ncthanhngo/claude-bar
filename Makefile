@@ -41,11 +41,19 @@ app: backend widget
 	@rm -rf $(APP_BUNDLE)
 	@mkdir -p $(APP_BUNDLE)/Contents/MacOS
 	@mkdir -p $(APP_BUNDLE)/Contents/Resources
+	@mkdir -p $(APP_BUNDLE)/Contents/Frameworks
 	cp $(WIDGET_BUILD)              $(APP_BUNDLE)/Contents/MacOS/$(EXECUTABLE)
 	cp $(BACKEND_BIN)               $(APP_BUNDLE)/Contents/Resources/csw
 	cp packaging/icon.png           $(APP_BUNDLE)/Contents/Resources/icon.png
 	cp packaging/AppIcon.icns       $(APP_BUNDLE)/Contents/Resources/AppIcon.icns
 	cp packaging/Info.plist         $(APP_BUNDLE)/Contents/Info.plist
+	# Sparkle 2 lives at @rpath/Sparkle.framework — copy the built framework
+	# next to the executable so dyld can resolve it. SwiftPM produces it at
+	# widget/.build/<arch>-apple-macosx/release/Sparkle.framework.
+	@arch=$$(uname -m); \
+	  if [ "$$arch" = "arm64" ]; then triple=arm64-apple-macosx; \
+	  else triple=x86_64-apple-macosx; fi; \
+	  cp -R widget/.build/$$triple/release/Sparkle.framework $(APP_BUNDLE)/Contents/Frameworks/
 	codesign --force --deep --sign "$(SIGN_ID)" $(APP_BUNDLE) 2>/dev/null || \
 	  codesign --force --deep --sign - $(APP_BUNDLE)
 	@echo "Built $(APP_BUNDLE)"
