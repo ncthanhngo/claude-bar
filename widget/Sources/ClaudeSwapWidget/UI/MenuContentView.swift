@@ -85,6 +85,35 @@ struct EmptyAccountsView: View {
 
 // MARK: - Auto-swap
 
+/// NSSwitch (used by SwiftUI Toggle's `.switch` style) installs its own
+/// NSTrackingArea that resets the cursor on every mouse-moved event, so
+/// `NSCursor.push()` and `addCursorRect` both lose the race. A custom
+/// Button-based switch sidesteps the issue entirely and uses the same
+/// `.pointingHandCursor()` path that already works on every other button in
+/// the popover.
+struct PointingHandSwitch: View {
+    @Binding var isOn: Bool
+
+    var body: some View {
+        Button {
+            withAnimation(.easeInOut(duration: 0.15)) { isOn.toggle() }
+        } label: {
+            ZStack(alignment: isOn ? .trailing : .leading) {
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(isOn ? Color.green : Color.gray.opacity(0.35))
+                    .frame(width: 26, height: 15)
+                Circle()
+                    .fill(Color.white)
+                    .frame(width: 13, height: 13)
+                    .shadow(color: .black.opacity(0.18), radius: 0.5, y: 0.5)
+                    .padding(.horizontal, 1)
+            }
+        }
+        .buttonStyle(.plain)
+        .pointingHandCursor()
+    }
+}
+
 struct AutoSwapSection: View {
     @EnvironmentObject var store: AppStore
     @ObservedObject private var settings = AppSettings.shared
@@ -92,8 +121,7 @@ struct AutoSwapSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 8) {
-                Toggle("", isOn: $settings.autoSwapEnabled)
-                    .toggleStyle(.switch).controlSize(.small).labelsHidden()
+                PointingHandSwitch(isOn: $settings.autoSwapEnabled)
                 Text(statusLabel)
                     .font(.system(size: 12, weight: .medium))
                     .foregroundColor(statusColor)

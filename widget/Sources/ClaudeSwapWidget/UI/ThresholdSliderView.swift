@@ -19,6 +19,7 @@ struct ThresholdSliderView: View {
                     thresholdKnob(geo)
                 }
                 .contentShape(Rectangle())
+                .pointingHandCursorRect(when: isEnabled)
                 .gesture(dragGesture(width: geo.size.width))
             }
             .frame(height: 22)
@@ -54,13 +55,23 @@ struct ThresholdSliderView: View {
     }
 
     private func thresholdKnob(_ geo: GeometryProxy) -> some View {
-        Circle()
-            .fill(Color.white)
-            .frame(width: 14, height: 14)
-            .overlay(Circle().stroke(thresholdColor, lineWidth: 2))
-            .shadow(color: .black.opacity(0.15), radius: 1, y: 1)
-            .pointingHandCursor()
-            .position(x: geo.size.width * fraction(threshold), y: geo.size.height / 2)
+        // Wrap the knob in a Button so SwiftUI's hover detection fires
+        // reliably (it doesn't on a bare positioned Shape — the outer
+        // DragGesture absorbs mouse-moved events for the entire ZStack).
+        // The action is empty; the parent's gesture still drives the
+        // threshold via `.simultaneousGesture` so dragging from the knob
+        // continues to work.
+        Button(action: {}) {
+            Circle()
+                .fill(Color.white)
+                .frame(width: 14, height: 14)
+                .overlay(Circle().stroke(thresholdColor, lineWidth: 2))
+                .shadow(color: .black.opacity(0.15), radius: 1, y: 1)
+        }
+        .buttonStyle(.plain)
+        .pointingHandCursor(when: isEnabled)
+        .simultaneousGesture(dragGesture(width: geo.size.width))
+        .position(x: geo.size.width * fraction(threshold), y: geo.size.height / 2)
     }
 
     private var legend: some View {
