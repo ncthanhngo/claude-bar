@@ -51,7 +51,7 @@ struct RestoreBackupSheet: View {
                         }
                     }
                 }
-                .frame(maxHeight: 220)
+                .frame(minHeight: 120, maxHeight: .infinity)
             }
 
             if let err = cloudSync.lastError {
@@ -75,7 +75,7 @@ struct RestoreBackupSheet: View {
             }
         }
         .padding(20)
-        .frame(width: 480)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .confirmationDialog(
             "Restore from slot \(restoreConfirmSlot ?? 0)?",
             isPresented: Binding(
@@ -190,12 +190,28 @@ struct RestorePreviewSheet: View {
             tableHeader
             ScrollView {
                 VStack(spacing: 4) {
-                    ForEach(cloudSync.previewRows) { row in
-                        PreviewRow(row: row, selection: $restorePreviewSelection)
+                    if cloudSync.previewRows.isEmpty {
+                        if cloudSync.isBusy {
+                            HStack(spacing: 8) {
+                                ProgressView().controlSize(.small)
+                                Text("Decrypting bundle…").font(.caption).foregroundColor(.secondary)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .center)
+                            .padding(.vertical, 24)
+                        } else {
+                            Text("No accounts in this bundle.")
+                                .font(.caption).foregroundColor(.secondary)
+                                .frame(maxWidth: .infinity, alignment: .center)
+                                .padding(.vertical, 24)
+                        }
+                    } else {
+                        ForEach(cloudSync.previewRows) { row in
+                            PreviewRow(row: row, selection: $restorePreviewSelection)
+                        }
                     }
                 }
             }
-            .frame(maxHeight: 300)
+            .frame(minHeight: 160, maxHeight: .infinity)
             .background(Color.primary.opacity(0.03))
             .clipShape(RoundedRectangle(cornerRadius: 6))
 
@@ -242,7 +258,7 @@ struct RestorePreviewSheet: View {
             }
         }
         .padding(20)
-        .frame(width: 620)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
     private var tableHeader: some View {

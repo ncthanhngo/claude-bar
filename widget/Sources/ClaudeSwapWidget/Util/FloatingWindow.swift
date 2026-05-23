@@ -41,6 +41,14 @@ final class FloatingWindow<Content: View>: NSObject, NSWindowDelegate {
         )
         w.title = title
         w.contentViewController = host
+        // Assigning contentViewController forces the window to the hosting
+        // controller's view's intrinsic size — which for sheets that load
+        // async data (backup list, preview rows) is tiny while the rows are
+        // still in flight, leaving the window collapsed even after data
+        // arrives. Pin the content area back to the requested size; the
+        // SwiftUI view inside is sized with maxWidth/maxHeight: .infinity so
+        // it fills whatever space the window gives it.
+        w.setContentSize(size)
         // Level above `popUpMenu` so if the popover is reopened while this
         // sheet is up (e.g. user clicks the menu-bar icon again), the sheet
         // still wins. statusBar+2 (= 27) was below popUpMenu (= 101) and
