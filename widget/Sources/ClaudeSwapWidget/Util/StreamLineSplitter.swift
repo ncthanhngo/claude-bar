@@ -8,7 +8,15 @@ import Foundation
 /// `\n` and lines can be split arbitrarily across buffer chunks. We accumulate
 /// raw bytes and only emit a line once we see `\n`, so a partial codepoint at
 /// the end of a chunk stays in the buffer until the next chunk completes it.
-final class StreamLineSplitter {
+///
+/// Sendability justification: the splitter is captured by `Pipe`'s
+/// `readabilityHandler` (a background-queue serial callback) and the same
+/// process's `terminationHandler` (called once after the read handler is
+/// detached). Both run on the same DispatchIO source, never concurrently,
+/// and the splitter is owned by the enclosing `send(...)` factory closure
+/// so there is no cross-task aliasing. `@unchecked Sendable` records the
+/// invariant: no concurrent calls into `feed`/`flush`.
+final class StreamLineSplitter: @unchecked Sendable {
     private var buffer = Data()
 
     /// Feed a chunk of bytes from the upstream pipe; invokes `emit` once per

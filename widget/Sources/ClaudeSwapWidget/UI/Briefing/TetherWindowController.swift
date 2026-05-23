@@ -80,9 +80,14 @@ final class TetherWindowController {
             ctx.timingFunction = CAMediaTimingFunction(name: .easeIn)
             w.animator().alphaValue = 0
         }, completionHandler: { [weak self] in
-            w.orderOut(nil)
-            self?.window = nil
-            self?.briefing = nil
+            // The completion handler is a @Sendable closure but the mutation
+            // targets a main-actor-isolated controller. Hop back onto the
+            // main actor explicitly so Swift 6 strict concurrency is happy.
+            Task { @MainActor [weak self] in
+                w.orderOut(nil)
+                self?.window = nil
+                self?.briefing = nil
+            }
         })
     }
 

@@ -178,14 +178,15 @@ extension CswClient {
 extension JSONDecoder {
     static let csw: JSONDecoder = {
         let d = JSONDecoder()
-        let withFractional = ISO8601DateFormatter()
-        withFractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        let plain = ISO8601DateFormatter()
-        plain.formatOptions = [.withInternetDateTime]
+        // See CswClient.swift for the rationale — ISO8601DateFormatter is
+        // non-Sendable, Date.ISO8601FormatStyle is. Identical wire-format
+        // coverage (with + without fractional seconds).
+        let withFractional = Date.ISO8601FormatStyle(includingFractionalSeconds: true)
+        let plain = Date.ISO8601FormatStyle()
         d.dateDecodingStrategy = .custom { decoder in
             let str = try decoder.singleValueContainer().decode(String.self)
-            if let date = withFractional.date(from: str) { return date }
-            if let date = plain.date(from: str) { return date }
+            if let date = try? withFractional.parse(str) { return date }
+            if let date = try? plain.parse(str) { return date }
             throw DecodingError.dataCorrupted(.init(
                 codingPath: decoder.codingPath,
                 debugDescription: "Unparseable ISO8601 date: \(str)"

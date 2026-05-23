@@ -2,7 +2,7 @@
 
 A macOS menu-bar app for managing multiple [Claude Code](https://claude.ai/code) accounts. Switch between accounts instantly, auto-swap when quota runs out, and keep your IDE in sync.
 
-![macOS 14+](https://img.shields.io/badge/macOS-14%2B-blue) ![License MIT](https://img.shields.io/badge/license-MIT-green)
+![macOS 14+](https://img.shields.io/badge/macOS-14%2B-blue) ![License MIT](https://img.shields.io/badge/license-MIT-green) [![CI](https://github.com/ncthanhngo/claude-bar/actions/workflows/test.yml/badge.svg)](https://github.com/ncthanhngo/claude-bar/actions/workflows/test.yml)
 
 ---
 
@@ -125,6 +125,12 @@ make install      # builds and copies to /Applications/ClaudeBar.app
 If all inactive accounts are also above the threshold → notification **"All accounts above threshold"**, retry in 10 minutes.
 
 > Auto-swap is driven by the **5-hour** window exclusively. The 7-day window is displayed for reference but does not affect swap decisions.
+
+---
+
+## Security
+
+Claude Bar is local-first and opt-in for any data that leaves your Mac. See [SECURITY.md](./SECURITY.md) for data flows, trust boundaries, and the threat model. Report vulnerabilities to nc.thanhngo@gmail.com with subject prefix `[security]`.
 
 ---
 

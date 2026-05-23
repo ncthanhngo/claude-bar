@@ -47,6 +47,12 @@ app: backend widget
 	cp packaging/icon.png           $(APP_BUNDLE)/Contents/Resources/icon.png
 	cp packaging/AppIcon.icns       $(APP_BUNDLE)/Contents/Resources/AppIcon.icns
 	cp packaging/Info.plist         $(APP_BUNDLE)/Contents/Info.plist
+	# Localized strings — Foundation resolves Bundle.main.localizedString
+	# against {locale}.lproj/Localizable.strings inside Contents/Resources.
+	# SwiftUI's `Text("…")` literal-key lookup hits Bundle.main by default,
+	# so the .strings tables live here (not in the SwiftPM resource bundle).
+	cp -R packaging/en.lproj        $(APP_BUNDLE)/Contents/Resources/
+	cp -R packaging/vi.lproj        $(APP_BUNDLE)/Contents/Resources/
 	# Sparkle 2 lives at @rpath/Sparkle.framework — copy the built framework
 	# next to the executable so dyld can resolve it. SwiftPM produces it at
 	# widget/.build/<arch>-apple-macosx/release/Sparkle.framework.
@@ -54,6 +60,12 @@ app: backend widget
 	  if [ "$$arch" = "arm64" ]; then triple=arm64-apple-macosx; \
 	  else triple=x86_64-apple-macosx; fi; \
 	  cp -R widget/.build/$$triple/release/Sparkle.framework $(APP_BUNDLE)/Contents/Frameworks/
+	# SPM's executableTarget doesn't add @executable_path/../Frameworks to
+	# the binary's LC_RPATH, so dyld can't find Sparkle at runtime. Patch
+	# it in post-link. install_name_tool may warn "already exists" on
+	# re-runs — harmless, suppress with || true.
+	install_name_tool -add_rpath @executable_path/../Frameworks \
+	  $(APP_BUNDLE)/Contents/MacOS/$(EXECUTABLE) 2>/dev/null || true
 	codesign --force --deep --sign "$(SIGN_ID)" $(APP_BUNDLE) 2>/dev/null || \
 	  codesign --force --deep --sign - $(APP_BUNDLE)
 	@echo "Built $(APP_BUNDLE)"

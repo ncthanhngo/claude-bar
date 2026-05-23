@@ -72,6 +72,13 @@ struct ChatStreamingBubble: View {
     /// Caret as a pre-styled AttributedString. Toggling `caretOn` swaps the
     /// foreground between coral and clear — fixed-width glyph means the
     /// layout never reflows on blink.
+    ///
+    /// Sendability note: `AttributedString.foregroundColor` setter and
+    /// `AttributeContainer.foregroundColor` both internally form a KeyPath
+    /// over `SwiftUIAttributes.ForegroundColorAttribute` which is non-Sendable
+    /// in current SDKs (Apple bug — `<unknown>:0` warning under
+    /// `-strict-concurrency=complete`). This is a benign SDK-level warning;
+    /// the closure here doesn't actually cross actor boundaries.
     private var caretInline: AttributedString {
         var attr = AttributedString("▍")
         attr.foregroundColor = caretOn ? palette.coral : .clear
@@ -79,12 +86,14 @@ struct ChatStreamingBubble: View {
     }
 
     private func startBlink() {
-        Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { timer in
-            DispatchQueue.main.async {
-                if chatStore.streamingText == nil && !chatStore.isSending {
-                    timer.invalidate()
-                    return
-                }
+        // Drive the caret blink off an async sleep loop instead of Timer so
+        // the closure stays Sendable. The view is created once per stream and
+        // torn down on .onDisappear via SwiftUI's structural lifecycle, so
+        // the loop self-terminates the same moment the bubble disappears.
+        Task { @MainActor in
+            while chatStore.streamingText != nil || chatStore.isSending {
+                try? await Task.sleep(nanoseconds: 500_000_000)
+                guard chatStore.streamingText != nil || chatStore.isSending else { return }
                 caretOn.toggle()
             }
         }

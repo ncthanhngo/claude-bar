@@ -1,5 +1,7 @@
 # Local MCP Connectors — Threat Model & Privacy Contract
 
+> See [SECURITY.md](../SECURITY.md) for the top-level Claude Bar threat model. This doc is the deep-dive on the MCP gateway specifically.
+
 Status: Draft — phase 01 of `plans/20260520-2258-local-mcp-private-connectors`.
 
 This is the **privacy contract** that every later phase MUST honor. If an

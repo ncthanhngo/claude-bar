@@ -53,6 +53,11 @@ final class AppSettings: ObservableObject {
     /// (everything, equivalent to `--dangerously-skip-permissions`).
     @AppStorage("chatToolMode") var chatToolMode: ChatToolMode = .safe
 
+    /// Flipped to true once the first-launch onboarding wizard's Finish
+    /// button is clicked. The wizard never reappears while this is true;
+    /// the "Re-run onboarding" action in the About tab flips it back.
+    @AppStorage("didCompleteOnboarding") var didCompleteOnboarding: Bool = false
+
     // MARK: - Daily Briefing hotkeys (Carbon key codes + modifier bitmask)
 
     @AppStorage("briefingHotkeyOpenAppKeyCode")

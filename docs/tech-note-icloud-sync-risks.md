@@ -1,5 +1,7 @@
 # Tech Note: Rủi ro khi đồng bộ OAuth credentials qua iCloud Drive
 
+> Xem [SECURITY.md](../SECURITY.md) cho threat model tổng quát của Claude Bar. Tài liệu này đi sâu vào cơ chế iCloud sync.
+
 **Dự án:** Claude Swap Widget  
 **Ngày:** 2026-05-21  
 **Phạm vi:** Cơ chế cloud sync — đọc/ghi bundle mã hoá trên iCloud Drive

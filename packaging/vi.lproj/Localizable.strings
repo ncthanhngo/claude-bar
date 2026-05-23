@@ -1,0 +1,24 @@
+/* Claude Bar — Vietnamese translations. Keep keys in sync with en.lproj/. */
+
+"Accounts" = "Tài khoản";
+"Add your first account" = "Thêm tài khoản đầu tiên";
+"Auto-swap" = "Tự đổi";
+"Check for updates…" = "Kiểm tra cập nhật…";
+"Claude" = "Claude";
+"Daily" = "Mỗi ngày";
+"Disabled" = "Đã tắt";
+"Enabled" = "Đã bật";
+"Finish" = "Hoàn tất";
+"General" = "Chung";
+"MCP" = "MCP";
+"Open log folder" = "Mở thư mục log";
+"Paused" = "Tạm dừng";
+"Privacy" = "Riêng tư";
+"Quit" = "Thoát";
+"Re-run onboarding" = "Chạy lại hướng dẫn";
+"Restore" = "Khôi phục";
+"Skip for now" = "Bỏ qua";
+"Switch" = "Đổi";
+"Theme" = "Giao diện";
+"Token usage" = "Sử dụng token";
+"Welcome to Claude Bar" = "Chào mừng đến Claude Bar";

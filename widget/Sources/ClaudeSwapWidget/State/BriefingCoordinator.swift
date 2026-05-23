@@ -104,7 +104,7 @@ final class BriefingCoordinator: ObservableObject {
 
     /// Persist done/undone state for one action; updates locally first.
     func toggleAction(id: String, done: Bool) async {
-        guard var b = briefing else { return }
+        guard let b = briefing else { return }
         if let idx = b.actions.firstIndex(where: { $0.id == id }) {
             // Optimistic update is not supported because ActionDTO is immutable
             // (struct with `let`). Re-fetch from backend instead.

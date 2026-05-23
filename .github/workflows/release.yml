@@ -1,0 +1,139 @@
+name: Release
+
+# Tag-driven release: tagging a `v*` commit builds ClaudeBar.zip, EdDSA-signs
+# it via Sparkle's sign_update tool, attaches the zip to the GitHub Release,
+# and regenerates the appcast on gh-pages. Existing installs see the update
+# on their next daily Sparkle check.
+#
+# REQUIRED SECRETS (set under repo Settings → Secrets and variables → Actions):
+#   - SPARKLE_ED_PRIVATE_KEY  Base64-encoded EdDSA private key (paired with the
+#                             SUPublicEDKey value in packaging/Info.plist).
+#                             Generate once locally via Sparkle's bin/generate_keys.
+#
+# REQUIRED REPO STATE:
+#   - A `gh-pages` branch (orphan, with an empty appcast.xml seed).
+#   - Pages enabled in Settings → Pages → Branch: gh-pages → /.
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write   # publish release asset + push to gh-pages
+
+jobs:
+  release:
+    runs-on: macos-15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+
+      - name: Resolve version from tag
+        id: ver
+        run: |
+          TAG="${GITHUB_REF##refs/tags/}"
+          VERSION="${TAG#v}"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Build ClaudeBar.zip
+        run: make release
+
+      - name: Resolve Sparkle sign_update binary
+        run: |
+          # Sparkle ships sign_update inside the binary artifact downloaded
+          # by SPM. Path varies by macOS runner; find it deterministically.
+          SIGN_UPDATE="$(find ~/Library/Developer/Xcode/DerivedData -name 'sign_update' -type f -perm -u+x 2>/dev/null | head -1)"
+          if [ -z "$SIGN_UPDATE" ]; then
+            SIGN_UPDATE="$(find . -name 'sign_update' -type f -perm -u+x 2>/dev/null | head -1)"
+          fi
+          if [ -z "$SIGN_UPDATE" ]; then
+            echo "::error::sign_update binary not found — Sparkle SPM artifact may not have downloaded"
+            exit 1
+          fi
+          echo "SIGN_UPDATE=$SIGN_UPDATE" >> "$GITHUB_ENV"
+
+      - name: EdDSA-sign release asset
+        env:
+          ED_KEY: ${{ secrets.SPARKLE_ED_PRIVATE_KEY }}
+        run: |
+          if [ -z "$ED_KEY" ]; then
+            echo "::error::SPARKLE_ED_PRIVATE_KEY secret not set"
+            exit 1
+          fi
+          # sign_update prints sparkle:edSignature="..." length="..."
+          SIG_LINE="$("$SIGN_UPDATE" -f <(echo "$ED_KEY") release/ClaudeBar.zip)"
+          echo "$SIG_LINE"
+          echo "SPARKLE_SIG_LINE=$SIG_LINE" >> "$GITHUB_ENV"
+          SHA="$(shasum -a 256 release/ClaudeBar.zip | cut -d' ' -f1)"
+          echo "ZIP_SHA256=$SHA" >> "$GITHUB_ENV"
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          BODY=$(cat <<EOF
+          Auto-update via Sparkle.
+
+          SHA-256: \`${ZIP_SHA256}\`
+          ${SPARKLE_SIG_LINE}
+          EOF
+          )
+          gh release create "${{ steps.ver.outputs.tag }}" \
+            release/ClaudeBar.zip \
+            --title "${{ steps.ver.outputs.tag }}" \
+            --notes "$BODY"
+
+      - name: Checkout gh-pages
+        uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          path: gh-pages
+
+      - name: Regenerate appcast.xml
+        run: |
+          DOWNLOAD_URL="https://github.com/${{ github.repository }}/releases/download/${{ steps.ver.outputs.tag }}/ClaudeBar.zip"
+          PUB_DATE="$(date -u +"%a, %d %b %Y %H:%M:%S +0000")"
+          ZIP_LEN="$(stat -f%z release/ClaudeBar.zip)"
+
+          # Extract just edSignature attribute value for the enclosure tag.
+          ED_SIG_ATTR="$(echo "$SPARKLE_SIG_LINE" | tr ' ' '\n' | grep '^sparkle:edSignature=')"
+
+          cat > gh-pages/appcast.xml <<XML
+          <?xml version="1.0" encoding="utf-8"?>
+          <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
+            <channel>
+              <title>Claude Bar</title>
+              <link>https://github.com/${{ github.repository }}</link>
+              <description>Auto-update feed for Claude Bar.</description>
+              <language>en</language>
+              <item>
+                <title>${{ steps.ver.outputs.tag }}</title>
+                <pubDate>${PUB_DATE}</pubDate>
+                <sparkle:version>${{ steps.ver.outputs.version }}</sparkle:version>
+                <sparkle:shortVersionString>${{ steps.ver.outputs.version }}</sparkle:shortVersionString>
+                <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+                <enclosure url="${DOWNLOAD_URL}"
+                           length="${ZIP_LEN}"
+                           type="application/octet-stream"
+                           ${ED_SIG_ATTR} />
+              </item>
+            </channel>
+          </rss>
+          XML
+
+      - name: Push appcast to gh-pages
+        working-directory: gh-pages
+        run: |
+          git config user.name "release-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add appcast.xml
+          git commit -m "release: appcast ${{ steps.ver.outputs.tag }}"
+          git push origin gh-pages
