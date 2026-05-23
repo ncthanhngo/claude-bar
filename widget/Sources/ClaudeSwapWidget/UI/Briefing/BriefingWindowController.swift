@@ -16,6 +16,13 @@ final class BriefingWindowController: NSObject, NSWindowDelegate {
     private var window: NSWindow?
     private var hostingController: NSHostingController<AnyView>?
     private var coordinatorObserver: AnyCancellable?
+    /// Bumped on every present()/dismiss() so a close-animation completion
+    /// that fires after a racing re-open can detect it's stale and skip the
+    /// `self.window = nil` cleanup. Without this, rapid hotkey toggles could
+    /// orphan a freshly-presented window — visible on screen but with no
+    /// controller reference, so neither the X button nor the hotkey could
+    /// close it.
+    private var closeGeneration: Int = 0
     private weak var coordinator: BriefingCoordinator?
     private weak var store: AppStore?
     private weak var chatStore: ChatStore?
@@ -79,7 +86,16 @@ final class BriefingWindowController: NSObject, NSWindowDelegate {
         // unreliable when activate races with the popover's own click handler,
         // so click the status button explicitly when it's still on.
         MenuBarPopoverToggle.closeIfOpen()
+        // Invalidate any in-flight close completion — without this, a close
+        // animation started before this present() will fire its completion
+        // 0.3s later and nil out `self.window`, orphaning the live window.
+        closeGeneration &+= 1
         if let existing = window {
+            // Cancel any close animation visually so the user sees a live,
+            // foreground window instead of one mid-fade.
+            existing.contentView?.layer?.removeAllAnimations()
+            existing.alphaValue = 1.0
+            existing.setFrame(endFrame, display: true)
             existing.makeKeyAndOrderFront(nil)
             NSApp.activate(ignoringOtherApps: true)
             return
@@ -112,9 +128,17 @@ final class BriefingWindowController: NSObject, NSWindowDelegate {
 
     private func dismiss() {
         guard let w = window else { return }
+        closeGeneration &+= 1
+        let myGeneration = closeGeneration
         animateClose(window: w) { [weak self] in
-            self?.window = nil
-            self?.hostingController = nil
+            guard let self else { return }
+            // A racing present() bumped closeGeneration → another window
+            // (or a re-shown same window) now owns the slot. Skip cleanup
+            // so we don't nil out the live reference.
+            guard self.closeGeneration == myGeneration else { return }
+            guard self.window === w else { return }
+            self.window = nil
+            self.hostingController = nil
         }
     }
 
