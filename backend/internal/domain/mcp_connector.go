@@ -9,10 +9,11 @@ const (
 	MCPServiceSlack    MCPService = "slack"
 	MCPServiceClickUp  MCPService = "clickup"
 	MCPServiceGDrive   MCPService = "gdrive"
+	MCPServiceGitHub   MCPService = "github"
 )
 
 // AllMCPServices is the registration order used for UI and tools/list.
-var AllMCPServices = []MCPService{MCPServiceSlack, MCPServiceClickUp, MCPServiceGDrive}
+var AllMCPServices = []MCPService{MCPServiceSlack, MCPServiceClickUp, MCPServiceGDrive, MCPServiceGitHub}
 
 // MCPConnector is non-secret metadata for one provider on one Claude Bar
 // account. Tokens live in the Keychain, never in this struct.
