@@ -68,6 +68,12 @@ struct WidgetTabbedPopover: View {
         // so the popover never loses key status during the check/download/
         // install cycle. See InPopoverUpdateDriver for the rationale.
         .overlay(UpdateOverlayView(driver: updateController.driver))
+        .overlay(alignment: .bottom) {
+            // Phase 2 — inline confirm-gate chip floats above the active tab.
+            // Destructive prompts use the sheet modifier on the popover root
+            // (in ClaudeSwapWidgetApp) and don't render here.
+            ConfirmGateOverlay()
+        }
         .focusable()
         .focusEffectDisabled()
         .onMoveCommand { direction in

@@ -320,7 +320,7 @@ actor CswClient {
         _ = try await runRaw(args)
     }
 
-    private func runWithStdin(_ args: [String], stdin payload: String) async throws {
+    func runWithStdin(_ args: [String], stdin payload: String) async throws {
         guard let bin = CswBinary.resolve() else { throw CswError.binaryNotFound }
         try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
             let task = Process()

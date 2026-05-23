@@ -115,9 +115,14 @@ func runMCPServe(ctx context.Context, svc *usecase.Service) error {
 	// the multi-token format (claude-bar-mcp:shared:gitlab:<instanceId>).
 	gw.GitLabInstances = mcp.NewGitLabInstanceStore(filepath.Join(adapter.WidgetDataDir(), "gitlab-instances.json"))
 
-	// Bitwarden session — Phase 9. 15-minute idle auto-lock. Token stays
-	// in-memory only; widget calls `csw mcp bw-unlock` to populate it.
+	// Bitwarden session — Phase 9. 15-minute idle auto-lock. The widget
+	// unlock command writes the session token to a per-user file 0600 so
+	// the MCP server (a different process) can read it on boot. Reload
+	// is cheap; checked on every tool call via the file mtime.
 	gw.BWSession = mcp.NewBitwardenSession(15 * time.Minute)
+	if tok, err := os.ReadFile(filepath.Join(adapter.WidgetDataDir(), "bw-session")); err == nil {
+		gw.BWSession.Unlock(strings.TrimSpace(string(tok)))
+	}
 
 	return gw.ServeStdio(ctx)
 }
