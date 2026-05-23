@@ -171,7 +171,15 @@ private struct WidgetTabBarButton: View {
 // this tab.
 struct ClaudeTabContent: View {
     @EnvironmentObject var store: AppStore
+    @EnvironmentObject var cloudSync: CloudSyncCoordinator
     @ObservedObject private var settings = AppSettings.shared
+
+    // Mirrors AppSettings.lastAutoSync* via the same UserDefaults keys so the
+    // Accounts-header sync chip re-renders the moment a background cycle
+    // updates these timestamps — no need to wait for an AppStore publish.
+    @AppStorage("lastAutoSyncAt") private var lastAutoSyncAt: Double = 0
+    @AppStorage("lastAutoSyncSuccessAt") private var lastAutoSyncSuccessAt: Double = 0
+    @AppStorage("lastAutoSyncError") private var lastAutoSyncError: String = ""
 
     var body: some View {
         // GeometryReader → ScrollView → VStack with `minHeight: geo.height`
@@ -184,8 +192,7 @@ struct ClaudeTabContent: View {
         GeometryReader { geo in
             ScrollView {
                 VStack(alignment: .leading, spacing: 4) {
-                    sectionTitle(title: "Accounts",
-                                 trailing: store.snapshot.map { "\($0.accounts.count)" })
+                    accountsHeader
                     AccountListSection()
                     sectionTitle(title: "Auto-swap").padding(.top, 6)
                     AutoSwapSection()
@@ -197,6 +204,91 @@ struct ClaudeTabContent: View {
                 .frame(minHeight: geo.size.height, alignment: .top)
             }
         }
+    }
+
+    /// Accounts section header with the auto-sync chip wedged between the
+    /// title and the account count. Inlined (not via sectionTitle helper)
+    /// because this is the only header that carries glanceable sync state.
+    private var accountsHeader: some View {
+        HStack(spacing: 6) {
+            Text("Accounts")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundColor(.primary.opacity(0.78))
+            Spacer()
+            syncChip
+            if let count = store.snapshot.map({ "\($0.accounts.count)" }) {
+                Text(count)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundColor(.secondary)
+                    .monospacedDigit()
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.top, 4)
+        .padding(.bottom, 2)
+    }
+
+    /// Compact iCloud-sync indicator: glance-only, three visible states.
+    ///   - green check + relative time = last cycle ok within memory
+    ///   - amber triangle = last attempt failed but a recent success exists
+    ///   - red triangle = no success in 12h+
+    /// Hidden entirely when iCloud sync isn't enabled or no cycle has run
+    /// yet, so the header stays clean for users who don't use sync.
+    @ViewBuilder
+    private var syncChip: some View {
+        let cloudEnabled = cloudSync.status?.exists == true
+        let hasSuccess = lastAutoSyncSuccessAt > 0
+        let attemptFailed = !lastAutoSyncError.isEmpty
+        let now = Date().timeIntervalSince1970
+        let successAge = hasSuccess ? now - lastAutoSyncSuccessAt : .infinity
+        let isBroken = attemptFailed && successAge > 12 * 3600
+
+        if cloudEnabled && (hasSuccess || attemptFailed) {
+            if isBroken {
+                HStack(spacing: 3) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.system(size: 9))
+                        .foregroundColor(.red)
+                    Text("sync failing")
+                        .font(.system(size: 10))
+                        .foregroundColor(.red)
+                }
+                .help(lastAutoSyncError.isEmpty
+                      ? "Auto-sync hasn't succeeded in 12h+ — open Diagnostics to investigate."
+                      : "Auto-sync failing: \(lastAutoSyncError)")
+            } else if attemptFailed {
+                HStack(spacing: 3) {
+                    Image(systemName: "exclamationmark.triangle")
+                        .font(.system(size: 9))
+                        .foregroundColor(.orange)
+                    Text(relativeShort(seconds: successAge))
+                        .font(.system(size: 10))
+                        .foregroundColor(.orange)
+                }
+                .help("Last sync attempt failed. Previous success \(relativeShort(seconds: successAge)) ago.\n\(lastAutoSyncError)")
+            } else if hasSuccess {
+                HStack(spacing: 3) {
+                    Image(systemName: "checkmark.icloud.fill")
+                        .font(.system(size: 9))
+                        .foregroundColor(.green)
+                    Text(relativeShort(seconds: successAge))
+                        .font(.system(size: 10))
+                        .foregroundColor(.secondary)
+                }
+                .help("iCloud auto-sync ok — last cycle \(relativeShort(seconds: successAge)) ago.")
+            }
+        }
+    }
+
+    /// Compact "Xs / Xm / Xh / Xd" used inline in the header chip so it
+    /// fits next to the account count without wrapping. Returns "now"
+    /// under a minute.
+    private func relativeShort(seconds: TimeInterval) -> String {
+        let s = Int(max(seconds, 0))
+        if s < 60         { return "now" }
+        if s < 60 * 60    { return "\(s / 60)m" }
+        if s < 24 * 3600  { return "\(s / 3600)h" }
+        return "\(s / 86400)d"
     }
 
     // Replaces the old ALL-CAPS gray SectionHeaderView with a softer bold
