@@ -126,6 +126,10 @@ func makeCloudPushService(live *pushTestLiveStore, bak *pushTestBackupStore, loc
 	}
 }
 
+// TestCloudPushFailsWhenInactiveCredentialRefreshFails verifies that a HARD
+// refresh failure (network / 5xx) aborts the push — re-trying later is the
+// right move for a transient outage, and a healthy-looking bundle pushed
+// during a flaky network would mislead other devices.
 func TestCloudPushFailsWhenInactiveCredentialRefreshFails(t *testing.T) {
 	reg := &domain.Registry{
 		ActiveAccountNumber: 1,
@@ -142,19 +146,53 @@ func TestCloudPushFailsWhenInactiveCredentialRefreshFails(t *testing.T) {
 			2: credentialBlob("stale-token", "revoked-rt", time.Now().Add(-time.Hour)),
 		}},
 		lock,
-		&pushTestRefresher{err: errors.New("invalid_grant")},
+		&pushTestRefresher{err: errors.New("dial tcp: i/o timeout")},
 		reg,
 	)
 
 	err := svc.CloudPush(context.Background(), "test-pass")
 	if err == nil {
-		t.Fatal("CloudPush returned nil for failed inactive refresh")
+		t.Fatal("CloudPush returned nil for hard refresh failure")
 	}
 	if !strings.Contains(err.Error(), "refresh inactive credentials before push") {
 		t.Fatalf("CloudPush error = %q, want pre-push refresh context", err)
 	}
 	if lock.locked || len(lock.acquired) != 0 {
 		t.Fatalf("CloudPush acquired lock after failed pre-push refresh: %+v", lock)
+	}
+}
+
+// TestCloudPushSucceedsWhenInactiveNeedsRelogin verifies that a per-account
+// permanent failure (400 invalid_grant — revoked refresh token) does NOT
+// block the push. Withholding the whole bundle on one bad token was the
+// real bug: the other accounts and shared MCP connectors still need to
+// sync, and the broken account is fixed independently by re-login.
+func TestCloudPushSucceedsWhenInactiveNeedsRelogin(t *testing.T) {
+	isolateCloudIO(t)
+	reg := &domain.Registry{
+		ActiveAccountNumber: 1,
+		Sequence:            []int{1, 2},
+		Accounts: map[int]*domain.Account{
+			1: {Number: 1, Email: "active@example.com"},
+			2: {Number: 2, Email: "inactive@example.com"},
+		},
+	}
+	lock := &pushTestLock{}
+	svc := makeCloudPushService(
+		&pushTestLiveStore{blob: credentialBlob("live-token", "live-rt", time.Now().Add(time.Hour))},
+		&pushTestBackupStore{blobs: map[int]domain.CredentialBlob{
+			2: credentialBlob("stale-token", "revoked-rt", time.Now().Add(time.Hour)),
+		}},
+		lock,
+		&pushTestRefresher{err: errors.New(`oauth refresh 400: {"error":"invalid_grant"}`)},
+		reg,
+	)
+
+	if err := svc.CloudPush(context.Background(), "test-pass"); err != nil {
+		t.Fatalf("CloudPush returned %v, want nil (needs-relogin must not block push)", err)
+	}
+	if !lock.locked && len(lock.acquired) == 0 {
+		t.Fatal("CloudPush did not acquire push lock — expected push to proceed past the soft refresh failure")
 	}
 }
 

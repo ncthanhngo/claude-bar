@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -34,10 +35,16 @@ func (s *Service) CloudPush(ctx context.Context, passphrase string) error {
 
 	// Option B: refresh inactive tokens before acquiring the lock so the bundle
 	// contains fresh credentials without holding the lock during network calls.
-	// A failed refresh means at least one inactive backup cannot be swapped to
-	// on the destination either, so do not publish a bundle that looks healthy.
+	// Hard transient failures (network, 5xx) block the push — re-trying later
+	// is the right move. Per-account "needs re-login" (400 invalid_grant) and
+	// rate-limited (429) are soft: the affected account's existing backup blob
+	// is still pushed so the rest of the bundle can sync, and the user can
+	// re-login that one account independently.
 	if err := s.RefreshAllTokens(ctx); err != nil {
-		return fmt.Errorf("refresh inactive credentials before push: %w", err)
+		var refreshErr *RefreshAllError
+		if !errors.As(err, &refreshErr) || refreshErr.BlocksPush() {
+			return fmt.Errorf("refresh inactive credentials before push: %w", err)
+		}
 	}
 
 	// R5: acquire the file lock before reading any keychain data to serialise
