@@ -49,6 +49,17 @@ func LockFile() string {
 	return filepath.Join(WidgetDataDir(), "swap.lock")
 }
 
+// GateSocketFile returns the Unix domain socket path that the MCP server
+// uses to talk to the widget for write-gate approvals.
+func GateSocketFile() string {
+	return filepath.Join(WidgetDataDir(), "gate.sock")
+}
+
+// AuditLogFile returns the canonical append-only audit log path.
+func AuditLogFile() string {
+	return filepath.Join(WidgetDataDir(), "audit.log")
+}
+
 // UsageCacheFile returns the usage API response cache.
 func UsageCacheFile() string {
 	return filepath.Join(WidgetDataDir(), "usage-cache.json")

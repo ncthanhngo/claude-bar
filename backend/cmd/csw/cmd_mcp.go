@@ -13,7 +13,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/soi/claude-swap-widget/backend/internal/adapter"
 	"github.com/soi/claude-swap-widget/backend/internal/adapter/claudeconfig"
+	"github.com/soi/claude-swap-widget/backend/internal/adapter/gateipc"
 	"github.com/soi/claude-swap-widget/backend/internal/adapter/keychain"
 	"github.com/soi/claude-swap-widget/backend/internal/domain"
 	"github.com/soi/claude-swap-widget/backend/internal/mcp"
@@ -90,6 +92,19 @@ func runMCPServe(ctx context.Context, svc *usecase.Service) error {
 		_, _ = keychain.MigrateToShared(ctx, svc.MCPSecrets, reg)
 	}
 	gw := mcp.New(svc.Registry, svc.MCPSecrets, cswVersion)
+
+	// Wire the write-gate IPC bridge. UDS server bound at gate.sock; widget
+	// connects via `csw gate proxy`. Audit writer is process-wide
+	// append-only. Both nil-safe: writer/gate failures must not block MCP
+	// stdio (the LLM client times out cleanly via gate timeout).
+	if aw, _ := mcp.DefaultAuditWriter(); aw != nil {
+		gw.Audit = aw
+	}
+	gw.Gate = mcp.NewGateService(nil)
+	if err := adapter.EnsureDataDir(); err == nil {
+		ipcSrv := gateipc.NewServer(adapter.GateSocketFile(), gw.Gate)
+		_ = ipcSrv.Start(ctx) // emitter wires itself onto gw.Gate
+	}
 	return gw.ServeStdio(ctx)
 }
 
