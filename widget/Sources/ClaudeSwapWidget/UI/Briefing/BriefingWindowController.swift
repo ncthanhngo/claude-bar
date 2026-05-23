@@ -212,7 +212,7 @@ final class BriefingWindowController: NSObject, NSWindowDelegate {
         }
     }
 
-    private func animateClose(window w: NSWindow, completion: @escaping () -> Void) {
+    private func animateClose(window w: NSWindow, completion: @escaping @MainActor @Sendable () -> Void) {
         TetherWindowController.shared.hide()
         NSAnimationContext.runAnimationGroup({ ctx in
             ctx.duration = 0.30
@@ -221,8 +221,12 @@ final class BriefingWindowController: NSObject, NSWindowDelegate {
             w.animator().setFrame(startFrame, display: true, animate: true)
             w.animator().alphaValue = 0
         }, completionHandler: {
-            w.orderOut(nil)
-            completion()
+            // NSAnimationContext's completionHandler is @Sendable; orderOut +
+            // user completion are main-actor operations. Hop explicitly.
+            Task { @MainActor in
+                w.orderOut(nil)
+                completion()
+            }
         })
     }
 

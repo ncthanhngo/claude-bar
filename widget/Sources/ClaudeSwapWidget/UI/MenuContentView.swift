@@ -93,6 +93,10 @@ struct EmptyAccountsView: View {
 /// the popover.
 struct PointingHandSwitch: View {
     @Binding var isOn: Bool
+    /// Label exposed to VoiceOver. Caller supplies semantic name (e.g.
+    /// "Auto-swap") rather than visual phrasing — the value ("on"/"off")
+    /// is announced separately via `accessibilityValue`.
+    var accessibilityName: String = "Toggle"
 
     var body: some View {
         Button {
@@ -111,6 +115,9 @@ struct PointingHandSwitch: View {
         }
         .buttonStyle(.plain)
         .pointingHandCursor()
+        .accessibilityLabel(accessibilityName)
+        .accessibilityValue(isOn ? "on" : "off")
+        .accessibilityAddTraits(.isToggle)
     }
 }
 
@@ -121,7 +128,7 @@ struct AutoSwapSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 8) {
-                PointingHandSwitch(isOn: $settings.autoSwapEnabled)
+                PointingHandSwitch(isOn: $settings.autoSwapEnabled, accessibilityName: "Auto-swap")
                 Text(statusLabel)
                     .font(.system(size: 12, weight: .medium))
                     .foregroundColor(statusColor)
@@ -265,6 +272,8 @@ struct FooterActions: View {
         .buttonStyle(.borderless)
         .help(help)
         .pointingHandCursor()
+        .accessibilityLabel(label)
+        .accessibilityHint(help)
     }
 }
 

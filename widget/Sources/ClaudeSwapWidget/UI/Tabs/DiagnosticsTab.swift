@@ -44,6 +44,7 @@ struct DiagnosticsTab: View {
                 bundleFileGroup
                 verifyGroup
                 webUsageGroup
+                logsGroup
             }
         }
         .onChange(of: showRestoreBackupSheet) { _, newValue in
@@ -417,6 +418,63 @@ struct DiagnosticsTab: View {
         case .connected: return .green
         case .fallback: return .orange
         case .linked, .notLinked: return .secondary
+        }
+    }
+
+    // MARK: - Logs & diagnostics
+
+    private var logsGroup: some View {
+        SettingsGroup(
+            "Logs & diagnostics",
+            subtitle: "Logs and crash reports stay on your Mac unless you click Send. Stored under ~/Library/Logs/ClaudeBar/."
+        ) {
+            HStack(spacing: 8) {
+                Button {
+                    NSWorkspace.shared.open(DiagnosticsLogger.shared.logDirectory)
+                } label: {
+                    Label("Open log folder", systemImage: "folder")
+                }
+                .buttonStyle(.bordered)
+
+                Button {
+                    let text = DiagnosticsLogger.shared.tail(lines: 200)
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(text, forType: .string)
+                } label: {
+                    Label("Copy last 200 lines", systemImage: "doc.on.clipboard")
+                }
+                .buttonStyle(.bordered)
+
+                Button {
+                    sendDiagnosticsByMail()
+                } label: {
+                    Label("Send diagnostics…", systemImage: "envelope")
+                }
+                .buttonStyle(.bordered)
+            }
+        }
+    }
+
+    /// Opens the user's default mail client with a pre-filled message
+    /// containing the last 200 log lines. Mail recipient is the project
+    /// author. Privacy: user reviews + edits before sending.
+    private func sendDiagnosticsByMail() {
+        let log = DiagnosticsLogger.shared.tail(lines: 200)
+        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?"
+        let body = """
+        App version: \(version)
+        macOS: \(ProcessInfo.processInfo.operatingSystemVersionString)
+
+        --- Recent log (last 200 lines) ---
+        \(log)
+        """
+        let subject = "Claude Bar diagnostics"
+        let q: (String) -> String = { s in
+            s.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+        }
+        let url = "mailto:nc.thanhngo@gmail.com?subject=\(q(subject))&body=\(q(body))"
+        if let u = URL(string: url) {
+            NSWorkspace.shared.open(u)
         }
     }
 }

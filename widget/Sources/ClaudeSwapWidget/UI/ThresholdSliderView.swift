@@ -27,6 +27,19 @@ struct ThresholdSliderView: View {
         }
         .opacity(isEnabled ? 1 : 0.5)
         .allowsHitTesting(isEnabled)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Auto-swap threshold")
+        .accessibilityValue("\(threshold) percent")
+        .accessibilityRepresentation {
+            Slider(
+                value: Binding(
+                    get: { Double(threshold) },
+                    set: { threshold = Int($0.rounded()) }
+                ),
+                in: 1...100
+            )
+            .accessibilityLabel("Auto-swap threshold")
+        }
     }
 
     // MARK: layers

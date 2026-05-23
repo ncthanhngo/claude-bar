@@ -2,8 +2,21 @@ import SwiftUI
 import UserNotifications
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    /// Hook set by `ClaudeSwapWidgetApp.init()` to capture the @StateObject
+    /// coordinators in a closure that `applicationDidFinishLaunching` can
+    /// invoke. We can't rely on MenuBarExtra's `.task` for launch-time work
+    /// because that closure only fires when the popover content is first
+    /// rendered — which may be never if the user never opens the popover.
+    nonisolated(unsafe) static var onLaunchCompleted: (() -> Void)?
+
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         false  // menu bar app — never quit just because a window closed
+    }
+
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        Self.onLaunchCompleted?()
+        // Single-shot; don't fire on subsequent NSApp reactivations.
+        Self.onLaunchCompleted = nil
     }
 }
 
@@ -20,13 +33,42 @@ struct ClaudeSwapWidgetApp: App {
     @StateObject private var chatStore = ChatStore()
     @StateObject private var newsCoord = NewsFeedCoordinator()
     @StateObject private var prefsCloudSync = PreferencesCloudSync.shared
+    @StateObject private var updateController = UpdateController()
     @ObservedObject private var settings = AppSettings.shared
 
     init() {
+        // Diagnostics first so anything that crashes during the rest of init
+        // (ClaudeWatchInstaller, settings migration, hotkey wiring) lands
+        // in ~/Library/Logs/ClaudeBar/.
+        DiagnosticsLogger.shared.bootstrap()
+        CrashHandler.install()
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
         ClaudeWatchInstaller.install()
         migrateSettingsIfNeeded()
         syncReloadShortcutIfNeeded()
+
+        // Capture refs to the @StateObject coordinators in a closure that
+        // fires from AppDelegate.applicationDidFinishLaunching — independent
+        // of whether MenuBarExtra ever opens its popover.
+        let storeRef = _store.wrappedValue
+        let loginRef = _loginCoordinator.wrappedValue
+        let cloudRef = _cloudSync.wrappedValue
+        let settingsRef = AppSettings.shared
+        AppDelegate.onLaunchCompleted = {
+            Task { @MainActor in
+                // Give store.start() (kicked off from the popover's .task)
+                // a moment to fetch the snapshot. If the popover never opens,
+                // snapshot stays nil — but `accounts.isEmpty` is still
+                // computable as 0, so onboarding still fires correctly.
+                try? await Task.sleep(nanoseconds: 800_000_000)
+                presentOnboardingIfNeededAtLaunch(
+                    store: storeRef,
+                    loginCoordinator: loginRef,
+                    settings: settingsRef,
+                    cloudSync: cloudRef
+                )
+            }
+        }
     }
 
     @MainActor
@@ -102,6 +144,7 @@ struct ClaudeSwapWidgetApp: App {
                 .environmentObject(cloudSync)
                 .environmentObject(briefingCoord)
                 .environmentObject(localMCP)
+                .environmentObject(updateController)
                 .task {
                     loginCoordinator.attach(store: store)
                     verifyCoordinator.attach(store: store)
@@ -121,6 +164,7 @@ struct ClaudeSwapWidgetApp: App {
                     prefsCloudSync.start()
                     await cloudSync.refreshStatus()
                     await cloudSync.checkOnboarding(snapshot: store.snapshot)
+                    presentOnboardingIfNeeded()
                 }
         } label: {
             MenuBarLabelView()
@@ -128,4 +172,51 @@ struct ClaudeSwapWidgetApp: App {
         }
         .menuBarExtraStyle(.window)
     }
+
+    /// Show the first-launch onboarding window when the user has no accounts
+    /// AND hasn't already finished or skipped the wizard. Triggered after
+    /// the first `store.start()` snapshot arrives so we don't flash the
+    /// wizard while data is loading.
+    ///
+    /// Also called from `AppDelegate.applicationDidFinishLaunching` via the
+    /// `onLaunchCompleted` bridge so onboarding fires even if the user
+    /// never opens the popover (the `.task` modifier on MenuBarExtra
+    /// content is lazy).
+    @MainActor
+    private func presentOnboardingIfNeeded() {
+        presentOnboardingIfNeededAtLaunch(
+            store: store,
+            loginCoordinator: loginCoordinator,
+            settings: settings,
+            cloudSync: cloudSync
+        )
+    }
+}
+
+/// Static helper shared between the popover-`.task` and the AppDelegate
+/// launch hook. Static so it can be called from a closure captured at
+/// `init()` time without holding `self`. Idempotent —
+/// `OnboardingWindowController.present()` short-circuits when the window
+/// is already up.
+@MainActor
+private func presentOnboardingIfNeededAtLaunch(
+    store: AppStore,
+    loginCoordinator: LoginCoordinator,
+    settings: AppSettings,
+    cloudSync: CloudSyncCoordinator
+) {
+    guard !settings.didCompleteOnboarding else { return }
+    let count = store.snapshot?.accounts.count ?? 0
+    guard count == 0 else {
+        // Existing user with accounts but legacy `didCompleteOnboarding`
+        // unset — mark complete so they aren't surprised by a wizard.
+        settings.didCompleteOnboarding = true
+        return
+    }
+    OnboardingWindowController.shared.present(
+        store: store,
+        loginCoordinator: loginCoordinator,
+        settings: settings,
+        cloudSync: cloudSync
+    )
 }

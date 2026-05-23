@@ -1,6 +1,12 @@
 import SwiftUI
 
 struct AboutTab: View {
+    @EnvironmentObject private var updateController: UpdateController
+    @EnvironmentObject private var store: AppStore
+    @EnvironmentObject private var loginCoordinator: LoginCoordinator
+    @EnvironmentObject private var cloudSync: CloudSyncCoordinator
+    @ObservedObject private var settings = AppSettings.shared
+
     var body: some View {
         ScrollView {
             SettingsPage {
@@ -24,6 +30,27 @@ struct AboutTab: View {
                     .font(.caption)
                     infoRow(label: "Build date", value: aboutInfo.buildDate)
                     infoRow(label: "License", value: aboutInfo.license)
+                    HStack(spacing: 8) {
+                        Button {
+                            updateController.checkForUpdates()
+                        } label: {
+                            Label("Check for updates…", systemImage: "arrow.down.circle")
+                        }
+                        .buttonStyle(.bordered)
+                        .disabled(!updateController.canCheck)
+                        if updateController.placeholderKey {
+                            Text("Updates disabled — SUPublicEDKey placeholder. Generate keys via Sparkle's bin/generate_keys, paste the public key into Info.plist, then re-build.")
+                                .font(.caption2)
+                                .foregroundColor(.orange)
+                                .fixedSize(horizontal: false, vertical: true)
+                        } else {
+                            Text("Updates are EdDSA-signed. macOS may show a Gatekeeper warning until the app is notarized.")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+                    .padding(.top, 4)
                 }
                 SettingsGroup("Author") {
                     infoRow(label: "Name", value: aboutInfo.authorName)
@@ -51,6 +78,27 @@ struct AboutTab: View {
                     stackRow(label: "Auth storage", value: "macOS Keychain")
                     stackRow(label: "Cloud sync", value: "iCloud Drive · AES-256-GCM")
                     stackRow(label: "MCP connectors", value: "ClickUp · Slack · Google Drive · Google Workspace")
+                }
+                SettingsGroup("Welcome flow") {
+                    HStack {
+                        Text("Onboarding wizard")
+                            .foregroundColor(.secondary)
+                        Spacer()
+                        Button {
+                            settings.didCompleteOnboarding = false
+                            OnboardingWindowController.shared.present(
+                                store: store,
+                                loginCoordinator: loginCoordinator,
+                                settings: settings,
+                                cloudSync: cloudSync
+                            )
+                        } label: {
+                            Label("Re-run onboarding", systemImage: "arrow.uturn.left.circle")
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                    }
+                    .font(.caption)
                 }
                 SettingsGroup("Legal") {
                     Text(aboutInfo.copyright)

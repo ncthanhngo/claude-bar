@@ -92,6 +92,8 @@ struct AccountRowView: View {
         .buttonStyle(.plain)
         .pointingHandCursor()
         .help("Switch to this account")
+        .accessibilityLabel("Switch to \(view.account.displayName)")
+        .accessibilityHint("Switches the active Claude Code account.")
     }
 
     private var activeChip: some View {
@@ -118,6 +120,8 @@ struct AccountRowView: View {
         .menuIndicator(.hidden)
         .fixedSize()
         .pointingHandCursor()
+        .accessibilityLabel("More actions for \(view.account.displayName)")
+        .accessibilityHint("Rename, switch, remove, or manage web usage.")
     }
 
     // MARK: - Subtitle

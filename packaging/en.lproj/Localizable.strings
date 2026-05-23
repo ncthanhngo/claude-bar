@@ -1,0 +1,25 @@
+/* Claude Bar — English source strings. Mirror of vi.lproj/Localizable.strings.
+   Add a new key here AND in vi.lproj/ when you introduce a new user-visible string. */
+
+"Accounts" = "Accounts";
+"Add your first account" = "Add your first account";
+"Auto-swap" = "Auto-swap";
+"Check for updates…" = "Check for updates…";
+"Claude" = "Claude";
+"Daily" = "Daily";
+"Disabled" = "Disabled";
+"Enabled" = "Enabled";
+"Finish" = "Finish";
+"General" = "General";
+"MCP" = "MCP";
+"Open log folder" = "Open log folder";
+"Paused" = "Paused";
+"Privacy" = "Privacy";
+"Quit" = "Quit";
+"Re-run onboarding" = "Re-run onboarding";
+"Restore" = "Restore";
+"Skip for now" = "Skip for now";
+"Switch" = "Switch";
+"Theme" = "Theme";
+"Token usage" = "Token usage";
+"Welcome to Claude Bar" = "Welcome to Claude Bar";
