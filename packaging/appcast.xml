@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Sparkle appcast — source of truth. The file published at
+  https://ncthanhngo.github.io/claude-bar/appcast.xml is served from the
+  `gh-pages` branch and is a byte-for-byte copy of this file. When
+  cutting a new release, prepend the new <item> here and copy across.
+-->
+<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <channel>
+    <title>Claude Bar</title>
+    <link>https://github.com/ncthanhngo/claude-bar</link>
+    <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
+    <language>en</language>
+    <item>
+      <title>Version 10.3</title>
+      <sparkle:version>10.3</sparkle:version>
+      <sparkle:shortVersionString>10.3</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li>Daily background update checks are now enabled.</li>
+          <li>Stale "no public release pipeline" comment removed.</li>
+          <li>packaging/appcast.xml committed on main as feed source-of-truth.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Sat, 23 May 2026 18:30:00 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v10.3/ClaudeBar.zip"
+        sparkle:version="10.3"
+        sparkle:shortVersionString="10.3"
+        sparkle:edSignature="D5yfOAjqUSgnvvw3uwpbENo7tjNb7ClgGtUka5nyn9b1VwBIWM/Ht8FEHL55MlVDgiqx97aFWH/Xu5SnTisYDg=="
+        length="7944179"
+        type="application/octet-stream"/>
+    </item>
+    <item>
+      <title>Version 10.2</title>
+      <sparkle:version>10.2</sparkle:version>
+      <sparkle:shortVersionString>10.2</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li>First release served through the Sparkle auto-update pipeline.</li>
+          <li>Sparkle EdDSA signing live; appcast hosted at the SUFeedURL.</li>
+          <li>Real public key embedded; signed zip enclosure.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Sat, 23 May 2026 18:00:00 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v10.2/ClaudeBar.zip"
+        sparkle:version="10.2"
+        sparkle:shortVersionString="10.2"
+        sparkle:edSignature="xTMV3qaWKaaLJhjLWjC01NFvpRaCO0lEKEzTKlIPlUhTPeqTix/1rxESrZUIFhu6g9NBN86+IEmbMgQGoZyeBA=="
+        length="7944346"
+        type="application/octet-stream"/>
+    </item>
+  </channel>
+</rss>
