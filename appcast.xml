@@ -12,6 +12,25 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 10.8</title>
+      <sparkle:version>10.8</sparkle:version>
+      <sparkle:shortVersionString>10.8</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li>'Check for updates…' no longer dismisses the popover. The whole update flow — checking, update found, download, install — now renders as an overlay centred on the popover, and the popover only closes on the usual outside-click.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Sat, 23 May 2026 22:55:36 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v10.8/ClaudeBar.zip"
+        sparkle:version="10.8"
+        sparkle:shortVersionString="10.8"
+        sparkle:edSignature="B+3A8rin5jlB0bCsLgFk0ydRp2nkSrWSHdjVrOG2Gifwj8cUqtYukYLldV2cn0fbIpVV6xG9A5bcpeaybTnFCQ=="
+        length="7859958"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 10.7</title>
       <sparkle:version>10.7</sparkle:version>
       <sparkle:shortVersionString>10.7</sparkle:shortVersionString>
