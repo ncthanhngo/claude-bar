@@ -40,7 +40,7 @@ final class OnboardingWindowController: NSObject, NSWindowDelegate {
             .environmentObject(cloudSync)
         )
 
-        let size = NSSize(width: 540, height: 460)
+        let size = NSSize(width: 540, height: 620)
         // Pin the hosting controller so it doesn't auto-grow the window to
         // match the SwiftUI view's intrinsic size — OnboardingView uses
         // `.frame(maxHeight: .infinity)` which would otherwise expand the

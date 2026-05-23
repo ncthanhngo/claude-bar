@@ -43,32 +43,38 @@ struct OnboardingView: View {
     // MARK: - Step 1
 
     private var welcomeStep: some View {
-        VStack(alignment: .center, spacing: 18) {
-            Image(systemName: "sparkles")
-                .font(.system(size: 48, weight: .light))
-                .foregroundStyle(.tint)
-                .padding(.top, 8)
-            Text("Welcome to Claude Bar")
-                .font(.system(size: 22, weight: .semibold))
-            Text("A menu-bar manager for multiple Claude Code accounts. Switch between accounts instantly, auto-swap when quota runs out, and keep your IDE in sync.")
-                .font(.system(size: 13))
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-                .fixedSize(horizontal: false, vertical: true)
-            Spacer(minLength: 0)
-            VStack(spacing: 8) {
-                Button {
-                    loginCoordinator.begin()
-                } label: {
-                    Label("Add your first account", systemImage: "person.crop.circle.badge.plus")
-                        .frame(maxWidth: 280)
-                        .padding(.vertical, 4)
+        ScrollView {
+            VStack(alignment: .center, spacing: 18) {
+                Image(systemName: "sparkles")
+                    .font(.system(size: 48, weight: .light))
+                    .foregroundStyle(.tint)
+                    .padding(.top, 8)
+                Text("Welcome to Claude Bar")
+                    .font(.system(size: 22, weight: .semibold))
+                Text("A menu-bar manager for multiple Claude Code accounts. Switch between accounts instantly, auto-swap when quota runs out, and keep your IDE in sync.")
+                    .font(.system(size: 13))
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+                // Surface the bilingual "do I need to /logout first?" explainer
+                // before the user clicks Add — same card shown in Settings →
+                // Accounts so first-timers see it on day zero.
+                AddAccountGuidanceCard()
+                VStack(spacing: 8) {
+                    Button {
+                        loginCoordinator.begin()
+                    } label: {
+                        Label("Add your first account", systemImage: "person.crop.circle.badge.plus")
+                            .frame(maxWidth: 280)
+                            .padding(.vertical, 4)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
+                    Button("Skip for now", action: onSkip)
+                        .buttonStyle(.borderless)
                 }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
-                Button("Skip for now", action: onSkip)
-                    .buttonStyle(.borderless)
             }
+            .padding(.vertical, 4)
         }
     }
 
