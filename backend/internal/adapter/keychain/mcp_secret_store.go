@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/soi/claude-swap-widget/backend/internal/domain"
 )
@@ -15,6 +16,10 @@ import (
 // machine-wide fallback connector. service is the canonical MCPService
 // identifier ("slack", "clickup", "gdrive").
 const mcpServiceFormat = "claude-bar-mcp:%s:%s"
+
+// migrationSentinelService marks that MCP secrets have been canonicalised
+// under the "shared" account-key. Presence skips re-running migration.
+const migrationSentinelService = "claude-bar-mcp:shared:.migrated-v1"
 
 // MCPSecretStore stores provider tokens in the macOS Keychain.
 type MCPSecretStore struct {
@@ -76,4 +81,36 @@ func (s *MCPSecretStore) DeleteAll(ctx context.Context, accountNum int) error {
 		return errors.New("delete mcp secrets: " + strings.Join(msgs, "; "))
 	}
 	return nil
+}
+
+// GetShared reads the canonical machine-wide token for a service. Convenience
+// wrapper around Read(ctx, 0, service) used by Command Center MCP tools.
+func (s *MCPSecretStore) GetShared(ctx context.Context, service domain.MCPService) (string, error) {
+	return s.Read(ctx, 0, service)
+}
+
+// PutShared upserts the canonical machine-wide token for a service.
+func (s *MCPSecretStore) PutShared(ctx context.Context, service domain.MCPService, payload string) error {
+	return s.Write(ctx, 0, service, payload)
+}
+
+// IsMigratedToShared reports whether the one-shot MCP-to-shared canonicalisation
+// has already run on this machine. Presence of the sentinel keychain entry is
+// the source of truth — never re-derive from secret presence (a user with no
+// connectors yet looks identical to an un-migrated state).
+func (s *MCPSecretStore) IsMigratedToShared(ctx context.Context) (bool, error) {
+	payload, err := New(migrationSentinelService, s.user).Read(ctx)
+	if err != nil {
+		if errors.Is(err, ErrNotFound) {
+			return false, nil
+		}
+		return false, err
+	}
+	return payload != "", nil
+}
+
+// MarkMigratedToShared writes the migration sentinel. Payload is the RFC3339
+// timestamp so a future Diagnostics surface can show when migration ran.
+func (s *MCPSecretStore) MarkMigratedToShared(ctx context.Context, ts time.Time) error {
+	return New(migrationSentinelService, s.user).Write(ctx, ts.UTC().Format(time.RFC3339))
 }

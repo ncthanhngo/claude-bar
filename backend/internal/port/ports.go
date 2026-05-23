@@ -85,9 +85,17 @@ type FileLock interface {
 
 // MCPSecretStore holds per-account connector tokens in the macOS Keychain.
 // Keys are (accountNumber, service). Payload is provider-defined opaque JSON.
+//
+// The IsMigratedToShared / MarkMigratedToShared pair tracks completion of
+// the one-shot canonicalisation that moves per-account secrets under the
+// shared account-key (Phase 1 of the Command Center plan). They live on
+// this interface — not on a separate one — so migration code can take a
+// single dependency and test fakes only need to satisfy one contract.
 type MCPSecretStore interface {
 	Read(ctx context.Context, accountNum int, service domain.MCPService) (string, error)
 	Write(ctx context.Context, accountNum int, service domain.MCPService, payload string) error
 	Delete(ctx context.Context, accountNum int, service domain.MCPService) error
 	DeleteAll(ctx context.Context, accountNum int) error
+	IsMigratedToShared(ctx context.Context) (bool, error)
+	MarkMigratedToShared(ctx context.Context, ts time.Time) error
 }
