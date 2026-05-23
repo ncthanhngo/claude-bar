@@ -91,27 +91,34 @@ func TestRefreshAllTokens_RateLimitedTaggedSeparately(t *testing.T) {
 	}
 }
 
-func TestRefreshAllTokens_HardAndRateLimitedReportedSeparately(t *testing.T) {
+// TestRefreshAllTokens_AllThreeBucketsReportedSeparately verifies each
+// per-account outcome is categorised into the right bucket and surfaces
+// in the error message under its own prefix. Callers (cloud push) use the
+// typed *RefreshAllError to branch on BlocksPush().
+func TestRefreshAllTokens_AllThreeBucketsReportedSeparately(t *testing.T) {
 	backup := &listTestBackupStore{
 		blobs: map[int]domain.CredentialBlob{
 			2: credentialBlob("a2", "ref-2", time.Now().Add(time.Hour)),
 			3: credentialBlob("a3", "ref-3", time.Now().Add(time.Hour)),
+			4: credentialBlob("a4", "ref-4", time.Now().Add(time.Hour)),
 		},
 		writes: map[int]domain.CredentialBlob{},
 	}
 	refresher := &perAccountRefresher{results: map[string]refreshOutcome{
-		"ref-2": {err: errors.New("oauth refresh 400: invalid_grant")},
+		"ref-2": {err: errors.New("dial tcp: connection refused")},
 		"ref-3": {err: &oauth.RateLimitedError{RetryAfter: "30"}},
+		"ref-4": {err: errors.New(`oauth refresh 400: {"error":"invalid_grant"}`)},
 	}}
 	svc := &Service{
 		Live:   &listTestLiveStore{},
 		Backup: backup,
 		Registry: listTestRegistryStore{reg: &domain.Registry{
 			ActiveAccountNumber: 1,
-			Sequence:            []int{2, 3},
+			Sequence:            []int{2, 3, 4},
 			Accounts: map[int]*domain.Account{
 				2: {Number: 2, Email: "two@example.com"},
 				3: {Number: 3, Email: "three@example.com"},
+				4: {Number: 4, Email: "four@example.com"},
 			},
 		}},
 		Refresh: refresher,
@@ -121,11 +128,62 @@ func TestRefreshAllTokens_HardAndRateLimitedReportedSeparately(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected non-nil error")
 	}
-	msg := err.Error()
-	if !strings.Contains(msg, "partial refresh failures") {
-		t.Fatalf("error = %q, want to contain 'partial refresh failures'", msg)
+	var refreshErr *RefreshAllError
+	if !errors.As(err, &refreshErr) {
+		t.Fatalf("err = %T, want *RefreshAllError", err)
 	}
-	if !strings.Contains(msg, "rate limited") {
-		t.Fatalf("error = %q, want to contain 'rate limited'", msg)
+	if len(refreshErr.HardFailures) != 1 || !strings.Contains(refreshErr.HardFailures[0], "account 2") {
+		t.Fatalf("HardFailures = %v, want account 2 hard-fail entry", refreshErr.HardFailures)
+	}
+	if len(refreshErr.RateLimited) != 1 || !strings.Contains(refreshErr.RateLimited[0], "account 3") {
+		t.Fatalf("RateLimited = %v, want account 3", refreshErr.RateLimited)
+	}
+	if len(refreshErr.NeedsRelogin) != 1 || !strings.Contains(refreshErr.NeedsRelogin[0], "account 4") {
+		t.Fatalf("NeedsRelogin = %v, want account 4", refreshErr.NeedsRelogin)
+	}
+	if !refreshErr.BlocksPush() {
+		t.Fatal("BlocksPush() = false, want true when HardFailures is non-empty")
+	}
+	msg := err.Error()
+	if !strings.Contains(msg, "partial refresh failures") ||
+		!strings.Contains(msg, "needs re-login") ||
+		!strings.Contains(msg, "rate limited") {
+		t.Fatalf("error = %q, want all three prefixes", msg)
+	}
+}
+
+// TestRefreshAllTokens_NeedsReloginOnlyDoesNotBlockPush verifies that a
+// pure invalid_grant outcome does not flip BlocksPush() on — cloud push
+// uses this to skip past per-account permanent failures without aborting.
+func TestRefreshAllTokens_NeedsReloginOnlyDoesNotBlockPush(t *testing.T) {
+	backup := &listTestBackupStore{
+		blobs: map[int]domain.CredentialBlob{
+			2: credentialBlob("a2", "ref-2", time.Now().Add(time.Hour)),
+		},
+		writes: map[int]domain.CredentialBlob{},
+	}
+	refresher := &perAccountRefresher{results: map[string]refreshOutcome{
+		"ref-2": {err: errors.New(`oauth refresh 400: {"error":"invalid_grant"}`)},
+	}}
+	svc := &Service{
+		Live:   &listTestLiveStore{},
+		Backup: backup,
+		Registry: listTestRegistryStore{reg: &domain.Registry{
+			ActiveAccountNumber: 1,
+			Sequence:            []int{2},
+			Accounts: map[int]*domain.Account{
+				2: {Number: 2, Email: "two@example.com"},
+			},
+		}},
+		Refresh: refresher,
+	}
+
+	err := svc.RefreshAllTokens(context.Background())
+	var refreshErr *RefreshAllError
+	if !errors.As(err, &refreshErr) {
+		t.Fatalf("err = %T, want *RefreshAllError", err)
+	}
+	if refreshErr.BlocksPush() {
+		t.Fatal("BlocksPush() = true for needs-relogin-only failure; cloud push would be incorrectly aborted")
 	}
 }
