@@ -66,14 +66,31 @@ type BriefingStats struct {
 	Done      int `json:"done"`
 }
 
+// ScheduleMode picks between cron mode (legacy daily briefing) and interval
+// mode (Phase 6: live push every N minutes).
+type ScheduleMode string
+
+const (
+	ScheduleModeCron     ScheduleMode = "cron"
+	ScheduleModeInterval ScheduleMode = "interval"
+)
+
 // Schedule controls when the scheduler fires.
 type Schedule struct {
-	SchemaVersion int    `json:"schemaVersion"`
-	CronExpr      string `json:"cronExpr"`      // "33 8 * * 1-5"
-	Enabled       bool   `json:"enabled"`
-	Timezone      string `json:"timezone"`      // "Asia/Saigon"
-	LastRunAt     string `json:"lastRunAt"`     // ISO8601 or ""
-	LastRunStatus string `json:"lastRunStatus"` // "ok" | "failed" | ""
+	SchemaVersion int          `json:"schemaVersion"`
+	Mode          ScheduleMode `json:"mode,omitempty"` // "cron" (default) | "interval"
+	CronExpr      string       `json:"cronExpr"`       // "33 8 * * 1-5" (cron mode)
+	IntervalMinutes int        `json:"intervalMinutes,omitempty"` // 5/15/30/60 (interval mode)
+	Enabled       bool         `json:"enabled"`
+	Timezone      string       `json:"timezone"` // "Asia/Saigon"
+	LastRunAt     string       `json:"lastRunAt"`
+	LastRunStatus string       `json:"lastRunStatus"`
+
+	// QuietHoursStart/End is a daily window during which notifications are
+	// muted (HH:MM, 24h). Empty values disable quiet hours. Pull continues
+	// inside the window — only the macOS notification is suppressed.
+	QuietHoursStart string `json:"quietHoursStart,omitempty"`
+	QuietHoursEnd   string `json:"quietHoursEnd,omitempty"`
 }
 
 // DefaultSchedule returns the seed config (08:33 Mon-Fri Asia/Saigon).
