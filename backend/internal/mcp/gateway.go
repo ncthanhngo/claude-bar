@@ -22,6 +22,15 @@ type Gateway struct {
 	HTTP      *http.Client
 	UserAgent string
 	Version   string
+
+	// Gate coordinates write-tool approval. nil means no widget is wired —
+	// every write blocks and returns user_cancelled (safe default for CLI
+	// invocations and tests).
+	Gate *GateService
+
+	// Audit is the append-only event sink. nil means audit logging is
+	// disabled (tests, dry-run); writers tolerate nil.
+	Audit *AuditWriter
 }
 
 // New builds a Gateway with sane defaults.
@@ -45,10 +54,12 @@ func (g *Gateway) BuildServer() *server.MCPServer {
 	)
 	g.registerSlackTools(srv)
 	g.registerClickUpTools(srv)
+	g.registerClickUpWriteTools(srv)
 	g.registerGDriveTools(srv)
 	g.registerGCalTools(srv)
 	g.registerGmailTools(srv)
 	g.registerGitHubTools(srv)
+	g.registerGitHubWriteTools(srv)
 	return srv
 }
 

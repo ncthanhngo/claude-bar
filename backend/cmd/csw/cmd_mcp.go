@@ -28,11 +28,30 @@ import (
 // client ID. PKCE (S256) is used, so no secret distribution is needed.
 var defaultGDriveClientID = ""
 
+// defaultGitHubClientID / defaultGitHubClientSecret are similarly overridable
+// at build time for the bundled OAuth App.
+var (
+	defaultGitHubClientID     = ""
+	defaultGitHubClientSecret = ""
+)
+
 func pickGDriveClientID(userArg string) string {
 	if userArg != "" {
 		return userArg
 	}
 	return defaultGDriveClientID
+}
+
+func pickGitHubOAuth(idArg, secretArg string) (string, string) {
+	id := idArg
+	if id == "" {
+		id = defaultGitHubClientID
+	}
+	secret := secretArg
+	if secret == "" {
+		secret = defaultGitHubClientSecret
+	}
+	return id, secret
 }
 
 // cswVersion is overridden at build time via -ldflags; "dev" for local builds.
@@ -191,7 +210,7 @@ func runMCPConnectorsConnect(ctx context.Context, svc *usecase.Service, args []s
 	fs := flag.NewFlagSet("connectors-connect", flag.ExitOnError)
 	account := fs.Int("account", -1, "account number")
 	shared := fs.Bool("shared", false, "connect once for all Claude Bar accounts on this Mac")
-	service := fs.String("service", "", "slack | clickup | gdrive")
+	service := fs.String("service", "", "slack | clickup | gdrive | github")
 	tokenStr := fs.String("token", "", "read token from stdin with --token=-")
 	clientID := fs.String("client-id", "", "google OAuth client id (gdrive only)")
 	clientSecret := fs.String("client-secret", "", "google OAuth client secret (gdrive desktop clients may require it)")
@@ -260,6 +279,28 @@ func runMCPConnectorsConnect(ctx context.Context, svc *usecase.Service, args []s
 			Scopes:      []string{"drive.readonly", "calendar.events.readonly", "gmail.readonly"},
 			Verified:    true,
 		})
+	case domain.MCPServiceGitHub:
+		cid, csecret := pickGitHubOAuth(strings.TrimSpace(*clientID), strings.TrimSpace(*clientSecret))
+		if cid == "" {
+			return errors.New("--client-id is required for github (or build with -X main.defaultGitHubClientID)")
+		}
+		if csecret == "" {
+			return errors.New("--client-secret is required for github OAuth App")
+		}
+		res, err := mcp.GitHubStartOAuth(ctx, cid, csecret, openBrowser)
+		if err != nil {
+			return err
+		}
+		payload, err := res.Payload.Marshal()
+		if err != nil {
+			return err
+		}
+		return svc.ConnectMCPConnector(ctx, usecase.ConnectMCPRequest{
+			AccountNumber: targetAccount, Service: svcID, Payload: payload,
+			DisplayName: pickDisplayName(*displayName, "GitHub"),
+			Scopes:      []string{"repo"},
+			Verified:    true,
+		})
 	default:
 		return fmt.Errorf("unknown service: %s", svcID)
 	}
@@ -296,7 +337,7 @@ func runMCPConnectorsDisconnect(ctx context.Context, svc *usecase.Service, args 
 	fs := flag.NewFlagSet("connectors-disconnect", flag.ExitOnError)
 	account := fs.Int("account", -1, "account number")
 	shared := fs.Bool("shared", false, "disconnect the shared connector")
-	service := fs.String("service", "", "slack | clickup | gdrive")
+	service := fs.String("service", "", "slack | clickup | gdrive | github")
 	_ = fs.Parse(args)
 	targetAccount, err := mcpTargetAccount(*account, *shared)
 	if err != nil {
