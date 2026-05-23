@@ -17,9 +17,11 @@ import (
 	"github.com/soi/claude-swap-widget/backend/internal/adapter/claudeconfig"
 	"github.com/soi/claude-swap-widget/backend/internal/adapter/gateipc"
 	"github.com/soi/claude-swap-widget/backend/internal/adapter/keychain"
+	sshadp "github.com/soi/claude-swap-widget/backend/internal/adapter/ssh"
 	"github.com/soi/claude-swap-widget/backend/internal/domain"
 	"github.com/soi/claude-swap-widget/backend/internal/mcp"
 	"github.com/soi/claude-swap-widget/backend/internal/usecase"
+	"path/filepath"
 )
 
 // defaultGDriveClientID is overridable at build time via
@@ -105,6 +107,10 @@ func runMCPServe(ctx context.Context, svc *usecase.Service) error {
 		ipcSrv := gateipc.NewServer(adapter.GateSocketFile(), gw.Gate)
 		_ = ipcSrv.Start(ctx) // emitter wires itself onto gw.Gate
 	}
+
+	// SSH host store — Phase 3. File is created lazily on first Put.
+	gw.SSHStore = sshadp.NewHostStore(filepath.Join(adapter.WidgetDataDir(), "ssh", "hosts.json"))
+
 	return gw.ServeStdio(ctx)
 }
 
