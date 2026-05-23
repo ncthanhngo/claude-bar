@@ -34,6 +34,7 @@ struct ClaudeSwapWidgetApp: App {
     @StateObject private var newsCoord = NewsFeedCoordinator()
     @StateObject private var prefsCloudSync = PreferencesCloudSync.shared
     @StateObject private var updateController = UpdateController()
+    @StateObject private var gateCoord = GateCoordinator()
     @ObservedObject private var settings = AppSettings.shared
 
     init() {
@@ -145,7 +146,15 @@ struct ClaudeSwapWidgetApp: App {
                 .environmentObject(briefingCoord)
                 .environmentObject(localMCP)
                 .environmentObject(updateController)
+                .environmentObject(gateCoord)
+                .sheet(item: Binding(
+                    get: { gateCoord.pending?.risk == .destructive ? gateCoord.pending : nil },
+                    set: { _ in }
+                )) { _ in
+                    ConfirmGateModal(gate: gateCoord)
+                }
                 .task {
+                    gateCoord.start()
                     loginCoordinator.attach(store: store)
                     verifyCoordinator.attach(store: store)
                     webFallback.attach(store: store)

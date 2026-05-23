@@ -60,6 +60,8 @@ func main() {
 		err = runChat(ctx, svc, args)
 	case "usage-stats":
 		err = runUsageStats(ctx, svc, args)
+	case "gate":
+		err = runGate(ctx, args)
 	case "help", "-h", "--help":
 		usage()
 	default:
