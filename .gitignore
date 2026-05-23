@@ -29,6 +29,14 @@ images.jpeg
 .idea/
 *.swp
 
+# Sparkle EdDSA signing key — must never reach Git. Pattern catches both
+# the canonical name and accidental copies. The real backup lives in
+# ~/sparkle-private.key (outside the repo) and ideally also in a password
+# manager / encrypted offline storage.
+sparkle-private.key
+*.sparkle-key
+*-sparkle-private.key
+
 # Local planning & notes (not for remote)
 plans/
 TECHNICAL-NOTES.md
