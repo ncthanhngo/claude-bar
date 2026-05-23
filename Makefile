@@ -24,7 +24,7 @@ APP_BUNDLE   := release/$(DISPLAY_NAME).app
 # messages_fts virtual-table migration fails with "no such module: fts5".
 GO_TAGS := sqlite_fts5
 
-.PHONY: all backend widget app release install test clean
+.PHONY: all backend widget app release install test clean sync-check
 
 all: app
 
@@ -90,3 +90,10 @@ test:
 
 clean:
 	rm -rf release backend/bin widget/.build
+
+# Run sync health check on this Mac. Compare output against another Mac
+# signed into the same Apple ID — identity hashes match and lastSeq within
+# ±2 means iCloud sync is healthy across both. See scripts/sync-doctor.sh
+# for --short and --json modes (the latter is friendly to cron / diff).
+sync-check:
+	@bash scripts/sync-doctor.sh
