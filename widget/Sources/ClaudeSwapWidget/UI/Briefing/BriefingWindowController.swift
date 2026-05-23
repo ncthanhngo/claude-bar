@@ -108,8 +108,11 @@ final class BriefingWindowController: NSObject, NSWindowDelegate {
             assertionFailure("BriefingWindowController.present called before attach(...)")
             return
         }
-        // Refresh news on every open so the user always sees fresh headlines.
-        newsCoord.refresh()
+        // Refresh news AFTER kicking off the open animation. `refresh()` itself
+        // returns immediately (it spawns a Task), but on cold start the view's
+        // ObservedObject re-render path runs through the main runloop and can
+        // delay the first paint of the open frame — pushing it to the next
+        // tick lets the animation start unimpeded.
         let view = BriefingView()
             .environmentObject(coordinator)
             .environmentObject(store)
@@ -124,6 +127,7 @@ final class BriefingWindowController: NSObject, NSWindowDelegate {
         self.window = w
 
         animateOpen(window: w)
+        DispatchQueue.main.async { newsCoord.refresh() }
     }
 
     private func dismiss() {
@@ -216,9 +220,13 @@ final class BriefingWindowController: NSObject, NSWindowDelegate {
         w.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
 
-        // Use NSAnimationContext for smooth resize + fade-in.
+        // Use NSAnimationContext for smooth resize + fade-in. Shortened from
+        // 0.55s — at half a second the SwiftUI relayout-per-frame cost of the
+        // window resize was perceptible as judder on busier views. 0.28s with
+        // the same expo-out curve still reads as "growing from the icon" but
+        // finishes before the eye registers individual frames.
         NSAnimationContext.runAnimationGroup({ ctx in
-            ctx.duration = 0.55
+            ctx.duration = 0.28
             ctx.timingFunction = CAMediaTimingFunction(controlPoints: 0.2, 0.85, 0.25, 1.0) // easeOutExpo-ish
             ctx.allowsImplicitAnimation = true
             w.animator().setFrame(endFrame, display: true, animate: true)
@@ -230,7 +238,7 @@ final class BriefingWindowController: NSObject, NSWindowDelegate {
         // arriving inside the cone of light, not after. Beam color matches
         // the menu-bar icon tint so the light visibly comes from the icon.
         let beamColor = AppSettings.shared.menuBarIconColor.color ?? Color.primary
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.20) { [weak w] in
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.10) { [weak w] in
             guard let w else { return }
             TetherWindowController.shared.show(below: w, beamColor: beamColor)
         }
@@ -239,7 +247,7 @@ final class BriefingWindowController: NSObject, NSWindowDelegate {
     private func animateClose(window w: NSWindow, completion: @escaping @MainActor @Sendable () -> Void) {
         TetherWindowController.shared.hide()
         NSAnimationContext.runAnimationGroup({ ctx in
-            ctx.duration = 0.30
+            ctx.duration = 0.18
             ctx.timingFunction = CAMediaTimingFunction(controlPoints: 0.4, 0.0, 0.7, 0.2) // easeInQuint-ish
             ctx.allowsImplicitAnimation = true
             w.animator().setFrame(startFrame, display: true, animate: true)

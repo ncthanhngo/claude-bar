@@ -16,6 +16,7 @@ final class BriefingCoordinator: ObservableObject {
     private let client: CswClient
     private var pollTask: Task<Void, Never>?
     private var keyWindowObserver: NSObjectProtocol?
+    private var appDeactivateObserver: NSObjectProtocol?
 
     init(client: CswClient) { self.client = client }
 
@@ -32,6 +33,7 @@ final class BriefingCoordinator: ObservableObject {
         }
         Task { @MainActor [weak self] in
             await self?.attachPopoverObserver()
+            self?.attachAppDeactivateObserver()
         }
     }
 
@@ -47,6 +49,30 @@ final class BriefingCoordinator: ObservableObject {
     /// Daily, NSAlert modals, NSOpenPanel) and on the brief intermediate key
     /// state during the popover-dismiss → Daily-makeKey handoff, which made
     /// in-Daily actions like "Đoạn chat mới" feel broken.
+    /// Close Daily (and dismiss the menu-bar popover) the moment the user
+    /// activates another app — Chrome, Xcode, anything outside Claude Bar.
+    /// Without this, Daily lingers above the user's actual workspace until
+    /// they explicitly hit X or ⌥X.
+    ///
+    /// `didResignActiveNotification` only fires when the entire app loses
+    /// active status to ANOTHER app, so in-app focus shifts (SwiftUI sheets,
+    /// NSAlert, file pickers) do not trigger it. That avoids the historical
+    /// "Daily closes while typing in a TextField" footgun.
+    private func attachAppDeactivateObserver() {
+        if appDeactivateObserver != nil { return }
+        appDeactivateObserver = NotificationCenter.default.addObserver(
+            forName: NSApplication.didResignActiveNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                if self.isWindowOpen { self.close() }
+                MenuBarPopoverToggle.closeIfOpen()
+            }
+        }
+    }
+
     private func attachPopoverObserver() async {
         keyWindowObserver = NotificationCenter.default.addObserver(
             forName: NSWindow.didBecomeKeyNotification,
