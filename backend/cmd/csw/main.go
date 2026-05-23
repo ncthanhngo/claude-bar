@@ -62,6 +62,14 @@ func main() {
 		err = runUsageStats(ctx, svc, args)
 	case "gate":
 		err = runGate(ctx, args)
+	case "ssh":
+		err = runSSH(ctx, args)
+	case "gitlab":
+		err = runGitLab(ctx, args)
+	case "bw":
+		err = runBW(ctx, args)
+	case "audit":
+		err = runAudit(ctx, args)
 	case "help", "-h", "--help":
 		usage()
 	default:

@@ -42,6 +42,7 @@ struct DiagnosticsTab: View {
             SettingsPage {
                 iCloudGroup
                 bundleFileGroup
+                CommandCenterDiagnosticsCard()
                 verifyGroup
                 webUsageGroup
                 logsGroup
