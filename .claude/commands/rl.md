@@ -1,21 +1,41 @@
 ---
 description: Cut a signed Claude Bar release end-to-end (bump → build → sign → publish → appcast → push).
-argument-hint: <new-version> [optional inline notes]
+argument-hint: [optional new-version] [optional inline notes]
 ---
 
 You are cutting a signed Claude Bar release. The canonical runbook is the
 "Cutting a release (every time)" section of `CLAUDE.md` (gitignored, in
-repo root). Follow it end-to-end without asking for confirmation between
-mechanical steps. ONLY ask if something is genuinely ambiguous or a check
-fails.
+repo root). Follow it end-to-end fully autonomously — do NOT ask the user
+anything. Auto-derive any missing inputs. ONLY stop if a preflight check
+fails or a destructive step errors out.
 
 Arguments passed in: `$ARGUMENTS`
-- First token = the new version (e.g. `10.4`). No `v` prefix in the
-  argument; commands and tags use `vX.Y`.
-- Remaining tokens (if any) = inline bullet notes to put in the release
+- First token (optional) = the new version (e.g. `10.4`). No `v` prefix.
+  If omitted or empty, AUTO-DERIVE by bumping the minor of the current
+  `CFBundleShortVersionString` in `packaging/Info.plist`
+  (e.g. `10.3` → `10.4`). Major stays the same.
+- Remaining tokens (optional) = inline bullet notes for the release
   description and appcast `<description>`.
-- If only the version is provided, ask the user for 2-5 bullet notes via
-  the `AskUserQuestion` tool before proceeding.
+  If omitted, AUTO-GENERATE 2-5 bullets by summarizing commits since the
+  most recent `v*` tag:
+
+  ```
+  PREV=$(git describe --tags --abbrev=0 --match 'v*')
+  git log --no-merges --pretty=format:'%s' "$PREV..HEAD"
+  ```
+
+  Convert each meaningful commit subject into a short user-facing bullet
+  (drop `chore:`, `docs:`, `tools:`-only churn unless they're the only
+  changes). Strip conventional-commit prefixes (`feat:`, `fix:`, etc.)
+  and rewrite into past-tense, end-user phrasing. Cap at 5 bullets;
+  merge near-duplicates. If there are zero meaningful commits, fall back
+  to a single bullet: `Maintenance release.`
+
+Derive a one-line release title from the bullets (first bullet, trimmed
+to ~60 chars). Use it for both the GitHub release title and the main
+commit message.
+
+**NEVER call `AskUserQuestion`.** Make the reasonable call and proceed.
 
 ---
 
