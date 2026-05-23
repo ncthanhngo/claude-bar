@@ -17,6 +17,16 @@ final class FloatingWindow<Content: View>: NSObject, NSWindowDelegate {
     var onClose: (() -> Void)?
 
     func show(title: String, size: NSSize, @ViewBuilder content: () -> Content) {
+        // Do NOT dismiss the menu-bar popover here. The bindings passed into
+        // `content()` point at @State on a SwiftUI view hosted INSIDE the
+        // popover (DiagnosticsTab) — when the popover collapses, that view
+        // tears down and @State resets, leaving the sheet's text field bound
+        // to dead state ("Save" stays disabled because the parent's @State
+        // for passphraseField is back to "" even after the user types).
+        //
+        // Instead, raise the floating window above the popover's level
+        // (popUpMenu = 101) so the sheet sits on top WITHOUT collapsing
+        // the popover that owns the bindings.
         if let existing = window {
             existing.makeKeyAndOrderFront(nil)
             NSApp.activate(ignoringOtherApps: true)
@@ -31,9 +41,11 @@ final class FloatingWindow<Content: View>: NSObject, NSWindowDelegate {
         )
         w.title = title
         w.contentViewController = host
-        // Use a level above the Settings window, which is elevated to statusBar+1
-        // when opened from the menu bar. .floating (3) would be covered by it.
-        w.level = NSWindow.Level(rawValue: NSWindow.Level.statusBar.rawValue + 2)
+        // Level above `popUpMenu` so if the popover is reopened while this
+        // sheet is up (e.g. user clicks the menu-bar icon again), the sheet
+        // still wins. statusBar+2 (= 27) was below popUpMenu (= 101) and
+        // got covered.
+        w.level = NSWindow.Level(rawValue: NSWindow.Level.popUpMenu.rawValue + 1)
         w.collectionBehavior = [.moveToActiveSpace, .fullScreenAuxiliary]
         w.isReleasedWhenClosed = false
         w.delegate = self

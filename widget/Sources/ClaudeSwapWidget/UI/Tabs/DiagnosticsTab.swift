@@ -7,9 +7,6 @@ struct DiagnosticsTab: View {
     @EnvironmentObject var webFallback: WebFallbackCoordinator
     @EnvironmentObject var cloudSync: CloudSyncCoordinator
 
-    @State private var showPassphraseEntry = false
-    @State private var passphraseField = ""
-    @State private var passphraseError: String?
     @State private var showRestoreBackupSheet = false
     @State private var restoreBackupPassphrase = ""
     @State private var restoreSelectedSlot: Int?
@@ -23,7 +20,9 @@ struct DiagnosticsTab: View {
     // focus loss — every click inside the sheet collapses the menu bar
     // popover and orphans the flow. Host these sheets in standalone NSWindow
     // instances instead so the restore wizard survives losing menu bar focus.
-    @State private var passphraseWindow = FloatingWindow<AnyView>()
+    // The passphrase prompt uses NSAlert (CloudPassphrasePrompt) instead so
+    // its single text field returns synchronously without depending on
+    // popover-hosted @State surviving the modal.
     @State private var backupWindow = FloatingWindow<AnyView>()
     @State private var previewWindow = FloatingWindow<AnyView>()
 
@@ -34,9 +33,6 @@ struct DiagnosticsTab: View {
                 verifyGroup
                 webUsageGroup
             }
-        }
-        .onChange(of: showPassphraseEntry) { _, newValue in
-            if newValue { presentPassphraseWindow() } else { passphraseWindow.close() }
         }
         .onChange(of: showRestoreBackupSheet) { _, newValue in
             if newValue {
@@ -56,24 +52,6 @@ struct DiagnosticsTab: View {
                 cloudSync.clearPreview()
                 restorePreviewSelection = []
             }
-        }
-    }
-
-    private func presentPassphraseWindow() {
-        passphraseWindow.onClose = { showPassphraseEntry = false }
-        passphraseWindow.show(title: "iCloud Sync", size: NSSize(width: 380, height: 240)) {
-            AnyView(
-                PassphraseSheet(
-                    passphraseField: $passphraseField,
-                    passphraseError: $passphraseError,
-                    showPassphraseEntry: $showPassphraseEntry,
-                    restorePreviewSlot: $restorePreviewSlot,
-                    restorePreviewPassphrase: $restorePreviewPassphrase,
-                    restorePreviewSelection: $restorePreviewSelection,
-                    showRestorePreviewSheet: $showRestorePreviewSheet
-                )
-                .environmentObject(cloudSync)
-            )
         }
     }
 
@@ -112,6 +90,40 @@ struct DiagnosticsTab: View {
         }
     }
 
+    /// Push the local bundle. Uses NSAlert (not a SwiftUI sheet) for the
+    /// passphrase because the menu-bar popover dismisses on focus loss —
+    /// any sheet hosted inside it loses its @State during the modal, leaving
+    /// "Save" disabled and the password field detached from its binding.
+    /// NSAlert.runModal() escapes the popover and returns synchronously.
+    private func runPushPrompt() {
+        guard let pass = CloudPassphrasePrompt.run(
+            intent: .push,
+            initial: cloudSync.loadPassphrase() ?? ""
+        ) else { return }
+        Task { await cloudSync.push(passphrase: pass) }
+    }
+
+    /// Pull/restore from iCloud. Passphrase via NSAlert; the follow-up
+    /// preview UI (account picker) is launched directly afterwards.
+    private func runPullPrompt() {
+        guard let pass = CloudPassphrasePrompt.run(
+            intent: .pull,
+            initial: cloudSync.loadPassphrase() ?? ""
+        ) else { return }
+        restorePreviewSlot = 0
+        restorePreviewPassphrase = pass
+        restorePreviewSelection = []
+        showRestorePreviewSheet = true
+        Task {
+            await cloudSync.preview(slot: 0, passphrase: pass)
+            restorePreviewSelection = Set(
+                cloudSync.previewRows
+                    .filter { $0.status != "localOnly" }
+                    .map { $0.identity }
+            )
+        }
+    }
+
     private var iCloudGroup: some View {
         SettingsGroup("iCloud Sync", subtitle: "Encrypt and store accounts plus local MCP connectors in iCloud Drive. Restore on any Mac with the same Apple ID and passphrase.") {
             if let status = cloudSync.status, status.exists {
@@ -139,10 +151,7 @@ struct DiagnosticsTab: View {
             }
             HStack(spacing: 8) {
                 Button {
-                    passphraseField = cloudSync.loadPassphrase() ?? ""
-                    passphraseError = nil
-                    cloudSync.passphraseIntent = .push
-                    showPassphraseEntry = true
+                    runPushPrompt()
                 } label: {
                     Label(cloudSync.status?.exists == true ? "Push update" : "Enable sync",
                           systemImage: "icloud.and.arrow.up")
@@ -151,10 +160,7 @@ struct DiagnosticsTab: View {
 
                 if cloudSync.status?.exists == true {
                     Button {
-                        passphraseField = cloudSync.loadPassphrase() ?? ""
-                        passphraseError = nil
-                        cloudSync.passphraseIntent = .pull
-                        showPassphraseEntry = true
+                        runPullPrompt()
                     } label: {
                         Label("Restore", systemImage: "icloud.and.arrow.down")
                     }
