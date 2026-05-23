@@ -5,7 +5,7 @@ import SwiftUI
 // content (account list, auto-swap, status). All other tabs are settings or
 // info screens lifted out of the old standalone Settings window.
 enum WidgetTab: String, CaseIterable, Identifiable {
-    case accounts, general, mcp, claude, daily, diagnostics, about
+    case accounts, general, mcp, claude, daily, diagnostics, privacy, about
 
     var id: String { rawValue }
 
@@ -17,6 +17,7 @@ enum WidgetTab: String, CaseIterable, Identifiable {
         case .claude:      return "Claude"
         case .daily:       return "Daily"
         case .diagnostics: return "Diagnostics"
+        case .privacy:     return "Privacy"
         case .about:       return "About"
         }
     }
@@ -29,6 +30,7 @@ enum WidgetTab: String, CaseIterable, Identifiable {
         case .claude:      return "sparkles"
         case .daily:       return "sun.haze"
         case .diagnostics: return "stethoscope"
+        case .privacy:     return "hand.raised"
         case .about:       return "info.circle"
         }
     }
@@ -114,6 +116,7 @@ struct WidgetTabbedPopover: View {
         case .claude:      ClaudeTabContent()
         case .daily:       BriefingTab()
         case .diagnostics: DiagnosticsTab()
+        case .privacy:     PrivacyTab()
         case .about:       AboutTab()
         }
     }
@@ -206,16 +209,18 @@ struct ClaudeTabContent: View {
         }
     }
 
-    /// Accounts section header with the auto-sync chip wedged between the
-    /// title and the account count. Inlined (not via sectionTitle helper)
-    /// because this is the only header that carries glanceable sync state.
+    /// Accounts section header with the auto-sync chip sitting right next
+    /// to the title (not jammed against the count on the right edge) so the
+    /// two trailing slots — sync status and account count — stay visually
+    /// separate. Baseline-aligned so the smaller chip glyphs sit on the
+    /// same line as the bold title text.
     private var accountsHeader: some View {
-        HStack(spacing: 6) {
+        HStack(alignment: .firstTextBaseline, spacing: 6) {
             Text("Accounts")
                 .font(.system(size: 12, weight: .semibold))
                 .foregroundColor(.primary.opacity(0.78))
-            Spacer()
             syncChip
+            Spacer()
             if let count = store.snapshot.map({ "\($0.accounts.count)" }) {
                 Text(count)
                     .font(.system(size: 11, weight: .medium))
@@ -245,34 +250,34 @@ struct ClaudeTabContent: View {
 
         if cloudEnabled && (hasSuccess || attemptFailed) {
             if isBroken {
-                HStack(spacing: 3) {
+                HStack(alignment: .firstTextBaseline, spacing: 3) {
                     Image(systemName: "exclamationmark.triangle.fill")
-                        .font(.system(size: 9))
+                        .font(.system(size: 10))
                         .foregroundColor(.red)
                     Text("sync failing")
-                        .font(.system(size: 10))
+                        .font(.system(size: 11))
                         .foregroundColor(.red)
                 }
                 .help(lastAutoSyncError.isEmpty
                       ? "Auto-sync hasn't succeeded in 12h+ — open Diagnostics to investigate."
                       : "Auto-sync failing: \(lastAutoSyncError)")
             } else if attemptFailed {
-                HStack(spacing: 3) {
+                HStack(alignment: .firstTextBaseline, spacing: 3) {
                     Image(systemName: "exclamationmark.triangle")
-                        .font(.system(size: 9))
+                        .font(.system(size: 10))
                         .foregroundColor(.orange)
                     Text(relativeShort(seconds: successAge))
-                        .font(.system(size: 10))
+                        .font(.system(size: 11))
                         .foregroundColor(.orange)
                 }
                 .help("Last sync attempt failed. Previous success \(relativeShort(seconds: successAge)) ago.\n\(lastAutoSyncError)")
             } else if hasSuccess {
-                HStack(spacing: 3) {
+                HStack(alignment: .firstTextBaseline, spacing: 3) {
                     Image(systemName: "checkmark.icloud.fill")
-                        .font(.system(size: 9))
+                        .font(.system(size: 10))
                         .foregroundColor(.green)
                     Text(relativeShort(seconds: successAge))
-                        .font(.system(size: 10))
+                        .font(.system(size: 11))
                         .foregroundColor(.secondary)
                 }
                 .help("iCloud auto-sync ok — last cycle \(relativeShort(seconds: successAge)) ago.")
