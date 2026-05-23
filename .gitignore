@@ -41,6 +41,11 @@ sparkle-private.key
 plans/
 TECHNICAL-NOTES.md
 NOTES.local.md
-.claude/
+# Keep .claude/commands/ in git so /release etc. travel with the repo.
+# Ignore everything else under .claude/ that's local-only state.
+.claude/agent-memory/
+.claude/scheduled_tasks.lock
+.claude/settings.local.json
+.claude/*.log
 CLAUDE.md
 daily-briefing-preview.html
