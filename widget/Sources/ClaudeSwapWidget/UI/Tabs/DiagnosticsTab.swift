@@ -7,6 +7,13 @@ struct DiagnosticsTab: View {
     @EnvironmentObject var webFallback: WebFallbackCoordinator
     @EnvironmentObject var cloudSync: CloudSyncCoordinator
 
+    // Mirrors AppSettings.lastAutoSync* via the same UserDefaults keys so the
+    // iCloud group's sync chip refreshes whenever a background cycle writes
+    // a new timestamp — without needing AppStore to publish a change.
+    @AppStorage("lastAutoSyncAt") private var lastAutoSyncAt: Double = 0
+    @AppStorage("lastAutoSyncSuccessAt") private var lastAutoSyncSuccessAt: Double = 0
+    @AppStorage("lastAutoSyncError") private var lastAutoSyncError: String = ""
+
     @State private var showRestoreBackupSheet = false
     @State private var restoreBackupPassphrase = ""
     @State private var restoreSelectedSlot: Int?
@@ -211,6 +218,7 @@ struct DiagnosticsTab: View {
                             .font(.caption).foregroundColor(.secondary)
                     }
                 }
+                autoSyncStatusLine
             } else {
                 SettingsBadge(text: "NOT SET UP", color: .secondary)
             }
@@ -270,6 +278,68 @@ struct DiagnosticsTab: View {
                     }
                     .buttonStyle(.borderedProminent).disabled(cloudSync.isBusy)
                 }
+            }
+        }
+    }
+
+    /// Status chip showing how the most recent background pull→refresh→push
+    /// cycle went. Four states: never-run, ok, degraded (last attempt failed
+    /// but a recent success exists), broken (no success in 12h+). Lets the
+    /// user notice silently-failing sync before it bites them.
+    @ViewBuilder
+    private var autoSyncStatusLine: some View {
+        let now = Date().timeIntervalSince1970
+        let hasAttempt = lastAutoSyncAt > 0
+        let hasSuccess = lastAutoSyncSuccessAt > 0
+        let attemptFailed = !lastAutoSyncError.isEmpty
+        let successAge = hasSuccess ? now - lastAutoSyncSuccessAt : .infinity
+        let isBroken = attemptFailed && successAge > 12 * 3600
+
+        if !hasAttempt {
+            HStack(spacing: 6) {
+                Image(systemName: "clock")
+                    .foregroundColor(.secondary)
+                    .font(.caption)
+                Text("Background sync will run within ~6h.")
+                    .font(.caption).foregroundColor(.secondary)
+            }
+        } else if isBroken {
+            HStack(alignment: .top, spacing: 6) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundColor(.red)
+                    .font(.caption)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(hasSuccess
+                         ? "Sync failing for \(Int(successAge / 3600))h+"
+                         : "Sync has never succeeded")
+                        .font(.caption).foregroundColor(.red)
+                    Text(lastAutoSyncError)
+                        .font(.caption2).foregroundColor(.secondary)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        } else if attemptFailed, let successDate = hasSuccess ? Date(timeIntervalSince1970: lastAutoSyncSuccessAt) : nil {
+            HStack(alignment: .top, spacing: 6) {
+                Image(systemName: "exclamationmark.triangle")
+                    .foregroundColor(.orange)
+                    .font(.caption)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("Last sync failed · last ok \(SettingsRelativeDate.format(successDate))")
+                        .font(.caption).foregroundColor(.orange)
+                    Text(lastAutoSyncError)
+                        .font(.caption2).foregroundColor(.secondary)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        } else if hasSuccess {
+            HStack(spacing: 6) {
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundColor(.green)
+                    .font(.caption)
+                Text("Auto-synced \(SettingsRelativeDate.format(Date(timeIntervalSince1970: lastAutoSyncSuccessAt)))")
+                    .font(.caption).foregroundColor(.secondary)
             }
         }
     }

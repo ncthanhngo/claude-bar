@@ -71,24 +71,68 @@ final class AppStore: ObservableObject {
         isRefreshing = true
         defer { isRefreshing = false }
 
+        // Sync indicator state is only meaningful when iCloud is actually
+        // configured (passphrase saved). Without a passphrase, autoPull /
+        // autoPush silently no-op and we'd otherwise mislabel a refresh-only
+        // cycle as a "successful sync".
+        let cloudPassphrase = cloudSync?.loadPassphrase()
+        var cycleError: String = ""
+        if cloudPassphrase != nil {
+            settings.lastAutoSyncAt = now
+        }
+
         // Pull first so we refresh against the freshest cross-device tokens.
         // Anthropic rotates refresh tokens on every use — if device A rotated
         // an inactive account's RT overnight and pushed to iCloud, B's locally
         // cached RT is already invalid. Pulling closes that race before our
         // own refresh tries the stale RT and trips invalid_grant.
-        await autoPullCloud()
+        if let cloud = cloudSync, let pass = cloudPassphrase {
+            let res = await cloud.pullQuiet(passphrase: pass)
+            if case .failed(let msg) = res {
+                cycleError = "pull: \(msg)"
+            }
+        }
 
+        var refreshOk = false
         do {
             try await client.refreshAllTokens()
             settings.lastBackupTokenRefreshSuccessAt = now
-            // Push so other devices pick up our newly-rotated tokens before
-            // their next refresh cycle (mirrors the pull above on the peer).
-            await autoPushCloud()
+            refreshOk = true
         } catch {
             print("[AppStore] Backup token refresh failed: \(error.localizedDescription)")
             // lastBackupTokenRefreshSuccessAt intentionally not updated on failure.
             // Next check after transientRetry will retry; persistent grant failures
             // are throttled by the fullInterval on the attempt timestamp.
+            if cycleError.isEmpty {
+                cycleError = "refresh: \(error.localizedDescription)"
+            }
+        }
+
+        // Push so other devices pick up our newly-rotated tokens before their
+        // next refresh cycle (mirrors the pull above on the peer). Run even
+        // if refresh failed — pushing the current local state is still
+        // useful for any account that didn't fail (`needsRelogin` doesn't
+        // block push at the backend level).
+        if let cloud = cloudSync, let pass = cloudPassphrase {
+            let pushRes: CloudSyncCoordinator.QuietResult = await withCheckedContinuation { cont in
+                Task.detached(priority: .background) { [weak cloud, pass] in
+                    let r = await cloud?.pushQuiet(passphrase: pass) ?? .failed("coordinator gone")
+                    cont.resume(returning: r)
+                }
+            }
+            if case .failed(let msg) = pushRes, cycleError.isEmpty {
+                cycleError = "push: \(msg)"
+            }
+
+            // Final outcome for the Diagnostics chip. Half-failures (refresh
+            // ok but push failed) deliberately do NOT bump success — the
+            // local rotation isn't published yet, so the peer is at risk.
+            if refreshOk && cycleError.isEmpty {
+                settings.lastAutoSyncSuccessAt = now
+                settings.lastAutoSyncError = ""
+            } else {
+                settings.lastAutoSyncError = cycleError
+            }
         }
     }
 

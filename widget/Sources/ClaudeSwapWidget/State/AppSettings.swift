@@ -111,6 +111,24 @@ final class AppSettings: ObservableObject {
     /// failure (last attempt failed, retry sooner) from a persistent one (keep
     /// the full 6-hour throttle so broken grants don't cause refresh spam).
     @AppStorage("lastBackupTokenRefreshSuccessAt") var lastBackupTokenRefreshSuccessAt: Double = 0
+
+    /// Timestamp of the last automatic iCloud pull→refresh→push cycle attempt
+    /// (written at start of each cycle). Surfaced in Diagnostics so the user
+    /// can see whether background sync is actually running even though
+    /// pullQuiet/pushQuiet swallow individual errors.
+    @AppStorage("lastAutoSyncAt") var lastAutoSyncAt: Double = 0
+
+    /// Timestamp of the most recent fully-successful auto-sync cycle (pull +
+    /// refresh + push all returned ok). Drives the "Last sync Xh ago" / red
+    /// "Sync failing" badge — a wide gap means the user should investigate
+    /// (wrong passphrase, iCloud Drive disabled, disk full…).
+    @AppStorage("lastAutoSyncSuccessAt") var lastAutoSyncSuccessAt: Double = 0
+
+    /// Short one-line failure reason captured from the last cycle when the
+    /// success timestamp didn't move. Empty when the last cycle succeeded or
+    /// no cycle has run yet. Surfaced as the secondary text on the sync chip.
+    @AppStorage("lastAutoSyncError") var lastAutoSyncError: String = ""
+
     @AppStorage("menuBarIconColor") var menuBarIconColor: MenuBarIconColor = .system
 
     /// Display name shown in the Daily window's top-left profile chip.
