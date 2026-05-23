@@ -31,6 +31,13 @@ type Gateway struct {
 	// Audit is the append-only event sink. nil means audit logging is
 	// disabled (tests, dry-run); writers tolerate nil.
 	Audit *AuditWriter
+
+	// SSHStore is the registry of tracked SSH hosts. nil disables SSH tools.
+	SSHStore SSHHostStore
+
+	// SSHRunner executes ssh against tracked hosts. Defaults to a real
+	// ssh-binary runner when SSHStore is set.
+	SSHRunner SSHExec
 }
 
 // New builds a Gateway with sane defaults.
@@ -60,6 +67,7 @@ func (g *Gateway) BuildServer() *server.MCPServer {
 	g.registerGmailTools(srv)
 	g.registerGitHubTools(srv)
 	g.registerGitHubWriteTools(srv)
+	g.registerSSHTools(srv)
 	return srv
 }
 
