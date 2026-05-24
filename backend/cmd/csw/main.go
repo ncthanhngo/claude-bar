@@ -70,6 +70,8 @@ func main() {
 		err = runBW(ctx, args)
 	case "audit":
 		err = runAudit(ctx, args)
+	case "repomap":
+		err = runRepomap(ctx, args)
 	case "help", "-h", "--help":
 		usage()
 	default:

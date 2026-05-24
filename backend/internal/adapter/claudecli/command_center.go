@@ -228,3 +228,22 @@ type PreflightResult struct {
 	DangerouslySkipPerms bool
 	HelpText             string
 }
+
+// ctxKey is the typed key under which the in-flight spawn options live on
+// the request context. Unexported so callers go through With/From helpers.
+type ctxKey struct{}
+
+// WithCommandCenterOptions attaches Phase-4 spawn options to ctx so the
+// chat-pipeline Stream() path picks them up without us re-plumbing the
+// signature through chat.Service.
+func WithCommandCenterOptions(ctx context.Context, opts CommandCenterOptions) context.Context {
+	return context.WithValue(ctx, ctxKey{}, opts)
+}
+
+// FromCtx returns the attached options (zero value when absent).
+func FromCtx(ctx context.Context) (CommandCenterOptions, bool) {
+	if v, ok := ctx.Value(ctxKey{}).(CommandCenterOptions); ok {
+		return v, true
+	}
+	return CommandCenterOptions{}, false
+}

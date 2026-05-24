@@ -14,6 +14,9 @@ struct SessionPanel: View {
     @EnvironmentObject var chatStore: ChatStore
     @ObservedObject private var settings = AppSettings.shared
     @State private var draft = ""
+    @State private var permissionMode: String = "plan"
+    @State private var linkedRepoPath: String = ""
+    @State private var briefingFocus: String = ""
     @FocusState private var inputFocused: Bool
 
     var body: some View {
@@ -52,13 +55,27 @@ struct SessionPanel: View {
     }
 
     private var modeChip: some View {
-        Text(settings.chatToolMode.rawValue.uppercased())
-            .font(.system(size: 9, weight: .heavy))
-            .padding(.horizontal, 6).padding(.vertical, 2)
-            .background(
-                Capsule().fill(modeColor.opacity(0.18))
-            )
-            .foregroundColor(modeColor)
+        HStack(spacing: 4) {
+            Menu {
+                Button("plan (read-only proposals)") { permissionMode = "plan" }
+                Button("acceptEdits (auto-confirm safe edits)") { permissionMode = "acceptEdits" }
+                Button("bypassPermissions (danger)") { permissionMode = "bypassPermissions" }
+            } label: {
+                Text(permissionMode.uppercased())
+                    .font(.system(size: 9, weight: .heavy))
+                    .padding(.horizontal, 6).padding(.vertical, 2)
+                    .background(Capsule().fill(Color.purple.opacity(0.18)))
+                    .foregroundColor(.purple)
+            }
+            .menuStyle(.borderlessButton)
+            .fixedSize()
+
+            Text(settings.chatToolMode.rawValue.uppercased())
+                .font(.system(size: 9, weight: .heavy))
+                .padding(.horizontal, 6).padding(.vertical, 2)
+                .background(Capsule().fill(modeColor.opacity(0.18)))
+                .foregroundColor(modeColor)
+        }
     }
     private var modeColor: Color {
         switch settings.chatToolMode {
@@ -140,6 +157,17 @@ struct SessionPanel: View {
     private func send() {
         let text = draft.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return }
+        // Stamp the next spawn with Phase-4 options. ChatStore clears them
+        // back to nil after the send so a follow-on chat-tab send stays
+        // permission-less + un-injected.
+        chatStore.nextPermissionMode = permissionMode
+        let inject = ChatStreamReader.ContextInject(
+            repoPath: linkedRepoPath.isEmpty ? nil : linkedRepoPath,
+            sshHost: nil,
+            claudeAccount: nil,
+            briefingFocus: briefingFocus.isEmpty ? nil : briefingFocus
+        )
+        chatStore.nextContextInject = inject.isEmpty ? nil : inject
         chatStore.sendCurrent(text: text)
         draft = ""
     }

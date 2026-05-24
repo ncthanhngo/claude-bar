@@ -111,6 +111,14 @@ func runMCPServe(ctx context.Context, svc *usecase.Service) error {
 	// SSH host store — Phase 3. File is created lazily on first Put.
 	gw.SSHStore = sshadp.NewHostStore(filepath.Join(adapter.WidgetDataDir(), "ssh", "hosts.json"))
 
+	// ControlMaster reuse — keeps a single ssh TCP connection per host so
+	// every cb_ssh_exec / cb_ssh_tail call after the first one skips the
+	// auth round-trip. Stale socket sweep at boot removes orphans from a
+	// previous hard kill.
+	cm := sshadp.NewControlMaster(filepath.Join(adapter.WidgetDataDir(), "ssh"))
+	_, _ = cm.Sweep(ctx)
+	sshadp.ActiveControlMaster = cm
+
 	// GitLab instance registry — Phase 7. PATs live in Keychain under
 	// the multi-token format (claude-bar-mcp:shared:gitlab:<instanceId>).
 	gw.GitLabInstances = mcp.NewGitLabInstanceStore(filepath.Join(adapter.WidgetDataDir(), "gitlab-instances.json"))

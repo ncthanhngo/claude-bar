@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/soi/claude-swap-widget/backend/internal/adapter/claudecli"
 	"github.com/soi/claude-swap-widget/backend/internal/domain"
 	"github.com/soi/claude-swap-widget/backend/internal/usecase/chat"
 )
@@ -19,6 +20,19 @@ import (
 type sendStdinInput struct {
 	Text          string   `json:"text"`
 	AttachmentIDs []string `json:"attachment_ids,omitempty"`
+
+	// Phase-4 Command-Center fields. When any are non-empty the spawn
+	// switches into sanitised-env + permission-mode + append-system-prompt
+	// mode without changing the chat persistence path.
+	PermissionMode string             `json:"permission_mode,omitempty"`
+	ContextInject  *contextInjectIn   `json:"context_inject,omitempty"`
+}
+
+type contextInjectIn struct {
+	RepoPath      string `json:"repo_path,omitempty"`
+	SSHHost       string `json:"ssh_host,omitempty"`
+	ClaudeAccount string `json:"claude_account,omitempty"`
+	BriefingFocus string `json:"briefing_focus,omitempty"`
 }
 
 // streamEventOut is the JSON-per-line shape we emit on stdout.
@@ -62,6 +76,24 @@ func runChatSend(ctx context.Context, svc *chat.Service, accountNum int, args []
 	}
 
 	enc := json.NewEncoder(os.Stdout)
+
+	// When the widget's Command Center pane sends with context inject /
+	// permission mode, decorate ctx so the claudecli adapter picks up the
+	// extra flags + sanitised env on this single spawn. Chat-tab path
+	// leaves these empty and behaves exactly as before.
+	if input.PermissionMode != "" || input.ContextInject != nil {
+		opts := claudecli.CommandCenterOptions{PermissionMode: input.PermissionMode}
+		if ci := input.ContextInject; ci != nil {
+			opts.SystemPromptAppend = claudecli.SessionContext{
+				RepoPath:      ci.RepoPath,
+				SSHHost:       ci.SSHHost,
+				ClaudeAccount: ci.ClaudeAccount,
+				BriefingFocus: ci.BriefingFocus,
+			}.Render()
+			opts.Cwd = ci.RepoPath
+		}
+		ctx = claudecli.WithCommandCenterOptions(ctx, opts)
+	}
 
 	outcome, err := svc.SendMessage(ctx, accountNum, convID, blocks)
 	if err != nil {

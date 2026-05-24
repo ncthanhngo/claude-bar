@@ -8,13 +8,39 @@ import Foundation
 /// error — the caller already knows it cancelled.
 enum ChatStreamReader {
     /// stdin payload shape mirroring the Go CLI's expected JSON.
+    /// Optional Phase-4 fields are encoded only when set, so the chat-tab
+    /// path stays byte-for-byte identical with the old stdin shape.
     private struct SendInput: Encodable {
         let text: String
         let attachmentIDs: [String]
+        let permissionMode: String?
+        let contextInject: ContextInject?
 
         enum CodingKeys: String, CodingKey {
             case text
             case attachmentIDs = "attachment_ids"
+            case permissionMode = "permission_mode"
+            case contextInject = "context_inject"
+        }
+    }
+
+    /// Mirror of `contextInjectIn` on the Go side.
+    struct ContextInject: Encodable, Equatable {
+        let repoPath: String?
+        let sshHost: String?
+        let claudeAccount: String?
+        let briefingFocus: String?
+
+        enum CodingKeys: String, CodingKey {
+            case repoPath = "repo_path"
+            case sshHost = "ssh_host"
+            case claudeAccount = "claude_account"
+            case briefingFocus = "briefing_focus"
+        }
+
+        var isEmpty: Bool {
+            (repoPath ?? "").isEmpty && (sshHost ?? "").isEmpty
+                && (claudeAccount ?? "").isEmpty && (briefingFocus ?? "").isEmpty
         }
     }
 
@@ -23,7 +49,9 @@ enum ChatStreamReader {
     static func send(
         conversationID: String,
         text: String,
-        attachmentIDs: [String]
+        attachmentIDs: [String],
+        permissionMode: String? = nil,
+        contextInject: ContextInject? = nil
     ) -> AsyncThrowingStream<ChatStreamEvent, Error> {
         AsyncThrowingStream { continuation in
             guard let bin = CswBinary.resolve() else {
@@ -92,7 +120,10 @@ enum ChatStreamReader {
             do {
                 try task.run()
                 let payload = try JSONEncoder().encode(SendInput(
-                    text: text, attachmentIDs: attachmentIDs
+                    text: text,
+                    attachmentIDs: attachmentIDs,
+                    permissionMode: permissionMode,
+                    contextInject: contextInject
                 ))
                 let h = stdin.fileHandleForWriting
                 try h.write(contentsOf: payload)
