@@ -30,18 +30,26 @@ enum WebCookieCloudSync {
 
     static func save(account: AccountDTO, dataStore: WKWebsiteDataStore) async {
         guard let passphrase = loadPassphrase() else { return }
+        let now = Date()
         let cookies = await dataStore.httpCookieStore.allCookies()
             .filter { $0.domain.hasSuffix("claude.ai") }
+            .filter { $0.expiresDate.map { $0 > now } ?? true }
             .map(StoredCookie.init)
         guard !cookies.isEmpty else { return }
 
         do {
             var bundle = try loadOrEmptyBundle(passphrase: passphrase)
-            bundle.sessions[emailKey(for: account)] = StoredSession(
-                cookies: cookies,
-                updatedAt: Date()
-            )
-            bundle.updatedAt = Date()
+            let key = emailKey(for: account)
+            // Anti-overwrite: skip if the bundle already holds the same cookie
+            // set. Without this, every poll re-pushes identical cookies and
+            // can clobber a fresher push from the other device whose iCloud
+            // Drive sync arrived seconds later.
+            if let existing = bundle.sessions[key],
+               existing.fingerprint == StoredSession.fingerprint(of: cookies) {
+                return
+            }
+            bundle.sessions[key] = StoredSession(cookies: cookies, updatedAt: now)
+            bundle.updatedAt = now
             try writeBundle(bundle, passphrase: passphrase)
         } catch {
             NSLog("[WebCookieCloudSync] save failed: \(error.localizedDescription)")
@@ -54,12 +62,32 @@ enum WebCookieCloudSync {
               let session = bundle.sessions[emailKey(for: account)] else {
             return false
         }
+        let now = Date()
         var restored = false
         for cookie in session.cookies.compactMap(\.httpCookie) {
+            if let exp = cookie.expiresDate, exp <= now { continue }
             await dataStore.httpCookieStore.setCookie(cookie)
             restored = true
         }
         return restored
+    }
+
+    /// Snapshot of the persisted cookies for `account` without touching any
+    /// `WKWebsiteDataStore`. Used by [[ClaudeWebSessionSync]] to compare its
+    /// local Keychain cache against the cloud bundle and pick the freshest
+    /// before applying — prevents stale local state from winning over a fresh
+    /// push from the other device.
+    static func loadCookies(for account: AccountDTO) -> (cookies: [HTTPCookie], updatedAt: Date)? {
+        guard let passphrase = loadPassphrase() else { return nil }
+        guard let bundle = try? readBundle(passphrase: passphrase),
+              let session = bundle.sessions[emailKey(for: account)] else {
+            return nil
+        }
+        let now = Date()
+        let live = session.cookies
+            .compactMap(\.httpCookie)
+            .filter { $0.expiresDate.map { $0 > now } ?? true }
+        return (live, session.updatedAt)
     }
 
     static func hasSession(for account: AccountDTO) -> Bool {
@@ -251,6 +279,17 @@ private struct CookieBundle: Codable {
 private struct StoredSession: Codable {
     let cookies: [StoredCookie]
     let updatedAt: Date
+
+    var fingerprint: String { Self.fingerprint(of: cookies) }
+
+    static func fingerprint(of cookies: [StoredCookie]) -> String {
+        let pairs = cookies
+            .map { "\($0.name)=\($0.value)|\($0.domain)\($0.path)" }
+            .sorted()
+            .joined(separator: ";")
+        let digest = SHA256.hash(data: Data(pairs.utf8))
+        return digest.map { String(format: "%02x", $0) }.joined()
+    }
 }
 
 private struct StoredCookie: Codable {
@@ -260,6 +299,7 @@ private struct StoredCookie: Codable {
     let path: String
     let expiresDate: Date?
     let isSecure: Bool
+    let sameSiteRaw: String?
 
     init(_ cookie: HTTPCookie) {
         name = cookie.name
@@ -268,6 +308,22 @@ private struct StoredCookie: Codable {
         path = cookie.path
         expiresDate = cookie.expiresDate
         isSecure = cookie.isSecure
+        sameSiteRaw = cookie.sameSitePolicy?.rawValue
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case name, value, domain, path, expiresDate, isSecure, sameSiteRaw
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        name = try c.decode(String.self, forKey: .name)
+        value = try c.decode(String.self, forKey: .value)
+        domain = try c.decode(String.self, forKey: .domain)
+        path = try c.decode(String.self, forKey: .path)
+        expiresDate = try c.decodeIfPresent(Date.self, forKey: .expiresDate)
+        isSecure = try c.decode(Bool.self, forKey: .isSecure)
+        sameSiteRaw = try c.decodeIfPresent(String.self, forKey: .sameSiteRaw)
     }
 
     var httpCookie: HTTPCookie? {
@@ -279,6 +335,7 @@ private struct StoredCookie: Codable {
         ]
         if let expiresDate { properties[.expires] = expiresDate }
         if isSecure { properties[.secure] = "TRUE" }
+        if let sameSiteRaw { properties[.sameSitePolicy] = sameSiteRaw }
         return HTTPCookie(properties: properties)
     }
 }
