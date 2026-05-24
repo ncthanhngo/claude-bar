@@ -51,6 +51,11 @@ final class UpdateController: ObservableObject {
             delegate: nil
         )
         do {
+            // Silence the "new version available" notifications — background
+            // checks are off by default, so Sparkle never surfaces an update
+            // card on its own. Users still get the full flow when they click
+            // "Check for updates…" in About.
+            u.automaticallyChecksForUpdates = false
             try u.start()
             self.updater = u
             self.canCheck = u.canCheckForUpdates
