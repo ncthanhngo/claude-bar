@@ -106,9 +106,10 @@ final class InPopoverUpdateDriver: NSObject, ObservableObject, SPUUserDriver {
     // MARK: - SPUUserDriver
 
     func show(_ request: SPUUpdatePermissionRequest, reply: @escaping (SUUpdatePermissionResponse) -> Void) {
-        // Auto-grant background checks; matches the SUEnableAutomaticChecks
-        // value we ship in Info.plist, so no interactive prompt is needed.
-        reply(SUUpdatePermissionResponse(automaticUpdateChecks: true, sendSystemProfile: false))
+        // Background update notifications are disabled — users opt into
+        // checking manually from the About tab. Decline automatic checks so
+        // Sparkle never surfaces a "new version" card unprompted.
+        reply(SUUpdatePermissionResponse(automaticUpdateChecks: false, sendSystemProfile: false))
     }
 
     func showUserInitiatedUpdateCheck(cancellation: @escaping () -> Void) {
