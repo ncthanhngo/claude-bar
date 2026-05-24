@@ -147,10 +147,15 @@ struct ClaudeSwapWidgetApp: App {
                 .environmentObject(localMCP)
                 .environmentObject(updateController)
                 .environmentObject(gateCoord)
-                .sheet(item: Binding(
-                    get: { gateCoord.pending?.risk == .destructive ? gateCoord.pending : nil },
-                    set: { _ in }
-                )) { _ in
+                // Destructive write-gate modal. `isPresented` binding is
+                // settable both ways — the previous `set: { _ in }` no-op
+                // left SwiftUI thinking a sheet was "in-flight" forever,
+                // which kept the popover modal-locked and broke the MCP
+                // tab's Connect sheet auto-dismiss.
+                .sheet(isPresented: Binding(
+                    get: { gateCoord.pending?.risk == .destructive },
+                    set: { isOpen in if !isOpen { gateCoord.cancel() } }
+                )) {
                     ConfirmGateModal(gate: gateCoord)
                 }
                 .task {
