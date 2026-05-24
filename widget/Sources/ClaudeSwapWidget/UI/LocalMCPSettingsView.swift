@@ -8,6 +8,13 @@ struct LocalMCPSettingsView: View {
     @State private var pendingDisconnect: PendingDisconnect?
     @State private var connectorPrompts: MCPConnectorPrompts = .empty
     @State private var expandedConnectorPrompt: String?  // "service-key" of expanded row
+    // SwiftUI .sheet() attached to the MenuBarExtra(.window) popover dismisses
+    // the popover the instant a text field inside it becomes first responder
+    // (same trap DiagnosticsTab / RenameAccountSheet / CloudPassphrasePrompt
+    // already document). Host the connect flows in standalone NSWindows so
+    // clicking into a field doesn't collapse the popover that owns the state.
+    @State private var connectWindow = FloatingWindow<AnyView>()
+    @State private var gdriveWindow = FloatingWindow<AnyView>()
 
     private struct PendingDisconnect: Identifiable {
         let id = UUID()
@@ -27,15 +34,19 @@ struct LocalMCPSettingsView: View {
             await coordinator.refresh()
             connectorPrompts = MCPConnectorPrompts.decode(from: settings.mcpConnectorPromptsJSON)
         }
-        .sheet(item: $coordinator.connectSheet) { target in
-            ConnectTokenSheet(target: target)
-                .environmentObject(coordinator)
-                .environmentObject(cloudSync)
+        .onChange(of: coordinator.connectSheet?.id) { _, _ in
+            if let target = coordinator.connectSheet {
+                presentConnectWindow(target)
+            } else {
+                connectWindow.close()
+            }
         }
-        .sheet(item: $coordinator.gdriveSheet) { target in
-            ConnectGoogleSheet(target: target)
-                .environmentObject(coordinator)
-                .environmentObject(cloudSync)
+        .onChange(of: coordinator.gdriveSheet?.id) { _, _ in
+            if let target = coordinator.gdriveSheet {
+                presentGDriveWindow(target)
+            } else {
+                gdriveWindow.close()
+            }
         }
         .confirmationDialog(
             "Disconnect \(pendingDisconnect?.serviceLabel ?? "")?",
@@ -431,6 +442,37 @@ struct LocalMCPSettingsView: View {
             .clipShape(RoundedRectangle(cornerRadius: 5))
     }
 
+    private func presentConnectWindow(_ target: LocalMCPCoordinator.ConnectSheetTarget) {
+        // Close any previous instance so the new target's content is mounted.
+        connectWindow.close()
+        connectWindow.onClose = { coordinator.connectSheet = nil }
+        let title = target.accountNumber == 0
+            ? "Connect \(target.serviceLabel) for all accounts"
+            : "Connect \(target.serviceLabel)"
+        connectWindow.show(title: title, size: NSSize(width: 460, height: 240)) {
+            AnyView(
+                ConnectTokenSheet(target: target)
+                    .environmentObject(coordinator)
+                    .environmentObject(cloudSync)
+            )
+        }
+    }
+
+    private func presentGDriveWindow(_ target: LocalMCPCoordinator.GDriveSheetTarget) {
+        gdriveWindow.close()
+        gdriveWindow.onClose = { coordinator.gdriveSheet = nil }
+        let title = target.accountNumber == 0
+            ? "Connect Google for all accounts"
+            : "Connect Google"
+        gdriveWindow.show(title: title, size: NSSize(width: 500, height: 360)) {
+            AnyView(
+                ConnectGoogleSheet(target: target)
+                    .environmentObject(coordinator)
+                    .environmentObject(cloudSync)
+            )
+        }
+    }
+
     private func presentConnect(account: Int, service: String, label: String) {
         if service == "gdrive" {
             coordinator.gdriveSheet = .init(accountNumber: account)
@@ -459,9 +501,10 @@ private struct ConnectTokenSheet: View {
     let target: LocalMCPCoordinator.ConnectSheetTarget
     @EnvironmentObject var coordinator: LocalMCPCoordinator
     @EnvironmentObject var cloudSync: CloudSyncCoordinator
-    @Environment(\.dismiss) private var dismiss
     @State private var token: String = ""
     @State private var displayName: String = ""
+
+    private func dismiss() { coordinator.connectSheet = nil }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -522,11 +565,12 @@ private struct ConnectGoogleSheet: View {
     let target: LocalMCPCoordinator.GDriveSheetTarget
     @EnvironmentObject var coordinator: LocalMCPCoordinator
     @EnvironmentObject var cloudSync: CloudSyncCoordinator
-    @Environment(\.dismiss) private var dismiss
     @State private var clientID: String = ""
     @State private var clientSecret: String = ""
     @State private var displayName: String = ""
     @State private var importError: String?
+
+    private func dismiss() { coordinator.gdriveSheet = nil }
 
     private var hasDefault: Bool {
         coordinator.installStatus?.hasDefaultGDriveClient == true
