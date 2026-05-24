@@ -449,7 +449,7 @@ struct LocalMCPSettingsView: View {
         let title = target.accountNumber == 0
             ? "Connect \(target.serviceLabel) for all accounts"
             : "Connect \(target.serviceLabel)"
-        connectWindow.show(title: title, size: NSSize(width: 460, height: 240)) {
+        connectWindow.show(title: title, size: NSSize(width: 480, height: 340)) {
             AnyView(
                 ConnectTokenSheet(target: target)
                     .environmentObject(coordinator)
@@ -464,7 +464,7 @@ struct LocalMCPSettingsView: View {
         let title = target.accountNumber == 0
             ? "Connect Google for all accounts"
             : "Connect Google"
-        gdriveWindow.show(title: title, size: NSSize(width: 500, height: 360)) {
+        gdriveWindow.show(title: title, size: NSSize(width: 520, height: 460)) {
             AnyView(
                 ConnectGoogleSheet(target: target)
                     .environmentObject(coordinator)
@@ -503,6 +503,12 @@ private struct ConnectTokenSheet: View {
     @EnvironmentObject var cloudSync: CloudSyncCoordinator
     @State private var token: String = ""
     @State private var displayName: String = ""
+    // Local copies of the result/busy state so feedback renders inside the
+    // floating window — the popover-hosted overlay on coordinator.lastError
+    // is unreachable while this sheet is up (popover collapses behind the
+    // floating window).
+    @State private var errorMessage: String?
+    @State private var isSubmitting = false
 
     private func dismiss() { coordinator.connectSheet = nil }
 
@@ -516,32 +522,87 @@ private struct ConnectTokenSheet: View {
                 .fixedSize(horizontal: false, vertical: true)
             SecureField("Paste token", text: $token)
                 .textFieldStyle(.roundedBorder)
+                .disabled(isSubmitting)
             TextField("Optional label (e.g. workspace name)", text: $displayName)
                 .textFieldStyle(.roundedBorder)
+                .disabled(isSubmitting)
+            if let formatHint = tokenFormatHint() {
+                Label(formatHint, systemImage: "exclamationmark.triangle")
+                    .font(.caption)
+                    .foregroundColor(.orange)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            if let errorMessage {
+                Label(errorMessage, systemImage: "xmark.octagon.fill")
+                    .font(.caption)
+                    .foregroundColor(.red)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
             HStack {
+                if isSubmitting {
+                    ProgressView().controlSize(.small)
+                    Text("Connecting…").font(.caption).foregroundColor(.secondary)
+                }
                 Spacer()
                 Button("Cancel") { dismiss() }
-                Button("Connect") {
-                    let t = token.trimmingCharacters(in: .whitespacesAndNewlines)
-                    Task {
-                        let connected = await coordinator.connectToken(
-                            account: target.accountNumber,
-                            service: target.service,
-                            token: t,
-                            displayName: displayName.isEmpty ? nil : displayName
-                        )
-                        if connected {
-                            await pushCloudIfConfigured()
-                            dismiss()
-                        }
-                    }
-                }
-                .keyboardShortcut(.defaultAction)
-                .disabled(token.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .disabled(isSubmitting)
+                Button("Connect") { submit() }
+                    .keyboardShortcut(.defaultAction)
+                    .disabled(isSubmitting || token.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
         }
         .padding(20)
         .frame(width: 420)
+    }
+
+    private func submit() {
+        let t = token.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !t.isEmpty else {
+            errorMessage = "Paste the provider token before connecting."
+            return
+        }
+        errorMessage = nil
+        isSubmitting = true
+        Task {
+            let connected = await coordinator.connectToken(
+                account: target.accountNumber,
+                service: target.service,
+                token: t,
+                displayName: displayName.isEmpty ? nil : displayName
+            )
+            if connected {
+                await pushCloudIfConfigured()
+                isSubmitting = false
+                dismiss()
+            } else {
+                isSubmitting = false
+                // The coordinator stashes the backend's localizedDescription
+                // on lastError; surface it inline so the user can act on it.
+                errorMessage = coordinator.lastError ?? "Connection failed. Double-check the token and try again."
+            }
+        }
+    }
+
+    /// Lightweight client-side sanity check on token shape. Returns a hint
+    /// when the entry obviously doesn't match the provider's prefix — we
+    /// still let the user submit (the backend is the source of truth) but
+    /// flag the mismatch up-front so typos don't waste a round-trip.
+    private func tokenFormatHint() -> String? {
+        let trimmed = token.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        switch target.service {
+        case "slack":
+            if !(trimmed.hasPrefix("xoxp-") || trimmed.hasPrefix("xoxe-") || trimmed.hasPrefix("xoxb-")) {
+                return "Slack tokens usually start with xoxp- / xoxe- / xoxb-. Check you pasted the user token, not the workspace ID."
+            }
+        case "clickup":
+            if !trimmed.hasPrefix("pk_") {
+                return "ClickUp personal tokens start with pk_. Generate one in Settings → Apps."
+            }
+        default:
+            break
+        }
+        return nil
     }
 
     private var hint: String {
@@ -569,6 +630,8 @@ private struct ConnectGoogleSheet: View {
     @State private var clientSecret: String = ""
     @State private var displayName: String = ""
     @State private var importError: String?
+    @State private var errorMessage: String?
+    @State private var isSubmitting = false
 
     private func dismiss() { coordinator.gdriveSheet = nil }
 
@@ -604,29 +667,78 @@ private struct ConnectGoogleSheet: View {
             }
             TextField("Optional label", text: $displayName)
                 .textFieldStyle(.roundedBorder)
+            if let formatHint = clientFormatHint() {
+                Label(formatHint, systemImage: "exclamationmark.triangle")
+                    .font(.caption)
+                    .foregroundColor(.orange)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            if let errorMessage {
+                Label(errorMessage, systemImage: "xmark.octagon.fill")
+                    .font(.caption)
+                    .foregroundColor(.red)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
             HStack {
+                if isSubmitting {
+                    ProgressView().controlSize(.small)
+                    Text("Opening browser…").font(.caption).foregroundColor(.secondary)
+                }
                 Spacer()
                 Button("Cancel") { dismiss() }
-                Button("Open browser to connect") {
-                    let cid = clientID.trimmingCharacters(in: .whitespacesAndNewlines)
-                    let secret = clientSecret.trimmingCharacters(in: .whitespacesAndNewlines)
-                    Task {
-                        await coordinator.connectGoogle(
-                            account: target.accountNumber,
-                            clientID: cid,
-                            clientSecret: secret,
-                            displayName: displayName.isEmpty ? nil : displayName
-                        )
-                        await pushCloudIfConfigured()
-                        dismiss()
-                    }
-                }
-                .keyboardShortcut(.defaultAction)
-                .disabled(!hasDefault && clientID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .disabled(isSubmitting)
+                Button("Open browser to connect") { submit() }
+                    .keyboardShortcut(.defaultAction)
+                    .disabled(isSubmitting || (!hasDefault && clientID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty))
             }
         }
         .padding(20)
         .frame(width: 460)
+    }
+
+    private func submit() {
+        let cid = clientID.trimmingCharacters(in: .whitespacesAndNewlines)
+        let secret = clientSecret.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !hasDefault {
+            guard !cid.isEmpty else {
+                errorMessage = "Paste the Client ID (or import the OAuth JSON) before connecting."
+                return
+            }
+            guard !secret.isEmpty else {
+                errorMessage = "Paste the Client secret from the same Desktop OAuth client."
+                return
+            }
+        }
+        errorMessage = nil
+        isSubmitting = true
+        Task {
+            let ok = await coordinator.connectGoogle(
+                account: target.accountNumber,
+                clientID: cid,
+                clientSecret: secret,
+                displayName: displayName.isEmpty ? nil : displayName
+            )
+            if ok {
+                await pushCloudIfConfigured()
+                isSubmitting = false
+                dismiss()
+            } else {
+                isSubmitting = false
+                errorMessage = coordinator.lastError ?? "Could not start the Google OAuth flow. Check the Client ID / secret and try again."
+            }
+        }
+    }
+
+    /// Sanity-check the client_id shape before we round-trip through the
+    /// backend. We still let the user submit — the backend remains the
+    /// authority — but a visible warning keeps them from chasing ghosts.
+    private func clientFormatHint() -> String? {
+        let trimmed = clientID.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        if !trimmed.hasSuffix(".apps.googleusercontent.com") {
+            return "Google Desktop client IDs end with .apps.googleusercontent.com."
+        }
+        return nil
     }
 
     private func importGoogleOAuthJSON() {
