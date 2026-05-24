@@ -48,15 +48,6 @@ struct GeneralTab: View {
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
-
-                    Divider()
-
-                    Toggle(isOn: $settings.autoRelaunchCmuxClaudeAfterSwap) {
-                        SettingsToggleLabel(
-                            title: "Auto-relaunch Claude in cmux panes after swap",
-                            detail: "When Claude is running inside a cmux terminal pane, send Ctrl-C then `claude --resume <sid>` so the conversation continues under the new account. Requires `cmux hooks setup` and panes using the default ~/.claude config dir."
-                        )
-                    }
                 }
 
                 SettingsGroup("Adaptive refresh", subtitle: "The widget refreshes faster when the active 5-hour usage approaches the auto-swap threshold.") {

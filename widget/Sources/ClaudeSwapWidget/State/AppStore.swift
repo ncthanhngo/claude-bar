@@ -230,9 +230,10 @@ final class AppStore: ObservableObject {
         // the dedicated relauncher can run `claude --resume <sid>` cleanly.
         var killCount = 0
         if settings.autoKillCLIAfterSwap {
-            let killed = CLISessionKiller.killAll(
-                skipCmuxTracked: settings.autoRelaunchCmuxClaudeAfterSwap
-            )
+            // Always skip cmux-tracked PIDs — the dedicated cmux pane
+            // relauncher restarts them with `claude --resume <sid>` so the
+            // conversation continues. A SIGINT here would race the resume.
+            let killed = CLISessionKiller.killAll(skipCmuxTracked: true)
             killCount = killed.count
             if killCount > 0 {
                 try? await Task.sleep(nanoseconds: 800_000_000) // 0.8s graceful
@@ -250,7 +251,8 @@ final class AppStore: ObservableObject {
     }
 
     private func relaunchCmuxClaudePanesAfterSwap() async {
-        guard settings.autoRelaunchCmuxClaudeAfterSwap else { return }
+        // Always runs. When no cmux panes are active the relauncher returns
+        // an empty list and this is a no-op — no notification, no side effects.
         let outcomes = await CmuxPaneRelauncher.relaunchAll()
         guard !outcomes.isEmpty else { return }
 

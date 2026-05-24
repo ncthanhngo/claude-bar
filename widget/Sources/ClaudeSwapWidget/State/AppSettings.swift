@@ -31,13 +31,6 @@ final class AppSettings: ObservableObject {
     /// When true, sends SIGINT to every interactive `claude` CLI session after
     /// a swap. Useful with the `claude-watch` wrapper script which auto-restarts.
     @AppStorage("autoKillCLIAfterSwap") var autoKillCLIAfterSwap: Bool = false
-
-    /// When true, restarts `claude` inside every active cmux pane after a swap
-    /// using `cmux send-key` + `cmux send`, so the conversation continues
-    /// (`claude --resume <sid>`) under the newly active claude-bar account.
-    /// Only applies to panes using cmux's default `~/.claude` config dir.
-    @AppStorage("autoRelaunchCmuxClaudeAfterSwap")
-    var autoRelaunchCmuxClaudeAfterSwap: Bool = false
     /// VSCode-style string of the reload shortcut injected into VSCode-family
     /// editors and replayed by `IDEReloader`. Default `cmd+ctrl+r`.
     @AppStorage("reloadShortcut") var reloadShortcut: String = "cmd+ctrl+r"
