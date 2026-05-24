@@ -43,6 +43,7 @@ struct DiagnosticsTab: View {
                 iCloudGroup
                 bundleFileGroup
                 CommandCenterDiagnosticsCard()
+                SchedulerSettingsCard()
                 verifyGroup
                 webUsageGroup
                 logsGroup

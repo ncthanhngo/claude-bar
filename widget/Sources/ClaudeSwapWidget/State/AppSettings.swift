@@ -44,7 +44,13 @@ final class AppSettings: ObservableObject {
     /// Active body of the Daily window: "plan" (editorial briefing) or "chat"
     /// (OAuth-bound conversation thread). Persisted so the window opens in
     /// whichever mode the user last used.
-    @AppStorage("dailyMode") var dailyMode: String = DailyMode.plan.rawValue
+    @AppStorage("dailyMode") var dailyMode: String = DailyMode.command.rawValue
+
+    // Phase 6 — briefing scheduler interval mode + quiet hours.
+    @AppStorage("briefingScheduleMode") var briefingScheduleMode: String = "cron"
+    @AppStorage("briefingIntervalMinutes") var briefingIntervalMinutes: Int = 15
+    @AppStorage("quietHoursStart") var quietHoursStart: String = "22:00"
+    @AppStorage("quietHoursEnd") var quietHoursEnd: String = "07:00"
 
     /// Tool-permission level for the in-app chat ("Hỏi gì đó với Claude…").
     /// Read by `ChatStreamReader` and forwarded to the Go chat client via the

@@ -46,6 +46,9 @@ struct BriefingView: View {
     @ViewBuilder private var bodyStage: some View {
         let mode = DailyMode.from(settings.dailyMode)
         ZStack {
+            CommandCenterBody(palette: palette)
+                .opacity(mode == .command ? 1 : 0)
+                .allowsHitTesting(mode == .command)
             PlanModeBody(palette: palette)
                 .opacity(mode == .plan ? 1 : 0)
                 .allowsHitTesting(mode == .plan)

@@ -13,11 +13,11 @@ struct DailyActionsCluster: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            if mode == .plan {
+            if mode == .plan || mode == .command {
                 telegramPill
             }
             ghostButton("Cài đặt", action: onSettings)
-            if mode == .plan {
+            if mode == .plan || mode == .command {
                 primaryButton(isRunning ? "Đang chạy…" : "Chạy lại", action: onRun)
                     .disabled(isRunning)
             }
