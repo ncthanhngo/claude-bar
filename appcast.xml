@@ -12,6 +12,26 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 10.11</title>
+      <sparkle:version>10.11</sparkle:version>
+      <sparkle:shortVersionString>10.11</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li>Auto-resume Claude inside cmux terminal panes after each account swap so the conversation continues under the new account — no toggle required.</li>
+          <li>Panes pinning an isolated CLAUDE_CONFIG_DIR (for example ~/.codex-accounts/claude/&lt;id&gt;/) are intentionally skipped; claude-bar's global swap does not reach them.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Sun, 24 May 2026 21:04:43 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v10.11/ClaudeBar.zip"
+        sparkle:version="10.11"
+        sparkle:shortVersionString="10.11"
+        sparkle:edSignature="axNYYdALKYf9yqkm/+zWbmDcAkx09oExDmsLA0ilqEhhKzsVUDu4bjNrF56OV3YHK1sppHxgEP8OEmutXYcNDg=="
+        length="8322637"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 10.10</title>
       <sparkle:version>10.10</sparkle:version>
       <sparkle:shortVersionString>10.10</sparkle:shortVersionString>
