@@ -27,7 +27,11 @@ images.jpeg
 # IDE
 .vscode/
 .idea/
+.cursor/
 *.swp
+
+# Local tooling caches
+.codegraph/
 
 # Sparkle EdDSA signing key — must never reach Git. Pattern catches both
 # the canonical name and accidental copies. The real backup lives in
