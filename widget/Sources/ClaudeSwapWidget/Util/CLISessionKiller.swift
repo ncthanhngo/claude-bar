@@ -15,9 +15,18 @@ enum CLISessionKiller {
     }
 
     /// Send SIGINT to all interactive CLI sessions. Returns immediately.
+    ///
+    /// Sessions running inside a cmux pane (tracked in
+    /// `~/.cmuxterm/claude-hook-sessions.json`) are skipped when
+    /// `skipCmuxTracked` is true so the cmux pane relauncher can drive the
+    /// restart with `--resume <sid>` and keep the conversation. Otherwise a
+    /// double SIGINT here would race the resume command.
     @discardableResult
-    static func killAll() -> [KillResult] {
-        let sessions = readSessions()
+    static func killAll(skipCmuxTracked: Bool = false) -> [KillResult] {
+        let cmuxPids: Set<Int> = skipCmuxTracked
+            ? Set(CmuxHookSessionReader.readAllActive().compactMap(\.pid))
+            : []
+        let sessions = readSessions().filter { !cmuxPids.contains($0.pid) }
         return sessions.map { s in
             let sent = kill(Int32(s.pid), SIGINT) == 0
             return KillResult(pid: s.pid, cwd: s.cwd, sent: sent)

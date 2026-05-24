@@ -218,14 +218,22 @@ final class AppStore: ObservableObject {
         Task { [weak self] in
             await self?.reloadIDEsAfterSwap()
         }
+        Task { [weak self] in
+            await self?.relaunchCmuxClaudePanesAfterSwap()
+        }
     }
 
     private func restartCLISessionsAfterSwap() async {
         // Credentials must already be switched before SIGINT so claude-watch
         // can see the changed ~/.claude.json and restart the same terminal.
+        // When cmux pane relaunch is enabled, those PIDs are skipped here so
+        // the dedicated relauncher can run `claude --resume <sid>` cleanly.
         var killCount = 0
         if settings.autoKillCLIAfterSwap {
-            let killed = CLISessionKiller.killAll()
+            // Always skip cmux-tracked PIDs — the dedicated cmux pane
+            // relauncher restarts them with `claude --resume <sid>` so the
+            // conversation continues. A SIGINT here would race the resume.
+            let killed = CLISessionKiller.killAll(skipCmuxTracked: true)
             killCount = killed.count
             if killCount > 0 {
                 try? await Task.sleep(nanoseconds: 800_000_000) // 0.8s graceful
@@ -240,6 +248,29 @@ final class AppStore: ObservableObject {
             autoKillEnabled: settings.autoKillCLIAfterSwap,
             autoReloadEnabled: false
         )
+    }
+
+    private func relaunchCmuxClaudePanesAfterSwap() async {
+        // Always runs. When no cmux panes are active the relauncher returns
+        // an empty list and this is a no-op — no notification, no side effects.
+        let outcomes = await CmuxPaneRelauncher.relaunchAll()
+        guard !outcomes.isEmpty else { return }
+
+        let resumed = outcomes.filter { $0.succeeded }.count
+        let skippedIsolated = outcomes.filter { $0.skipped == .isolatedConfigDir }.count
+        let cmuxMissing = outcomes.contains { $0.skipped == .cmuxNotInstalled }
+
+        var lines: [String] = []
+        if resumed > 0 { lines.append("Resumed \(resumed) cmux pane(s)") }
+        if skippedIsolated > 0 { lines.append("Skipped \(skippedIsolated) isolated cmux pane(s)") }
+        if cmuxMissing { lines.append("`cmux` not on PATH — install or add to PATH") }
+        guard !lines.isEmpty else { return }
+
+        let content = UNMutableNotificationContent()
+        content.title = "Cmux relaunch"
+        content.body = lines.joined(separator: "\n")
+        let req = UNNotificationRequest(identifier: "csw.cmux-relaunch", content: content, trigger: nil)
+        try? await UNUserNotificationCenter.current().add(req)
     }
 
     private func reloadIDEsAfterSwap() async {

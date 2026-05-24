@@ -57,6 +57,12 @@ Enable **Auto-reload IDE after swap** in Settings → General, then click **Gran
 
 **How injection works.** With *Install shortcut into IDE keybindings.json* enabled (default), Claude Bar adds one entry to each detected editor's `keybindings.json` tagged with `"when": "!falseClaudeBarManaged"`. Toggle off to revert to the legacy `⌘⇧P → Developer: Reload Window` command-palette flow. Zed uses its own keymap and is unaffected. Managed-state lives at `~/Library/Application Support/claude-bar/managed-shortcuts.json` and is cleaned up automatically when the shortcut changes or injection is disabled.
 
+### Cmux pane relaunch
+
+If you run `claude` inside a [cmux](https://cmux.com/) terminal pane, Claude Bar automatically resumes the conversation under the new account after each swap. It reads cmux's hook state at `~/.cmuxterm/claude-hook-sessions.json`, then for every active Claude pane sends `Ctrl-C` followed by `claude --resume <sessionId>` via `cmux send-key` / `cmux send`. No toggle required.
+
+Requires `cmux hooks setup` (so cmux tracks sessions) and the `cmux` CLI on `PATH`. Panes that pin an isolated `CLAUDE_CONFIG_DIR` (e.g. `~/.codex-accounts/claude/<id>/`) are intentionally skipped — claude-bar's global credential swap does not reach them, and merging the two account systems would defeat the isolation. When no cmux panes are active this integration is a silent no-op.
+
 ### Local MCP connectors (optional)
 
 Claude Bar can keep one shared set of Slack, ClickUp, and Google Workspace tokens for every account on this Mac, plus optional per-account overrides. Claude Code reaches them through a local stdio gateway. Tokens stay in the macOS Keychain locally; if iCloud Sync is enabled, they are copied only into the passphrase-encrypted Claude Bar iCloud bundle so another Mac signed into the same Apple ID can restore them into its own Keychain. Switching accounts in the menu bar swaps to that account's override when present; otherwise it uses the shared connector — no Claude Code restart required.
