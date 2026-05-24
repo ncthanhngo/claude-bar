@@ -12,6 +12,26 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 10.12</title>
+      <sparkle:version>10.12</sparkle:version>
+      <sparkle:shortVersionString>10.12</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li>MCP connector inputs (Slack, ClickUp, Google) no longer collapse the menu-bar popover when you click into a field.</li>
+          <li>Silenced automatic "new version available" notifications — check manually from About when you want them.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Sun, 24 May 2026 22:27:24 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v10.12/ClaudeBar.zip"
+        sparkle:version="10.12"
+        sparkle:shortVersionString="10.12"
+        sparkle:edSignature="5gwJAcopTz1s7gazkt27+vsJtrf0P0sGmP3ZEqwCCS9vOaZg61k6Qs1LNZBuBK4BKR2Qb0mbW4YqpiPGemLRCg=="
+        length="8321748"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 10.11</title>
       <sparkle:version>10.11</sparkle:version>
       <sparkle:shortVersionString>10.11</sparkle:shortVersionString>
