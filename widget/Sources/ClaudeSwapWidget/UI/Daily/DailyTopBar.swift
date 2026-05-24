@@ -23,7 +23,7 @@ struct DailyTopBar: View {
 
             Group {
                 switch mode {
-                case .plan:
+                case .command, .plan:
                     DailyMetaStrip(
                         palette: palette,
                         dateLabel: dateLabel,
