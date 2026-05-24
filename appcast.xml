@@ -12,6 +12,29 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 10.9</title>
+      <sparkle:version>10.9</sparkle:version>
+      <sparkle:shortVersionString>10.9</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li>New command-center UI with session panel, capture box, servers rail, scheduler settings, and notifications.</li>
+          <li>MCP integrations for GitLab, ClickUp capture, and Bitwarden, plus write tools and audit hardening.</li>
+          <li>SSH server manager with ControlMaster, age-encrypted bundles, and tail/exec from MCP.</li>
+          <li>Destructive action gate with widget UI and UDS IPC bridge.</li>
+          <li>Popover destructive-gate sheet now dismisses correctly after MCP connect.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Sun, 24 May 2026 10:47:10 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v10.9/ClaudeBar.zip"
+        sparkle:version="10.9"
+        sparkle:shortVersionString="10.9"
+        sparkle:edSignature="+ubOq2T/6F37qI+35hEfgwl05dzxnWzFfa7I7i63z75whNLoTSki8ppNIT5EMaBVJg0vp83iDw8r/59pCLxKDw=="
+        length="8299431"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 10.8</title>
       <sparkle:version>10.8</sparkle:version>
       <sparkle:shortVersionString>10.8</sparkle:shortVersionString>
