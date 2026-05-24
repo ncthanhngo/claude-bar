@@ -12,6 +12,26 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 10.13</title>
+      <sparkle:version>10.13</sparkle:version>
+      <sparkle:shortVersionString>10.13</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li>Connect failures in the MCP connector window now surface inline with a red error banner and progress indicator, instead of silently doing nothing while the popover hid the result.</li>
+          <li>Added orange format hints when the pasted token / client ID does not match the expected prefix (Slack xoxp-/xoxe-/xoxb-, ClickUp pk_, Google .apps.googleusercontent.com) so typos are caught before the round-trip.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Sun, 24 May 2026 22:38:58 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v10.13/ClaudeBar.zip"
+        sparkle:version="10.13"
+        sparkle:shortVersionString="10.13"
+        sparkle:edSignature="ftxwlMqPHV/uXXZ/4aV9SC2D4TGaHGl0JnyCU/PnqmUlHxs8CW+yrkcIO1yzXytlqGQ8XEBUKZhe049YxI9QBA=="
+        length="8328541"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 10.12</title>
       <sparkle:version>10.12</sparkle:version>
       <sparkle:shortVersionString>10.12</sparkle:shortVersionString>
