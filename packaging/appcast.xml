@@ -12,6 +12,27 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 10.10</title>
+      <sparkle:version>10.10</sparkle:version>
+      <sparkle:shortVersionString>10.10</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li>Fixed cross-device Claude web cookie sync so two Macs no longer overwrite each other's fresh session and silently log you out.</li>
+          <li>Restore now picks the most recent cookies between local Keychain and the iCloud bundle instead of always trusting local.</li>
+          <li>Expired cookies are filtered on save and restore, and SameSite is preserved across sync round-trips.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Sun, 24 May 2026 15:53:45 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v10.10/ClaudeBar.zip"
+        sparkle:version="10.10"
+        sparkle:shortVersionString="10.10"
+        sparkle:edSignature="B5kyvJ38w6hXi0FusUHzKWIYUK5YCECNiVUHLqsAvG0UWwRDgO7GlH/h0U41oOypDoxXQMtjuw8ocOoWaOufAQ=="
+        length="8309865"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 10.9</title>
       <sparkle:version>10.9</sparkle:version>
       <sparkle:shortVersionString>10.9</sparkle:shortVersionString>
