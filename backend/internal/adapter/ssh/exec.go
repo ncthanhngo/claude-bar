@@ -17,6 +17,11 @@ type ExecResult struct {
 	DurationMs int64 `json:"durationMs"`
 }
 
+// ActiveControlMaster, when set, lets Exec reuse a persistent ssh
+// ControlMaster socket per host instead of opening a fresh connection per
+// call. nil falls back to one-shot ssh.
+var ActiveControlMaster *ControlMaster
+
 // Exec runs a single command against a tracked host. The command is passed as
 // a single argv element to `ssh host -- <cmd>` — the local `ssh` client does
 // not tokenize it. Metachar injection from the LLM was already blocked at
@@ -30,7 +35,15 @@ func Exec(ctx context.Context, host TrackedHost, cmd string, timeout time.Durati
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	args := sshArgs(host)
+	args := []string{}
+	// Lazily open a ControlMaster so the 1st call eats the auth round-trip
+	// and every subsequent call reuses the same TCP connection.
+	if ActiveControlMaster != nil {
+		if sock, err := ActiveControlMaster.Open(ctx, host); err == nil {
+			args = append(args, "-S", sock)
+		}
+	}
+	args = append(args, sshArgs(host)...)
 	args = append(args, "--", cmd)
 	start := time.Now()
 	cc := exec.CommandContext(ctx, "ssh", args...)

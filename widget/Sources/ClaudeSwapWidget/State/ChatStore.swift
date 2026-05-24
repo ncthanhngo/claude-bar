@@ -192,6 +192,13 @@ final class ChatStore: ObservableObject {
 
     // MARK: - Streaming send
 
+    /// Phase-4 Command-Center spawn options. SessionPanel sets these before
+    /// calling sendCurrent so the next spawn carries permission-mode +
+    /// context-inject. Cleared back to nil after a send so subsequent
+    /// chat-tab sends behave normally.
+    var nextPermissionMode: String?
+    var nextContextInject: ChatStreamReader.ContextInject?
+
     /// Fire-and-forget. The streamTask owns the lifetime; cancelCurrentSend()
     /// stops it. UI must not call sendCurrent again while isSending is true.
     func sendCurrent(text: String, attachmentIDs: [String] = []) {
@@ -211,9 +218,18 @@ final class ChatStore: ObservableObject {
         isSending = true
         lastError = nil
 
+        // Snapshot then clear so subsequent sends from the chat tab are
+        // unaffected. The fields are intentionally one-shot.
+        let permMode = nextPermissionMode
+        let ctxInject = nextContextInject
+        nextPermissionMode = nil
+        nextContextInject = nil
+
         streamTask = Task { [weak self] in
             guard let self else { return }
-            await self.runStream(client: client, conv: conv, text: trimmed, attachmentIDs: attachmentIDs)
+            await self.runStream(client: client, conv: conv, text: trimmed,
+                                 attachmentIDs: attachmentIDs,
+                                 permissionMode: permMode, contextInject: ctxInject)
         }
     }
 
@@ -221,11 +237,14 @@ final class ChatStore: ObservableObject {
         client: CswClient,
         conv: ConversationDTO,
         text: String,
-        attachmentIDs: [String]
+        attachmentIDs: [String],
+        permissionMode: String? = nil,
+        contextInject: ChatStreamReader.ContextInject? = nil
     ) async {
         defer { isSending = false }
         let stream = client.chatSend(
-            conversationID: conv.id, text: text, attachmentIDs: attachmentIDs
+            conversationID: conv.id, text: text, attachmentIDs: attachmentIDs,
+            permissionMode: permissionMode, contextInject: contextInject
         )
         do {
             for try await event in stream {

@@ -79,12 +79,33 @@ func (c *ChatClient) Stream(
 		_ = req.MaxTokens
 	}
 
+	// Phase-4 Command-Center extensions land here via ctx-attached options
+	// so chat.Service doesn't need to know about permission modes or
+	// system-prompt injection. When opts are absent, behaviour is unchanged.
+	opts, hasOpts := FromCtx(ctx)
+	if hasOpts {
+		if opts.PermissionMode != "" {
+			args = append(args, "--permission-mode", opts.PermissionMode)
+		}
+		if opts.SystemPromptAppend != "" {
+			args = append(args, "--append-system-prompt", opts.SystemPromptAppend)
+		}
+	}
+
 	cmd := exec.CommandContext(ctx, c.BinaryPath, args...)
 	cmd.Stdin = strings.NewReader(prompt)
-	// Run from $HOME so the user's project CLAUDE.md / hooks / IDE
-	// integrations don't bleed into the chat session.
-	if home, err := os.UserHomeDir(); err == nil {
+	// Run from the linked repo when provided, otherwise $HOME — so the
+	// user's project CLAUDE.md / hooks / IDE integrations don't bleed in.
+	if hasOpts && opts.Cwd != "" {
+		cmd.Dir = opts.Cwd
+	} else if home, err := os.UserHomeDir(); err == nil {
 		cmd.Dir = home
+	}
+	// Env sanitisation (Red-Team Finding 1) on the Command-Center path:
+	// drop ANTHROPIC_*, OPENAI_*, CB_*, stale CLAUDE_CONFIG_DIR; pin to
+	// the account-locked config dir.
+	if hasOpts {
+		cmd.Env = sanitisedEnv(opts.AccountConfigDir)
 	}
 
 	stdout, err := cmd.StdoutPipe()

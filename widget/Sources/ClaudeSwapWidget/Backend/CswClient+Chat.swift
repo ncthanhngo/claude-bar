@@ -65,12 +65,16 @@ extension CswClient {
     nonisolated func chatSend(
         conversationID: String,
         text: String,
-        attachmentIDs: [String]
+        attachmentIDs: [String],
+        permissionMode: String? = nil,
+        contextInject: ChatStreamReader.ContextInject? = nil
     ) -> AsyncThrowingStream<ChatStreamEvent, Error> {
         ChatStreamReader.send(
             conversationID: conversationID,
             text: text,
-            attachmentIDs: attachmentIDs
+            attachmentIDs: attachmentIDs,
+            permissionMode: permissionMode,
+            contextInject: contextInject
         )
     }
 

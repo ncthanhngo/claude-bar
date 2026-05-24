@@ -101,4 +101,49 @@ extension CswClient {
         let data = try await self.runRaw(["audit", "path"])
         return String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
     }
+
+    // MARK: - Repomap (Phase 4 — repo-link resolution)
+
+    struct RepoEntryDTO: Codable, Identifiable, Equatable {
+        let origin: String
+        let localPath: String
+        let discoveredAt: Date?
+
+        var id: String { origin + "|" + localPath }
+    }
+
+    struct RepoScanResultDTO: Codable, Equatable {
+        let entries: Int
+        let roots: [String]
+    }
+
+    func repomapScan(roots: [String]? = nil) async throws -> RepoScanResultDTO {
+        var args = ["repomap", "scan"]
+        if let r = roots, !r.isEmpty {
+            args += ["--roots", r.joined(separator: ",")]
+        }
+        return try await self.run(args, decode: RepoScanResultDTO.self)
+    }
+
+    func repomapLookup(origin: String) async throws -> String {
+        struct R: Decodable { let localPath: String }
+        let r = try await self.run(["repomap", "lookup", "--origin", origin], decode: R.self)
+        return r.localPath
+    }
+
+    func repomapList() async throws -> [RepoEntryDTO] {
+        try await self.run(["repomap", "list"], decode: [RepoEntryDTO].self)
+    }
+
+    // MARK: - SSH bundle (Phase 3 — encrypted .cbssh export/import)
+
+    func sshExportBundle(toPath path: String, passphrase: String) async throws {
+        try await self.runWithStdin(["ssh", "export-bundle", "--out", path], stdin: passphrase)
+    }
+
+    func sshImportBundle(fromPath path: String, passphrase: String, merge: Bool = true) async throws {
+        var args = ["ssh", "import-bundle", "--in", path]
+        if !merge { args += ["--merge=false"] }
+        try await self.runWithStdin(args, stdin: passphrase)
+    }
 }
