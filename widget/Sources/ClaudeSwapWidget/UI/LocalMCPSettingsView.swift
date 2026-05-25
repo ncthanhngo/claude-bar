@@ -485,7 +485,7 @@ struct LocalMCPSettingsView: View {
         let window = gitlabWindow
         let coord = coordinator
         let client = coordinator.client
-        gitlabWindow.show(title: "Add GitLab self-host instance", size: NSSize(width: 480, height: 360)) {
+        gitlabWindow.show(title: "Add GitLab self-host instance", size: NSSize(width: 560, height: 420)) {
             AnyView(
                 GitLabAddSheet(onSubmit: { name, baseURL, note, pat in
                     Task {

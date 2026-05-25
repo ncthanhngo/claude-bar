@@ -9,6 +9,7 @@ import SwiftUI
 // system-level: Privacy / Diagnostics / About).
 struct SettingsTab: View {
     @State private var selected: SettingsSubTab = .general
+    @EnvironmentObject private var updateController: UpdateController
 
     var body: some View {
         HStack(spacing: 0) {
@@ -19,6 +20,12 @@ struct SettingsTab: View {
             detail
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
+        // Mount the Sparkle update overlay inside the Settings window too —
+        // not just on the popover. The driver is the same instance shared
+        // through the environment, so clicking "Check for updates…" in
+        // About renders its progress / release-notes UI right here on
+        // Settings instead of on the (possibly hidden) menu-bar popover.
+        .overlay(UpdateOverlayView(driver: updateController.driver))
     }
 
     // MARK: - Sidebar
