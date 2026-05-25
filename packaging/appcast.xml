@@ -12,6 +12,29 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 10.20 (BETA)</title>
+      <sparkle:version>10.20</sparkle:version>
+      <sparkle:shortVersionString>10.20</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li><strong>Menu-bar popover collapsed from 8 tabs to 4.</strong> The old layout crammed Accounts, General, MCP, Claude, Daily, Diagnostics, Privacy, and About across the top — with the "Claude" tab mixing the account list, the auto-swap toggle, and the token-usage chart on one screen. v10.20 collapses those eight into <strong>Dashboard</strong>, <strong>Accounts</strong>, <strong>Stats</strong>, and <strong>Settings</strong>.</li>
+          <li><strong>New Dashboard is now the default landing tab.</strong> Active account at a glance with a one-click switch dropdown, plus Today / Week / Month token totals.</li>
+          <li><strong>Auto-swap controls moved into the Accounts tab</strong> — next to the list they actually affect, instead of buried under "Claude".</li>
+          <li><strong>Settings is one home for everything configurable</strong>: General, MCP, Briefing, Privacy, Diagnostics, and About all live behind a single sidebar.</li>
+          <li>Footer "Daily" button renamed to "Briefing" so it no longer collides visually with the Settings sub-tab of the same name.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Mon, 25 May 2026 12:55:03 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v10.20/ClaudeBar.zip"
+        sparkle:version="10.20"
+        sparkle:shortVersionString="10.20"
+        sparkle:edSignature="xweMqNKFmAPHY29T6d45oUl+C3twAxaH9OZVcSp5nnNbmQc68UUfwlgtBqmeWUAFEuqv0sYjpbUP5L7KhLCbBg=="
+        length="8628761"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 10.19 (BETA)</title>
       <sparkle:version>10.19</sparkle:version>
       <sparkle:shortVersionString>10.19</sparkle:shortVersionString>

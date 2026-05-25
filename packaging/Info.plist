@@ -13,9 +13,9 @@
     <key>CFBundleIdentifier</key>
     <string>dev.ncthanhngo.claude-bar</string>
     <key>CFBundleVersion</key>
-    <string>10.19</string>
+    <string>10.20</string>
     <key>CFBundleShortVersionString</key>
-    <string>10.19</string>
+    <string>10.20</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleSignature</key>
@@ -35,7 +35,7 @@
     <key>NSHumanReadableCopyright</key>
     <string>Copyright © 2026 Thanh Ngô. Licensed under MIT.</string>
     <key>CFBundleGetInfoString</key>
-    <string>Claude Bar 10.19 — menu-bar manager for multiple Claude Code accounts</string>
+    <string>Claude Bar 10.20 — menu-bar manager for multiple Claude Code accounts</string>
     <key>CBAuthorName</key>
     <string>Thanh Ngô</string>
     <key>CBAuthorEmail</key>
@@ -49,11 +49,11 @@
     <key>CBReleaseChannel</key>
     <string>Beta</string>
     <key>CBReleaseWhatsNew</key>
-    <string>iCloud sync toggle now resets to OFF on every Sparkle update, not just once. So each new build lands on a clean default-off — no Keychain prompt unless you opt in for that release. Within the same version your toggle choice persists across launches; it only resets when the version string changes.</string>
+    <string>The menu-bar popover used to cram eight tabs across the top — Accounts, General, MCP, Claude, Daily, Diagnostics, Privacy, About — with the &quot;Claude&quot; tab mixing the live account list, the auto-swap toggle, and the token-usage chart on one screen. v10.20 collapses those eight into four cleaner ones: Dashboard, Accounts, Stats, Settings. Dashboard is the new default landing tab: active account at a glance with one-click switch, plus Today / Week / Month token totals. Auto-swap controls move into Accounts where they actually belong (next to the list they affect). Settings is now a single home with a sidebar for General, MCP, Briefing, Privacy, Diagnostics, and About.</string>
     <key>CBReleaseHotfixes</key>
-    <string>Replaced the v10.18 one-shot force-off with a per-version reset, so the default-off promise holds for every future update, not just the upgrade from v10.16.</string>
+    <string>None</string>
     <key>CBReleaseKnownIssues</key>
-    <string>If you sync across Macs, you will need to re-enable the toggle in Diagnostics → iCloud Sync once after every update. Your bundle and passphrase remain intact in iCloud between updates.</string>
+    <string>None.</string>
     <key>CFBundleDevelopmentRegion</key>
     <string>en</string>
     <key>CFBundleLocalizations</key>
