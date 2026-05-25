@@ -71,6 +71,7 @@ func (g *Gateway) BuildServer() *server.MCPServer {
 		server.WithToolCapabilities(true),
 	)
 	g.registerSlackTools(srv)
+	g.registerSlackWriteTools(srv)
 	g.registerClickUpTools(srv)
 	g.registerClickUpWriteTools(srv)
 	g.registerClickUpCaptureTool(srv)
