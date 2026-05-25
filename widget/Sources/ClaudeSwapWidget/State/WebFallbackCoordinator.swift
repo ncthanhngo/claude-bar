@@ -38,6 +38,13 @@ final class WebFallbackCoordinator: ObservableObject {
         store.webUsageProvider = { [weak self] accounts in
             await self?.fetchWebUsages(for: accounts) ?? [:]
         }
+        // Lets AppStore.refreshNow route around the OAuth usage fallback for
+        // accounts the user has already linked via the Safari WebView. Stays
+        // synchronous so the check happens inline during the refresh loop
+        // without an extra await hop.
+        store.isWebLinked = { [weak self] account in
+            self?.isLinked(account) ?? false
+        }
     }
 
     func state(for account: AccountDTO) -> WebUsageAccountState {

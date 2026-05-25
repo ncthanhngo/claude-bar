@@ -129,7 +129,6 @@ session_watcher() {
 session_watcher &
 WATCHER_PID=$!
 
-LAST_HASH=$(cred_hash)
 FIRST_RUN=true
 
 while true; do
@@ -153,20 +152,31 @@ while true; do
         fi
     fi
 
-    # Poll briefly so auto-swap (which completes after the session ends)
-    # is detected in time. Normal /exit: hash stays the same → exits quickly.
+    # Snapshot credentials AT THE INSTANT claude exited. Restart only when a
+    # swap happens AFTER this point (within SWAP_WAIT_SEC) — the auto-swap
+    # path lands here because the widget completes its write a beat after
+    # SIGINT'ing claude.
+    #
+    # Previously we compared against a script-init hash, which meant any
+    # manual swap that happened mid-session would already differ from
+    # baseline by the time the user typed `/exit`. The script then
+    # interpreted "user wanted to swap and continue chatting; just exited
+    # naturally" as "swap pending; restart" — and the user could never
+    # escape the terminal. Comparing against the post-exit snapshot
+    # restricts the restart trigger to its actual intended window.
+    EXIT_HASH=$(cred_hash)
     DEADLINE=$((SECONDS + SWAP_WAIT_SEC))
-    NEW_HASH=$(cred_hash)
-    while [ "$NEW_HASH" = "$LAST_HASH" ] && [ $SECONDS -lt $DEADLINE ]; do
+    NEW_HASH="$EXIT_HASH"
+    while [ "$NEW_HASH" = "$EXIT_HASH" ] && [ $SECONDS -lt $DEADLINE ]; do
         sleep 0.5
         NEW_HASH=$(cred_hash)
     done
 
-    if [ "$NEW_HASH" = "$LAST_HASH" ]; then
-        # No credential change detected — normal exit.
+    if [ "$NEW_HASH" = "$EXIT_HASH" ]; then
+        # No credential change detected within the post-exit window —
+        # treat this as a user-initiated /exit and quit the watcher.
         break
     fi
-    # Credentials changed → restart with new account.
-    LAST_HASH="$NEW_HASH"
+    # Credentials changed AFTER claude exited → auto-swap landed → restart.
 done
 """#

@@ -1,10 +1,10 @@
 import SwiftUI
 
-// Menu-bar popover root. One scrollable surface — no top tabs. From top to
-// bottom: status header, accounts list (3 visible, scroll past), auto-swap
-// controls, token-usage chart + KPI strip. Footer keeps the global actions
-// (Add account, Settings, Briefing, Theme, Quit). Add-account and Settings
-// open modal overlays rendered on top of the popover.
+// Menu-bar popover root. One scrollable surface, no top tabs, no footer.
+// All global actions (Add account, Verify all, Force refresh, Health
+// check, Theme, Quit, Settings) live as icons in the header bar — Settings
+// pinned to the top-right corner. The body is just status header → account
+// list → auto-swap → token usage.
 //
 // Name kept as `WidgetTabbedPopover` only for git history; the structure has
 // nothing tabbed about it now.
@@ -24,16 +24,12 @@ struct WidgetTabbedPopover: View {
     var body: some View {
         ZStack {
             VStack(spacing: 0) {
-                MenuHeaderBar()
+                MenuHeaderBar(onAddAccount: {
+                    withAnimation(.easeInOut(duration: 0.18)) { showAddAccount = true }
+                })
                 Divider().opacity(0.5)
                 mainBody
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                Divider().opacity(0.5)
-                FooterActions(
-                    onAddAccount: { withAnimation(.easeInOut(duration: 0.18)) { showAddAccount = true } },
-                    onSettings:   { SettingsWindowController.shared.show() }
-                )
-                .padding(.bottom, 6)
             }
 
             if showAddAccount {
@@ -76,28 +72,19 @@ struct WidgetTabbedPopover: View {
     }
 
     private var accountsHeader: some View {
+        // Verify all moved to the global header (icon-only). This row stays
+        // just for the "Accounts" label + iCloud sync chip + account count.
         HStack(alignment: .firstTextBaseline, spacing: 6) {
             Text("Accounts")
                 .font(.system(size: 12, weight: .semibold))
                 .foregroundColor(.primary.opacity(0.78))
             syncChip
             Spacer()
-            Button {
-                verifyCoordinator.begin()
-            } label: {
-                Label("Verify all", systemImage: "checkmark.shield")
-                    .font(.system(size: 11))
-            }
-            .buttonStyle(.bordered)
-            .controlSize(.small)
-            .help("Test every account's credentials and web fallback")
-            .pointingHandCursor()
             if let count = store.snapshot.map({ "\($0.accounts.count)" }) {
                 Text(count)
                     .font(.system(size: 11, weight: .medium))
                     .foregroundColor(.secondary)
                     .monospacedDigit()
-                    .padding(.leading, 4)
             }
         }
         .padding(.horizontal, 14)
