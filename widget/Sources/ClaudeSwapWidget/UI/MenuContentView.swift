@@ -220,7 +220,7 @@ struct FooterActions: View {
     var body: some View {
         HStack(spacing: 22) {
             footerButton(
-                label: "Daily",
+                label: "Briefing",
                 help: "Open Daily Briefing window",
                 action: { briefingCoord.show() }
             ) {

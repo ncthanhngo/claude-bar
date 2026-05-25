@@ -1,196 +1,150 @@
 import SwiftUI
 
-// Manage-accounts tab. Sits to the left of the Claude widget on the popover
-// bar. The Claude tab also lists accounts (with usage bars) and supports
-// per-row rename/remove via context menu — this tab is the dedicated home for
-// bulk actions: Add account, verify health, plus a flatter list focused on
-// identity (avatar, name, email, web-fallback state) rather than usage.
+// The "manage" home for accounts. Lists every account with usage bars
+// (5h / 7d), hosts the auto-swap controls (toggle + threshold slider), and
+// exposes the Add account / Verify all bulk actions.
+//
+// Auto-swap lives here — not in Settings — because it directly controls how
+// the account list above behaves (which account becomes active when the
+// active one hits the threshold). Settings is reserved for static
+// preferences that do not modify the data on screen.
 struct AccountsTab: View {
     @EnvironmentObject var store: AppStore
     @EnvironmentObject var loginCoordinator: LoginCoordinator
     @EnvironmentObject var verifyCoordinator: VerifyCoordinator
-    @EnvironmentObject var webFallback: WebFallbackCoordinator
+    @EnvironmentObject var cloudSync: CloudSyncCoordinator
+
+    @AppStorage("lastAutoSyncSuccessAt") private var lastAutoSyncSuccessAt: Double = 0
+    @AppStorage("lastAutoSyncError") private var lastAutoSyncError: String = ""
+    @AppStorage("iCloudSyncEnabled") private var iCloudSyncEnabled: Bool = false
+
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 14) {
-                headerRow
-                accountList
-                Divider()
-                AddAccountGuidanceCard()
+            VStack(alignment: .leading, spacing: 4) {
+                accountsHeader
+                AccountListSection()
+                sectionTitle("Auto-swap").padding(.top, 10)
+                AutoSwapSection()
+                Divider().opacity(0.4).padding(.vertical, 10).padding(.horizontal, 14)
+                manageBlock
+            }
+            .padding(.vertical, 6)
+        }
+    }
+
+    private var accountsHeader: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 6) {
+            Text("Accounts")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundColor(.primary.opacity(0.78))
+            syncChip
+            Spacer()
+            if let count = store.snapshot.map({ "\($0.accounts.count)" }) {
+                Text(count)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundColor(.secondary)
+                    .monospacedDigit()
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.top, 4)
+        .padding(.bottom, 2)
+    }
+
+    private var manageBlock: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
                 Button {
                     loginCoordinator.begin()
                 } label: {
                     Label("Add account", systemImage: "plus.circle.fill")
                 }
                 .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+                .pointingHandCursor()
+
+                Button {
+                    verifyCoordinator.begin()
+                } label: {
+                    Label("Verify all", systemImage: "checkmark.shield")
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .help("Test every account's credentials and web fallback")
+                .pointingHandCursor()
+
+                Spacer()
             }
-            .padding(.horizontal, 18)
-            .padding(.vertical, 14)
-            .frame(maxWidth: .infinity, alignment: .topLeading)
+            AddAccountGuidanceCard()
         }
+        .padding(.horizontal, 14)
     }
 
-    private func promptRename(for acc: AccountViewDTO) {
-        AccountRenamePrompt.run(for: acc) { newName in
-            Task { await store.rename(acc.account.number, to: newName) }
-        }
-    }
-
-    private var headerRow: some View {
-        HStack(spacing: 8) {
-            Text("Manage accounts")
-                .font(.headline)
-            if let snap = store.snapshot {
-                Text("\(snap.accounts.count)")
-                    .font(.caption.monospacedDigit())
-                    .foregroundColor(.secondary)
-            }
+    @ViewBuilder
+    private func sectionTitle(_ title: String) -> some View {
+        HStack {
+            Text(title)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundColor(.primary.opacity(0.78))
             Spacer()
-            Button {
-                verifyCoordinator.begin()
-            } label: {
-                Label("Verify all", systemImage: "checkmark.shield")
+        }
+        .padding(.horizontal, 14)
+        .padding(.bottom, 2)
+    }
+
+    // Same iCloud-sync glance chip the old Claude tab carried — kept next to
+    // the "Accounts" title because that's the data being synced.
+    @ViewBuilder
+    private var syncChip: some View {
+        let cloudEnabled = iCloudSyncEnabled && cloudSync.status?.exists == true
+        let hasSuccess = lastAutoSyncSuccessAt > 0
+        let attemptFailed = !lastAutoSyncError.isEmpty
+        let now = Date().timeIntervalSince1970
+        let successAge = hasSuccess ? now - lastAutoSyncSuccessAt : .infinity
+        let isBroken = attemptFailed && successAge > 12 * 3600
+
+        if cloudEnabled && (hasSuccess || attemptFailed) {
+            if isBroken {
+                HStack(alignment: .firstTextBaseline, spacing: 3) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.system(size: 10))
+                        .foregroundColor(.red)
+                    Text("sync failing")
+                        .font(.system(size: 11))
+                        .foregroundColor(.red)
+                }
+                .help(lastAutoSyncError.isEmpty
+                      ? "Auto-sync hasn't succeeded in 12h+ — open Diagnostics to investigate."
+                      : "Auto-sync failing: \(lastAutoSyncError)")
+            } else if attemptFailed {
+                HStack(alignment: .firstTextBaseline, spacing: 3) {
+                    Image(systemName: "exclamationmark.triangle")
+                        .font(.system(size: 10))
+                        .foregroundColor(.orange)
+                    Text(relativeShort(seconds: successAge))
+                        .font(.system(size: 11))
+                        .foregroundColor(.orange)
+                }
+                .help("Last sync attempt failed. Previous success \(relativeShort(seconds: successAge)) ago.\n\(lastAutoSyncError)")
+            } else if hasSuccess {
+                HStack(alignment: .firstTextBaseline, spacing: 3) {
+                    Image(systemName: "checkmark.icloud.fill")
+                        .font(.system(size: 10))
+                        .foregroundColor(.green)
+                    Text(relativeShort(seconds: successAge))
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary)
+                }
+                .help("iCloud auto-sync ok — last cycle \(relativeShort(seconds: successAge)) ago.")
             }
-            .buttonStyle(.bordered)
-            .controlSize(.small)
-            .help("Test every account's credentials and web fallback")
-            .pointingHandCursor()
         }
     }
 
-    @ViewBuilder
-    private var accountList: some View {
-        if let snap = store.snapshot, !snap.accounts.isEmpty {
-            VStack(spacing: 4) {
-                ForEach(snap.accounts) { acc in
-                    AccountManageRow(account: acc, onRename: { promptRename(for: acc) })
-                }
-            }
-        } else {
-            Text("No accounts added yet. Click \"Add account\" below to add one.")
-                .font(.callout)
-                .foregroundColor(.secondary)
-                .frame(maxWidth: .infinity, alignment: .leading)
-        }
+    private func relativeShort(seconds: TimeInterval) -> String {
+        let s = Int(max(seconds, 0))
+        if s < 60         { return "now" }
+        if s < 60 * 60    { return "\(s / 60)m" }
+        if s < 24 * 3600  { return "\(s / 3600)h" }
+        return "\(s / 86400)d"
     }
 }
-
-// Compact identity-focused row for the manage tab. No usage bars — those live
-// on the Claude tab. Exposes web fallback open/connect, rename, refresh, and
-// remove inline (no context-menu).
-private struct AccountManageRow: View {
-    let account: AccountViewDTO
-    let onRename: () -> Void
-
-    @EnvironmentObject var store: AppStore
-    @EnvironmentObject var webFallback: WebFallbackCoordinator
-    @State private var isHovering = false
-
-    var body: some View {
-        HStack(spacing: 10) {
-            AvatarView(
-                initial: account.account.initial,
-                seed: account.account.email + (account.account.organizationUuid ?? ""),
-                size: 28
-            )
-            VStack(alignment: .leading, spacing: 1) {
-                HStack(spacing: 6) {
-                    Text(account.account.displayName)
-                        .font(.system(size: 13, weight: .medium))
-                    if account.isActive {
-                        Text("ACTIVE")
-                            .font(.system(size: 9, weight: .bold)).tracking(0.4)
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 6).padding(.vertical, 2)
-                            .background(Color.green).clipShape(Capsule())
-                    }
-                }
-                Text(account.account.email)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-                webUsageChip
-            }
-            Spacer(minLength: 4)
-            actionButtons
-        }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 8)
-        .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(isHovering ? Color.primary.opacity(0.04) : Color.clear)
-        )
-        .onHover { isHovering = $0 }
-    }
-
-    private var webUsageChip: some View {
-        let state = webFallback.state(for: account.account)
-        return HStack(spacing: 4) {
-            Image(systemName: webUsageIcon(state))
-                .font(.system(size: 9))
-            Text(state.label)
-                .font(.system(size: 10))
-                .lineLimit(1)
-        }
-        .foregroundColor(webUsageColor(state))
-    }
-
-    private func webUsageIcon(_ state: WebUsageAccountState) -> String {
-        switch state {
-        case .connected: return "checkmark.icloud"
-        case .linked:    return "globe"
-        case .fallback:  return "exclamationmark.icloud"
-        case .notLinked: return "terminal"
-        }
-    }
-
-    private func webUsageColor(_ state: WebUsageAccountState) -> Color {
-        switch state {
-        case .connected: return .green
-        case .fallback:  return .orange
-        case .linked, .notLinked: return .secondary
-        }
-    }
-
-    private var actionButtons: some View {
-        HStack(spacing: 4) {
-            if webFallback.isLinked(account.account) {
-                actionButton(icon: "globe", help: "Open web usage profile") {
-                    webFallback.open(for: account)
-                }
-            } else {
-                actionButton(icon: "globe.badge.chevron.backward", help: "Connect web usage") {
-                    webFallback.open(for: account)
-                }
-            }
-            actionButton(icon: "arrow.clockwise", help: "Force refresh credentials") {
-                Task { await store.refreshNow() }
-            }
-            actionButton(icon: "pencil", help: "Rename") { onRename() }
-            if !account.isActive {
-                actionButton(icon: "trash", help: "Remove account", role: .destructive) {
-                    Task { await store.remove(account.account.number) }
-                }
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func actionButton(
-        icon: String,
-        help: String,
-        role: ButtonRole? = nil,
-        action: @escaping () -> Void
-    ) -> some View {
-        Button(role: role, action: action) {
-            Image(systemName: icon)
-                .font(.system(size: 11))
-                .frame(width: 22, height: 22)
-        }
-        .buttonStyle(.borderless)
-        .help(help)
-        .pointingHandCursor()
-    }
-}
-
