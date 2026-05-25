@@ -12,6 +12,28 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 10.17 (BETA)</title>
+      <sparkle:version>10.17</sparkle:version>
+      <sparkle:shortVersionString>10.17</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li><strong>What's new — About panel now shows per-release notes inline.</strong> Open About → Claude Bar to read what's new, hotfixes, and known issues for the version you're running. The channel badge follows the version: bare-integer = Stable (green), dotted = Beta (orange).</li>
+          <li><strong>iCloud sync defaults to OFF for everyone.</strong> The v10.16 migration that silently auto-enabled sync for users with an existing bundle is gone — the toggle in Diagnostics → iCloud Sync is now off after upgrade, even for prior sync users. Flip it back on to resume cross-Mac sync.</li>
+          <li><strong>Hotfix — Command Center loads cleanly with no SSH hosts / GitLab instances.</strong> Empty lists no longer surface a red "decodingFailed: found null" error in the Diagnostics tab.</li>
+          <li><strong>Known issue.</strong> Existing iCloud sync users will see the toggle off after this update — your bundle and passphrase are untouched in iCloud, just re-enable the toggle to resume.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Mon, 25 May 2026 12:04:31 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v10.17/ClaudeBar.zip"
+        sparkle:version="10.17"
+        sparkle:shortVersionString="10.17"
+        sparkle:edSignature="Q1MnXisjINBy/I0IUuEuhG65NMjlQOF7TWthTz2SCMPdTo8nH2y0Sxhs40tLAtKR6Bm+6P46M+zuexV/Hn6jCQ=="
+        length="8597358"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 10.16 (BETA)</title>
       <sparkle:version>10.16</sparkle:version>
       <sparkle:shortVersionString>10.16</sparkle:shortVersionString>
