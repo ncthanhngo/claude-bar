@@ -12,6 +12,27 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 10.31 (BETA)</title>
+      <sparkle:version>10.31</sparkle:version>
+      <sparkle:shortVersionString>10.31</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li><strong>Popover now scrolls when content runs long.</strong> Header status no longer gets clipped at the top, Token-usage KPI strip no longer cut off at the bottom on dense screens.</li>
+          <li><strong>GitLab MCP add sheet redrawn</strong> — fixed-width label column, longer fields, larger window — so labels like "Personal Access Token" don't clip into the edge.</li>
+          <li><strong>Fixed "Check for updates…" rendering on the popover</strong> instead of on Settings when invoked from About. The update overlay is mounted in both places now, so it lands centered on whichever window you're using.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Mon, 25 May 2026 22:47:48 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v10.31/ClaudeBar.zip"
+        sparkle:version="10.31"
+        sparkle:shortVersionString="10.31"
+        sparkle:edSignature="akXzqB6EgYgHBPVGUV1bDOfdhuLZg7/b2t2BceQdZiVQw+K2sBgmVmT86XvAiMKMydhyDniLy8vzvTzf09cHAw=="
+        length="8473037"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 10.30 (BETA)</title>
       <sparkle:version>10.30</sparkle:version>
       <sparkle:shortVersionString>10.30</sparkle:shortVersionString>
