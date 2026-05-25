@@ -1,173 +1,182 @@
 import SwiftUI
 
-// Tabs shown along the top of the menu-bar popover. Four primary surfaces:
-//   Dashboard — glanceable active account + Today/Week/Month KPIs.
-//   Accounts  — full account list + auto-swap controls + add/verify.
-//   Stats     — read-only token-usage analytics (chart + KPI strip).
-//   Settings  — sidebar hosting General/MCP/Briefing/Privacy/Diagnostics/About.
-// Previously eight tabs mixed data and settings (Accounts/General/MCP/Claude/
-// Daily/Diagnostics/Privacy/About); collapsing them into 4 puts "what's going
-// on" up top and stows the configuration screens behind a single Settings
-// surface.
-enum WidgetTab: String, CaseIterable, Identifiable {
-    case dashboard, accounts, stats, settings
-
-    var id: String { rawValue }
-
-    var label: String {
-        switch self {
-        case .dashboard: return "Dashboard"
-        case .accounts:  return "Accounts"
-        case .stats:     return "Stats"
-        case .settings:  return "Settings"
-        }
-    }
-
-    var systemImage: String {
-        switch self {
-        case .dashboard: return "rectangle.grid.2x2"
-        case .accounts:  return "person.2"
-        case .stats:     return "chart.line.uptrend.xyaxis"
-        case .settings:  return "gearshape"
-        }
-    }
-}
-
-// Top-level container for the menu-bar popover. Header (status + force-refresh
-// + health-check) sits at the top, a horizontal tab bar sits below it (joined
-// segmented look — icon stacked over label, the selected segment gets the
-// accent fill), and the selected tab's content fills the rest. A persistent
-// footer (Briefing / Theme / Quit) sits at the bottom so global actions stay
-// reachable from every tab.
+// Menu-bar popover root. One scrollable surface — no top tabs. From top to
+// bottom: status header, accounts list (3 visible, scroll past), auto-swap
+// controls, token-usage chart + KPI strip. Footer keeps the global actions
+// (Add account, Settings, Briefing, Theme, Quit). Add-account and Settings
+// open modal overlays rendered on top of the popover.
+//
+// Name kept as `WidgetTabbedPopover` only for git history; the structure has
+// nothing tabbed about it now.
 struct WidgetTabbedPopover: View {
     @EnvironmentObject var store: AppStore
+    @EnvironmentObject var cloudSync: CloudSyncCoordinator
+    @EnvironmentObject var verifyCoordinator: VerifyCoordinator
     @EnvironmentObject private var updateController: UpdateController
     @ObservedObject private var settings = AppSettings.shared
-    @State private var selectedTab: WidgetTab = .dashboard
+
+    @State private var showAddAccount = false
+    @State private var showSettings = false
+
+    @AppStorage("lastAutoSyncSuccessAt") private var lastAutoSyncSuccessAt: Double = 0
+    @AppStorage("lastAutoSyncError") private var lastAutoSyncError: String = ""
+    @AppStorage("iCloudSyncEnabled") private var iCloudSyncEnabled: Bool = false
 
     var body: some View {
-        VStack(spacing: 0) {
-            MenuHeaderBar()
-            Divider().opacity(0.5)
-            tabBar
-            Divider().opacity(0.5)
-            tabContent
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-            Divider().opacity(0.5)
-            FooterActions()
+        ZStack {
+            VStack(spacing: 0) {
+                MenuHeaderBar()
+                Divider().opacity(0.5)
+                mainBody
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                Divider().opacity(0.5)
+                FooterActions(
+                    onAddAccount: { withAnimation(.easeInOut(duration: 0.18)) { showAddAccount = true } },
+                    onSettings:   { withAnimation(.easeInOut(duration: 0.18)) { showSettings = true } }
+                )
                 .padding(.bottom, 6)
+            }
+
+            if showAddAccount {
+                AddAccountOverlay(isPresented: $showAddAccount)
+                    .zIndex(10)
+            }
+            if showSettings {
+                SettingsOverlay(isPresented: $showSettings)
+                    .zIndex(10)
+            }
         }
         .frame(width: 620, height: 860)
         .background(popoverBackground)
         .background(WindowAppearanceSetter(theme: settings.widgetTheme))
         .background(PopoverWindowCapture())
-        // Sparkle update flow renders here, on top of the popover content,
-        // so the popover never loses key status during the check/download/
-        // install cycle. See InPopoverUpdateDriver for the rationale.
         .overlay(UpdateOverlayView(driver: updateController.driver))
-        .overlay(alignment: .bottom) {
-            // Phase 2 — inline confirm-gate chip floats above the active tab.
-            // Destructive prompts use the sheet modifier on the popover root
-            // (in ClaudeSwapWidgetApp) and don't render here.
-            ConfirmGateOverlay()
-        }
+        .overlay(alignment: .bottom) { ConfirmGateOverlay() }
         .focusable()
         .focusEffectDisabled()
-        .onMoveCommand { direction in
-            switch direction {
-            case .left:  selectedTab = neighbour(of: selectedTab, offset: -1)
-            case .right: selectedTab = neighbour(of: selectedTab, offset: +1)
-            default: break
-            }
-        }
     }
 
     @ViewBuilder
     private var popoverBackground: some View {
         if settings.widgetTheme.useVibrancy {
-            // Apple-style: NSVisualEffectView with `.menu` material — same
-            // background AppKit menu-bar popovers have always used. Going
-            // through AppKit avoids the SwiftUI material layout quirks where
-            // children collapse to zero height after async data loads inside
-            // `MenuBarExtra`.
             VisualEffectBackground(material: .menu, blendingMode: .behindWindow)
         } else {
             settings.widgetTheme.background
         }
     }
 
-    private func neighbour(of current: WidgetTab, offset: Int) -> WidgetTab {
-        let all = WidgetTab.allCases
-        guard let idx = all.firstIndex(of: current) else { return current }
-        let next = (idx + offset + all.count) % all.count
-        return all[next]
+    @ViewBuilder
+    private var mainBody: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 4) {
+                accountsHeader
+                AccountListSection()
+                sectionTitle("Auto-swap").padding(.top, 6)
+                AutoSwapSection()
+                sectionTitle("Token usage").padding(.top, 6)
+                TokenStatsSection()
+                    .frame(maxHeight: .infinity, alignment: .top)
+            }
+            .padding(.vertical, 6)
+        }
     }
 
-    private var tabBar: some View {
-        HStack(spacing: 0) {
-            ForEach(WidgetTab.allCases) { tab in
-                WidgetTabBarButton(tab: tab, isSelected: tab == selectedTab) {
-                    selectedTab = tab
-                }
+    private var accountsHeader: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 6) {
+            Text("Accounts")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundColor(.primary.opacity(0.78))
+            syncChip
+            Spacer()
+            Button {
+                verifyCoordinator.begin()
+            } label: {
+                Label("Verify all", systemImage: "checkmark.shield")
+                    .font(.system(size: 11))
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+            .help("Test every account's credentials and web fallback")
+            .pointingHandCursor()
+            if let count = store.snapshot.map({ "\($0.accounts.count)" }) {
+                Text(count)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundColor(.secondary)
+                    .monospacedDigit()
+                    .padding(.leading, 4)
             }
         }
-        .padding(.horizontal, 6)
-        .padding(.vertical, 6)
+        .padding(.horizontal, 14)
+        .padding(.top, 4)
+        .padding(.bottom, 2)
     }
 
     @ViewBuilder
-    private var tabContent: some View {
-        switch selectedTab {
-        case .dashboard: DashboardTab()
-        case .accounts:  AccountsTab()
-        case .stats:     StatsTab()
-        case .settings:  SettingsTab()
+    private func sectionTitle(_ title: String) -> some View {
+        HStack {
+            Text(title)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundColor(.primary.opacity(0.78))
+            Spacer()
+        }
+        .padding(.horizontal, 14)
+        .padding(.bottom, 2)
+    }
+
+    // Compact iCloud-sync indicator: green/amber/red. Hidden when sync isn't
+    // enabled or no cycle has run yet, so the header stays clean for users
+    // who don't use sync.
+    @ViewBuilder
+    private var syncChip: some View {
+        let cloudEnabled = iCloudSyncEnabled && cloudSync.status?.exists == true
+        let hasSuccess = lastAutoSyncSuccessAt > 0
+        let attemptFailed = !lastAutoSyncError.isEmpty
+        let now = Date().timeIntervalSince1970
+        let successAge = hasSuccess ? now - lastAutoSyncSuccessAt : .infinity
+        let isBroken = attemptFailed && successAge > 12 * 3600
+
+        if cloudEnabled && (hasSuccess || attemptFailed) {
+            if isBroken {
+                HStack(alignment: .firstTextBaseline, spacing: 3) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.system(size: 10))
+                        .foregroundColor(.red)
+                    Text("sync failing")
+                        .font(.system(size: 11))
+                        .foregroundColor(.red)
+                }
+                .help(lastAutoSyncError.isEmpty
+                      ? "Auto-sync hasn't succeeded in 12h+ — open Diagnostics to investigate."
+                      : "Auto-sync failing: \(lastAutoSyncError)")
+            } else if attemptFailed {
+                HStack(alignment: .firstTextBaseline, spacing: 3) {
+                    Image(systemName: "exclamationmark.triangle")
+                        .font(.system(size: 10))
+                        .foregroundColor(.orange)
+                    Text(relativeShort(seconds: successAge))
+                        .font(.system(size: 11))
+                        .foregroundColor(.orange)
+                }
+                .help("Last sync attempt failed. Previous success \(relativeShort(seconds: successAge)) ago.\n\(lastAutoSyncError)")
+            } else if hasSuccess {
+                HStack(alignment: .firstTextBaseline, spacing: 3) {
+                    Image(systemName: "checkmark.icloud.fill")
+                        .font(.system(size: 10))
+                        .foregroundColor(.green)
+                    Text(relativeShort(seconds: successAge))
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary)
+                }
+                .help("iCloud auto-sync ok — last cycle \(relativeShort(seconds: successAge)) ago.")
+            }
         }
     }
-}
 
-// One segment of the joined tab bar. Vertical layout (icon stacked over
-// label) to match the design reference; the selected segment is filled with
-// the accent tint. Adjacent segments touch — `spacing: 0` in the parent HStack
-// — so the bar reads as a single continuous strip.
-private struct WidgetTabBarButton: View {
-    let tab: WidgetTab
-    let isSelected: Bool
-    let action: () -> Void
-
-    @State private var isHovering = false
-
-    var body: some View {
-        Button(action: action) {
-            VStack(spacing: 4) {
-                Image(systemName: tab.systemImage)
-                    .font(.system(size: 16, weight: isSelected ? .semibold : .regular))
-                Text(tab.label)
-                    .font(.system(size: 10, weight: isSelected ? .semibold : .regular))
-                    .lineLimit(1)
-                Rectangle()
-                    .fill(isSelected ? Color.accentColor : Color.clear)
-                    .frame(height: 2)
-                    .cornerRadius(1)
-                    .padding(.horizontal, 6)
-            }
-            .foregroundColor(isSelected ? .primary : (isHovering ? .primary.opacity(0.85) : .secondary))
-            .padding(.horizontal, 4)
-            .padding(.top, 7)
-            .padding(.bottom, 0)
-            .frame(maxWidth: .infinity)
-            .background(
-                RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    .fill(Color.primary.opacity(isHovering && !isSelected ? 0.05 : 0))
-            )
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .onHover { isHovering = $0 }
-        .pointingHandCursor()
-        .animation(.easeInOut(duration: 0.12), value: isSelected)
-        .animation(.easeInOut(duration: 0.12), value: isHovering)
-        .accessibilityLabel(tab.label)
-        .accessibilityAddTraits(isSelected ? .isSelected : [])
+    private func relativeShort(seconds: TimeInterval) -> String {
+        let s = Int(max(seconds, 0))
+        if s < 60         { return "now" }
+        if s < 60 * 60    { return "\(s / 60)m" }
+        if s < 24 * 3600  { return "\(s / 3600)h" }
+        return "\(s / 86400)d"
     }
 }
