@@ -39,6 +39,7 @@ func (e *hostMissingErr) Error() string { return "host not tracked: " + e.name }
 type fakeSSHRunner struct {
 	execCalls []execCall
 	tailCalls []tailCall
+	readCalls []readCall
 	canned    sshadp.ExecResult
 }
 
@@ -53,6 +54,11 @@ type tailCall struct {
 	lines    int
 	follow   int
 }
+type readCall struct {
+	host     string
+	path     string
+	maxBytes int
+}
 
 func (f *fakeSSHRunner) Exec(_ context.Context, h sshadp.TrackedHost, cmd string, t time.Duration) (*sshadp.ExecResult, error) {
 	f.execCalls = append(f.execCalls, execCall{host: h.Name, cmd: cmd, timeout: t})
@@ -61,6 +67,11 @@ func (f *fakeSSHRunner) Exec(_ context.Context, h sshadp.TrackedHost, cmd string
 }
 func (f *fakeSSHRunner) Tail(_ context.Context, h sshadp.TrackedHost, path string, lines, follow int) (*sshadp.ExecResult, error) {
 	f.tailCalls = append(f.tailCalls, tailCall{host: h.Name, path: path, lines: lines, follow: follow})
+	c := f.canned
+	return &c, nil
+}
+func (f *fakeSSHRunner) ReadFile(_ context.Context, h sshadp.TrackedHost, path string, maxBytes int) (*sshadp.ExecResult, error) {
+	f.readCalls = append(f.readCalls, readCall{host: h.Name, path: path, maxBytes: maxBytes})
 	c := f.canned
 	return &c, nil
 }

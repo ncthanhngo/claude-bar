@@ -25,6 +25,7 @@ type SSHHostStore interface {
 type SSHExec interface {
 	Exec(ctx context.Context, host sshadp.TrackedHost, cmd string, timeout time.Duration) (*sshadp.ExecResult, error)
 	Tail(ctx context.Context, host sshadp.TrackedHost, path string, lines, followSeconds int) (*sshadp.ExecResult, error)
+	ReadFile(ctx context.Context, host sshadp.TrackedHost, path string, maxBytes int) (*sshadp.ExecResult, error)
 }
 
 type realSSHExec struct{}
@@ -34,6 +35,9 @@ func (realSSHExec) Exec(ctx context.Context, host sshadp.TrackedHost, cmd string
 }
 func (realSSHExec) Tail(ctx context.Context, host sshadp.TrackedHost, path string, lines, followSeconds int) (*sshadp.ExecResult, error) {
 	return sshadp.Tail(ctx, host, path, lines, followSeconds)
+}
+func (realSSHExec) ReadFile(ctx context.Context, host sshadp.TrackedHost, path string, maxBytes int) (*sshadp.ExecResult, error) {
+	return sshadp.ReadFile(ctx, host, path, maxBytes)
 }
 
 // registerSSHTools registers the 3 SSH tools. cb_ssh_exec is gated; the other
@@ -72,6 +76,16 @@ func (g *Gateway) registerSSHTools(srv *server.MCPServer) {
 			mcpgo.WithNumber("follow_seconds", mcpgo.Description("Follow window. 0–60. Default 0 (no follow).")),
 		},
 		g.sshTail,
+	)
+
+	addTool(srv, "cb_ssh_read_file",
+		"Read the head of a remote file up to a byte cap. Safer than exec(\"cat\") because the byte limit is enforced server-side. Read-only.",
+		[]mcpgo.ToolOption{
+			mcpgo.WithString("host", mcpgo.Required(), mcpgo.Description("Tracked host name.")),
+			mcpgo.WithString("path", mcpgo.Required(), mcpgo.Description("Remote file path.")),
+			mcpgo.WithNumber("max_bytes", mcpgo.Description("Cap on bytes returned. Default 102400 (100 KiB), max 5242880 (5 MiB).")),
+		},
+		g.sshReadFile,
 	)
 }
 
@@ -159,6 +173,29 @@ func (g *Gateway) sshTail(ctx context.Context, req mcpgo.CallToolRequest) (*mcpg
 	res, err := g.SSHRunner.Tail(ctx, *host, path, lines, follow)
 	if err != nil {
 		return toolErrorf("ssh tail: %v", err), nil
+	}
+	b, _ := json.Marshal(res)
+	return mcpgo.NewToolResultText(string(b)), nil
+}
+
+func (g *Gateway) sshReadFile(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
+	hostName, err := req.RequireString("host")
+	if err != nil {
+		return toolErrorf("host is required"), nil
+	}
+	path, err := req.RequireString("path")
+	if err != nil {
+		return toolErrorf("path is required"), nil
+	}
+	maxBytes := req.GetInt("max_bytes", 0)
+
+	host, err := g.SSHStore.Get(ctx, hostName)
+	if err != nil {
+		return toolErrorf("ssh: %v", err), nil
+	}
+	res, err := g.SSHRunner.ReadFile(ctx, *host, path, maxBytes)
+	if err != nil {
+		return toolErrorf("ssh read_file: %v", err), nil
 	}
 	b, _ := json.Marshal(res)
 	return mcpgo.NewToolResultText(string(b)), nil

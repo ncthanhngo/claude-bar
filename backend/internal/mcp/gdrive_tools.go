@@ -42,6 +42,24 @@ func (g *Gateway) registerGDriveTools(srv *server.MCPServer) {
 		},
 		g.gdriveGetDocText,
 	)
+
+	addTool(srv, "cb_gdrive_list_folder",
+		"List the children of a Google Drive folder by folder ID. Read-only.",
+		[]mcpgo.ToolOption{
+			mcpgo.WithString("folder_id", mcpgo.Required(), mcpgo.Description("Drive folder ID. Use 'root' for My Drive root.")),
+			mcpgo.WithNumber("page_size", mcpgo.Description("Max children (1-100). Default 50.")),
+			mcpgo.WithBoolean("include_trashed", mcpgo.Description("Include trashed items. Default false.")),
+		},
+		g.gdriveListFolder,
+	)
+
+	addTool(srv, "cb_gdrive_download_file",
+		"Download a Google Drive file's bytes as text (for binary files like PDFs, the bytes are returned as-is — the agent should size-check first via get_file_metadata). Read-only. For Google Docs use get_doc_text instead.",
+		[]mcpgo.ToolOption{
+			mcpgo.WithString("file_id", mcpgo.Required(), mcpgo.Description("Drive file ID (non-Google-Doc).")),
+		},
+		g.gdriveDownloadFile,
+	)
 }
 
 func (g *Gateway) gdriveDo(ctx context.Context, accessToken, method, path string, params url.Values) (*http.Response, error) {
@@ -113,6 +131,73 @@ func (g *Gateway) gdriveGetFileMetadata(ctx context.Context, req mcpgo.CallToolR
 	resp, err := g.gdriveDo(ctx, access, http.MethodGet, "/files/"+fileID, params)
 	if err != nil {
 		return toolErrorf("gdrive metadata: %v", err), nil
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode/100 != 2 {
+		return toolErrorf("gdrive http %d: %s", resp.StatusCode, Redact(strings.TrimSpace(string(body)))), nil
+	}
+	return mcpgo.NewToolResultText(string(body)), nil
+}
+
+func (g *Gateway) gdriveListFolder(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
+	cc, err := g.Resolver.Resolve(ctx, domain.MCPServiceGDrive)
+	if err != nil {
+		return toolErrorForResolve(err), nil
+	}
+	folderID, err := req.RequireString("folder_id")
+	if err != nil {
+		return toolErrorf("folder_id is required"), nil
+	}
+	access, err := g.gdriveRefresh(ctx, cc)
+	if err != nil {
+		return toolErrorf("gdrive auth: %v", err), nil
+	}
+	q := "'" + strings.ReplaceAll(folderID, "'", "\\'") + "' in parents"
+	if !req.GetBool("include_trashed", false) {
+		q += " and trashed = false"
+	}
+	params := url.Values{}
+	params.Set("q", q)
+	params.Set("pageSize", strconv.Itoa(clampInt(req.GetInt("page_size", 50), 1, 100)))
+	params.Set("fields", "files(id,name,mimeType,modifiedTime,size,webViewLink)")
+
+	resp, err := g.gdriveDo(ctx, access, http.MethodGet, "/files", params)
+	if err != nil {
+		return toolErrorf("gdrive list folder: %v", err), nil
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode/100 != 2 {
+		return toolErrorf("gdrive http %d: %s", resp.StatusCode, Redact(strings.TrimSpace(string(body)))), nil
+	}
+	var out struct {
+		Files []map[string]any `json:"files"`
+	}
+	if err := json.Unmarshal(body, &out); err != nil {
+		return toolErrorf("gdrive decode: %v", err), nil
+	}
+	return jsonResult(out.Files)
+}
+
+func (g *Gateway) gdriveDownloadFile(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
+	cc, err := g.Resolver.Resolve(ctx, domain.MCPServiceGDrive)
+	if err != nil {
+		return toolErrorForResolve(err), nil
+	}
+	fileID, err := req.RequireString("file_id")
+	if err != nil {
+		return toolErrorf("file_id is required"), nil
+	}
+	access, err := g.gdriveRefresh(ctx, cc)
+	if err != nil {
+		return toolErrorf("gdrive auth: %v", err), nil
+	}
+	params := url.Values{}
+	params.Set("alt", "media")
+	resp, err := g.gdriveDo(ctx, access, http.MethodGet, "/files/"+fileID, params)
+	if err != nil {
+		return toolErrorf("gdrive download: %v", err), nil
 	}
 	defer resp.Body.Close()
 	body, _ := io.ReadAll(resp.Body)
