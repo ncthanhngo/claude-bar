@@ -59,6 +59,19 @@ func (g *Gateway) registerClickUpWriteTools(srv *server.MCPServer) {
 		},
 		g.clickupAssign,
 	)
+
+	addTool(srv, "cb_clickup_update_task",
+		"Edit a ClickUp task's name, description, priority, or due date. Gated.",
+		[]mcpgo.ToolOption{
+			mcpgo.WithString("task_id", mcpgo.Required(), mcpgo.Description("Task ID.")),
+			mcpgo.WithString("name", mcpgo.Description("New task title.")),
+			mcpgo.WithString("description", mcpgo.Description("New markdown description.")),
+			mcpgo.WithString("priority", mcpgo.Description("urgent | high | normal | low | none.")),
+			mcpgo.WithString("due", mcpgo.Description("Due date (RFC3339) or empty string to clear.")),
+			mcpgo.WithString("start", mcpgo.Description("Start date (RFC3339) or empty string to clear.")),
+		},
+		g.clickupUpdateTask,
+	)
 }
 
 var priorityCodes = map[string]int{
@@ -255,6 +268,99 @@ func (g *Gateway) clickupAssign(ctx context.Context, req mcpgo.CallToolRequest) 
 			return jsonResult(v)
 		},
 	})
+}
+
+func (g *Gateway) clickupUpdateTask(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
+	cc, err := g.Resolver.Resolve(ctx, domain.MCPServiceClickUp)
+	if err != nil {
+		return toolErrorForResolve(err), nil
+	}
+	taskID, err := req.RequireString("task_id")
+	if err != nil {
+		return toolErrorf("task_id is required"), nil
+	}
+	name := req.GetString("name", "")
+	description := req.GetString("description", "")
+	priority := strings.ToLower(strings.TrimSpace(req.GetString("priority", "")))
+	// Distinguish "not provided" from "clear to empty string" by checking
+	// whether the key was supplied at all. The mcp-go SDK only exposes
+	// GetString-with-default, so we use a sentinel.
+	hasDue := false
+	hasStart := false
+	if _, ok := req.GetArguments()["due"]; ok {
+		hasDue = true
+	}
+	if _, ok := req.GetArguments()["start"]; ok {
+		hasStart = true
+	}
+	due := req.GetString("due", "")
+	start := req.GetString("start", "")
+
+	payload := map[string]any{}
+	if name != "" {
+		payload["name"] = name
+	}
+	if description != "" {
+		payload["description"] = description
+	}
+	if priority != "" {
+		if priority == "none" {
+			payload["priority"] = nil
+		} else if code, ok := priorityCodes[priority]; ok {
+			payload["priority"] = code
+		} else {
+			return toolErrorf("priority must be urgent | high | normal | low | none"), nil
+		}
+	}
+	if hasDue {
+		if due == "" {
+			payload["due_date"] = nil
+		} else {
+			payload["due_date_string"] = due
+		}
+	}
+	if hasStart {
+		if start == "" {
+			payload["start_date"] = nil
+		} else {
+			payload["start_date_string"] = start
+		}
+	}
+	if len(payload) == 0 {
+		return toolErrorf("at least one of name, description, priority, due, start must be provided"), nil
+	}
+
+	args := map[string]any{"task_id": taskID}
+	for k, v := range payload {
+		args[k] = v
+	}
+	summary := fmt.Sprintf("ClickUp: edit task %s (%d field%s)", taskID, len(payload), plural(len(payload)))
+	return g.runThroughGate(ctx, writeGateRequest{
+		Tool:    "cb_clickup_update_task",
+		Risk:    RiskLow,
+		Origin:  OriginLLM,
+		Summary: summary,
+		Args:    args,
+		Account: strconv.Itoa(cc.AccountNumber),
+		Execute: func(ctx context.Context) (*mcpgo.CallToolResult, error) {
+			body, _, err := g.clickupBodyJSON(ctx, http.MethodPut, cc.Payload, "/task/"+taskID, payload)
+			if err != nil {
+				return toolErrorf("clickup update task: %v", err), nil
+			}
+			var out map[string]any
+			if err := json.Unmarshal(body, &out); err != nil {
+				return toolErrorf("clickup decode: %v", err), nil
+			}
+			return jsonResult(out)
+		},
+	})
+}
+
+func plural(n int) string {
+	if n == 1 {
+		return ""
+	}
+	return "s"
 }
 
 func (g *Gateway) clickupBodyJSON(ctx context.Context, method, token, path string, payload any) ([]byte, int, error) {
