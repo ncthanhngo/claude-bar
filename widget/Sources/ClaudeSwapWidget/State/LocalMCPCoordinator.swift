@@ -129,6 +129,19 @@ final class LocalMCPCoordinator: ObservableObject {
         }
     }
 
+    func setEnabled(account: Int, service: String, enabled: Bool) async {
+        guard !isBusy else { return }
+        isBusy = true
+        lastError = nil
+        defer { isBusy = false }
+        do {
+            try await client.mcpConnectorSetEnabled(account: account, service: service, enabled: enabled)
+            accounts = try await client.mcpConnectorsList()
+        } catch {
+            lastError = error.localizedDescription
+        }
+    }
+
     func disconnect(account: Int, service: String) async {
         guard !isBusy else { return }
         isBusy = true

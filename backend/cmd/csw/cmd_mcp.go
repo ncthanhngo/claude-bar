@@ -200,7 +200,7 @@ func runMCPStatus(ctx context.Context, args []string) error {
 
 func runMCPConnectors(ctx context.Context, svc *usecase.Service, args []string) error {
 	if len(args) == 0 {
-		return errors.New("usage: csw mcp connectors <list|connect|disconnect>")
+		return errors.New("usage: csw mcp connectors <list|connect|disconnect|set-enabled>")
 	}
 	sub, rest := args[0], args[1:]
 	switch sub {
@@ -210,6 +210,8 @@ func runMCPConnectors(ctx context.Context, svc *usecase.Service, args []string) 
 		return runMCPConnectorsConnect(ctx, svc, rest)
 	case "disconnect":
 		return runMCPConnectorsDisconnect(ctx, svc, rest)
+	case "set-enabled":
+		return runMCPConnectorsSetEnabled(ctx, svc, rest)
 	default:
 		return fmt.Errorf("unknown connectors subcommand: %s", sub)
 	}
@@ -424,6 +426,23 @@ func runMCPConnectorsDisconnect(ctx context.Context, svc *usecase.Service, args 
 		return errors.New("--service is required")
 	}
 	return svc.DisconnectMCPConnector(ctx, targetAccount, domain.MCPService(*service))
+}
+
+func runMCPConnectorsSetEnabled(ctx context.Context, svc *usecase.Service, args []string) error {
+	fs := flag.NewFlagSet("connectors-set-enabled", flag.ExitOnError)
+	account := fs.Int("account", -1, "account number")
+	shared := fs.Bool("shared", false, "target the shared connector")
+	service := fs.String("service", "", "slack | clickup | gdrive | github | gitlab | bitwarden")
+	enabled := fs.Bool("enabled", true, "true to enable, false to disable")
+	_ = fs.Parse(args)
+	targetAccount, err := mcpTargetAccount(*account, *shared)
+	if err != nil {
+		return err
+	}
+	if *service == "" {
+		return errors.New("--service is required")
+	}
+	return svc.SetMCPConnectorEnabled(ctx, targetAccount, domain.MCPService(*service), *enabled)
 }
 
 func mcpTargetAccount(account int, shared bool) (int, error) {

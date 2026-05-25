@@ -193,6 +193,44 @@ func (s *Service) DisconnectMCPConnector(ctx context.Context, accountNum int, sv
 	return s.Registry.Save(ctx, reg)
 }
 
+// SetMCPConnectorEnabled flips the Enabled flag on an existing connector
+// without touching the stored secret. Lets the UI temporarily silence a
+// provider's tools (resolver returns ErrConnectorDisabled) while keeping the
+// Keychain payload for a quick re-enable. Returns an error when no metadata
+// exists for that service — callers should Connect first.
+func (s *Service) SetMCPConnectorEnabled(ctx context.Context, accountNum int, svc domain.MCPService, enabled bool) error {
+	if err := s.Lock.Acquire(ctx); err != nil {
+		return err
+	}
+	defer s.Lock.Release()
+
+	reg, err := s.Registry.Load(ctx)
+	if err != nil {
+		return err
+	}
+	if accountNum == 0 {
+		if reg.SharedMCPConnectors == nil {
+			return fmt.Errorf("no shared connector for %s", svc)
+		}
+		meta, ok := reg.SharedMCPConnectors[svc]
+		if !ok || meta == nil {
+			return fmt.Errorf("no shared connector for %s", svc)
+		}
+		meta.Enabled = enabled
+		return s.Registry.Save(ctx, reg)
+	}
+	acc, ok := reg.Accounts[accountNum]
+	if !ok {
+		return fmt.Errorf("account %d not found", accountNum)
+	}
+	meta, ok := acc.MCPConnectors[svc]
+	if !ok || meta == nil {
+		return fmt.Errorf("no connector for %s on account %d", svc, accountNum)
+	}
+	meta.Enabled = enabled
+	return s.Registry.Save(ctx, reg)
+}
+
 // MarkMCPNeedsReauth flags a connector as needing re-authorization without
 // touching the stored secret. Useful when a tool call sees auth-expired error.
 func (s *Service) MarkMCPNeedsReauth(ctx context.Context, accountNum int, svc domain.MCPService) error {

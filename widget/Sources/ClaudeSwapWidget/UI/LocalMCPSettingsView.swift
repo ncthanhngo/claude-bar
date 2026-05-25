@@ -27,9 +27,9 @@ struct LocalMCPSettingsView: View {
     var body: some View {
         SettingsPage {
             privacyNotice
+            connectorsSection
             chatToolModeSection
             gatewaySection
-            connectorsSection
         }
         .task {
             await coordinator.refresh()
@@ -314,6 +314,26 @@ struct LocalMCPSettingsView: View {
                     .font(.caption)
                     .foregroundColor(stateColor(for: connector))
                 Spacer()
+                if connector.hasSecret {
+                    Toggle("", isOn: Binding(
+                        get: { connector.enabled },
+                        set: { newValue in
+                            Task {
+                                await coordinator.setEnabled(
+                                    account: account,
+                                    service: connector.service,
+                                    enabled: newValue
+                                )
+                            }
+                        }
+                    ))
+                    .toggleStyle(.switch)
+                    .controlSize(.mini)
+                    .labelsHidden()
+                    .help(connector.enabled
+                          ? "Tắt connector này — Claude sẽ không gọi được tools của \(connector.labelTitle) nhưng token vẫn giữ trong Keychain."
+                          : "Bật lại connector này.")
+                }
                 promptDisclosureButton(account: account, service: connector.service)
                 if connector.enabled && connector.hasSecret {
                     Button("Disconnect") {
@@ -326,7 +346,7 @@ struct LocalMCPSettingsView: View {
                     .buttonStyle(.borderless)
                     .foregroundColor(.red)
                     .font(.caption)
-                } else {
+                } else if !connector.hasSecret {
                     Button("Connect") {
                         presentConnect(account: account, service: connector.service, label: connector.labelTitle)
                     }

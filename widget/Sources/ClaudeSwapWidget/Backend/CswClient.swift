@@ -320,6 +320,17 @@ actor CswClient {
         _ = try await runRaw(args)
     }
 
+    func mcpConnectorSetEnabled(account: Int, service: String, enabled: Bool) async throws {
+        var args = ["mcp", "connectors", "set-enabled"]
+        if account == 0 {
+            args.append("--shared")
+        } else {
+            args.append(contentsOf: ["--account", String(account)])
+        }
+        args.append(contentsOf: ["--service", service, "--enabled", enabled ? "true" : "false"])
+        _ = try await runRaw(args)
+    }
+
     func runWithStdin(_ args: [String], stdin payload: String) async throws {
         guard let bin = CswBinary.resolve() else { throw CswError.binaryNotFound }
         try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
