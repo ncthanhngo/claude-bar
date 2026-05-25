@@ -43,6 +43,22 @@ func (g *Gateway) registerGCalTools(srv *server.MCPServer) {
 		},
 		g.gcalGetEvent,
 	)
+
+	addTool(srv, "cb_gcal_list_calendars",
+		"List calendars visible to the active Google token (lets the agent discover calendar IDs before calling list_events). Read-only.",
+		nil,
+		g.gcalListCalendars,
+	)
+
+	addTool(srv, "cb_gcal_get_free_busy",
+		"Query free/busy windows for one or more calendars over a time range. Read-only.",
+		[]mcpgo.ToolOption{
+			mcpgo.WithString("calendars", mcpgo.Description("Comma-separated calendar IDs. Default: primary.")),
+			mcpgo.WithString("time_min", mcpgo.Required(), mcpgo.Description("RFC3339 lower bound.")),
+			mcpgo.WithString("time_max", mcpgo.Required(), mcpgo.Description("RFC3339 upper bound.")),
+		},
+		g.gcalFreeBusy,
+	)
 }
 
 func (g *Gateway) registerGmailTools(srv *server.MCPServer) {
@@ -61,6 +77,20 @@ func (g *Gateway) registerGmailTools(srv *server.MCPServer) {
 			mcpgo.WithString("message_id", mcpgo.Required(), mcpgo.Description("Gmail message ID.")),
 		},
 		g.gmailGetMessage,
+	)
+
+	addTool(srv, "cb_gmail_list_labels",
+		"List Gmail labels (system + user) so the agent can filter by label ID. Read-only.",
+		nil,
+		g.gmailListLabels,
+	)
+
+	addTool(srv, "cb_gmail_get_thread",
+		"Get a full Gmail conversation thread with every message expanded (headers + plain text). Read-only.",
+		[]mcpgo.ToolOption{
+			mcpgo.WithString("thread_id", mcpgo.Required(), mcpgo.Description("Gmail thread ID (every message in a thread shares it).")),
+		},
+		g.gmailGetThread,
 	)
 }
 
@@ -122,6 +152,78 @@ func (g *Gateway) gcalListEvents(ctx context.Context, req mcpgo.CallToolRequest)
 	return jsonResult(out.Items)
 }
 
+func (g *Gateway) gcalListCalendars(ctx context.Context, _ mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
+	access, err := g.googleAccess(ctx)
+	if err != nil {
+		return toolErrorForResolve(err), nil
+	}
+	resp, err := g.googleDo(ctx, access, http.MethodGet, gcalAPIBase, "/users/me/calendarList", nil)
+	if err != nil {
+		return toolErrorf("gcal list calendars: %v", err), nil
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode/100 != 2 {
+		return toolErrorf("gcal http %d: %s", resp.StatusCode, Redact(strings.TrimSpace(string(body)))), nil
+	}
+	var out struct {
+		Items []map[string]any `json:"items"`
+	}
+	if err := json.Unmarshal(body, &out); err != nil {
+		return toolErrorf("gcal decode: %v", err), nil
+	}
+	return jsonResult(out.Items)
+}
+
+func (g *Gateway) gcalFreeBusy(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
+	access, err := g.googleAccess(ctx)
+	if err != nil {
+		return toolErrorForResolve(err), nil
+	}
+	timeMin, err := req.RequireString("time_min")
+	if err != nil {
+		return toolErrorf("time_min is required"), nil
+	}
+	timeMax, err := req.RequireString("time_max")
+	if err != nil {
+		return toolErrorf("time_max is required"), nil
+	}
+	calIDs := []string{"primary"}
+	if v := strings.TrimSpace(req.GetString("calendars", "")); v != "" {
+		calIDs = nil
+		for _, c := range strings.Split(v, ",") {
+			if c = strings.TrimSpace(c); c != "" {
+				calIDs = append(calIDs, c)
+			}
+		}
+	}
+	items := make([]map[string]string, 0, len(calIDs))
+	for _, id := range calIDs {
+		items = append(items, map[string]string{"id": id})
+	}
+	payload := map[string]any{"timeMin": timeMin, "timeMax": timeMax, "items": items}
+
+	buf, _ := json.Marshal(payload)
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, gcalAPIBase+"/freeBusy", strings.NewReader(string(buf)))
+	if err != nil {
+		return toolErrorf("gcal freebusy: %v", err), nil
+	}
+	httpReq.Header.Set("Authorization", "Bearer "+access)
+	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("Accept", "application/json")
+	httpReq.Header.Set("User-Agent", g.UserAgent)
+	resp, err := g.HTTP.Do(httpReq)
+	if err != nil {
+		return toolErrorf("gcal freebusy: %v", err), nil
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode/100 != 2 {
+		return toolErrorf("gcal http %d: %s", resp.StatusCode, Redact(strings.TrimSpace(string(body)))), nil
+	}
+	return mcpgo.NewToolResultText(string(body)), nil
+}
+
 func (g *Gateway) gcalGetEvent(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 	access, err := g.googleAccess(ctx)
 	if err != nil {
@@ -164,6 +266,69 @@ func (g *Gateway) gmailSearchMessages(ctx context.Context, req mcpgo.CallToolReq
 		return toolErrorf("gmail http %d: %s", resp.StatusCode, Redact(strings.TrimSpace(string(body)))), nil
 	}
 	return mcpgo.NewToolResultText(string(body)), nil
+}
+
+func (g *Gateway) gmailListLabels(ctx context.Context, _ mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
+	access, err := g.googleAccess(ctx)
+	if err != nil {
+		return toolErrorForResolve(err), nil
+	}
+	resp, err := g.googleDo(ctx, access, http.MethodGet, gmailAPIBase, "/users/me/labels", nil)
+	if err != nil {
+		return toolErrorf("gmail list labels: %v", err), nil
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode/100 != 2 {
+		return toolErrorf("gmail http %d: %s", resp.StatusCode, Redact(strings.TrimSpace(string(body)))), nil
+	}
+	var out struct {
+		Labels []map[string]any `json:"labels"`
+	}
+	if err := json.Unmarshal(body, &out); err != nil {
+		return toolErrorf("gmail decode: %v", err), nil
+	}
+	return jsonResult(out.Labels)
+}
+
+func (g *Gateway) gmailGetThread(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
+	access, err := g.googleAccess(ctx)
+	if err != nil {
+		return toolErrorForResolve(err), nil
+	}
+	threadID, err := req.RequireString("thread_id")
+	if err != nil {
+		return toolErrorf("thread_id is required"), nil
+	}
+	params := url.Values{}
+	params.Set("format", "full")
+	resp, err := g.googleDo(ctx, access, http.MethodGet, gmailAPIBase, "/users/me/threads/"+url.PathEscape(threadID), params)
+	if err != nil {
+		return toolErrorf("gmail get thread: %v", err), nil
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode/100 != 2 {
+		return toolErrorf("gmail http %d: %s", resp.StatusCode, Redact(strings.TrimSpace(string(body)))), nil
+	}
+	var thread struct {
+		ID       string         `json:"id"`
+		Messages []gmailMessage `json:"messages"`
+	}
+	if err := json.Unmarshal(body, &thread); err != nil {
+		return toolErrorf("gmail decode: %v", err), nil
+	}
+	out := make([]map[string]any, 0, len(thread.Messages))
+	for _, m := range thread.Messages {
+		out = append(out, map[string]any{
+			"id":       m.ID,
+			"threadId": m.ThreadID,
+			"snippet":  m.Snippet,
+			"headers":  m.headerMap(),
+			"text":     strings.TrimSpace(extractGmailPlainText(m.Payload)),
+		})
+	}
+	return jsonResult(map[string]any{"id": thread.ID, "messages": out})
 }
 
 func (g *Gateway) gmailGetMessage(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {

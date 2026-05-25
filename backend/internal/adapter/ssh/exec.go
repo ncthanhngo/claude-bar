@@ -102,6 +102,21 @@ func Tail(ctx context.Context, host TrackedHost, path string, lines, followSecon
 	return Exec(ctx, host, tailCmd, timeout)
 }
 
+// ReadFile reads up to maxBytes from the head of a remote file via
+// `head -c N -- path`. Returns whatever bytes the remote sent before the
+// limit was reached. Use this instead of Exec("cat …") so the byte cap is
+// enforced server-side and large files cannot blow up the agent context.
+func ReadFile(ctx context.Context, host TrackedHost, path string, maxBytes int) (*ExecResult, error) {
+	if maxBytes <= 0 {
+		maxBytes = 100 * 1024 // 100 KiB default
+	}
+	if maxBytes > 5*1024*1024 {
+		maxBytes = 5 * 1024 * 1024 // 5 MiB cap
+	}
+	cmd := fmt.Sprintf("head -c %d -- %s", maxBytes, shellQuote(path))
+	return Exec(ctx, host, cmd, 30*time.Second)
+}
+
 // sshArgs builds the standard option set for connecting to a tracked host.
 // Skips features we don't need (X11, agent forwarding) for safety.
 func sshArgs(h TrackedHost) []string {
