@@ -13,9 +13,9 @@
     <key>CFBundleIdentifier</key>
     <string>dev.ncthanhngo.claude-bar</string>
     <key>CFBundleVersion</key>
-    <string>10.33</string>
+    <string>10.34</string>
     <key>CFBundleShortVersionString</key>
-    <string>10.33</string>
+    <string>10.34</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleSignature</key>
@@ -35,7 +35,7 @@
     <key>NSHumanReadableCopyright</key>
     <string>Copyright © 2026 Thanh Ngô. Licensed under MIT.</string>
     <key>CFBundleGetInfoString</key>
-    <string>Claude Bar 10.33 — menu-bar manager for multiple Claude Code accounts</string>
+    <string>Claude Bar 10.34 — menu-bar manager for multiple Claude Code accounts</string>
     <key>CBAuthorName</key>
     <string>Thanh Ngô</string>
     <key>CBAuthorEmail</key>
@@ -49,9 +49,10 @@
     <key>CBReleaseChannel</key>
     <string>Beta</string>
     <key>CBReleaseWhatsNew</key>
-    <string>Popover now adapts its height to the number of accounts you have. 1 account → compact, 2 → mid, 3+ → full height with the account list scrolling internally. Add or remove an account and the popover smoothly resizes.</string>
+    <string>Each Local MCP connector (Slack, ClickUp, GitHub, Google, GitLab) now has an on/off toggle. Flip it to silence that provider's tools without deleting the token from your Keychain — re-enable instantly when you need it back.
+Local MCP tab reordered: connectors sit at the top, with Tool permissions and Gateway moved below so the controls you touch most are right under your cursor.</string>
     <key>CBReleaseHotfixes</key>
-    <string>Fixed ⌥X (Daily Briefing) firing on the wrong BriefingCoordinator instance — the hotkey now routes through a shared singleton so it always hits the live SwiftUI-owned coordinator, instead of a transient instance the view tree never observed.</string>
+    <string>None.</string>
     <key>CBReleaseKnownIssues</key>
     <string>None.</string>
     <key>CFBundleDevelopmentRegion</key>
