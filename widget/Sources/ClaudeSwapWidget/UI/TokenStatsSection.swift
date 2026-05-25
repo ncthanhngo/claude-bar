@@ -49,7 +49,7 @@ struct TokenStatsSection: View {
                 }
                 UsageChart(stats: stats, granularity: granularity, metric: metric)
                 Divider().opacity(0.3)
-                summaryStrip(stats: stats)
+                TokenSummaryStripView(stats: stats)
             } else {
                 HStack(spacing: 6) {
                     ProgressView().controlSize(.mini)
@@ -66,53 +66,6 @@ struct TokenStatsSection: View {
         // (which now grows up to 260pt) can actually receive that extra
         // height instead of the VStack collapsing to intrinsic size.
         .frame(maxHeight: .infinity, alignment: .top)
-    }
-
-    // 3 totals side-by-side — each in its own card with a tinted accent bar
-    // on the left edge.
-    @ViewBuilder
-    private func summaryStrip(stats: UsageStatsDTO) -> some View {
-        HStack(spacing: 8) {
-            summaryCard(title: "Today",      bucket: stats.today,     tint: waveColor)
-            summaryCard(title: "This week",  bucket: stats.thisWeek,  tint: waveColor.opacity(0.78))
-            summaryCard(title: "This month", bucket: stats.thisMonth, tint: waveColor.opacity(0.55))
-        }
-    }
-
-    private func summaryCard(title: String, bucket: UsageBucketDTO, tint: Color) -> some View {
-        HStack(spacing: 0) {
-            RoundedRectangle(cornerRadius: 1.5)
-                .fill(tint)
-                .frame(width: 3)
-            VStack(alignment: .leading, spacing: 3) {
-                Text(title)
-                    .font(.system(size: 10, weight: .medium))
-                    .foregroundColor(.secondary)
-                HStack(alignment: .firstTextBaseline, spacing: 5) {
-                    Text(formatCompact(bucket.totalTokens))
-                        .font(.system(size: 14, weight: .semibold, design: .monospaced))
-                        .foregroundColor(.primary)
-                    Text(formatCost(bucket.estimatedCostUsd))
-                        .font(.system(size: 10, weight: .semibold, design: .monospaced))
-                        .foregroundColor(.accentColor)
-                }
-                Text("\(bucket.requests) req")
-                    .font(.system(size: 9, design: .monospaced))
-                    .foregroundColor(.secondary.opacity(0.8))
-            }
-            .padding(.horizontal, 9)
-            .padding(.vertical, 8)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(Color.primary.opacity(0.05))
-        )
-        .help("\(bucket.requests) req · in \(formatCompact(bucket.inputTokens)) · out \(formatCompact(bucket.outputTokens)) · cache_w \(formatCompact(bucket.cacheCreationTokens)) · cache_r \(formatCompact(bucket.cacheReadTokens))")
-    }
-
-    private var waveColor: Color {
-        Color(red: 0.18, green: 0.80, blue: 0.55)
     }
 
     private var pickerBar: some View {
@@ -271,8 +224,8 @@ private struct UsageChart: View {
 
     private func formatYAxis(_ v: Double) -> String {
         switch metric {
-        case .tokens: return formatCompact(Int64(v))
-        case .cost:   return formatCost(v)
+        case .tokens: return TokenFormatters.compact(Int64(v))
+        case .cost:   return TokenFormatters.cost(v)
         }
     }
 
@@ -329,32 +282,3 @@ private struct UsageChart: View {
     }
 }
 
-// Cost shows cents up to $10, no cents past that — keeps the column tight.
-private func formatCost(_ usd: Double) -> String {
-    if usd < 0.01 { return "<$0.01" }
-    if usd < 10   { return String(format: "$%.2f", usd) }
-    if usd < 1000 { return String(format: "$%.1f", usd) }
-    return String(format: "$%.0f", usd)
-}
-
-// Compact number formatter: 1234 → "1.2K", 1_500_000 → "1.5M", 4_000_000_000 → "4B".
-// Whole multiples drop the ".0" so axis labels read "100M" not "100.0M".
-fileprivate func formatCompact(_ n: Int64) -> String {
-    let abs = n < 0 ? -n : n
-    switch abs {
-    case 0..<1_000:
-        return "\(n)"
-    case 1_000..<1_000_000:
-        return trimZero(Double(n) / 1_000) + "K"
-    case 1_000_000..<1_000_000_000:
-        return trimZero(Double(n) / 1_000_000) + "M"
-    default:
-        return trimZero(Double(n) / 1_000_000_000) + "B"
-    }
-}
-
-// "%.1f" but drops the ".0" suffix when the value is a whole number.
-fileprivate func trimZero(_ v: Double) -> String {
-    let s = String(format: "%.1f", v)
-    return s.hasSuffix(".0") ? String(s.dropLast(2)) : s
-}
