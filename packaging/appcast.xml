@@ -12,6 +12,30 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 10.25 (BETA)</title>
+      <sparkle:version>10.25</sparkle:version>
+      <sparkle:shortVersionString>10.25</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li><strong>Swap no longer asks you to re-login on a transient OAuth blip.</strong> Rate-limit (429) and network errors during refresh now defer the swap with a clear retry hint instead of telling you to re-authenticate.</li>
+          <li><strong>Polished failure card.</strong> When a swap can't complete, you get an elegant overlay with icon, plain-language explanation, and a one-click Retry or Re-login button.</li>
+          <li><strong>Backup credential safety.</strong> Keychain ACL migration retries its re-add step, so a transient Keychain hiccup can no longer orphan a backup blob.</li>
+          <li><strong>~/.claude.json read race fix.</strong> Swap absorbs the partial-write race when Claude Code rewrites the config concurrently.</li>
+          <li><strong>30s swap timeout.</strong> No more hanging on a stale lock — fails fast with an actionable message.</li>
+          <li>Footer drops the Briefing button (Daily Briefing still opens via ⌥X).</li>
+        </ul>
+      ]]></description>
+      <pubDate>Mon, 25 May 2026 21:09:13 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v10.25/ClaudeBar.zip"
+        sparkle:version="10.25"
+        sparkle:shortVersionString="10.25"
+        sparkle:edSignature="u4Kh1mEB9lZY3MNpMLg6w/fdYR9YEJZXnVVJbtWByvG64AfDTHZBtvhXcgNnbxHKyzWsJUe2AjLp4olLZv8HDQ=="
+        length="8484989"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 10.24 (BETA)</title>
       <sparkle:version>10.24</sparkle:version>
       <sparkle:shortVersionString>10.24</sparkle:shortVersionString>
