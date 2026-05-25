@@ -508,6 +508,7 @@ private struct ConnectTokenSheet: View {
     // is unreachable while this sheet is up (popover collapses behind the
     // floating window).
     @State private var errorMessage: String?
+    @State private var successMessage: String?
     @State private var isSubmitting = false
 
     private func dismiss() { coordinator.connectSheet = nil }
@@ -522,10 +523,10 @@ private struct ConnectTokenSheet: View {
                 .fixedSize(horizontal: false, vertical: true)
             SecureField("Paste token", text: $token)
                 .textFieldStyle(.roundedBorder)
-                .disabled(isSubmitting)
+                .disabled(isSubmitting || successMessage != nil)
             TextField("Optional label (e.g. workspace name)", text: $displayName)
                 .textFieldStyle(.roundedBorder)
-                .disabled(isSubmitting)
+                .disabled(isSubmitting || successMessage != nil)
             if let formatHint = tokenFormatHint() {
                 Label(formatHint, systemImage: "exclamationmark.triangle")
                     .font(.caption)
@@ -538,6 +539,12 @@ private struct ConnectTokenSheet: View {
                     .foregroundColor(.red)
                     .fixedSize(horizontal: false, vertical: true)
             }
+            if let successMessage {
+                Label(successMessage, systemImage: "checkmark.circle.fill")
+                    .font(.caption)
+                    .foregroundColor(.green)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
             HStack {
                 if isSubmitting {
                     ProgressView().controlSize(.small)
@@ -545,10 +552,10 @@ private struct ConnectTokenSheet: View {
                 }
                 Spacer()
                 Button("Cancel") { dismiss() }
-                    .disabled(isSubmitting)
+                    .disabled(isSubmitting || successMessage != nil)
                 Button("Connect") { submit() }
                     .keyboardShortcut(.defaultAction)
-                    .disabled(isSubmitting || token.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .disabled(isSubmitting || successMessage != nil || token.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
         }
         .padding(20)
@@ -573,6 +580,8 @@ private struct ConnectTokenSheet: View {
             if connected {
                 await pushCloudIfConfigured()
                 isSubmitting = false
+                successMessage = "Successfully connected to \(target.serviceLabel). Closing…"
+                try? await Task.sleep(nanoseconds: 1_200_000_000)
                 dismiss()
             } else {
                 isSubmitting = false
@@ -638,6 +647,7 @@ private struct ConnectGoogleSheet: View {
     @State private var displayName: String = ""
     @State private var importError: String?
     @State private var errorMessage: String?
+    @State private var successMessage: String?
     @State private var isSubmitting = false
 
     private func dismiss() { coordinator.gdriveSheet = nil }
@@ -686,6 +696,12 @@ private struct ConnectGoogleSheet: View {
                     .foregroundColor(.red)
                     .fixedSize(horizontal: false, vertical: true)
             }
+            if let successMessage {
+                Label(successMessage, systemImage: "checkmark.circle.fill")
+                    .font(.caption)
+                    .foregroundColor(.green)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
             HStack {
                 if isSubmitting {
                     ProgressView().controlSize(.small)
@@ -693,10 +709,10 @@ private struct ConnectGoogleSheet: View {
                 }
                 Spacer()
                 Button("Cancel") { dismiss() }
-                    .disabled(isSubmitting)
+                    .disabled(isSubmitting || successMessage != nil)
                 Button("Open browser to connect") { submit() }
                     .keyboardShortcut(.defaultAction)
-                    .disabled(isSubmitting || (!hasDefault && clientID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty))
+                    .disabled(isSubmitting || successMessage != nil || (!hasDefault && clientID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty))
             }
         }
         .padding(20)
@@ -728,6 +744,8 @@ private struct ConnectGoogleSheet: View {
             if ok {
                 await pushCloudIfConfigured()
                 isSubmitting = false
+                successMessage = "Successfully connected to Google. Closing…"
+                try? await Task.sleep(nanoseconds: 1_200_000_000)
                 dismiss()
             } else {
                 isSubmitting = false
