@@ -51,18 +51,35 @@ final class FloatingWindow<Content: View>: NSObject, NSWindowDelegate {
         // Pin content area to the requested size; combined with `sizingOptions = []`
         // above, the SwiftUI view fills whatever space the window gives it.
         w.setContentSize(size)
-        // Level above `popUpMenu` so if the popover is reopened while this
-        // sheet is up (e.g. user clicks the menu-bar icon again), the sheet
-        // still wins. statusBar+2 (= 27) was below popUpMenu (= 101) and
-        // got covered.
-        w.level = NSWindow.Level(rawValue: NSWindow.Level.popUpMenu.rawValue + 1)
+        // Level: above Settings window (popUpMenu+1) so sheets triggered
+        // from inside Settings sit on top of Settings, not behind it. Also
+        // beats the menu-bar popover (popUpMenu) so re-opening the menu
+        // bar can't cover an in-flight sheet.
+        w.level = NSWindow.Level(rawValue: NSWindow.Level.popUpMenu.rawValue + 2)
         w.collectionBehavior = [.moveToActiveSpace, .fullScreenAuxiliary]
         w.isReleasedWhenClosed = false
         w.delegate = self
-        w.center()
+        // Center on the Settings window when it's the current host, instead
+        // of screen-center — keeps the sheet visually tethered to the
+        // button the user just clicked.
+        if let host = settingsHostWindow() {
+            let hFrame = host.frame
+            w.setFrameOrigin(NSPoint(
+                x: hFrame.midX - size.width / 2,
+                y: hFrame.midY - size.height / 2
+            ))
+        } else {
+            w.center()
+        }
         w.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
         window = w
+    }
+
+    /// Returns the Settings window if it's currently visible — used by
+    /// `show()` to center child sheets on it rather than the screen.
+    private func settingsHostWindow() -> NSWindow? {
+        NSApp.windows.first { $0.title == "Claude Bar Settings" && $0.isVisible }
     }
 
     func close() {

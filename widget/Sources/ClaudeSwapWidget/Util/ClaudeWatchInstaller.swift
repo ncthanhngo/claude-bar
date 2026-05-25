@@ -90,10 +90,14 @@ set -euo pipefail
 
 CLAUDE_JSON="${HOME}/.claude.json"
 SESSIONS_DIR="${HOME}/.claude/sessions"
-# Seconds to wait for a credential change after claude exits.
-# Manual swap: credentials change before SIGINT → detected immediately.
-# Auto-swap: widget swaps up to ~sessionPollInterval seconds after exit.
-SWAP_WAIT_SEC=8
+# Seconds to wait for a credential change after claude exits before treating
+# the exit as user-initiated and quitting the watcher.
+#
+# Used to be 8s — long enough for a slow auto-swap, but felt like the
+# terminal had hung when the user just typed /exit. 2s is plenty: the widget
+# completes its keychain write in well under a second after SIGINT'ing
+# claude. If a future slow-disk scenario needs more, bump cautiously.
+SWAP_WAIT_SEC=2
 
 cred_hash() {
     /usr/bin/shasum -a 256 "$CLAUDE_JSON" 2>/dev/null | cut -d' ' -f1
@@ -104,7 +108,12 @@ MY_PID=$$
 # claude child of THIS shell. Lets each terminal restart on its own session
 # instead of all racing onto whichever was most recent globally.
 SID_FILE=$(/usr/bin/mktemp -t claude-watch-sid.XXXXXX)
-trap 'rm -f "$SID_FILE"; [ -n "${WATCHER_PID:-}" ] && kill "$WATCHER_PID" 2>/dev/null || true' EXIT
+# Kill the session_watcher subprocess hard on script exit. SIGTERM was
+# sometimes ignored by a bash subshell mid-`sleep`, leaving an orphan
+# process attached to the terminal so the shell prompt never returned —
+# the symptom users see is the terminal "hanging" after /exit until
+# Ctrl+C breaks them out. SIGKILL guarantees the cleanup actually runs.
+trap 'rm -f "$SID_FILE"; [ -n "${WATCHER_PID:-}" ] && kill -KILL "$WATCHER_PID" 2>/dev/null || true' EXIT
 
 # Background poller: scans ~/.claude/sessions/*.json for sessions whose process
 # is a direct child of this shell, and records the sessionId. Refreshes every
