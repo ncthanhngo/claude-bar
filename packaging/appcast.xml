@@ -12,6 +12,27 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 10.36 (BETA)</title>
+      <sparkle:version>10.36</sparkle:version>
+      <sparkle:shortVersionString>10.36</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li><strong>ACTIVE chip is now green across every theme.</strong> Rainbow used to render it purple/magenta which read like decoration; one colour everywhere makes "this is the live account" unmissable.</li>
+          <li><strong>Current-usage marker on the auto-swap slider is now bright orange and 4× thicker.</strong> No more squinting at a 2-pixel hairline to find where you are versus the trigger.</li>
+          <li><strong>The <code>current X%</code> legend below the slider now uses the same green/amber/red traffic-light palette</strong> as the per-account usage bars, so the slider visually agrees with the rest of the popover.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Tue, 26 May 2026 00:17:06 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v10.36/ClaudeBar.zip"
+        sparkle:version="10.36"
+        sparkle:shortVersionString="10.36"
+        sparkle:edSignature="R/c45KJ6Hv0ajNX0z4qC8lx/Zif2m5pyq3BG67jL+hLhpn/aWe0D+ofXP6yLKxDagpzfzsMO9eLNhYtHwr/KDQ=="
+        length="8414539"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 10.35 (BETA)</title>
       <sparkle:version>10.35</sparkle:version>
       <sparkle:shortVersionString>10.35</sparkle:shortVersionString>

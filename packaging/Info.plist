@@ -13,9 +13,9 @@
     <key>CFBundleIdentifier</key>
     <string>dev.ncthanhngo.claude-bar</string>
     <key>CFBundleVersion</key>
-    <string>10.35</string>
+    <string>10.36</string>
     <key>CFBundleShortVersionString</key>
-    <string>10.35</string>
+    <string>10.36</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleSignature</key>
@@ -35,7 +35,7 @@
     <key>NSHumanReadableCopyright</key>
     <string>Copyright © 2026 Thanh Ngô. Licensed under MIT.</string>
     <key>CFBundleGetInfoString</key>
-    <string>Claude Bar 10.35 — menu-bar manager for multiple Claude Code accounts</string>
+    <string>Claude Bar 10.36 — menu-bar manager for multiple Claude Code accounts</string>
     <key>CBAuthorName</key>
     <string>Thanh Ngô</string>
     <key>CBAuthorEmail</key>
@@ -49,9 +49,9 @@
     <key>CBReleaseChannel</key>
     <string>Beta</string>
     <key>CBReleaseWhatsNew</key>
-    <string>Disabling a Local MCP connector now actually saves tokens. Previously the on/off switch only blocked tool calls — the tool schemas still shipped in every Claude Code system prompt. Now disabled connectors are skipped entirely at MCP server startup, so their schemas never reach tools/list. Expect ~1.5k–7.5k fewer context tokens per message depending on which connectors you turn off.
-Toggling a connector auto-restarts your running `claude` CLI sessions (SIGINT → claude-watch resumes) so the new toolset takes effect immediately. Account credentials are not touched. cmux panes are skipped intentionally to avoid racing the cmux relauncher.
-GitHub tool schemas slimmed ~38% — descriptions on self-explanatory fields dropped, enum hints compressed. Saves ~1,900 tokens per message whenever GitHub is enabled, with no change in tool behavior.</string>
+    <string>ACTIVE chip on the popover is now green across every theme (Rainbow used to render it purple/magenta, which read like decoration instead of "this is the live account").
+The "current usage" marker on the auto-swap threshold slider is now bright orange and 4× thicker, so you can see at a glance how close you are to the trigger without squinting at a 2-pixel hairline.
+The `current X%` legend below the slider now uses the same green/amber/red traffic-light palette as the per-account usage bars above, so the slider visually agrees with the rest of the popover.</string>
     <key>CBReleaseHotfixes</key>
     <string>None.</string>
     <key>CBReleaseKnownIssues</key>
