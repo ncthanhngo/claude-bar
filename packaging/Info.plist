@@ -13,9 +13,9 @@
     <key>CFBundleIdentifier</key>
     <string>dev.ncthanhngo.claude-bar</string>
     <key>CFBundleVersion</key>
-    <string>10.22</string>
+    <string>10.23</string>
     <key>CFBundleShortVersionString</key>
-    <string>10.22</string>
+    <string>10.23</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleSignature</key>
@@ -35,7 +35,7 @@
     <key>NSHumanReadableCopyright</key>
     <string>Copyright © 2026 Thanh Ngô. Licensed under MIT.</string>
     <key>CFBundleGetInfoString</key>
-    <string>Claude Bar 10.22 — menu-bar manager for multiple Claude Code accounts</string>
+    <string>Claude Bar 10.23 — menu-bar manager for multiple Claude Code accounts</string>
     <key>CBAuthorName</key>
     <string>Thanh Ngô</string>
     <key>CBAuthorEmail</key>
@@ -49,9 +49,7 @@
     <key>CBReleaseChannel</key>
     <string>Beta</string>
     <key>CBReleaseWhatsNew</key>
-    <string>Popover redesign — no more top tab strip. Opening Claude Bar now lands you straight on a single scrollable surface: account list (3 visible, scroll past), Auto-swap controls, then the token-usage chart with Today / Week / Month totals. No more bouncing between Dashboard, Accounts, Stats, Settings tabs to find anything.
-Footer adds Add account and Settings buttons. Add account opens the bilingual EN/VI guidance card with an Open Terminal action; Settings opens the full sidebar (General, MCP, Briefing, Privacy, Diagnostics, About) as a modal overlay you can dismiss with Esc or by clicking outside.
-Account list scroll threshold dropped from 6 to 3 accounts so the chart stays visible even with a few accounts added.</string>
+    <string>Settings now uses a top tab strip instead of the left sidebar. General, MCP, Briefing, Privacy, Diagnostics, and About sit as inline chips across the top of the Settings overlay, giving each detail pane the full width of the modal.</string>
     <key>CBReleaseHotfixes</key>
     <string>None.</string>
     <key>CBReleaseKnownIssues</key>
