@@ -49,6 +49,7 @@ enum ForceRefreshOutcome {
 
 struct MenuHeaderBar: View {
     @EnvironmentObject var store: AppStore
+    @EnvironmentObject private var briefingCoord: BriefingCoordinator
     @State private var isHealthChecking = false
     @State private var isForceRefreshing = false
     @State private var healthResult: HealthCheckResult? = nil
@@ -73,6 +74,8 @@ struct MenuHeaderBar: View {
                 .foregroundColor(store.lastError == nil ? Color.secondary : Color.red)
                 .lineLimit(1)
             Spacer()
+            briefingButton
+            Spacer()
             if isBusy {
                 ProgressView().controlSize(.mini)
             } else {
@@ -82,6 +85,27 @@ struct MenuHeaderBar: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 6)
+    }
+
+    private var briefingButton: some View {
+        Button(action: { briefingCoord.show() }) {
+            HStack(spacing: 4) {
+                Image(systemName: "sun.haze")
+                    .font(.system(size: 11))
+                Text("Briefing")
+                    .font(.system(size: 11, weight: .medium))
+            }
+            .foregroundColor(.secondary)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 2)
+            .background(
+                Capsule().fill(Color.secondary.opacity(0.10))
+            )
+        }
+        .buttonStyle(.plain)
+        .help("Open Daily Briefing window")
+        .pointingHandCursor()
+        .accessibilityLabel("Open Daily Briefing")
     }
 
     private var forceRefreshButton: some View {
