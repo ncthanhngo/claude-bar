@@ -70,6 +70,36 @@ func (g *Gateway) registerClickUpTools(srv *server.MCPServer) {
 		},
 		g.clickupGetTask,
 	)
+
+	addTool(srv, "cb_clickup_list_comments",
+		"List comments on a ClickUp task. Returns the comment body, author, and timestamps. Read-only.",
+		[]mcpgo.ToolOption{
+			mcpgo.WithString("task_id", mcpgo.Required(), mcpgo.Description("ClickUp task ID.")),
+			mcpgo.WithString("start_id", mcpgo.Description("Pagination cursor: only return comments older than this comment ID.")),
+		},
+		g.clickupListComments,
+	)
+
+	addTool(srv, "cb_clickup_list_members",
+		"List members of a ClickUp workspace so the agent can resolve assignee IDs to names. Read-only.",
+		[]mcpgo.ToolOption{
+			mcpgo.WithString("workspace_id", mcpgo.Required(), mcpgo.Description("ClickUp workspace/team ID.")),
+		},
+		g.clickupListMembers,
+	)
+
+	addTool(srv, "cb_clickup_search_tasks",
+		"Search tasks across an entire workspace with optional filters. Read-only.",
+		[]mcpgo.ToolOption{
+			mcpgo.WithString("workspace_id", mcpgo.Required(), mcpgo.Description("ClickUp workspace/team ID.")),
+			mcpgo.WithString("statuses", mcpgo.Description("Comma-separated status names.")),
+			mcpgo.WithString("assignees", mcpgo.Description("Comma-separated assignee user IDs.")),
+			mcpgo.WithString("tags", mcpgo.Description("Comma-separated tag names.")),
+			mcpgo.WithBoolean("include_closed", mcpgo.Description("Include closed tasks. Default false.")),
+			mcpgo.WithNumber("page", mcpgo.Description("Page number (0-based). Default 0.")),
+		},
+		g.clickupSearchTasks,
+	)
 }
 
 func (g *Gateway) clickupCall(ctx context.Context, token, path string, params url.Values, out any) error {
@@ -227,4 +257,88 @@ func (g *Gateway) clickupGetTask(ctx context.Context, req mcpgo.CallToolRequest)
 		return toolErrorf("clickup get task: %v", err), nil
 	}
 	return jsonResult(task)
+}
+
+func (g *Gateway) clickupListComments(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
+	cc, err := g.Resolver.Resolve(ctx, domain.MCPServiceClickUp)
+	if err != nil {
+		return toolErrorForResolve(err), nil
+	}
+	taskID, err := req.RequireString("task_id")
+	if err != nil {
+		return toolErrorf("task_id is required"), nil
+	}
+	params := url.Values{}
+	if startID := strings.TrimSpace(req.GetString("start_id", "")); startID != "" {
+		params.Set("start_id", startID)
+	}
+	var resp struct {
+		Comments []map[string]any `json:"comments"`
+	}
+	if err := g.clickupCall(ctx, cc.Payload, "/task/"+taskID+"/comment", params, &resp); err != nil {
+		return toolErrorf("clickup list comments: %v", err), nil
+	}
+	return jsonResult(resp.Comments)
+}
+
+func (g *Gateway) clickupListMembers(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
+	cc, err := g.Resolver.Resolve(ctx, domain.MCPServiceClickUp)
+	if err != nil {
+		return toolErrorForResolve(err), nil
+	}
+	workspaceID, err := req.RequireString("workspace_id")
+	if err != nil {
+		return toolErrorf("workspace_id is required"), nil
+	}
+	// ClickUp's per-team member listing comes back from /team itself —
+	// each team in the response embeds its members. Pick the matching
+	// team to keep the payload minimal.
+	var resp struct {
+		Teams []struct {
+			ID      string           `json:"id"`
+			Members []map[string]any `json:"members"`
+		} `json:"teams"`
+	}
+	if err := g.clickupCall(ctx, cc.Payload, "/team", nil, &resp); err != nil {
+		return toolErrorf("clickup list members: %v", err), nil
+	}
+	for _, t := range resp.Teams {
+		if t.ID == workspaceID {
+			return jsonResult(t.Members)
+		}
+	}
+	return toolErrorf("clickup list members: workspace %s not visible to this token", workspaceID), nil
+}
+
+func (g *Gateway) clickupSearchTasks(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
+	cc, err := g.Resolver.Resolve(ctx, domain.MCPServiceClickUp)
+	if err != nil {
+		return toolErrorForResolve(err), nil
+	}
+	workspaceID, err := req.RequireString("workspace_id")
+	if err != nil {
+		return toolErrorf("workspace_id is required"), nil
+	}
+	params := url.Values{}
+	params.Set("include_closed", strconv.FormatBool(req.GetBool("include_closed", false)))
+	if page := req.GetInt("page", 0); page > 0 {
+		params.Set("page", strconv.Itoa(page))
+	}
+	for _, s := range splitCSV(req.GetString("statuses", "")) {
+		params.Add("statuses[]", s)
+	}
+	for _, a := range splitCSV(req.GetString("assignees", "")) {
+		params.Add("assignees[]", a)
+	}
+	for _, t := range splitCSV(req.GetString("tags", "")) {
+		params.Add("tags[]", t)
+	}
+	var resp struct {
+		Tasks    []map[string]any `json:"tasks"`
+		LastPage bool             `json:"last_page"`
+	}
+	if err := g.clickupCall(ctx, cc.Payload, "/team/"+workspaceID+"/task", params, &resp); err != nil {
+		return toolErrorf("clickup search tasks: %v", err), nil
+	}
+	return jsonResult(map[string]any{"tasks": resp.Tasks, "last_page": resp.LastPage})
 }
