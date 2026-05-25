@@ -12,6 +12,28 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 10.15</title>
+      <sparkle:version>10.15</sparkle:version>
+      <sparkle:shortVersionString>10.15</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li>Connect window now shows a green "Successfully connected" confirmation for 1.2 seconds before auto-closing, so you can see the MCP actually wired up instead of the panel just vanishing. Applies to every connector — Slack, ClickUp, GitHub, and Google.</li>
+          <li>GitHub MCP grew from 9 to 28 tools. Reads now cover the missing single-gets (issue, commit, file content at a ref), PR review threads and inline comments, files / commits in a PR, branches, commit history, issue search, CI check-runs and Actions workflow runs. Writes add create_issue, create_pr (draft-aware), update_issue (title/body/labels/assignees/milestone), request_reviewers, add_labels, and remove_label — all surface a confirm gate before hitting GitHub.</li>
+          <li>Slack MCP went from 3 to 9 tools. New reads: channel history (so the agent can see what is happening in a channel right now, not just search hits), user list, single user lookup, and message permalink. New gated writes: post_message and reply_thread.</li>
+          <li>ClickUp MCP added 4 tools. Reads: list_comments (closes the gap where the agent could not read comment bodies), list_members (resolve assignee IDs to names), and search_tasks (cross-workspace filter without iterating list-by-list). Write: update_task to edit name / description / priority / due / start, alongside the existing update_task_status.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Mon, 25 May 2026 11:10:10 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v10.15/ClaudeBar.zip"
+        sparkle:version="10.15"
+        sparkle:shortVersionString="10.15"
+        sparkle:edSignature="mlFkk1RYIaTL/9qyMDIm8w50LI2cEwEKxG4PCu6wL43K5JcgWiBU353PG2WN25tf6w607OicbxxAmu3aXDwVAA=="
+        length="8549904"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 10.14</title>
       <sparkle:version>10.14</sparkle:version>
       <sparkle:shortVersionString>10.14</sparkle:shortVersionString>
