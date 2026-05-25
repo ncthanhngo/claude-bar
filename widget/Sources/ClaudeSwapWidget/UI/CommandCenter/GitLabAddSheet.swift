@@ -5,6 +5,11 @@ import SwiftUI
 /// metadata lives in the on-disk gitlab-instances.json registry.
 struct GitLabAddSheet: View {
     let onSubmit: (_ name: String, _ baseURL: String, _ note: String, _ pat: String) -> Void
+    /// Optional explicit cancel handler. When nil, falls back to the SwiftUI
+    /// environment `dismiss` action (works inside `.sheet`); when supplied,
+    /// the host owns dismissal (used by the MCP-tab floating window where
+    /// `@Environment(\.dismiss)` is a no-op).
+    var onCancel: (() -> Void)? = nil
 
     @Environment(\.dismiss) private var dismiss
     @State private var name = ""
@@ -33,10 +38,15 @@ struct GitLabAddSheet: View {
             }
             HStack {
                 Spacer()
-                Button("Cancel") { dismiss() }
+                Button("Cancel") {
+                    if let onCancel { onCancel() } else { dismiss() }
+                }
                 Button("Add") {
                     onSubmit(name, baseURL, note, pat)
-                    dismiss()
+                    // Host closes the window in the MCP-tab path (onCancel
+                    // set); the Diagnostics-card path dismisses via the
+                    // sheet's environment action.
+                    if onCancel == nil { dismiss() }
                 }
                 .keyboardShortcut(.defaultAction)
                 .disabled(!canSubmit)

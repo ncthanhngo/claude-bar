@@ -16,7 +16,6 @@ struct WidgetTabbedPopover: View {
     @ObservedObject private var settings = AppSettings.shared
 
     @State private var showAddAccount = false
-    @State private var showSettings = false
 
     @AppStorage("lastAutoSyncSuccessAt") private var lastAutoSyncSuccessAt: Double = 0
     @AppStorage("lastAutoSyncError") private var lastAutoSyncError: String = ""
@@ -32,7 +31,7 @@ struct WidgetTabbedPopover: View {
                 Divider().opacity(0.5)
                 FooterActions(
                     onAddAccount: { withAnimation(.easeInOut(duration: 0.18)) { showAddAccount = true } },
-                    onSettings:   { withAnimation(.easeInOut(duration: 0.18)) { showSettings = true } }
+                    onSettings:   { SettingsWindowController.shared.show() }
                 )
                 .padding(.bottom, 6)
             }
@@ -41,12 +40,8 @@ struct WidgetTabbedPopover: View {
                 AddAccountOverlay(isPresented: $showAddAccount)
                     .zIndex(10)
             }
-            if showSettings {
-                SettingsOverlay(isPresented: $showSettings)
-                    .zIndex(10)
-            }
         }
-        .frame(width: 620, height: 860)
+        .frame(width: 440, height: 720)
         .background(popoverBackground)
         .background(WindowAppearanceSetter(theme: settings.widgetTheme))
         .background(PopoverWindowCapture())
