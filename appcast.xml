@@ -12,6 +12,25 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 10.23 (BETA)</title>
+      <sparkle:version>10.23</sparkle:version>
+      <sparkle:shortVersionString>10.23</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li><strong>Settings now uses a top tab strip instead of the left sidebar.</strong> General, MCP, Briefing, Privacy, Diagnostics, and About sit as inline chips across the top of the Settings overlay, giving each detail pane the full modal width.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Mon, 25 May 2026 19:22:45 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v10.23/ClaudeBar.zip"
+        sparkle:version="10.23"
+        sparkle:shortVersionString="10.23"
+        sparkle:edSignature="Ax0PsDswjsboBsQb6xbUnC/S0WjIFxkGGA/uEkn4tipvFlGhXnuQuy7+qm6iMvRVt2mW6tDlGjR19Va3iNA7DQ=="
+        length="8442440"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 10.22 (BETA)</title>
       <sparkle:version>10.22</sparkle:version>
       <sparkle:shortVersionString>10.22</sparkle:shortVersionString>
