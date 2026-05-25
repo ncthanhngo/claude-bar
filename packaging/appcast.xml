@@ -12,6 +12,28 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 10.28 (BETA)</title>
+      <sparkle:version>10.28</sparkle:version>
+      <sparkle:shortVersionString>10.28</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li><strong>Popover shrank to 440×720.</strong> Only what you actually need to see: header, accounts, auto-swap, footer.</li>
+          <li><strong>Settings now opens as a real centered window</strong> with a left sidebar (App / System groups). It survives the popover collapsing and only closes when you actually close it.</li>
+          <li><strong>MCP tab → GitLab → Connect</strong> now opens the multi-instance Add sheet directly, instead of falling back to the generic single-token paste flow.</li>
+          <li><strong>Fixed ⌥Z and ⌥X hotkeys</strong> not firing on a cold-launched session — registration now happens at app launch instead of waiting for the popover's first open.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Mon, 25 May 2026 22:02:02 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v10.28/ClaudeBar.zip"
+        sparkle:version="10.28"
+        sparkle:shortVersionString="10.28"
+        sparkle:edSignature="xj0bgZwK9V/8vBv65eRg5QIX0FG+yt9JB82w4rboJ3nw+2sqy4kNUcqPhgSliL8nuWZ4pmA/JbJNrM0th+1oBg=="
+        length="8489887"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 10.27 (BETA)</title>
       <sparkle:version>10.27</sparkle:version>
       <sparkle:shortVersionString>10.27</sparkle:shortVersionString>

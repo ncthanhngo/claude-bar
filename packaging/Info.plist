@@ -13,9 +13,9 @@
     <key>CFBundleIdentifier</key>
     <string>dev.ncthanhngo.claude-bar</string>
     <key>CFBundleVersion</key>
-    <string>10.27</string>
+    <string>10.28</string>
     <key>CFBundleShortVersionString</key>
-    <string>10.27</string>
+    <string>10.28</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleSignature</key>
@@ -35,7 +35,7 @@
     <key>NSHumanReadableCopyright</key>
     <string>Copyright © 2026 Thanh Ngô. Licensed under MIT.</string>
     <key>CFBundleGetInfoString</key>
-    <string>Claude Bar 10.27 — menu-bar manager for multiple Claude Code accounts</string>
+    <string>Claude Bar 10.28 — menu-bar manager for multiple Claude Code accounts</string>
     <key>CBAuthorName</key>
     <string>Thanh Ngô</string>
     <key>CBAuthorEmail</key>
@@ -49,9 +49,11 @@
     <key>CBReleaseChannel</key>
     <string>Beta</string>
     <key>CBReleaseWhatsNew</key>
-    <string>Briefing pill in the header is now pinned to the true geometric center, no matter how long the status text on the left grows.</string>
+    <string>Popover shrank to 440×720 — only what you actually need to see: header, accounts, auto-swap, footer.
+Settings now opens as a real centered window with a left sidebar (App / System groups). It survives the popover collapsing and only closes when you actually close it.
+MCP tab → GitLab → Connect now opens the multi-instance Add sheet directly, instead of falling back to the generic single-token paste flow.</string>
     <key>CBReleaseHotfixes</key>
-    <string>Fixed MCP Connect / Connect Google windows refusing to close on Cancel when the underlying menu-bar popover had collapsed behind the floating window. The red X title-bar button still works as a secondary dismiss.</string>
+    <string>Fixed ⌥Z and ⌥X global hotkeys not firing on a cold-launched session — registration now happens at app launch instead of waiting for the popover's first open.</string>
     <key>CBReleaseKnownIssues</key>
     <string>None.</string>
     <key>CFBundleDevelopmentRegion</key>
