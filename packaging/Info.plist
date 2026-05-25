@@ -13,9 +13,9 @@
     <key>CFBundleIdentifier</key>
     <string>dev.ncthanhngo.claude-bar</string>
     <key>CFBundleVersion</key>
-    <string>10.21</string>
+    <string>10.22</string>
     <key>CFBundleShortVersionString</key>
-    <string>10.21</string>
+    <string>10.22</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleSignature</key>
@@ -35,7 +35,7 @@
     <key>NSHumanReadableCopyright</key>
     <string>Copyright © 2026 Thanh Ngô. Licensed under MIT.</string>
     <key>CFBundleGetInfoString</key>
-    <string>Claude Bar 10.21 — menu-bar manager for multiple Claude Code accounts</string>
+    <string>Claude Bar 10.22 — menu-bar manager for multiple Claude Code accounts</string>
     <key>CBAuthorName</key>
     <string>Thanh Ngô</string>
     <key>CBAuthorEmail</key>
@@ -49,11 +49,13 @@
     <key>CBReleaseChannel</key>
     <string>Beta</string>
     <key>CBReleaseWhatsNew</key>
-    <string>The "Enable iCloud sync" toggle in Diagnostics now also gates the claude.ai web profile Keychain cache. Previous releases blocked one of the two macOS "Allow ClaudeBar to access this keychain item?" prompts that fired after each Sparkle update — this build blocks the second one too. Toggle still resets to OFF on every update; flip it on once per release if you want either iCloud sync or web profile cookie restoration.</string>
+    <string>Popover redesign — no more top tab strip. Opening Claude Bar now lands you straight on a single scrollable surface: account list (3 visible, scroll past), Auto-swap controls, then the token-usage chart with Today / Week / Month totals. No more bouncing between Dashboard, Accounts, Stats, Settings tabs to find anything.
+Footer adds Add account and Settings buttons. Add account opens the bilingual EN/VI guidance card with an Open Terminal action; Settings opens the full sidebar (General, MCP, Briefing, Privacy, Diagnostics, About) as a modal overlay you can dismiss with Esc or by clicking outside.
+Account list scroll threshold dropped from 6 to 3 accounts so the chart stays visible even with a few accounts added.</string>
     <key>CBReleaseHotfixes</key>
-    <string>Fixed a second macOS Keychain ACL prompt firing on every update for users with linked claude.ai web profiles. The web session cache (claude-bar-web-usage-session item per account email) is now gated on the same iCloud sync toggle, so when the toggle is off no Keychain item is read.</string>
+    <string>None.</string>
     <key>CBReleaseKnownIssues</key>
-    <string>When the iCloud sync toggle is off, claude.ai web profiles still work (cookies live in WKWebsiteDataStore on disk) but won't be restored from the Keychain cache. If a web profile fails to load after update, flip the toggle on once and restart polling.</string>
+    <string>None.</string>
     <key>CFBundleDevelopmentRegion</key>
     <string>en</string>
     <key>CFBundleLocalizations</key>
