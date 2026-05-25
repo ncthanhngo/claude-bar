@@ -208,11 +208,10 @@ private struct UsageChart: View {
                 }
             }
         }
-        // Chart was a fixed 96pt strip. Letting it grow upward absorbs the
-        // slack space the parent VStack now hands down when the Claude tab
-        // has only 1–2 accounts; capped at 260pt so a sparse popover doesn't
-        // turn into a single gigantic wave.
-        .frame(minHeight: 96, maxHeight: 260)
+        // Chart absorbs whatever vertical slack the popover hands down so the
+        // KPI strip below it sits flush against the footer instead of leaving
+        // a gap when the account list is short.
+        .frame(minHeight: 96, maxHeight: .infinity)
         .overlay(alignment: .center) {
             if !hasData {
                 Text("No usage in this window yet.")
