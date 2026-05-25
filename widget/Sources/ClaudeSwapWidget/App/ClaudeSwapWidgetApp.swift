@@ -54,9 +54,17 @@ struct ClaudeSwapWidgetApp: App {
         let storeRef = _store.wrappedValue
         let loginRef = _loginCoordinator.wrappedValue
         let cloudRef = _cloudSync.wrappedValue
+        let briefingRef = _briefingCoord.wrappedValue
         let settingsRef = AppSettings.shared
         AppDelegate.onLaunchCompleted = {
             Task { @MainActor in
+                // Hotkey registration MUST run at launch, not from the
+                // popover's `.task` — that closure only fires the first time
+                // the popover opens, which creates a chicken-and-egg: ⌥Z is
+                // meant to OPEN the popover, so without launch-time
+                // registration it never works on a cold-launched session.
+                Self.registerBriefingHotkeys(briefing: briefingRef, settings: settingsRef)
+
                 // Give store.start() (kicked off from the popover's .task)
                 // a moment to fetch the snapshot. If the popover never opens,
                 // snapshot stays nil — but `accounts.isEmpty` is still
@@ -72,22 +80,23 @@ struct ClaudeSwapWidgetApp: App {
         }
     }
 
+    /// Wire the two global Carbon hotkeys: ⌥Z toggles the menu-bar popover,
+    /// ⌥X toggles the Daily Briefing window. Called from
+    /// `AppDelegate.applicationDidFinishLaunching` so it runs once at
+    /// launch — independent of whether the popover has ever rendered.
     @MainActor
-    private func registerBriefingHotkeys(briefing: BriefingCoordinator) {
-        let s = AppSettings.shared
-        // ⌥Z by default — toggles the menu bar popover (xổ xuống / thu lên).
+    static func registerBriefingHotkeys(briefing: BriefingCoordinator, settings: AppSettings) {
         HotkeyRegistry.shared.register(
             name: BriefingHotkeySlot.openApp,
-            keyCode: UInt32(s.briefingHotkeyOpenAppKeyCode),
-            modifiers: UInt32(s.briefingHotkeyOpenAppModifiers)
+            keyCode: UInt32(settings.briefingHotkeyOpenAppKeyCode),
+            modifiers: UInt32(settings.briefingHotkeyOpenAppModifiers)
         ) {
             MenuBarPopoverToggle.toggle()
         }
-        // ⌥X by default — toggles the Daily Briefing window.
         HotkeyRegistry.shared.register(
             name: BriefingHotkeySlot.openBriefing,
-            keyCode: UInt32(s.briefingHotkeyOpenBriefingKeyCode),
-            modifiers: UInt32(s.briefingHotkeyOpenBriefingModifiers)
+            keyCode: UInt32(settings.briefingHotkeyOpenBriefingKeyCode),
+            modifiers: UInt32(settings.briefingHotkeyOpenBriefingModifiers)
         ) {
             briefing.toggle()
         }
@@ -174,7 +183,33 @@ struct ClaudeSwapWidgetApp: App {
                         chatStore: chatStore,
                         newsCoord: newsCoord
                     )
-                    registerBriefingHotkeys(briefing: briefingCoord)
+                    // Wire environment for the standalone Settings window so
+                    // its SwiftUI content sees the same coordinators the old
+                    // in-popover SettingsTab received via the MenuBarExtra
+                    // environment chain.
+                    let storeBind = store
+                    let loginBind = loginCoordinator
+                    let verifyBind = verifyCoordinator
+                    let webBind = webFallback
+                    let cloudBind = cloudSync
+                    let briefBind = briefingCoord
+                    let mcpBind = localMCP
+                    let updateBind = updateController
+                    let gateBind = gateCoord
+                    SettingsWindowController.shared.bindEnvironment { content in
+                        AnyView(
+                            content
+                                .environmentObject(storeBind)
+                                .environmentObject(loginBind)
+                                .environmentObject(verifyBind)
+                                .environmentObject(webBind)
+                                .environmentObject(cloudBind)
+                                .environmentObject(briefBind)
+                                .environmentObject(mcpBind)
+                                .environmentObject(updateBind)
+                                .environmentObject(gateBind)
+                        )
+                    }
                     prefsCloudSync.start()
                     resetICloudSyncToggleOnVersionChange()
                     await cloudSync.refreshStatus()

@@ -15,6 +15,7 @@ struct LocalMCPSettingsView: View {
     // clicking into a field doesn't collapse the popover that owns the state.
     @State private var connectWindow = FloatingWindow<AnyView>()
     @State private var gdriveWindow = FloatingWindow<AnyView>()
+    @State private var gitlabWindow = FloatingWindow<AnyView>()
 
     private struct PendingDisconnect: Identifiable {
         let id = UUID()
@@ -46,6 +47,13 @@ struct LocalMCPSettingsView: View {
                 presentGDriveWindow(target)
             } else {
                 gdriveWindow.close()
+            }
+        }
+        .onChange(of: coordinator.gitlabSheet?.id) { _, _ in
+            if coordinator.gitlabSheet != nil {
+                presentGitLabWindow()
+            } else {
+                gitlabWindow.close()
             }
         }
         .confirmationDialog(
@@ -466,6 +474,33 @@ struct LocalMCPSettingsView: View {
         }
     }
 
+    private func presentGitLabWindow() {
+        gitlabWindow.close()
+        gitlabWindow.onClose = { [coordinator] in coordinator.gitlabSheet = nil }
+        let window = gitlabWindow
+        let coord = coordinator
+        let client = coordinator.client
+        gitlabWindow.show(title: "Add GitLab self-host instance", size: NSSize(width: 480, height: 360)) {
+            AnyView(
+                GitLabAddSheet(onSubmit: { name, baseURL, note, pat in
+                    Task {
+                        do {
+                            try await client.gitlabAdd(name: name, baseURL: baseURL, note: note, pat: pat)
+                            await coord.refresh()
+                        } catch {
+                            coord.lastError = "Add GitLab instance failed: \(error.localizedDescription)"
+                        }
+                        coord.gitlabSheet = nil
+                        window.close()
+                    }
+                }, onCancel: {
+                    coord.gitlabSheet = nil
+                    window.close()
+                })
+            )
+        }
+    }
+
     private func presentGDriveWindow(_ target: LocalMCPCoordinator.GDriveSheetTarget) {
         gdriveWindow.close()
         gdriveWindow.onClose = { [coordinator] in coordinator.gdriveSheet = nil }
@@ -487,9 +522,14 @@ struct LocalMCPSettingsView: View {
     }
 
     private func presentConnect(account: Int, service: String, label: String) {
-        if service == "gdrive" {
+        switch service {
+        case "gdrive":
             coordinator.gdriveSheet = .init(accountNumber: account)
-        } else {
+        case "gitlab":
+            // GitLab is multi-instance + needs a base URL, so it has its own
+            // sheet rather than the generic single-token paste flow.
+            coordinator.gitlabSheet = .init()
+        default:
             coordinator.connectSheet = .init(accountNumber: account, service: service, serviceLabel: label)
         }
     }

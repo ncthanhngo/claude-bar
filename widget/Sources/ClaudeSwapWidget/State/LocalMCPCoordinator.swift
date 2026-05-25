@@ -19,6 +19,9 @@ final class LocalMCPCoordinator: ObservableObject {
     @Published var connectSheet: ConnectSheetTarget?
     /// Sheet state for Google Drive OAuth client-id prompt.
     @Published var gdriveSheet: GDriveSheetTarget?
+    /// Sheet state for GitLab self-host instance add (name + base URL + PAT).
+    /// GitLab is multi-instance so the flow doesn't fit the single-token sheet.
+    @Published var gitlabSheet: GitLabSheetTarget?
 
     struct ConnectSheetTarget: Identifiable {
         let id = UUID()
@@ -32,7 +35,11 @@ final class LocalMCPCoordinator: ObservableObject {
         let accountNumber: Int
     }
 
-    private let client: CswClient
+    struct GitLabSheetTarget: Identifiable {
+        let id = UUID()
+    }
+
+    let client: CswClient
     init(client: CswClient) { self.client = client }
 
     func refresh() async {
