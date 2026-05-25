@@ -12,6 +12,26 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 10.14</title>
+      <sparkle:version>10.14</sparkle:version>
+      <sparkle:shortVersionString>10.14</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li>GitHub MCP connector now supports a personal access token (PAT). Open Settings → Local MCP, click Connect on the GitHub row, paste a token from github.com/settings/tokens — no OAuth app setup required. Both classic (ghp_…) and fine-grained (github_pat_…) tokens are accepted.</li>
+          <li>Fixed alerts and file pickers (rename account, cloud passphrase, avatar pick, repo link, chat attachment, diagnostics export/import, swap confirm) appearing behind the menu-bar popover or jumping to a different Space.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Mon, 25 May 2026 10:36:48 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v10.14/ClaudeBar.zip"
+        sparkle:version="10.14"
+        sparkle:shortVersionString="10.14"
+        sparkle:edSignature="pOjkWHV9KnuAIrHTZWZVE9BX7nCxJW61lx/fVClCBRSvyflTpjZ1cU3Uom7cqIjYRGyXELGHdlHl5+B97nczDQ=="
+        length="8490620"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 10.13</title>
       <sparkle:version>10.13</sparkle:version>
       <sparkle:shortVersionString>10.13</sparkle:shortVersionString>
