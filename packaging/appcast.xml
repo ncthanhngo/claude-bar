@@ -12,6 +12,28 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 10.32 (BETA)</title>
+      <sparkle:version>10.32</sparkle:version>
+      <sparkle:shortVersionString>10.32</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li><strong>Header is now slim:</strong> status on the left, three evenly-spaced buttons on the right (Theme · Quit · Settings). Settings anchors the top-right corner.</li>
+          <li><strong>Add account</strong> moved into Settings → General → "Accounts".</li>
+          <li><strong>Verify all + Force refresh</strong> moved into Settings → Diagnostics, with inline outcome / cooldown state.</li>
+          <li><strong>Briefing pill is gone</strong> — use ⌥X for Daily Briefing and ⌥Z to toggle the popover, same as before.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Mon, 25 May 2026 23:03:29 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v10.32/ClaudeBar.zip"
+        sparkle:version="10.32"
+        sparkle:shortVersionString="10.32"
+        sparkle:edSignature="GCdWeWo74YXouYUnfFup+SAGy3MiAF4WzeUTiUuAO8cI89CZTx2o99Q4oJyAHfrgHaKwrUQZmpFsaWgWb7xAAQ=="
+        length="8420683"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 10.31 (BETA)</title>
       <sparkle:version>10.31</sparkle:version>
       <sparkle:shortVersionString>10.31</sparkle:shortVersionString>
