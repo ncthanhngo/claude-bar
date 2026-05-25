@@ -176,7 +176,7 @@ struct ClaudeSwapWidgetApp: App {
                     )
                     registerBriefingHotkeys(briefing: briefingCoord)
                     prefsCloudSync.start()
-                    forceOffStaleICloudSyncToggleIfNeeded()
+                    resetICloudSyncToggleOnVersionChange()
                     await cloudSync.refreshStatus()
                     await cloudSync.checkOnboarding(snapshot: store.snapshot)
                     presentOnboardingIfNeeded()
@@ -207,18 +207,21 @@ struct ClaudeSwapWidgetApp: App {
         )
     }
 
-    /// v10.16 wrote `iCloudSyncEnabled = true` during its silent auto-migration
-    /// for users who already had an iCloud bundle. v10.17 removed the
-    /// migration but left the persisted UserDefaults value intact, so
-    /// upgraders still saw the toggle on. This runs exactly once per install
-    /// to reset the toggle to false, matching the documented default-off
-    /// behavior. The Keychain item is left alone so re-enabling later picks
-    /// up the existing passphrase without a re-prompt.
+    /// Every Sparkle update lands on a clean default-off iCloud sync toggle.
+    /// We compare the running `CFBundleShortVersionString` against the last
+    /// version we recorded; if they differ (fresh install OR upgrade) the
+    /// toggle is reset to false. Within the same version the toggle keeps
+    /// the user's choice, so flipping it on once per release sticks until
+    /// the next update. Keychain item is left intact so re-enabling the
+    /// toggle reuses the saved passphrase without a re-prompt.
     @MainActor
-    private func forceOffStaleICloudSyncToggleIfNeeded() {
-        guard !settings.iCloudSyncForceOffAppliedV10_18 else { return }
-        settings.iCloudSyncEnabled = false
-        settings.iCloudSyncForceOffAppliedV10_18 = true
+    private func resetICloudSyncToggleOnVersionChange() {
+        let current = (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String) ?? ""
+        guard !current.isEmpty else { return }
+        if settings.lastLaunchedAppVersion != current {
+            settings.iCloudSyncEnabled = false
+            settings.lastLaunchedAppVersion = current
+        }
     }
 }
 
