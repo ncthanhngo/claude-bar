@@ -13,9 +13,9 @@
     <key>CFBundleIdentifier</key>
     <string>dev.ncthanhngo.claude-bar</string>
     <key>CFBundleVersion</key>
-    <string>10.25</string>
+    <string>10.26</string>
     <key>CFBundleShortVersionString</key>
-    <string>10.25</string>
+    <string>10.26</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleSignature</key>
@@ -35,7 +35,7 @@
     <key>NSHumanReadableCopyright</key>
     <string>Copyright © 2026 Thanh Ngô. Licensed under MIT.</string>
     <key>CFBundleGetInfoString</key>
-    <string>Claude Bar 10.25 — menu-bar manager for multiple Claude Code accounts</string>
+    <string>Claude Bar 10.26 — menu-bar manager for multiple Claude Code accounts</string>
     <key>CBAuthorName</key>
     <string>Thanh Ngô</string>
     <key>CBAuthorEmail</key>
@@ -49,14 +49,9 @@
     <key>CBReleaseChannel</key>
     <string>Beta</string>
     <key>CBReleaseWhatsNew</key>
-    <string>Account swap no longer asks you to re-login when it just hit a transient OAuth rate limit or network blip — the swap quietly defers and you can retry.
-A polished failure card now explains exactly what went wrong (rate-limited, busy, transient, or actually needs re-login), with a one-click Retry or Re-login button.
-Footer drops the Briefing button; the Daily Briefing window stays one ⌥X hotkey away.</string>
+    <string>Briefing entry moved out of the footer and into a centered pill in the popover header — fewer footer icons, more prominent placement for the daily briefing.</string>
     <key>CBReleaseHotfixes</key>
-    <string>Fixed swap failing with a misleading "credentials need login again" whenever OAuth refresh hit a 429 or transient error.
-Fixed potential backup credential loss when a Keychain ACL migration's re-add step transiently failed.
-Fixed swap occasionally failing on a partial ~/.claude.json read while Claude Code was rewriting it.
-Fixed swap hanging indefinitely if another csw operation held the file lock (now times out after 30s with a clear message).</string>
+    <string>None.</string>
     <key>CBReleaseKnownIssues</key>
     <string>None.</string>
     <key>CFBundleDevelopmentRegion</key>

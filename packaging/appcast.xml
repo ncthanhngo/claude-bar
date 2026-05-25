@@ -12,6 +12,25 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 10.26 (BETA)</title>
+      <sparkle:version>10.26</sparkle:version>
+      <sparkle:shortVersionString>10.26</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li><strong>Briefing entry moved to the header.</strong> The Daily Briefing button now sits as a centered pill in the popover header instead of in the footer — fewer footer icons, more prominent placement.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Mon, 25 May 2026 21:20:57 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v10.26/ClaudeBar.zip"
+        sparkle:version="10.26"
+        sparkle:shortVersionString="10.26"
+        sparkle:edSignature="h7M6aDCre/92f/k/wktwQOH/oY/zavydZFEytuPNkMCwqHSPMEEFTPUI/tp0vWigAeMANSKhDRkqa3o6wIx0AA=="
+        length="8486347"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 10.25 (BETA)</title>
       <sparkle:version>10.25</sparkle:version>
       <sparkle:shortVersionString>10.25</sparkle:shortVersionString>
