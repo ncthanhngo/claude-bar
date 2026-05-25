@@ -2,6 +2,7 @@ import SwiftUI
 
 struct GeneralTab: View {
     @ObservedObject private var settings = AppSettings.shared
+    @EnvironmentObject private var loginCoordinator: LoginCoordinator
     @State private var axGranted = IDEReloader.isAccessibilityGranted
     @State private var installedKeybindingTargets: [KeybindingsInstaller.Target] = KeybindingsInstaller.detectInstalled()
     @State private var keybindingApplyStatus: String?
@@ -9,6 +10,16 @@ struct GeneralTab: View {
     var body: some View {
         ScrollView {
             SettingsPage {
+                SettingsGroup("Accounts", subtitle: "Add a new Claude Code account to Claude Bar's roster.") {
+                    Button {
+                        loginCoordinator.begin()
+                    } label: {
+                        Label("Add Claude Code account…", systemImage: "plus.circle.fill")
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .help("Opens the guided setup window — also accessible from the header on the menu-bar popover.")
+                }
+
                 SettingsGroup("Menu bar") {
                     Picker("Display style", selection: $settings.menuBarStyle) {
                         ForEach(MenuBarStyle.allCases) { style in
