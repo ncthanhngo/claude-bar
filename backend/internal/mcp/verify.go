@@ -170,6 +170,65 @@ func verifyGDriveAt(ctx context.Context, httpClient *http.Client, base, accessTo
 	return &VerifyResult{DisplayName: out.User.DisplayName, Account: out.User.EmailAddress}, nil
 }
 
+// VerifyGitHubToken pings GitHub's /user endpoint with the supplied token
+// and returns the login + name for display. Accepts classic PATs (ghp_…),
+// fine-grained PATs (github_pat_…), and OAuth user-to-server tokens
+// (gho_…) — the API treats all three the same as `Authorization: Bearer`.
+//
+// When the response carries an `X-OAuth-Scopes` header (classic PAT or
+// OAuth App) we surface those scopes back to the caller so the registry
+// records what the user actually granted. Fine-grained PATs omit the
+// header — that is normal and not an error; tool calls will surface a
+// 403 if the PAT lacks the required permission.
+func VerifyGitHubToken(ctx context.Context, httpClient *http.Client, token string) (*VerifyResult, error) {
+	return verifyGitHubAt(ctx, httpClient, githubAPIEndpoint(), token)
+}
+
+func verifyGitHubAt(ctx context.Context, httpClient *http.Client, base, token string) (*VerifyResult, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, base+"/user", nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Accept", "application/vnd.github+json")
+	req.Header.Set("X-GitHub-Api-Version", "2022-11-28")
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("github verify: %w", err)
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode == http.StatusUnauthorized {
+		return nil, errors.New("github verify: token unauthorized")
+	}
+	if resp.StatusCode/100 != 2 {
+		return nil, fmt.Errorf("github verify http %d: %s", resp.StatusCode, Redact(strings.TrimSpace(string(body))))
+	}
+	var out struct {
+		Login string `json:"login"`
+		Name  string `json:"name"`
+	}
+	if err := json.Unmarshal(body, &out); err != nil {
+		return nil, fmt.Errorf("github verify decode: %w", err)
+	}
+	if out.Login == "" {
+		return nil, errors.New("github verify: unexpected empty login")
+	}
+	var scopes []string
+	if h := strings.TrimSpace(resp.Header.Get("X-OAuth-Scopes")); h != "" {
+		for _, s := range strings.Split(h, ",") {
+			if s = strings.TrimSpace(s); s != "" {
+				scopes = append(scopes, s)
+			}
+		}
+	}
+	displayName := out.Name
+	if displayName == "" {
+		displayName = out.Login
+	}
+	return &VerifyResult{DisplayName: displayName, Account: out.Login, Scopes: scopes}, nil
+}
+
 // verifyHTTPClient returns an http client with a tight timeout used only for
 // the verification round-trip — separate from the tool HTTP client so
 // verification cannot wedge a tool call.

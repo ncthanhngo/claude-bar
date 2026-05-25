@@ -109,8 +109,8 @@ Commands:
   mcp uninstall           Remove claude-bar-mcp from ~/.claude.json
   mcp status              Show gateway install state
   mcp connectors list     List connectors per account
-  mcp connectors connect --account N --service slack|clickup|gdrive [--token=- | --client-id ID]
-  mcp connectors disconnect --account N --service slack|clickup|gdrive
+  mcp connectors connect --account N --service slack|clickup|gdrive|github [--token=- | --client-id ID]
+  mcp connectors disconnect --account N --service slack|clickup|gdrive|github
   briefing run [--force]  Generate today's Daily Briefing (uses MCPs + Claude)
   briefing show [--date]  Read a cached briefing
   briefing schedule get|set|check       Manage briefing cron schedule

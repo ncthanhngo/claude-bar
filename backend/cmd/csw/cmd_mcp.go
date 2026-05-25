@@ -322,9 +322,44 @@ func runMCPConnectorsConnect(ctx context.Context, svc *usecase.Service, args []s
 			Verified:    true,
 		})
 	case domain.MCPServiceGitHub:
+		// Two supported credential paths: a personal access token piped over
+		// stdin (--token=-) or the full OAuth App loopback flow when the user
+		// supplies --client-id / --client-secret. PAT is the cheap path the
+		// widget Connect sheet exposes; OAuth remains for users who want
+		// auto-refresh and a bundled app.
+		if strings.TrimSpace(*tokenStr) != "" {
+			token, err := readToken(*tokenStr)
+			if err != nil {
+				return err
+			}
+			vr, err := mcp.VerifyGitHubToken(ctx, verifyClient(), token)
+			if err != nil {
+				return fmt.Errorf("verify github token: %w", err)
+			}
+			payload := &mcp.GitHubPayload{
+				AccessToken: token,
+				Login:       vr.Account,
+				Scope:       strings.Join(vr.Scopes, ","),
+			}
+			marshalled, err := payload.Marshal()
+			if err != nil {
+				return err
+			}
+			scopes := vr.Scopes
+			if len(scopes) == 0 {
+				scopes = []string{"pat"}
+			}
+			return svc.ConnectMCPConnector(ctx, usecase.ConnectMCPRequest{
+				AccountNumber: targetAccount, Service: svcID, Payload: marshalled,
+				DisplayName: pickDisplayName(*displayName, vr.DisplayName),
+				Account:     vr.Account,
+				Scopes:      scopes,
+				Verified:    true,
+			})
+		}
 		cid, csecret := pickGitHubOAuth(strings.TrimSpace(*clientID), strings.TrimSpace(*clientSecret))
 		if cid == "" {
-			return errors.New("--client-id is required for github (or build with -X main.defaultGitHubClientID)")
+			return errors.New("--client-id is required for github (or supply --token=- to use a personal access token, or build with -X main.defaultGitHubClientID)")
 		}
 		if csecret == "" {
 			return errors.New("--client-secret is required for github OAuth App")

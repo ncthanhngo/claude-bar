@@ -281,6 +281,7 @@ struct MCPConnectorSummaryDTO: Codable, Hashable, Identifiable {
         case "slack":   return "Slack"
         case "clickup": return "ClickUp"
         case "gdrive":  return "Google"
+        case "github":  return "GitHub"
         default:        return service.capitalized
         }
     }
@@ -290,6 +291,7 @@ struct MCPConnectorSummaryDTO: Codable, Hashable, Identifiable {
         case "slack":   return "bubble.left.and.bubble.right"
         case "clickup": return "checklist"
         case "gdrive":  return "folder.fill"
+        case "github":  return "chevron.left.forwardslash.chevron.right"
         default:        return "puzzlepiece.extension"
         }
     }

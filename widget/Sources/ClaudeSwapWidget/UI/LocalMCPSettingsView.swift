@@ -85,7 +85,7 @@ struct LocalMCPSettingsView: View {
         VStack(alignment: .leading, spacing: 4) {
             Label("Local connectors stay on this Mac", systemImage: "lock.shield")
                 .font(.subheadline.weight(.medium))
-            Text("Slack, ClickUp, and Google Workspace tokens live in the macOS Keychain. Shared connectors work for every Claude Bar account on this Mac; account-specific connectors override shared ones. Tool results still flow through your Claude chat history, which may be shared if you share that Claude login.")
+            Text("Slack, ClickUp, GitHub, and Google Workspace tokens live in the macOS Keychain. Shared connectors work for every Claude Bar account on this Mac; account-specific connectors override shared ones. Tool results still flow through your Claude chat history, which may be shared if you share that Claude login.")
                 .font(.caption)
                 .foregroundColor(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -599,6 +599,11 @@ private struct ConnectTokenSheet: View {
             if !trimmed.hasPrefix("pk_") {
                 return "ClickUp personal tokens start with pk_. Generate one in Settings → Apps."
             }
+        case "github":
+            let knownPrefixes = ["ghp_", "github_pat_", "gho_", "ghu_", "ghs_", "ghr_"]
+            if !knownPrefixes.contains(where: { trimmed.hasPrefix($0) }) {
+                return "GitHub tokens start with ghp_ (classic PAT) or github_pat_ (fine-grained). Create one at github.com/settings/tokens."
+            }
         default:
             break
         }
@@ -611,6 +616,8 @@ private struct ConnectTokenSheet: View {
             return "Slack user token (xoxp-… / xoxe-…). Required scopes: channels:history, channels:read, groups:history, groups:read, im:history, mpim:history, search:read. The token never appears in argv — it is piped to csw over stdin."
         case "clickup":
             return "ClickUp personal API token (starts with pk_). Settings → Apps → Generate. Token has account-wide scope; this MVP only invokes read endpoints."
+        case "github":
+            return "GitHub personal access token. Classic (ghp_…) needs scope: repo. Fine-grained (github_pat_…) needs Contents: Read, Issues: Read & Write, Pull requests: Read & Write, Metadata: Read. Create at github.com/settings/tokens. The token is piped to csw over stdin."
         default:
             return "Paste the provider token."
         }
@@ -747,18 +754,7 @@ private struct ConnectGoogleSheet: View {
         panel.allowsMultipleSelection = false
         panel.canChooseDirectories = false
         panel.allowedContentTypes = [.json]
-        if let window = NSApp.keyWindow ?? NSApp.mainWindow ?? NSApp.windows.first(where: { $0.isVisible && $0.canBecomeKey }) {
-            let originalLevel = window.level
-            window.level = .normal
-            panel.beginSheetModal(for: window) { response in
-                window.level = originalLevel
-                guard response == .OK, let url = panel.url else { return }
-                importGoogleOAuthJSON(from: url)
-            }
-            return
-        }
-        panel.level = .modalPanel
-        guard panel.runModal() == .OK, let url = panel.url else { return }
+        guard PopoverModal.runPanel(panel) == .OK, let url = panel.url else { return }
         importGoogleOAuthJSON(from: url)
     }
 
