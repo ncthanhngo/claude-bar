@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 
@@ -62,6 +63,83 @@ func (g *Gateway) registerGitHubWriteTools(srv *server.MCPServer) {
 			mcpgo.WithString("reason", mcpgo.Description("completed | not_planned | reopened. Default completed.")),
 		},
 		g.githubCloseIssue,
+	)
+
+	addTool(srv, "cb_github_create_issue",
+		"Open a new issue. Gated.",
+		[]mcpgo.ToolOption{
+			mcpgo.WithString("owner", mcpgo.Required(), mcpgo.Description("Repo owner.")),
+			mcpgo.WithString("repo", mcpgo.Required(), mcpgo.Description("Repository name.")),
+			mcpgo.WithString("title", mcpgo.Required(), mcpgo.Description("Issue title.")),
+			mcpgo.WithString("body", mcpgo.Description("Issue body (markdown).")),
+			mcpgo.WithString("labels", mcpgo.Description("Comma-separated label names.")),
+			mcpgo.WithString("assignees", mcpgo.Description("Comma-separated GitHub logins.")),
+		},
+		g.githubCreateIssue,
+	)
+
+	addTool(srv, "cb_github_create_pr",
+		"Open a new pull request. Gated.",
+		[]mcpgo.ToolOption{
+			mcpgo.WithString("owner", mcpgo.Required(), mcpgo.Description("Repo owner.")),
+			mcpgo.WithString("repo", mcpgo.Required(), mcpgo.Description("Repository name.")),
+			mcpgo.WithString("title", mcpgo.Required(), mcpgo.Description("Pull request title.")),
+			mcpgo.WithString("head", mcpgo.Required(), mcpgo.Description("Source branch (e.g. feature-x or fork:branch).")),
+			mcpgo.WithString("base", mcpgo.Required(), mcpgo.Description("Target branch (e.g. main).")),
+			mcpgo.WithString("body", mcpgo.Description("PR description (markdown).")),
+			mcpgo.WithBoolean("draft", mcpgo.Description("Open as draft. Default false.")),
+			mcpgo.WithBoolean("maintainer_can_modify", mcpgo.Description("Allow maintainer edits on cross-fork PRs. Default true.")),
+		},
+		g.githubCreatePR,
+	)
+
+	addTool(srv, "cb_github_update_issue",
+		"Edit an issue's title, body, labels, assignees, or milestone. Use cb_github_close_issue to change state. Gated.",
+		[]mcpgo.ToolOption{
+			mcpgo.WithString("owner", mcpgo.Required(), mcpgo.Description("Repo owner.")),
+			mcpgo.WithString("repo", mcpgo.Required(), mcpgo.Description("Repository name.")),
+			mcpgo.WithNumber("number", mcpgo.Required(), mcpgo.Description("Issue number.")),
+			mcpgo.WithString("title", mcpgo.Description("New title.")),
+			mcpgo.WithString("body", mcpgo.Description("New body (markdown). Empty string clears the body.")),
+			mcpgo.WithString("labels", mcpgo.Description("Comma-separated label names — REPLACES the entire label set. Use add_labels / remove_label for delta edits.")),
+			mcpgo.WithString("assignees", mcpgo.Description("Comma-separated GitHub logins — REPLACES the entire assignee set.")),
+			mcpgo.WithNumber("milestone", mcpgo.Description("Milestone number. Use 0 to clear.")),
+		},
+		g.githubUpdateIssue,
+	)
+
+	addTool(srv, "cb_github_request_reviewers",
+		"Request reviewers (users or teams) on a pull request. Gated.",
+		[]mcpgo.ToolOption{
+			mcpgo.WithString("owner", mcpgo.Required(), mcpgo.Description("Repo owner.")),
+			mcpgo.WithString("repo", mcpgo.Required(), mcpgo.Description("Repository name.")),
+			mcpgo.WithNumber("number", mcpgo.Required(), mcpgo.Description("Pull request number.")),
+			mcpgo.WithString("reviewers", mcpgo.Description("Comma-separated GitHub logins.")),
+			mcpgo.WithString("team_reviewers", mcpgo.Description("Comma-separated team slugs (org PRs only).")),
+		},
+		g.githubRequestReviewers,
+	)
+
+	addTool(srv, "cb_github_add_labels",
+		"Add labels to an issue or pull request. Existing labels are preserved. Gated.",
+		[]mcpgo.ToolOption{
+			mcpgo.WithString("owner", mcpgo.Required(), mcpgo.Description("Repo owner.")),
+			mcpgo.WithString("repo", mcpgo.Required(), mcpgo.Description("Repository name.")),
+			mcpgo.WithNumber("number", mcpgo.Required(), mcpgo.Description("Issue or PR number.")),
+			mcpgo.WithString("labels", mcpgo.Required(), mcpgo.Description("Comma-separated label names to add.")),
+		},
+		g.githubAddLabels,
+	)
+
+	addTool(srv, "cb_github_remove_label",
+		"Remove a single label from an issue or pull request. Gated.",
+		[]mcpgo.ToolOption{
+			mcpgo.WithString("owner", mcpgo.Required(), mcpgo.Description("Repo owner.")),
+			mcpgo.WithString("repo", mcpgo.Required(), mcpgo.Description("Repository name.")),
+			mcpgo.WithNumber("number", mcpgo.Required(), mcpgo.Description("Issue or PR number.")),
+			mcpgo.WithString("label", mcpgo.Required(), mcpgo.Description("Exact label name to remove.")),
+		},
+		g.githubRemoveLabel,
 	)
 }
 
@@ -281,6 +359,358 @@ func (g *Gateway) githubCloseIssue(ctx context.Context, req mcpgo.CallToolReques
 	})
 }
 
+func (g *Gateway) githubCreateIssue(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
+	cc, token, errRes := g.githubResolveAndToken(ctx)
+	if errRes != nil {
+		return errRes, nil
+	}
+	owner, err := req.RequireString("owner")
+	if err != nil {
+		return toolErrorf("owner is required"), nil
+	}
+	repo, err := req.RequireString("repo")
+	if err != nil {
+		return toolErrorf("repo is required"), nil
+	}
+	title, err := req.RequireString("title")
+	if err != nil || strings.TrimSpace(title) == "" {
+		return toolErrorf("title is required"), nil
+	}
+	body := req.GetString("body", "")
+	labels := splitCSV(req.GetString("labels", ""))
+	assignees := splitCSV(req.GetString("assignees", ""))
+
+	payload := map[string]any{"title": title}
+	if body != "" {
+		payload["body"] = body
+	}
+	if len(labels) > 0 {
+		payload["labels"] = labels
+	}
+	if len(assignees) > 0 {
+		payload["assignees"] = assignees
+	}
+
+	args := map[string]any{"owner": owner, "repo": repo, "title": title}
+	if body != "" {
+		args["body"] = body
+	}
+	if len(labels) > 0 {
+		args["labels"] = labels
+	}
+	if len(assignees) > 0 {
+		args["assignees"] = assignees
+	}
+	summary := fmt.Sprintf("GitHub: open issue in %s/%s — %s", owner, repo, title)
+
+	return g.runThroughGate(ctx, writeGateRequest{
+		Tool:    "cb_github_create_issue",
+		Risk:    RiskLow,
+		Origin:  OriginLLM,
+		Summary: summary,
+		Args:    args,
+		Account: strconv.Itoa(cc.AccountNumber),
+		Execute: func(ctx context.Context) (*mcpgo.CallToolResult, error) {
+			out, _, err := g.githubPostJSON(ctx, token, "/repos/"+owner+"/"+repo+"/issues", payload)
+			if err != nil {
+				return toolErrorf("github create issue: %v", err), nil
+			}
+			var v map[string]any
+			if err := json.Unmarshal(out, &v); err != nil {
+				return toolErrorf("github decode: %v", err), nil
+			}
+			return jsonResult(v)
+		},
+	})
+}
+
+func (g *Gateway) githubCreatePR(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
+	cc, token, errRes := g.githubResolveAndToken(ctx)
+	if errRes != nil {
+		return errRes, nil
+	}
+	owner, err := req.RequireString("owner")
+	if err != nil {
+		return toolErrorf("owner is required"), nil
+	}
+	repo, err := req.RequireString("repo")
+	if err != nil {
+		return toolErrorf("repo is required"), nil
+	}
+	title, err := req.RequireString("title")
+	if err != nil || strings.TrimSpace(title) == "" {
+		return toolErrorf("title is required"), nil
+	}
+	head, err := req.RequireString("head")
+	if err != nil || strings.TrimSpace(head) == "" {
+		return toolErrorf("head is required"), nil
+	}
+	base, err := req.RequireString("base")
+	if err != nil || strings.TrimSpace(base) == "" {
+		return toolErrorf("base is required"), nil
+	}
+	body := req.GetString("body", "")
+	draft := req.GetBool("draft", false)
+	// Default to true to match the GitHub UI default. Only forwarded when
+	// the head/base spans forks; ignored otherwise.
+	maintainerCanModify := req.GetBool("maintainer_can_modify", true)
+
+	payload := map[string]any{
+		"title":                 title,
+		"head":                  head,
+		"base":                  base,
+		"draft":                 draft,
+		"maintainer_can_modify": maintainerCanModify,
+	}
+	if body != "" {
+		payload["body"] = body
+	}
+
+	args := map[string]any{
+		"owner": owner, "repo": repo,
+		"title": title, "head": head, "base": base,
+		"draft": draft,
+	}
+	if body != "" {
+		args["body"] = body
+	}
+	risk := RiskMedium
+	if draft {
+		risk = RiskLow
+	}
+	summary := fmt.Sprintf("GitHub: open PR %s/%s %s ← %s — %s", owner, repo, base, head, title)
+
+	return g.runThroughGate(ctx, writeGateRequest{
+		Tool:    "cb_github_create_pr",
+		Risk:    risk,
+		Origin:  OriginLLM,
+		Summary: summary,
+		Args:    args,
+		Account: strconv.Itoa(cc.AccountNumber),
+		Execute: func(ctx context.Context) (*mcpgo.CallToolResult, error) {
+			out, _, err := g.githubPostJSON(ctx, token, "/repos/"+owner+"/"+repo+"/pulls", payload)
+			if err != nil {
+				return toolErrorf("github create pr: %v", err), nil
+			}
+			var v map[string]any
+			if err := json.Unmarshal(out, &v); err != nil {
+				return toolErrorf("github decode: %v", err), nil
+			}
+			return jsonResult(v)
+		},
+	})
+}
+
+func (g *Gateway) githubUpdateIssue(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
+	cc, token, errRes := g.githubResolveAndToken(ctx)
+	if errRes != nil {
+		return errRes, nil
+	}
+	owner, repo, num, errRes := requireOwnerRepoNumber(req)
+	if errRes != nil {
+		return errRes, nil
+	}
+
+	supplied := req.GetArguments()
+	payload := map[string]any{}
+	if v, ok := supplied["title"]; ok {
+		if s, _ := v.(string); strings.TrimSpace(s) != "" {
+			payload["title"] = s
+		} else {
+			return toolErrorf("title must not be empty"), nil
+		}
+	}
+	if v, ok := supplied["body"]; ok {
+		s, _ := v.(string)
+		payload["body"] = s
+	}
+	if v, ok := supplied["labels"]; ok {
+		if s, _ := v.(string); true {
+			payload["labels"] = splitCSV(s)
+		}
+	}
+	if v, ok := supplied["assignees"]; ok {
+		if s, _ := v.(string); true {
+			payload["assignees"] = splitCSV(s)
+		}
+	}
+	if _, ok := supplied["milestone"]; ok {
+		ms := req.GetInt("milestone", 0)
+		if ms <= 0 {
+			payload["milestone"] = nil
+		} else {
+			payload["milestone"] = ms
+		}
+	}
+	if len(payload) == 0 {
+		return toolErrorf("at least one of title, body, labels, assignees, milestone must be provided"), nil
+	}
+
+	args := map[string]any{"owner": owner, "repo": repo, "number": num}
+	for k, v := range payload {
+		args[k] = v
+	}
+	summary := fmt.Sprintf("GitHub: edit %s/%s#%d (%d field%s)", owner, repo, num, len(payload), plural(len(payload)))
+	return g.runThroughGate(ctx, writeGateRequest{
+		Tool:    "cb_github_update_issue",
+		Risk:    RiskLow,
+		Origin:  OriginLLM,
+		Summary: summary,
+		Args:    args,
+		Account: strconv.Itoa(cc.AccountNumber),
+		Execute: func(ctx context.Context) (*mcpgo.CallToolResult, error) {
+			out, _, err := g.githubPatchJSON(ctx, token, fmt.Sprintf("/repos/%s/%s/issues/%d", owner, repo, num), payload)
+			if err != nil {
+				return toolErrorf("github update issue: %v", err), nil
+			}
+			var v map[string]any
+			if err := json.Unmarshal(out, &v); err != nil {
+				return toolErrorf("github decode: %v", err), nil
+			}
+			return jsonResult(v)
+		},
+	})
+}
+
+func (g *Gateway) githubRequestReviewers(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
+	cc, token, errRes := g.githubResolveAndToken(ctx)
+	if errRes != nil {
+		return errRes, nil
+	}
+	owner, repo, num, errRes := requireOwnerRepoNumber(req)
+	if errRes != nil {
+		return errRes, nil
+	}
+	reviewers := splitCSV(req.GetString("reviewers", ""))
+	teamReviewers := splitCSV(req.GetString("team_reviewers", ""))
+	if len(reviewers) == 0 && len(teamReviewers) == 0 {
+		return toolErrorf("at least one of reviewers or team_reviewers is required"), nil
+	}
+
+	payload := map[string]any{}
+	if len(reviewers) > 0 {
+		payload["reviewers"] = reviewers
+	}
+	if len(teamReviewers) > 0 {
+		payload["team_reviewers"] = teamReviewers
+	}
+
+	args := map[string]any{"owner": owner, "repo": repo, "number": num}
+	if len(reviewers) > 0 {
+		args["reviewers"] = reviewers
+	}
+	if len(teamReviewers) > 0 {
+		args["team_reviewers"] = teamReviewers
+	}
+	summary := fmt.Sprintf("GitHub: request %d reviewer%s on %s/%s#%d", len(reviewers)+len(teamReviewers), plural(len(reviewers)+len(teamReviewers)), owner, repo, num)
+	return g.runThroughGate(ctx, writeGateRequest{
+		Tool:    "cb_github_request_reviewers",
+		Risk:    RiskLow,
+		Origin:  OriginLLM,
+		Summary: summary,
+		Args:    args,
+		Account: strconv.Itoa(cc.AccountNumber),
+		Execute: func(ctx context.Context) (*mcpgo.CallToolResult, error) {
+			out, _, err := g.githubPostJSON(ctx, token, fmt.Sprintf("/repos/%s/%s/pulls/%d/requested_reviewers", owner, repo, num), payload)
+			if err != nil {
+				return toolErrorf("github request reviewers: %v", err), nil
+			}
+			var v map[string]any
+			if err := json.Unmarshal(out, &v); err != nil {
+				return toolErrorf("github decode: %v", err), nil
+			}
+			return jsonResult(v)
+		},
+	})
+}
+
+func (g *Gateway) githubAddLabels(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
+	cc, token, errRes := g.githubResolveAndToken(ctx)
+	if errRes != nil {
+		return errRes, nil
+	}
+	owner, repo, num, errRes := requireOwnerRepoNumber(req)
+	if errRes != nil {
+		return errRes, nil
+	}
+	labels := splitCSV(req.GetString("labels", ""))
+	if len(labels) == 0 {
+		return toolErrorf("labels is required"), nil
+	}
+
+	args := map[string]any{"owner": owner, "repo": repo, "number": num, "labels": labels}
+	summary := fmt.Sprintf("GitHub: add labels [%s] to %s/%s#%d", strings.Join(labels, ","), owner, repo, num)
+	return g.runThroughGate(ctx, writeGateRequest{
+		Tool:    "cb_github_add_labels",
+		Risk:    RiskLow,
+		Origin:  OriginLLM,
+		Summary: summary,
+		Args:    args,
+		Account: strconv.Itoa(cc.AccountNumber),
+		Execute: func(ctx context.Context) (*mcpgo.CallToolResult, error) {
+			out, _, err := g.githubPostJSON(ctx, token, fmt.Sprintf("/repos/%s/%s/issues/%d/labels", owner, repo, num), map[string]any{"labels": labels})
+			if err != nil {
+				return toolErrorf("github add labels: %v", err), nil
+			}
+			var v []map[string]any
+			if err := json.Unmarshal(out, &v); err != nil {
+				return toolErrorf("github decode: %v", err), nil
+			}
+			return jsonResult(v)
+		},
+	})
+}
+
+func (g *Gateway) githubRemoveLabel(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
+	cc, token, errRes := g.githubResolveAndToken(ctx)
+	if errRes != nil {
+		return errRes, nil
+	}
+	owner, repo, num, errRes := requireOwnerRepoNumber(req)
+	if errRes != nil {
+		return errRes, nil
+	}
+	label, err := req.RequireString("label")
+	if err != nil || strings.TrimSpace(label) == "" {
+		return toolErrorf("label is required"), nil
+	}
+
+	args := map[string]any{"owner": owner, "repo": repo, "number": num, "label": label}
+	summary := fmt.Sprintf("GitHub: remove label %q from %s/%s#%d", label, owner, repo, num)
+	return g.runThroughGate(ctx, writeGateRequest{
+		Tool:    "cb_github_remove_label",
+		Risk:    RiskLow,
+		Origin:  OriginLLM,
+		Summary: summary,
+		Args:    args,
+		Account: strconv.Itoa(cc.AccountNumber),
+		Execute: func(ctx context.Context) (*mcpgo.CallToolResult, error) {
+			out, _, err := g.githubDeleteNoBody(ctx, token, fmt.Sprintf("/repos/%s/%s/issues/%d/labels/%s", owner, repo, num, url.PathEscape(label)))
+			if err != nil {
+				return toolErrorf("github remove label: %v", err), nil
+			}
+			var v []map[string]any
+			if err := json.Unmarshal(out, &v); err != nil {
+				// 200 returns remaining labels; some race conditions return 404
+				// with an empty body — surface as the raw payload instead of
+				// trying to decode it as a list.
+				return jsonResult(map[string]any{"raw": string(out)})
+			}
+			return jsonResult(v)
+		},
+	})
+}
+
+func splitCSV(s string) []string {
+	out := []string{}
+	for _, p := range strings.Split(s, ",") {
+		if p = strings.TrimSpace(p); p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
 // HTTP helpers for the JSON-body methods.
 
 func (g *Gateway) githubPostJSON(ctx context.Context, token, path string, payload any) ([]byte, int, error) {
@@ -293,6 +723,34 @@ func (g *Gateway) githubPutJSON(ctx context.Context, token, path string, payload
 
 func (g *Gateway) githubPatchJSON(ctx context.Context, token, path string, payload any) ([]byte, int, error) {
 	return g.githubBodyJSON(ctx, http.MethodPatch, token, path, payload)
+}
+
+// githubDeleteNoBody issues a DELETE with no request body — used by the
+// label-removal endpoint which accepts an empty body and returns the
+// remaining label list as JSON.
+func (g *Gateway) githubDeleteNoBody(ctx context.Context, token, path string) ([]byte, int, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, githubAPIEndpoint()+path, nil)
+	if err != nil {
+		return nil, 0, err
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Accept", "application/vnd.github+json")
+	req.Header.Set("X-GitHub-Api-Version", "2022-11-28")
+	req.Header.Set("User-Agent", g.UserAgent)
+
+	resp, err := g.HTTP.Do(req)
+	if err != nil {
+		return nil, 0, fmt.Errorf("github http: %w", err)
+	}
+	defer resp.Body.Close()
+	out, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, resp.StatusCode, fmt.Errorf("github read: %w", err)
+	}
+	if resp.StatusCode/100 != 2 {
+		return out, resp.StatusCode, fmt.Errorf("github http %d: %s", resp.StatusCode, Redact(strings.TrimSpace(string(out))))
+	}
+	return out, resp.StatusCode, nil
 }
 
 func (g *Gateway) githubBodyJSON(ctx context.Context, method, token, path string, payload any) ([]byte, int, error) {
