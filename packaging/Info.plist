@@ -13,9 +13,9 @@
     <key>CFBundleIdentifier</key>
     <string>dev.ncthanhngo.claude-bar</string>
     <key>CFBundleVersion</key>
-    <string>10.23</string>
+    <string>10.24</string>
     <key>CFBundleShortVersionString</key>
-    <string>10.23</string>
+    <string>10.24</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleSignature</key>
@@ -35,7 +35,7 @@
     <key>NSHumanReadableCopyright</key>
     <string>Copyright © 2026 Thanh Ngô. Licensed under MIT.</string>
     <key>CFBundleGetInfoString</key>
-    <string>Claude Bar 10.23 — menu-bar manager for multiple Claude Code accounts</string>
+    <string>Claude Bar 10.24 — menu-bar manager for multiple Claude Code accounts</string>
     <key>CBAuthorName</key>
     <string>Thanh Ngô</string>
     <key>CBAuthorEmail</key>
@@ -49,7 +49,7 @@
     <key>CBReleaseChannel</key>
     <string>Beta</string>
     <key>CBReleaseWhatsNew</key>
-    <string>Settings now uses a top tab strip instead of the left sidebar. General, MCP, Briefing, Privacy, Diagnostics, and About sit as inline chips across the top of the Settings overlay, giving each detail pane the full width of the modal.</string>
+    <string>Removed the empty space below the Today / This week / This month strip. The token-usage chart now grows to fill the popover so the KPI strip sits flush above the footer regardless of how many accounts you have.</string>
     <key>CBReleaseHotfixes</key>
     <string>None.</string>
     <key>CBReleaseKnownIssues</key>
