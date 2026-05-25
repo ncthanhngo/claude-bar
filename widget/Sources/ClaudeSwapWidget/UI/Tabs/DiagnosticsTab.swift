@@ -136,7 +136,7 @@ struct DiagnosticsTab: View {
         panel.allowedContentTypes = [.data]
         panel.canCreateDirectories = true
         panel.isExtensionHidden = false
-        guard panel.runModal() == .OK, let url = panel.url else { return }
+        guard PopoverModal.runPanel(panel) == .OK, let url = panel.url else { return }
 
         Task { await cloudSync.exportBundle(passphrase: pass, destPath: url.path) }
     }
@@ -151,7 +151,7 @@ struct DiagnosticsTab: View {
         panel.canChooseFiles = true
         panel.canChooseDirectories = false
         panel.allowedContentTypes = [.data]
-        guard panel.runModal() == .OK, let url = panel.url else { return }
+        guard PopoverModal.runPanel(panel) == .OK, let url = panel.url else { return }
 
         guard let pass = CloudPassphrasePrompt.run(
             intent: .pull,

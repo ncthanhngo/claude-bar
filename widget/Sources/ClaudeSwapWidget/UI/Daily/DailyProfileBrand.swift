@@ -149,27 +149,7 @@ struct DailyProfileBrand: View {
         panel.canChooseDirectories = false
         panel.canChooseFiles = true
         panel.allowedContentTypes = [.image]
-
-        // The Daily window sits above NSWindow.Level.statusBar so a default
-        // modal panel would render *behind* it. Mirror the
-        // LocalMCPSettingsView pattern: lower the host window, present as a
-        // sheet, restore on dismiss.
-        if let window = NSApp.keyWindow
-            ?? NSApp.mainWindow
-            ?? NSApp.windows.first(where: { $0.isVisible && $0.canBecomeKey })
-        {
-            let originalLevel = window.level
-            window.level = .normal
-            panel.beginSheetModal(for: window) { response in
-                window.level = originalLevel
-                guard response == .OK, let url = panel.url else { return }
-                applyPickedAvatar(url: url)
-            }
-            return
-        }
-
-        panel.level = .modalPanel
-        guard panel.runModal() == .OK, let url = panel.url else { return }
+        guard PopoverModal.runPanel(panel) == .OK, let url = panel.url else { return }
         applyPickedAvatar(url: url)
     }
 
