@@ -176,6 +176,7 @@ struct ClaudeSwapWidgetApp: App {
                     )
                     registerBriefingHotkeys(briefing: briefingCoord)
                     prefsCloudSync.start()
+                    forceOffStaleICloudSyncToggleIfNeeded()
                     await cloudSync.refreshStatus()
                     await cloudSync.checkOnboarding(snapshot: store.snapshot)
                     presentOnboardingIfNeeded()
@@ -204,6 +205,20 @@ struct ClaudeSwapWidgetApp: App {
             settings: settings,
             cloudSync: cloudSync
         )
+    }
+
+    /// v10.16 wrote `iCloudSyncEnabled = true` during its silent auto-migration
+    /// for users who already had an iCloud bundle. v10.17 removed the
+    /// migration but left the persisted UserDefaults value intact, so
+    /// upgraders still saw the toggle on. This runs exactly once per install
+    /// to reset the toggle to false, matching the documented default-off
+    /// behavior. The Keychain item is left alone so re-enabling later picks
+    /// up the existing passphrase without a re-prompt.
+    @MainActor
+    private func forceOffStaleICloudSyncToggleIfNeeded() {
+        guard !settings.iCloudSyncForceOffAppliedV10_18 else { return }
+        settings.iCloudSyncEnabled = false
+        settings.iCloudSyncForceOffAppliedV10_18 = true
     }
 }
 

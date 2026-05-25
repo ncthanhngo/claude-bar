@@ -12,6 +12,26 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 10.18 (BETA)</title>
+      <sparkle:version>10.18</sparkle:version>
+      <sparkle:shortVersionString>10.18</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li><strong>Hotfix — iCloud sync toggle now actually defaults off.</strong> v10.17 documented default-off, but a stale UserDefaults value written by v10.16's auto-migration kept the toggle stuck on for upgraders. This build runs a one-shot reset so the toggle reads off after upgrading, matching the documented behavior.</li>
+          <li><strong>Known issue.</strong> If you were syncing on v10.16 or earlier, re-enable the toggle once in <em>Diagnostics → iCloud Sync</em> to resume cross-Mac sync. Your bundle and passphrase remain intact in iCloud.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Mon, 25 May 2026 12:16:36 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v10.18/ClaudeBar.zip"
+        sparkle:version="10.18"
+        sparkle:shortVersionString="10.18"
+        sparkle:edSignature="KhniPt4htAG9HqYOeE1FKg2jXuvHSqmiwxJZC/hGBG9pun8kzNv7wRRRxY9HMz384EfAdZSxE2cfR2DvN/VzAQ=="
+        length="8597270"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 10.17 (BETA)</title>
       <sparkle:version>10.17</sparkle:version>
       <sparkle:shortVersionString>10.17</sparkle:shortVersionString>

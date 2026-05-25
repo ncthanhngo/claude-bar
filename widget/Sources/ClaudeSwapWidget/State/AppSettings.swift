@@ -148,6 +148,14 @@ final class AppSettings: ObservableObject {
     /// auto-migration) — users who want sync flip the toggle in Diagnostics.
     @AppStorage("iCloudSyncEnabled") var iCloudSyncEnabled: Bool = false
 
+    /// One-time force-off applied on first launch of v10.18. v10.16 silently
+    /// wrote `iCloudSyncEnabled = true` for users who already had an iCloud
+    /// bundle, and that persisted value survived the v10.17 upgrade. This
+    /// flag flips the toggle back to false exactly once per install so the
+    /// stated default-off promise actually holds for upgraders. Anyone who
+    /// genuinely wants sync re-enables it in Diagnostics.
+    @AppStorage("iCloudSyncForceOffAppliedV10_18") var iCloudSyncForceOffAppliedV10_18: Bool = false
+
     @AppStorage("menuBarIconColor") var menuBarIconColor: MenuBarIconColor = .system
 
     /// Display name shown in the Daily window's top-left profile chip.
