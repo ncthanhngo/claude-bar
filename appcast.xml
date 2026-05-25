@@ -12,6 +12,27 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 10.21 (BETA)</title>
+      <sparkle:version>10.21</sparkle:version>
+      <sparkle:shortVersionString>10.21</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li><strong>Hotfix — second macOS Keychain prompt on update is gone.</strong> v10.19 blocked the iCloud-sync passphrase prompt; this build also blocks the claude.ai web profile prompt (one Keychain item per linked account email). Combined, every Sparkle update now lands with zero ACL prompts unless you flip the toggle on yourself.</li>
+          <li><strong>What's new.</strong> The Diagnostics "Enable iCloud sync" toggle now also gates the web profile Keychain cache. Same toggle, broader scope: when off, Claude Bar never reads any Keychain item.</li>
+          <li><strong>Known issue.</strong> When the toggle is off, claude.ai web profiles still work (cookies live in WKWebsiteDataStore on disk) but won't be restored from the Keychain cache. If a web profile fails to load after upgrade, flip the toggle on once and restart polling.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Mon, 25 May 2026 13:07:49 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v10.21/ClaudeBar.zip"
+        sparkle:version="10.21"
+        sparkle:shortVersionString="10.21"
+        sparkle:edSignature="QEHDZKLkj2GQ2GEoFfmwoMNheB+qzClp0BLRD/KPuF4QrDB6VzpWWO0AZrglaamFqort4ptZuqk/C5psfwMQCg=="
+        length="8629378"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 10.20 (BETA)</title>
       <sparkle:version>10.20</sparkle:version>
       <sparkle:shortVersionString>10.20</sparkle:shortVersionString>
