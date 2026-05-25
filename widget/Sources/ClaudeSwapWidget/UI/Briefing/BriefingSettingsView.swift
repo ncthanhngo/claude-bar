@@ -22,7 +22,7 @@ struct BriefingSettingsView: View {
             }
             .padding(20)
         }
-        .frame(minWidth: 560, idealWidth: 640, minHeight: 600)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .task {
             syncDraftFromSchedule()
             syncTimesFromSettings()
