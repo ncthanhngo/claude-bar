@@ -9,9 +9,20 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/soi/claude-swap-widget/backend/internal/adapter"
 	"github.com/soi/claude-swap-widget/backend/internal/domain"
+)
+
+// readRetryAttempts and readRetryDelay handle the race where Claude Code
+// rewrites ~/.claude.json non-atomically while we read it. The file
+// contents land in 2-3 fsync()s, so a Read landing in the middle yields
+// truncated/invalid JSON. The write completes within a few hundred ms,
+// so a tiny bounded retry resolves the race without user-visible failure.
+const (
+	readRetryAttempts = 3
+	readRetryDelay    = 100 * time.Millisecond
 )
 
 // ClaudeConfigStore is the on-disk adapter for ~/.claude.json.
@@ -35,6 +46,31 @@ func (s *ClaudeConfigStore) Exists() bool {
 
 // Read returns the parsed config plus the raw map so unknown fields survive a Write.
 func (s *ClaudeConfigStore) Read(ctx context.Context) (*domain.ClaudeConfig, error) {
+	var lastErr error
+	for attempt := 0; attempt < readRetryAttempts; attempt++ {
+		cfg, err := s.readOnce()
+		if err == nil {
+			return cfg, nil
+		}
+		// Only retry on JSON parse errors — those are the race signature.
+		// Disk read errors (perm denied, IO failure) are not transient and
+		// must surface immediately.
+		var syntaxErr *json.SyntaxError
+		var typeErr *json.UnmarshalTypeError
+		if !errors.As(err, &syntaxErr) && !errors.As(err, &typeErr) {
+			return nil, err
+		}
+		lastErr = err
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-time.After(readRetryDelay):
+		}
+	}
+	return nil, lastErr
+}
+
+func (s *ClaudeConfigStore) readOnce() (*domain.ClaudeConfig, error) {
 	data, err := os.ReadFile(s.path)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {

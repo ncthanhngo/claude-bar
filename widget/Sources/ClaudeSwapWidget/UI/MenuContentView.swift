@@ -204,7 +204,6 @@ struct FooterActions: View {
     var onSettings: () -> Void = {}
 
     @ObservedObject private var settings = AppSettings.shared
-    @EnvironmentObject private var briefingCoord: BriefingCoordinator
 
     @ViewBuilder private var themeIcon: some View {
         switch settings.widgetTheme {
@@ -243,16 +242,6 @@ struct FooterActions: View {
                 action: onSettings
             ) {
                 Image(systemName: "gearshape")
-                    .font(.system(size: 14))
-                    .foregroundColor(.secondary)
-            }
-
-            footerButton(
-                label: "Briefing",
-                help: "Open Daily Briefing window",
-                action: { briefingCoord.show() }
-            ) {
-                Image(systemName: "sun.haze")
                     .font(.system(size: 14))
                     .foregroundColor(.secondary)
             }

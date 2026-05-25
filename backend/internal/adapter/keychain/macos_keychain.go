@@ -14,7 +14,14 @@ import (
 	"errors"
 	"os/exec"
 	"strings"
+	"time"
 )
+
+// migrateAddRetries bounds how many times we re-attempt the post-delete add.
+// The delete already succeeded, so failing to re-add would orphan the
+// caller's payload permanently — retry a small number of times before
+// surfacing the error.
+const migrateAddRetries = 3
 
 // ErrNotFound is returned when the keychain has no entry for the given service.
 var ErrNotFound = errors.New("keychain item not found")
@@ -78,6 +85,12 @@ func (k *Keychain) Write(ctx context.Context, payload string) error {
 // macOS password dialog. The delete step does not access the secret data so
 // it does not show a second dialog. The fresh add-generic-password (no -U,
 // no -T trusted-app flag) creates an item any process can read without prompting.
+//
+// Because delete happens before add, a failed add would orphan the caller's
+// payload (the only in-memory copy of the credential) permanently — forcing a
+// re-login on that account. Retry the add a few times with a short backoff
+// to absorb transient Keychain unavailability (locked keychain race, security
+// CLI throttling) before giving up.
 func (k *Keychain) Migrate(ctx context.Context, payload string) error {
 	del := exec.CommandContext(ctx,
 		"/usr/bin/security",
@@ -87,19 +100,31 @@ func (k *Keychain) Migrate(ctx context.Context, payload string) error {
 	)
 	_ = del.Run() // ignore: item may already be gone
 
-	add := exec.CommandContext(ctx,
-		"/usr/bin/security",
-		"add-generic-password",
-		"-s", k.service,
-		"-a", k.account,
-		"-w", payload,
-	)
-	var errOut bytes.Buffer
-	add.Stderr = &errOut
-	if err := add.Run(); err != nil {
-		return &Error{Op: "migrate", Stderr: errOut.String(), Err: err}
+	var lastErr error
+	var lastStderr string
+	for attempt := 0; attempt < migrateAddRetries; attempt++ {
+		add := exec.CommandContext(ctx,
+			"/usr/bin/security",
+			"add-generic-password",
+			"-s", k.service,
+			"-a", k.account,
+			"-w", payload,
+		)
+		var errOut bytes.Buffer
+		add.Stderr = &errOut
+		if err := add.Run(); err == nil {
+			return nil
+		} else {
+			lastErr = err
+			lastStderr = errOut.String()
+		}
+		select {
+		case <-ctx.Done():
+			return &Error{Op: "migrate", Stderr: lastStderr, Err: ctx.Err()}
+		case <-time.After(time.Duration(100*(attempt+1)) * time.Millisecond):
+		}
 	}
-	return nil
+	return &Error{Op: "migrate", Stderr: lastStderr, Err: lastErr}
 }
 
 // Delete removes the entry. No error if absent.
