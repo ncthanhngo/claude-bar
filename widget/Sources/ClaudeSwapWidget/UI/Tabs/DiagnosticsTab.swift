@@ -14,6 +14,11 @@ struct DiagnosticsTab: View {
     @AppStorage("lastAutoSyncSuccessAt") private var lastAutoSyncSuccessAt: Double = 0
     @AppStorage("lastAutoSyncError") private var lastAutoSyncError: String = ""
 
+    // Master toggle. When false the app never reads the Keychain passphrase
+    // item, so a freshly-signed Sparkle build skips the macOS ACL prompt on
+    // first launch after each update.
+    @AppStorage("iCloudSyncEnabled") private var iCloudSyncEnabled: Bool = false
+
     @State private var showRestoreBackupSheet = false
     @State private var restoreBackupPassphrase = ""
     @State private var restoreSelectedSlot: Int?
@@ -205,82 +210,104 @@ struct DiagnosticsTab: View {
             "iCloud Sync",
             subtitle: "Encrypt and store accounts plus local MCP connectors in iCloud Drive. Background sync runs automatically every ~6h once enabled — Sync now is only needed to push changes immediately."
         ) {
-            if let status = cloudSync.status, status.exists {
-                HStack(spacing: 6) {
-                    SettingsBadge(text: "BUNDLE FOUND", color: .green)
-                    if let pushed = status.pushedAt {
-                        Text("Last pushed \(SettingsRelativeDate.format(pushed))")
-                            .font(.caption).foregroundColor(.secondary)
-                    }
-                    if let n = status.backupCount, n > 0 {
-                        Text("· \(n) backup\(n == 1 ? "" : "s")")
-                            .font(.caption).foregroundColor(.secondary)
-                    }
-                    if let seq = status.lastSeenSeq, seq > 0 {
-                        Text("· seq \(seq)")
-                            .font(.caption).foregroundColor(.secondary)
-                    }
+            Toggle(isOn: Binding(
+                get: { iCloudSyncEnabled },
+                set: { cloudSync.setSyncEnabled($0) }
+            )) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Enable iCloud sync")
+                        .font(.system(size: 12, weight: .medium))
+                    Text("Off by default. Turn on only if you want accounts and MCP connectors backed up across your Macs — when off, Claude Bar never reads the Keychain, so updates don't trigger a password prompt.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
-                autoSyncStatusLine
-            } else {
-                SettingsBadge(text: "NOT SET UP", color: .secondary)
             }
-            if let err = cloudSync.lastError {
-                Text(err).font(.caption).foregroundColor(.red)
-                    .fixedSize(horizontal: false, vertical: true)
+            .toggleStyle(.switch)
+
+            if iCloudSyncEnabled {
+                iCloudGroupActiveBody
             }
-            if cloudSync.status?.exists == true {
-                // Bundle already enabled — auto-sync handles the steady state.
-                // Manual buttons are for force-sync, recovery, and rotation.
-                HStack(spacing: 8) {
-                    Button {
-                        runPushPrompt()
-                    } label: {
-                        Label("Sync now", systemImage: "arrow.triangle.2.circlepath")
-                    }
-                    .buttonStyle(.bordered).disabled(cloudSync.isBusy)
-                    .help("Background sync runs every ~6h. Click to push your latest changes to iCloud immediately, or to rotate the passphrase.")
+        }
+    }
 
-                    Button {
-                        runPullPrompt()
-                    } label: {
-                        Label("Restore", systemImage: "icloud.and.arrow.down")
-                    }
-                    .buttonStyle(.bordered).disabled(cloudSync.isBusy)
+    @ViewBuilder
+    private var iCloudGroupActiveBody: some View {
+        if let status = cloudSync.status, status.exists {
+            HStack(spacing: 6) {
+                SettingsBadge(text: "BUNDLE FOUND", color: .green)
+                if let pushed = status.pushedAt {
+                    Text("Last pushed \(SettingsRelativeDate.format(pushed))")
+                        .font(.caption).foregroundColor(.secondary)
+                }
+                if let n = status.backupCount, n > 0 {
+                    Text("· \(n) backup\(n == 1 ? "" : "s")")
+                        .font(.caption).foregroundColor(.secondary)
+                }
+                if let seq = status.lastSeenSeq, seq > 0 {
+                    Text("· seq \(seq)")
+                        .font(.caption).foregroundColor(.secondary)
+                }
+            }
+            autoSyncStatusLine
+        } else {
+            SettingsBadge(text: "NOT SET UP", color: .secondary)
+        }
+        if let err = cloudSync.lastError {
+            Text(err).font(.caption).foregroundColor(.red)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        if cloudSync.status?.exists == true {
+            // Bundle already enabled — auto-sync handles the steady state.
+            // Manual buttons are for force-sync, recovery, and rotation.
+            HStack(spacing: 8) {
+                Button {
+                    runPushPrompt()
+                } label: {
+                    Label("Sync now", systemImage: "arrow.triangle.2.circlepath")
+                }
+                .buttonStyle(.bordered).disabled(cloudSync.isBusy)
+                .help("Background sync runs every ~6h. Click to push your latest changes to iCloud immediately, or to rotate the passphrase.")
 
-                    if (cloudSync.status?.backupCount ?? 0) > 0 {
-                        Button {
-                            restoreBackupPassphrase = cloudSync.loadPassphrase() ?? ""
-                            restoreSelectedSlot = nil
-                            showRestoreBackupSheet = true
-                            Task {
-                                await cloudSync.listBackups(passphrase: restoreBackupPassphrase)
-                            }
-                        } label: {
-                            Label("Restore from backup…", systemImage: "clock.arrow.circlepath")
+                Button {
+                    runPullPrompt()
+                } label: {
+                    Label("Restore", systemImage: "icloud.and.arrow.down")
+                }
+                .buttonStyle(.bordered).disabled(cloudSync.isBusy)
+
+                if (cloudSync.status?.backupCount ?? 0) > 0 {
+                    Button {
+                        restoreBackupPassphrase = cloudSync.loadPassphrase() ?? ""
+                        restoreSelectedSlot = nil
+                        showRestoreBackupSheet = true
+                        Task {
+                            await cloudSync.listBackups(passphrase: restoreBackupPassphrase)
                         }
-                        .buttonStyle(.bordered).disabled(cloudSync.isBusy)
-                    }
-
-                    Spacer()
-
-                    Button("Forget", role: .destructive) {
-                        Task { await cloudSync.forget() }
-                    }
-                    .buttonStyle(.borderless).disabled(cloudSync.isBusy)
-                }
-            } else {
-                // No bundle yet — the prominent CTA is the one-time enablement.
-                // Without this click the passphrase is never saved and auto-sync
-                // can't kick in.
-                HStack(spacing: 8) {
-                    Button {
-                        runPushPrompt()
                     } label: {
-                        Label("Enable sync", systemImage: "icloud.and.arrow.up")
+                        Label("Restore from backup…", systemImage: "clock.arrow.circlepath")
                     }
-                    .buttonStyle(.borderedProminent).disabled(cloudSync.isBusy)
+                    .buttonStyle(.bordered).disabled(cloudSync.isBusy)
                 }
+
+                Spacer()
+
+                Button("Forget", role: .destructive) {
+                    Task { await cloudSync.forget() }
+                }
+                .buttonStyle(.borderless).disabled(cloudSync.isBusy)
+            }
+        } else {
+            // No bundle yet — the prominent CTA is the one-time enablement.
+            // Without this click the passphrase is never saved and auto-sync
+            // can't kick in.
+            HStack(spacing: 8) {
+                Button {
+                    runPushPrompt()
+                } label: {
+                    Label("Enable sync", systemImage: "icloud.and.arrow.up")
+                }
+                .buttonStyle(.borderedProminent).disabled(cloudSync.isBusy)
             }
         }
     }

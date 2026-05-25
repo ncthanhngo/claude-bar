@@ -36,6 +36,10 @@ final class CloudSyncCoordinator: ObservableObject {
     var hasStoredPassphrase: Bool { loadPassphrase() != nil }
 
     func loadPassphrase() -> String? {
+        // Master gate: when the user has the Diagnostics toggle off we never
+        // touch the Keychain item, so a freshly-signed Sparkle build doesn't
+        // trip the macOS ACL prompt on first launch after an update.
+        guard AppSettings.shared.iCloudSyncEnabled else { return nil }
         let q: [CFString: Any] = [
             kSecClass: kSecClassGenericPassword,
             kSecAttrService: keychainService,
@@ -66,6 +70,10 @@ final class CloudSyncCoordinator: ObservableObject {
                                      kSecAttrAccessible: kSecAttrAccessibleWhenUnlockedThisDeviceOnly,
                                      kSecValueData: data]
         SecItemAdd(add as CFDictionary, nil)
+        // Any explicit write through Enable sync / Sync now / Restore is an
+        // opt-in: flip the master toggle on so subsequent loads succeed.
+        AppSettings.shared.iCloudSyncEnabled = true
+        AppSettings.shared.iCloudSyncToggleMigratedV1 = true
     }
 
     func clearPassphrase() {
@@ -73,6 +81,16 @@ final class CloudSyncCoordinator: ObservableObject {
                                     kSecAttrService: keychainService,
                                     kSecAttrAccount: keychainAccount]
         SecItemDelete(q as CFDictionary)
+    }
+
+    /// Flip the diagnostics-tab toggle. Turning off does NOT delete the saved
+    /// passphrase — re-enabling later picks up where we left off without
+    /// re-prompting for the passphrase value (the macOS ACL prompt may still
+    /// fire once after a new code signature). The "Forget" button is still
+    /// the way to wipe the Keychain item entirely.
+    func setSyncEnabled(_ enabled: Bool) {
+        AppSettings.shared.iCloudSyncEnabled = enabled
+        AppSettings.shared.iCloudSyncToggleMigratedV1 = true
     }
 
     // MARK: - Actions
@@ -157,6 +175,9 @@ final class CloudSyncCoordinator: ObservableObject {
         do {
             try await client.cloudForget()
             clearPassphrase()
+            // Bundle and passphrase are gone — flip the master toggle off so
+            // the diagnostics row reflects "Sync off" instead of "BUNDLE FOUND".
+            AppSettings.shared.iCloudSyncEnabled = false
             await refreshStatus()
         } catch {
             lastError = error.localizedDescription
