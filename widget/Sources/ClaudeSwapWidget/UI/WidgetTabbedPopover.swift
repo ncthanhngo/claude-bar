@@ -30,7 +30,8 @@ struct WidgetTabbedPopover: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
-        .frame(width: 440, height: 760)
+        .frame(width: 440, height: popoverHeight)
+        .animation(.easeInOut(duration: 0.18), value: popoverHeight)
         .background(popoverBackground)
         .background(WindowAppearanceSetter(theme: settings.widgetTheme))
         .background(PopoverWindowCapture())
@@ -39,6 +40,29 @@ struct WidgetTabbedPopover: View {
         .overlay { SwapErrorOverlay() }
         .focusable()
         .focusEffectDisabled()
+    }
+
+    /// Popover height adapts to the visible account count:
+    ///   • 0 / no snapshot → empty-state size (no full account list)
+    ///   • 1 account       → compact
+    ///   • 2 accounts      → mid
+    ///   • 3+ accounts     → full size; the account list itself caps at
+    ///                       3 visible rows and scrolls internally past
+    ///                       that, so the popover frame never grows past
+    ///                       the 3-row layout.
+    private var popoverHeight: CGFloat {
+        let count = store.snapshot?.accounts.count ?? 0
+        // Per-account row height ≈ 95pt (avatar + email + 5h/7d bars). The
+        // "shell" (header + accounts header + auto-swap + token usage +
+        // paddings) takes the remainder.
+        let shellHeight: CGFloat = 475
+        let rowHeight: CGFloat = 95
+        switch count {
+        case 0:      return 520            // empty-state card centred in the body
+        case 1:      return shellHeight + rowHeight        // 570
+        case 2:      return shellHeight + rowHeight * 2    // 665
+        default:     return shellHeight + rowHeight * 3    // 760 — cap at 3 rows; rest scroll
+        }
     }
 
     @ViewBuilder

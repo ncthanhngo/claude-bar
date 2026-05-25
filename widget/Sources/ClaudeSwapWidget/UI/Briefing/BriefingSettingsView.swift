@@ -404,7 +404,7 @@ struct BriefingSettingsView: View {
             name: BriefingHotkeySlot.openBriefing,
             keyCode: UInt32(settings.briefingHotkeyOpenBriefingKeyCode),
             modifiers: UInt32(settings.briefingHotkeyOpenBriefingModifiers)
-        ) { [weak coord] in coord?.toggle() }
+        ) { BriefingCoordinator.shared?.toggle() }
     }
 }
 

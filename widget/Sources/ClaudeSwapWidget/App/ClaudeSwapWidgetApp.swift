@@ -54,7 +54,6 @@ struct ClaudeSwapWidgetApp: App {
         let storeRef = _store.wrappedValue
         let loginRef = _loginCoordinator.wrappedValue
         let cloudRef = _cloudSync.wrappedValue
-        let briefingRef = _briefingCoord.wrappedValue
         let settingsRef = AppSettings.shared
         AppDelegate.onLaunchCompleted = {
             Task { @MainActor in
@@ -63,7 +62,12 @@ struct ClaudeSwapWidgetApp: App {
                 // the popover opens, which creates a chicken-and-egg: ⌥Z is
                 // meant to OPEN the popover, so without launch-time
                 // registration it never works on a cold-launched session.
-                Self.registerBriefingHotkeys(briefing: briefingRef, settings: settingsRef)
+                // ⌥X resolves the briefing coordinator dynamically via
+                // BriefingCoordinator.shared (set when the view first
+                // start()s) so it always targets the SwiftUI-owned
+                // instance — capturing the @StateObject in App.init()
+                // returns a transient instance the view tree never sees.
+                Self.registerBriefingHotkeys(settings: settingsRef)
 
                 // Give store.start() (kicked off from the popover's .task)
                 // a moment to fetch the snapshot. If the popover never opens,
@@ -85,7 +89,7 @@ struct ClaudeSwapWidgetApp: App {
     /// `AppDelegate.applicationDidFinishLaunching` so it runs once at
     /// launch — independent of whether the popover has ever rendered.
     @MainActor
-    static func registerBriefingHotkeys(briefing: BriefingCoordinator, settings: AppSettings) {
+    static func registerBriefingHotkeys(settings: AppSettings) {
         HotkeyRegistry.shared.register(
             name: BriefingHotkeySlot.openApp,
             keyCode: UInt32(settings.briefingHotkeyOpenAppKeyCode),
@@ -98,7 +102,9 @@ struct ClaudeSwapWidgetApp: App {
             keyCode: UInt32(settings.briefingHotkeyOpenBriefingKeyCode),
             modifiers: UInt32(settings.briefingHotkeyOpenBriefingModifiers)
         ) {
-            briefing.toggle()
+            // Resolve at call-time so the live SwiftUI-owned instance is hit,
+            // not whatever transient instance existed at registration.
+            BriefingCoordinator.shared?.toggle()
         }
     }
 
