@@ -12,6 +12,27 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 10.35 (BETA)</title>
+      <sparkle:version>10.35</sparkle:version>
+      <sparkle:shortVersionString>10.35</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li><strong>Disabling a Local MCP connector now actually saves context tokens.</strong> Previously the on/off switch only blocked tool calls — schemas still shipped in every system prompt. Now disabled connectors are skipped at MCP server startup, so their schemas never reach <code>tools/list</code>. Expect ~1.5k–7.5k fewer tokens per message depending on which connectors you turn off.</li>
+          <li><strong>Toggling a connector auto-restarts your running `claude` CLI sessions</strong> (SIGINT → claude-watch resumes) so the new toolset takes effect immediately. Account credentials are not touched. cmux panes are skipped to avoid racing the cmux relauncher.</li>
+          <li><strong>GitHub tool schemas slimmed ~38%</strong> — descriptions on self-explanatory fields (owner, repo, number) dropped, enum hints compressed. Saves ~1,900 tokens per message whenever GitHub is enabled, with no change in tool behavior.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Tue, 26 May 2026 00:05:57 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v10.35/ClaudeBar.zip"
+        sparkle:version="10.35"
+        sparkle:shortVersionString="10.35"
+        sparkle:edSignature="aF84lIf1ZLORfdE1kXkEEwS+BMYYyq+ghO56sX9ig+7y9USYpeXXAKoGCAhI4z+g71UDqj7HaIWso3zCSSh5Cw=="
+        length="8414040"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 10.34 (BETA)</title>
       <sparkle:version>10.34</sparkle:version>
       <sparkle:shortVersionString>10.34</sparkle:shortVersionString>
