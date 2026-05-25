@@ -217,7 +217,7 @@ struct DiagnosticsTab: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Enable iCloud sync")
                         .font(.system(size: 12, weight: .medium))
-                    Text("Off by default. Turn on only if you want accounts and MCP connectors backed up across your Macs — when off, Claude Bar never reads the Keychain, so updates don't trigger a password prompt.")
+                    Text("Off by default after every update. Turn on if you want accounts and MCP connectors backed up across your Macs, or if you want claude.ai web profile cookies restored from the Keychain cache. When off, Claude Bar never reads any Keychain item, so updates don't trigger password prompts.")
                         .font(.caption)
                         .foregroundColor(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
