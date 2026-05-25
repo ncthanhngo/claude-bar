@@ -12,6 +12,26 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 10.27 (BETA)</title>
+      <sparkle:version>10.27</sparkle:version>
+      <sparkle:shortVersionString>10.27</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li><strong>MCP Cancel now actually dismisses the connect window.</strong> When the menu-bar popover collapses behind the floating sheet, Cancel used to clear coordinator state but leave the window on screen. The sheet now closes the window directly.</li>
+          <li><strong>Briefing pill pinned to true center.</strong> No more drift when the status text on the left grows or shrinks.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Mon, 25 May 2026 21:29:46 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v10.27/ClaudeBar.zip"
+        sparkle:version="10.27"
+        sparkle:shortVersionString="10.27"
+        sparkle:edSignature="TTXf4HEOZWqPU0toMN5bWTV/cJbXDmtnUZPu5hsmPWLGwvzirBoHGZyCpiuiSTA15LWb9BITEdAlIMBISVq3Ag=="
+        length="8486943"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 10.26 (BETA)</title>
       <sparkle:version>10.26</sparkle:version>
       <sparkle:shortVersionString>10.26</sparkle:shortVersionString>
