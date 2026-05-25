@@ -11,11 +11,8 @@ import SwiftUI
 struct WidgetTabbedPopover: View {
     @EnvironmentObject var store: AppStore
     @EnvironmentObject var cloudSync: CloudSyncCoordinator
-    @EnvironmentObject var verifyCoordinator: VerifyCoordinator
     @EnvironmentObject private var updateController: UpdateController
     @ObservedObject private var settings = AppSettings.shared
-
-    @State private var showAddAccount = false
 
     @AppStorage("lastAutoSyncSuccessAt") private var lastAutoSyncSuccessAt: Double = 0
     @AppStorage("lastAutoSyncError") private var lastAutoSyncError: String = ""
@@ -24,27 +21,13 @@ struct WidgetTabbedPopover: View {
     var body: some View {
         ZStack {
             VStack(spacing: 0) {
-                MenuHeaderBar(onAddAccount: {
-                    withAnimation(.easeInOut(duration: 0.18)) { showAddAccount = true }
-                })
-                // Tiny top inset so the status row sits clear of the
-                // MenuBarExtra(.window) chrome — without it the popover's
-                // own top padding clipped the first row of icons / text.
-                .padding(.top, 6)
+                MenuHeaderBar()
+                    .padding(.top, 6)
                 Divider().opacity(0.5)
-                // ScrollView so accounts + auto-swap + token chart + KPI
-                // strip never overflow the popover bottom on dense screens
-                // ("footer thiếu chân"). Header stays pinned outside the
-                // scroll surface.
                 ScrollView(.vertical, showsIndicators: false) {
                     mainBody
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-            }
-
-            if showAddAccount {
-                AddAccountOverlay(isPresented: $showAddAccount)
-                    .zIndex(10)
             }
         }
         .frame(width: 440, height: 760)

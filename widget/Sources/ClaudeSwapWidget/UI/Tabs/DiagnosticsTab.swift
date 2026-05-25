@@ -42,6 +42,12 @@ struct DiagnosticsTab: View {
     @State private var backupWindow = FloatingWindow<AnyView>()
     @State private var previewWindow = FloatingWindow<AnyView>()
 
+    // Force-refresh local state (moved here from the popover header).
+    @State private var isForceRefreshing = false
+    @State private var forceRefreshOutcome: ForceRefreshOutcome? = nil
+    @State private var forceRefreshCooldownActive = false
+    private static let forceRefreshCooldownSec: Int = 10
+
     var body: some View {
         ScrollView {
             SettingsPage {
@@ -50,6 +56,7 @@ struct DiagnosticsTab: View {
                 CommandCenterDiagnosticsCard()
                 SchedulerSettingsCard()
                 verifyGroup
+                credentialRefreshGroup
                 webUsageGroup
                 logsGroup
             }
@@ -405,6 +412,67 @@ struct DiagnosticsTab: View {
                 Label("Verify all accounts", systemImage: "checkmark.shield")
             }
             .buttonStyle(.borderedProminent)
+        }
+    }
+
+    @ViewBuilder
+    private var credentialRefreshGroup: some View {
+        SettingsGroup(
+            "Credential refresh",
+            subtitle: "Rotate OAuth tokens for inactive accounts ahead of schedule. The widget already refreshes every 6 hours in the background; only press this if you suspect a token has gone stale."
+        ) {
+            Button {
+                runForceRefresh()
+            } label: {
+                if isForceRefreshing {
+                    HStack(spacing: 6) {
+                        ProgressView().controlSize(.mini)
+                        Text("Refreshing…")
+                    }
+                } else {
+                    Label("Force refresh tokens now", systemImage: "key.fill")
+                }
+            }
+            .buttonStyle(.bordered)
+            .disabled(isForceRefreshing || forceRefreshCooldownActive)
+
+            if forceRefreshCooldownActive {
+                Text("Recently refreshed — wait a few seconds before rotating again.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            } else if let outcome = forceRefreshOutcome {
+                Label(outcome.message, systemImage: outcome.iconName)
+                    .font(.caption)
+                    .foregroundColor(outcome.iconColor)
+            }
+        }
+    }
+
+    private func runForceRefresh() {
+        guard !isForceRefreshing, !forceRefreshCooldownActive else { return }
+        isForceRefreshing = true
+        Task {
+            var outcome: ForceRefreshOutcome = .success
+            do {
+                try await store.client.refreshAllTokens()
+            } catch {
+                let detail = error.localizedDescription
+                if detail.localizedCaseInsensitiveContains("rate limited") {
+                    outcome = .rateLimited(detail: detail)
+                } else {
+                    outcome = .error(detail: detail)
+                }
+            }
+            await store.refreshNow()
+            forceRefreshOutcome = outcome
+            isForceRefreshing = false
+            if outcome.triggerCooldown {
+                forceRefreshCooldownActive = true
+                Task {
+                    try? await Task.sleep(nanoseconds: UInt64(Self.forceRefreshCooldownSec) * 1_000_000_000)
+                    forceRefreshCooldownActive = false
+                }
+            }
         }
     }
 
