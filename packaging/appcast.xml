@@ -12,6 +12,26 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 10.33 (BETA)</title>
+      <sparkle:version>10.33</sparkle:version>
+      <sparkle:shortVersionString>10.33</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li><strong>Popover height now adapts to the number of accounts</strong> — 1 account is compact, 2 is mid, 3+ is full height with the list scrolling internally. Smoothly resizes when you add or remove an account.</li>
+          <li><strong>Fixed ⌥X (Daily Briefing) firing on the wrong BriefingCoordinator instance.</strong> The hotkey now routes through a shared singleton so it always hits the live SwiftUI-owned coordinator.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Mon, 25 May 2026 23:17:43 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v10.33/ClaudeBar.zip"
+        sparkle:version="10.33"
+        sparkle:shortVersionString="10.33"
+        sparkle:edSignature="7CVyA4w+lBnORk+KVhlb9zxgx66WO7ZkHmce5tsbgNT3UfslDltiWCCvzPGfm4RcfWA8+kvn2omtd3KVRzZFCg=="
+        length="8421258"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 10.32 (BETA)</title>
       <sparkle:version>10.32</sparkle:version>
       <sparkle:shortVersionString>10.32</sparkle:shortVersionString>
