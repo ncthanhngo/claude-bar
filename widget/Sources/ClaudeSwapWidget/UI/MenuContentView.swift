@@ -31,7 +31,11 @@ struct MenuContentView: View {
 struct AccountListSection: View {
     @EnvironmentObject var store: AppStore
 
-    private static let scrollThreshold = 6
+    // Stats chart sits below this list, so the list shouldn't eat the whole
+    // popover. Show 3 accounts in full height, then scroll. ~80pt per row →
+    // 3 × 80 + a few px breathing room.
+    private static let scrollThreshold = 3
+    private static let scrolledHeight: CGFloat = 248
 
     var body: some View {
         if let snap = store.snapshot, !snap.accounts.isEmpty {
@@ -46,7 +50,7 @@ struct AccountListSection: View {
             .padding(.vertical, 4)
 
             if needsScroll {
-                ScrollView { rows }.frame(maxHeight: 580)
+                ScrollView { rows }.frame(maxHeight: Self.scrolledHeight)
             } else {
                 rows
             }
@@ -196,6 +200,9 @@ struct AutoSwapSection: View {
 // MARK: - Footer
 
 struct FooterActions: View {
+    var onAddAccount: () -> Void = {}
+    var onSettings: () -> Void = {}
+
     @ObservedObject private var settings = AppSettings.shared
     @EnvironmentObject private var briefingCoord: BriefingCoordinator
 
@@ -218,7 +225,28 @@ struct FooterActions: View {
     }
 
     var body: some View {
-        HStack(spacing: 22) {
+        HStack(spacing: 18) {
+            footerButton(
+                label: "Add account",
+                help: "Add a Claude Code account — opens the guidance card",
+                action: onAddAccount,
+                tinted: true
+            ) {
+                Image(systemName: "plus.circle.fill")
+                    .font(.system(size: 14))
+                    .foregroundColor(.accentColor)
+            }
+
+            footerButton(
+                label: "Settings",
+                help: "Open settings: General, MCP, Briefing, Privacy, Diagnostics, About",
+                action: onSettings
+            ) {
+                Image(systemName: "gearshape")
+                    .font(.system(size: 14))
+                    .foregroundColor(.secondary)
+            }
+
             footerButton(
                 label: "Briefing",
                 help: "Open Daily Briefing window",
@@ -256,6 +284,7 @@ struct FooterActions: View {
         label: String,
         help: String,
         action: @escaping () -> Void,
+        tinted: Bool = false,
         @ViewBuilder icon: () -> Icon
     ) -> some View {
         Button(action: action) {
@@ -263,9 +292,9 @@ struct FooterActions: View {
                 icon()
                 Text(label)
                     .font(.system(size: 9, weight: .medium))
-                    .foregroundColor(.secondary)
+                    .foregroundColor(tinted ? .accentColor : .secondary)
             }
-            .padding(.horizontal, 10)
+            .padding(.horizontal, 8)
             .padding(.vertical, 4)
             .contentShape(Rectangle())
         }
