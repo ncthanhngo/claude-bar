@@ -67,18 +67,16 @@ struct WidgetTabbedPopover: View {
 
     @ViewBuilder
     private var mainBody: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 4) {
-                accountsHeader
-                AccountListSection()
-                sectionTitle("Auto-swap").padding(.top, 6)
-                AutoSwapSection()
-                sectionTitle("Token usage").padding(.top, 6)
-                TokenStatsSection()
-                    .frame(maxHeight: .infinity, alignment: .top)
-            }
-            .padding(.vertical, 6)
+        VStack(alignment: .leading, spacing: 4) {
+            accountsHeader
+            AccountListSection()
+            sectionTitle("Auto-swap").padding(.top, 6)
+            AutoSwapSection()
+            sectionTitle("Token usage").padding(.top, 6)
+            TokenStatsSection()
+                .frame(maxHeight: .infinity, alignment: .top)
         }
+        .padding(.vertical, 6)
     }
 
     private var accountsHeader: some View {
