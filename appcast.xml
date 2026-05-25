@@ -12,6 +12,25 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 10.24 (BETA)</title>
+      <sparkle:version>10.24</sparkle:version>
+      <sparkle:shortVersionString>10.24</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li><strong>Removed the empty space below the Today / This week / This month strip.</strong> The token-usage chart now grows to fill the popover so the KPI strip sits flush above the footer regardless of how many accounts you have.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Mon, 25 May 2026 19:43:16 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v10.24/ClaudeBar.zip"
+        sparkle:version="10.24"
+        sparkle:shortVersionString="10.24"
+        sparkle:edSignature="mgWIe1PUvGch/Ku2lZNrxyqL2jC2doeaaN92MCTnGG4es5p8UKAqg9Ho+RO6zkCV/nZZAi+oz58Pok4LFGtRCQ=="
+        length="8440612"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 10.23 (BETA)</title>
       <sparkle:version>10.23</sparkle:version>
       <sparkle:shortVersionString>10.23</sparkle:shortVersionString>
