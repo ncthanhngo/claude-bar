@@ -22,7 +22,7 @@ struct ThresholdSliderView: View {
                 .pointingHandCursorRect(when: isEnabled)
                 .gesture(dragGesture(width: geo.size.width))
             }
-            .frame(height: 22)
+            .frame(height: 30)
             legend
         }
         .opacity(isEnabled ? 1 : 0.5)
@@ -47,14 +47,14 @@ struct ThresholdSliderView: View {
     private func track(_ geo: GeometryProxy) -> some View {
         Capsule()
             .fill(Color.primary.opacity(0.10))
-            .frame(height: 4)
+            .frame(height: 8)
             .position(x: geo.size.width / 2, y: geo.size.height / 2)
     }
 
     private func fill(_ geo: GeometryProxy) -> some View {
         Capsule()
             .fill(thresholdColor)
-            .frame(width: geo.size.width * fraction(threshold), height: 4)
+            .frame(width: geo.size.width * fraction(threshold), height: 8)
             .position(x: geo.size.width * fraction(threshold) / 2,
                       y: geo.size.height / 2)
     }
@@ -63,7 +63,7 @@ struct ThresholdSliderView: View {
     private func currentMarker(_ geo: GeometryProxy, pct: Int) -> some View {
         Rectangle()
             .fill(Color.primary.opacity(0.55))
-            .frame(width: 2, height: 14)
+            .frame(width: 2, height: 20)
             .position(x: geo.size.width * fraction(pct), y: geo.size.height / 2)
     }
 
@@ -77,9 +77,9 @@ struct ThresholdSliderView: View {
         Button(action: {}) {
             Circle()
                 .fill(Color.white)
-                .frame(width: 14, height: 14)
-                .overlay(Circle().stroke(thresholdColor, lineWidth: 2))
-                .shadow(color: .black.opacity(0.15), radius: 1, y: 1)
+                .frame(width: 18, height: 18)
+                .overlay(Circle().stroke(thresholdColor, lineWidth: 2.5))
+                .shadow(color: .black.opacity(0.18), radius: 1.5, y: 1)
         }
         .buttonStyle(.plain)
         .pointingHandCursor(when: isEnabled)
@@ -113,7 +113,13 @@ struct ThresholdSliderView: View {
         CGFloat(max(1, min(100, pct))) / 100
     }
 
-    private var thresholdColor: Color { UsagePalette.color(for: threshold) }
+    // Slider stays accent (blue) across the entire 1–100% range. We used to
+    // shift fill + knob through the UsagePalette traffic-light gradient as
+    // the user dragged the threshold up, but that visually overloaded the
+    // control — the colour change implied "you've entered danger zone" when
+    // really the user was just picking a config value. A single static
+    // accent reads as "this is just a setting", not a live warning.
+    private var thresholdColor: Color { .accentColor }
 
     private func dragGesture(width: CGFloat) -> some Gesture {
         DragGesture(minimumDistance: 0).onChanged { value in

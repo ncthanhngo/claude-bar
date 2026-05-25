@@ -50,6 +50,12 @@ enum ForceRefreshOutcome {
 struct MenuHeaderBar: View {
     @EnvironmentObject var store: AppStore
     @EnvironmentObject private var briefingCoord: BriefingCoordinator
+    @EnvironmentObject private var verifyCoordinator: VerifyCoordinator
+    @ObservedObject private var settings = AppSettings.shared
+    /// Footer is gone — Add account is the only header action that still
+    /// needs to open a popover-hosted overlay, so the parent passes its
+    /// state binding down as a closure.
+    var onAddAccount: () -> Void = {}
     @State private var isHealthChecking = false
     @State private var isForceRefreshing = false
     @State private var healthResult: HealthCheckResult? = nil
@@ -65,7 +71,7 @@ struct MenuHeaderBar: View {
     }
 
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 6) {
             Circle()
                 .fill(statusDotColor)
                 .frame(width: 6, height: 6)
@@ -73,21 +79,108 @@ struct MenuHeaderBar: View {
                 .font(.system(size: 11))
                 .foregroundColor(store.lastError == nil ? Color.secondary : Color.red)
                 .lineLimit(1)
-            Spacer(minLength: 12)
+                .layoutPriority(1)
+            Spacer(minLength: 8)
+            // Action cluster (right). Settings is the very last item so it
+            // anchors the top-right corner per spec. Add account is tinted
+            // accent so it visually carries the same "primary CTA" weight
+            // it used to have as the only blue footer button.
             if isBusy {
                 ProgressView().controlSize(.mini)
-            } else {
-                forceRefreshButton
-                healthCheckButton
             }
+            addAccountButton
+            verifyAllButton
+            healthCheckButton
+            forceRefreshButton
+            themeButton
+            quitButton
+            settingsButton
         }
-        .padding(.horizontal, 14)
+        .padding(.horizontal, 12)
         .padding(.vertical, 6)
-        // Geometric center: status (left) and refresh/health (right) have
-        // different intrinsic widths, so two HStack Spacers around the pill
-        // would drift it off-axis. Overlay pins the pill to the bar's
+        // Geometric center: status (left) and the action cluster (right) have
+        // wildly different intrinsic widths, so two HStack Spacers around the
+        // pill would drift it off-axis. Overlay pins the pill to the bar's
         // midpoint regardless of how long "Updated 12s ago" gets.
         .overlay(briefingButton)
+    }
+
+    // MARK: - Action buttons (header right cluster)
+
+    private var addAccountButton: some View {
+        Button(action: onAddAccount) {
+            Image(systemName: "plus.circle.fill")
+                .font(.system(size: 13))
+                .foregroundColor(.accentColor)
+        }
+        .buttonStyle(.borderless)
+        .help("Add a Claude Code account")
+        .pointingHandCursor()
+        .accessibilityLabel("Add account")
+    }
+
+    private var verifyAllButton: some View {
+        Button(action: { verifyCoordinator.begin() }) {
+            Image(systemName: "checkmark.shield")
+                .font(.system(size: 12))
+                .foregroundColor(.secondary)
+        }
+        .buttonStyle(.borderless)
+        .help("Verify every account's credentials and web fallback")
+        .pointingHandCursor()
+        .accessibilityLabel("Verify all accounts")
+    }
+
+    private var themeButton: some View {
+        Button(action: { settings.widgetTheme = settings.widgetTheme.next }) {
+            themeIcon
+        }
+        .buttonStyle(.borderless)
+        .help("Theme: \(settings.widgetTheme.rawValue) — click to cycle")
+        .pointingHandCursor()
+        .accessibilityLabel("Cycle theme")
+    }
+
+    @ViewBuilder private var themeIcon: some View {
+        switch settings.widgetTheme {
+        case .light:
+            Image(systemName: "sun.max").font(.system(size: 12)).foregroundColor(.secondary)
+        case .dark:
+            Image(systemName: "moon").font(.system(size: 12)).foregroundColor(.secondary)
+        case .apple:
+            Image(systemName: "apple.logo").font(.system(size: 12)).foregroundColor(.secondary)
+        case .rainbow:
+            Circle()
+                .fill(AngularGradient(
+                    colors: [.red, .orange, .yellow, .green, .blue, .purple, .pink, .red],
+                    center: .center
+                ))
+                .frame(width: 12, height: 12)
+        }
+    }
+
+    private var quitButton: some View {
+        Button(action: { NSApplication.shared.terminate(nil) }) {
+            Image(systemName: "power")
+                .font(.system(size: 12))
+                .foregroundColor(.secondary)
+        }
+        .buttonStyle(.borderless)
+        .help("Quit Claude Bar")
+        .pointingHandCursor()
+        .accessibilityLabel("Quit")
+    }
+
+    private var settingsButton: some View {
+        Button(action: { SettingsWindowController.shared.show() }) {
+            Image(systemName: "gearshape")
+                .font(.system(size: 13))
+                .foregroundColor(.secondary)
+        }
+        .buttonStyle(.borderless)
+        .help("Open Settings")
+        .pointingHandCursor()
+        .accessibilityLabel("Settings")
     }
 
     private var briefingButton: some View {

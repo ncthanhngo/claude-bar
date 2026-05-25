@@ -24,6 +24,12 @@ final class AppStore: ObservableObject {
     let autoSwap: AutoSwapStateMachine
     var cloudSync: CloudSyncCoordinator?
     var webUsageProvider: (([AccountViewDTO]) async -> [Int: UsageDTO])?
+    /// Synchronous "is this account web-linked?" query so refreshNow can
+    /// route around the OAuth usage fallback for already-linked accounts.
+    /// Set once by WebFallbackCoordinator.attach; nil during tests / launch
+    /// boot, in which case refreshNow falls back to the legacy behaviour
+    /// (probe OAuth whenever web data is missing).
+    var isWebLinked: ((AccountDTO) -> Bool)?
 
     private var refreshTask: Task<Void, Never>?
 
@@ -165,18 +171,34 @@ final class AppStore: ObservableObject {
             let metadata = try await client.list(includeUsage: false)
                 .preservingUsageState(from: snapshot)
             let webUsages = await webUsageProvider?(metadata.accounts) ?? [:]
-            // Include accounts where the web scraper returned only a partial
-            // window (5h or 7d missing) — claude.ai often hydrates the weekly
-            // block later than the 5h block, so without an OAuth top-up the
-            // missing bar would never render until a subsequent poll happened
-            // to catch a fully-hydrated scrape. `merging(over:)` below keeps
-            // the web values where present and fills gaps from OAuth.
+            // Per-account rule: web is the source of truth whenever it returns
+            // anything for that account. OAuth (the "terminal" path) only
+            // kicks in when web returned **nothing at all** — i.e. the
+            // account isn't linked, or its WebView session expired and
+            // delivered an empty result this cycle.
+            //
+            // Partial web data (only 5h, only 7d) is treated as "web worked"
+            // — the next poll re-hydrates the missing window from claude.ai
+            // without dragging OAuth into the loop every refresh.
+            //
+            // For accounts that are NOT web-linked: legacy partial-fill
+            // behaviour stays (OAuth top-up when a 5h-only scrape exists),
+            // because those accounts have no future web hydration to wait
+            // for.
+            let linkedCheck = isWebLinked
             let fallbackNumbers = metadata.accounts
-                .map(\.id)
-                .filter { id in
-                    guard let usage = webUsages[id] else { return true }
+                .filter { view in
+                    let usage = webUsages[view.id]
+                    if linkedCheck?(view.account) == true {
+                        // Web-linked: probe OAuth only when web returned no
+                        // usage object at all this cycle.
+                        return usage == nil
+                    }
+                    // Not web-linked: probe OAuth when web missing OR partial.
+                    guard let usage else { return true }
                     return usage.fiveHour == nil || usage.sevenDay == nil
                 }
+                .map(\.id)
             let fallback = fallbackNumbers.isEmpty
                 ? metadata
                 : try await client.list(usageAccounts: fallbackNumbers)

@@ -242,22 +242,27 @@ struct LocalMCPSettingsView: View {
     }
 
     private var connectorsSection: some View {
-        SettingsGroup("Connectors", subtitle: "Connect once in Shared Connectors for every Claude Bar account on this Mac. Per-account rows can still override a shared connector.") {
+        SettingsGroup("Shared connectors", subtitle: "Connect once here and every Claude Bar account on this Mac uses the same token. Tokens live in the macOS Keychain; nothing per-account is needed.") {
             let shared = coordinator.accounts.first { $0.shared == true }
-            let accountRows = coordinator.accounts.filter { $0.shared != true }
             if coordinator.accounts.isEmpty {
                 Text(coordinator.isBusy ? "Loading…" : "No accounts yet — add one in the Accounts tab.")
                     .font(.callout).foregroundColor(.secondary)
-            } else {
-                VStack(alignment: .leading, spacing: 10) {
-                    if let shared {
-                        accountBlock(shared)
-                        Divider()
-                    }
-                    ForEach(accountRows) { acc in
-                        accountBlock(acc)
+            } else if let shared {
+                // Only the shared connectors render — flat list, no per-
+                // account override blocks. The old multi-block layout had
+                // every row labelled "using shared" three times below the
+                // single canonical entry, which was just visual noise.
+                // The backend still honours per-account secrets when
+                // present; this UI just doesn't surface a way to create
+                // them.
+                VStack(alignment: .leading, spacing: 4) {
+                    ForEach(shared.connectors) { c in
+                        connectorRow(account: shared.accountNumber, connector: c)
                     }
                 }
+            } else {
+                Text("Shared connector storage is not initialised yet. Add an account first.")
+                    .font(.callout).foregroundColor(.secondary)
             }
         }
     }
