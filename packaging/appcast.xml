@@ -12,6 +12,27 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 10.19 (BETA)</title>
+      <sparkle:version>10.19</sparkle:version>
+      <sparkle:shortVersionString>10.19</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li><strong>What's new — iCloud sync toggle now resets to OFF on every Sparkle update.</strong> Each new build lands on a clean default-off, so the macOS Keychain prompt only ever appears when you explicitly opt in to sync for that release. Within the same version the toggle keeps your choice across launches; it only resets when the version string changes.</li>
+          <li><strong>Hotfix.</strong> Replaced the v10.18 one-shot force-off with a per-version reset, so the default-off promise holds for every future update — not just the upgrade from v10.16.</li>
+          <li><strong>Known issue.</strong> If you sync across Macs, re-enable the toggle in <em>Diagnostics → iCloud Sync</em> once after every update. Your bundle and passphrase remain intact in iCloud between updates.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Mon, 25 May 2026 12:25:37 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v10.19/ClaudeBar.zip"
+        sparkle:version="10.19"
+        sparkle:shortVersionString="10.19"
+        sparkle:edSignature="XUEy3YYxLMR2Zobca/dae5Ymdr5dhmugVt8NfjVtcx5FgAzDZzktbDPtkLBEQDIn1doc6GUrSA1/OWsZ5jSwBw=="
+        length="8597750"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 10.18 (BETA)</title>
       <sparkle:version>10.18</sparkle:version>
       <sparkle:shortVersionString>10.18</sparkle:shortVersionString>

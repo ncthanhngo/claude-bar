@@ -13,9 +13,9 @@
     <key>CFBundleIdentifier</key>
     <string>dev.ncthanhngo.claude-bar</string>
     <key>CFBundleVersion</key>
-    <string>10.18</string>
+    <string>10.19</string>
     <key>CFBundleShortVersionString</key>
-    <string>10.18</string>
+    <string>10.19</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleSignature</key>
@@ -35,7 +35,7 @@
     <key>NSHumanReadableCopyright</key>
     <string>Copyright © 2026 Thanh Ngô. Licensed under MIT.</string>
     <key>CFBundleGetInfoString</key>
-    <string>Claude Bar 10.18 — menu-bar manager for multiple Claude Code accounts</string>
+    <string>Claude Bar 10.19 — menu-bar manager for multiple Claude Code accounts</string>
     <key>CBAuthorName</key>
     <string>Thanh Ngô</string>
     <key>CBAuthorEmail</key>
@@ -49,11 +49,11 @@
     <key>CBReleaseChannel</key>
     <string>Beta</string>
     <key>CBReleaseWhatsNew</key>
-    <string>iCloud sync toggle in Diagnostics is now genuinely off after upgrading. v10.17 promised this but a stale UserDefaults value from v10.16's auto-migration kept it stuck on for upgraders — this build force-resets the toggle once per install to honor the default.</string>
+    <string>iCloud sync toggle now resets to OFF on every Sparkle update, not just once. So each new build lands on a clean default-off — no Keychain prompt unless you opt in for that release. Within the same version your toggle choice persists across launches; it only resets when the version string changes.</string>
     <key>CBReleaseHotfixes</key>
-    <string>Fixed iCloud sync toggle still showing as enabled after upgrading from v10.16, despite the documented default-off behavior.</string>
+    <string>Replaced the v10.18 one-shot force-off with a per-version reset, so the default-off promise holds for every future update, not just the upgrade from v10.16.</string>
     <key>CBReleaseKnownIssues</key>
-    <string>If you were syncing on v10.16 or earlier, you will need to re-enable the toggle in Diagnostics → iCloud Sync once after this upgrade. Your bundle and passphrase remain intact in iCloud.</string>
+    <string>If you sync across Macs, you will need to re-enable the toggle in Diagnostics → iCloud Sync once after every update. Your bundle and passphrase remain intact in iCloud between updates.</string>
     <key>CFBundleDevelopmentRegion</key>
     <string>en</string>
     <key>CFBundleLocalizations</key>
