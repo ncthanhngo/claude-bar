@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/soi/claude-swap-widget/backend/internal/adapter/oauth"
 	"github.com/soi/claude-swap-widget/backend/internal/domain"
 )
 
@@ -530,5 +531,137 @@ func TestSwitchAccountConfigWriteFailureWithDegradedSnapshot(t *testing.T) {
 	// Rollback must have written the pre-existing active backup to live.
 	if writableLive.written != existingActiveBackup {
 		t.Fatalf("degraded rollback wrote %q, want pre-existing active backup", writableLive.written)
+	}
+}
+
+// TestSwitchAccountSucceedsWithRateLimitedRefreshWhenAccessTokenStillFresh
+// guards against the misleading "need login again" path that previously
+// triggered whenever a transient 429 raced the swap RPC. The fast path
+// now skips the refresh call entirely while the backup AT has runway, so
+// the swap completes without touching OAuth at all.
+func TestSwitchAccountSucceedsWithRateLimitedRefreshWhenAccessTokenStillFresh(t *testing.T) {
+	activeLive := credentialBlob("active-live-token", "active-live-refresh", time.Now().Add(time.Hour))
+	live := &switchTestLiveStore{read: activeLive}
+	freshTargetBackup := credentialBlob("target-token", "target-refresh", time.Now().Add(time.Hour))
+	refresher := &listTestTokenRefresher{err: &oauth.RateLimitedError{RetryAfter: "60"}}
+	svc := &Service{
+		Live: live,
+		Backup: &listTestBackupStore{
+			blobs: map[int]domain.CredentialBlob{
+				1: activeLive,
+				2: freshTargetBackup,
+			},
+			writes: map[int]domain.CredentialBlob{},
+		},
+		Config: switchTestConfigStore{cfg: &domain.ClaudeConfig{Raw: map[string]any{}}},
+		Registry: listTestRegistryStore{reg: &domain.Registry{
+			ActiveAccountNumber: 1,
+			Sequence:            []int{1, 2},
+			Accounts: map[int]*domain.Account{
+				1: {Number: 1, Email: "active@example.com"},
+				2: {Number: 2, Email: "target@example.com"},
+			},
+		}},
+		Refresh: refresher,
+		Lock:    switchTestLock{},
+	}
+
+	if err := svc.SwitchAccount(context.Background(), 2); err != nil {
+		t.Fatalf("SwitchAccount returned error despite fresh AT + rate-limited refresh: %v", err)
+	}
+	if refresher.calls != 0 {
+		t.Fatalf("fresh AT must skip OAuth refresh, got %d calls", refresher.calls)
+	}
+	if live.written != freshTargetBackup {
+		t.Fatalf("live write = %q, want pristine target backup", live.written)
+	}
+}
+
+// TestSwitchAccountReportsTransientForRateLimitNotReloginWhenAccessTokenStale
+// pins the new transient-vs-permanent classification: a 429 on an expired
+// AT must surface as a retryable "swap deferred" error, NOT as a misleading
+// "need login again" prompt. The user does not need to re-login; the rate
+// limit clears within minutes.
+func TestSwitchAccountReportsTransientForRateLimitNotReloginWhenAccessTokenStale(t *testing.T) {
+	activeLive := credentialBlob("active-live-token", "active-live-refresh", time.Now().Add(time.Hour))
+	live := &switchTestLiveStore{read: activeLive}
+	staleTargetBackup := credentialBlob("expired-token", "valid-refresh", time.Now().Add(-time.Hour))
+	svc := &Service{
+		Live: live,
+		Backup: &listTestBackupStore{
+			blobs: map[int]domain.CredentialBlob{
+				1: activeLive,
+				2: staleTargetBackup,
+			},
+			writes: map[int]domain.CredentialBlob{},
+		},
+		Config: switchTestConfigStore{cfg: &domain.ClaudeConfig{Raw: map[string]any{}}},
+		Registry: listTestRegistryStore{reg: &domain.Registry{
+			ActiveAccountNumber: 1,
+			Sequence:            []int{1, 2},
+			Accounts: map[int]*domain.Account{
+				1: {Number: 1, Email: "active@example.com"},
+				2: {Number: 2, Email: "target@example.com"},
+			},
+		}},
+		Refresh: &listTestTokenRefresher{err: &oauth.RateLimitedError{RetryAfter: "60"}},
+		Lock:    switchTestLock{},
+	}
+
+	err := svc.SwitchAccount(context.Background(), 2)
+	if err == nil {
+		t.Fatal("SwitchAccount returned nil despite expired AT + rate-limited refresh")
+	}
+	msg := err.Error()
+	if strings.Contains(msg, "need login again") {
+		t.Fatalf("error = %q, must not tell user to re-login for a transient 429", msg)
+	}
+	if !strings.Contains(msg, "swap deferred") || !strings.Contains(msg, "retry") {
+		t.Fatalf("error = %q, want transient phrasing (swap deferred / retry)", msg)
+	}
+	if live.written != "" {
+		t.Fatalf("stale credential was written live on transient error: %q", live.written)
+	}
+}
+
+// TestSwitchAccountReportsTransientForNetworkErrorNotReloginWhenAccessTokenStale
+// covers the network / 5xx branch of classifyBackupRefreshError. A connect
+// failure is transient — same UX guarantee as the 429 case.
+func TestSwitchAccountReportsTransientForNetworkErrorNotReloginWhenAccessTokenStale(t *testing.T) {
+	activeLive := credentialBlob("active-live-token", "active-live-refresh", time.Now().Add(time.Hour))
+	live := &switchTestLiveStore{read: activeLive}
+	staleTargetBackup := credentialBlob("expired-token", "valid-refresh", time.Now().Add(-time.Hour))
+	svc := &Service{
+		Live: live,
+		Backup: &listTestBackupStore{
+			blobs: map[int]domain.CredentialBlob{
+				1: activeLive,
+				2: staleTargetBackup,
+			},
+			writes: map[int]domain.CredentialBlob{},
+		},
+		Config: switchTestConfigStore{cfg: &domain.ClaudeConfig{Raw: map[string]any{}}},
+		Registry: listTestRegistryStore{reg: &domain.Registry{
+			ActiveAccountNumber: 1,
+			Sequence:            []int{1, 2},
+			Accounts: map[int]*domain.Account{
+				1: {Number: 1, Email: "active@example.com"},
+				2: {Number: 2, Email: "target@example.com"},
+			},
+		}},
+		Refresh: &listTestTokenRefresher{err: errors.New("dial tcp: i/o timeout")},
+		Lock:    switchTestLock{},
+	}
+
+	err := svc.SwitchAccount(context.Background(), 2)
+	if err == nil {
+		t.Fatal("SwitchAccount returned nil despite expired AT + network error")
+	}
+	msg := err.Error()
+	if strings.Contains(msg, "need login again") {
+		t.Fatalf("error = %q, must not tell user to re-login for a network error", msg)
+	}
+	if !strings.Contains(msg, "swap deferred") {
+		t.Fatalf("error = %q, want transient phrasing", msg)
 	}
 }

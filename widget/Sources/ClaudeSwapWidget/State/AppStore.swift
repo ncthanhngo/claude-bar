@@ -15,6 +15,10 @@ final class AppStore: ObservableObject {
     @Published private(set) var isRefreshing: Bool = false
     @Published private(set) var lastRefreshAt: Date?
     @Published private(set) var swappingTo: Int?
+    /// Typed surface for the most recent failed swap. Cleared on dismiss /
+    /// successful retry. Drives `SwapErrorOverlay` so the menu header stays
+    /// usable for steady-state status while the modal owns swap diagnostics.
+    @Published var swapError: SwapError?
     let client = CswClient()
     let settings = AppSettings.shared
     let autoSwap: AutoSwapStateMachine
@@ -196,6 +200,7 @@ final class AppStore: ObservableObject {
 
     func swap(to num: Int) async {
         swappingTo = num
+        swapError = nil
         do {
             print("[AppStore] Switching to account \(num)")
             try await client.switchTo(num)
@@ -205,10 +210,30 @@ final class AppStore: ObservableObject {
             schedulePostSwapIntegrations()
             await autoPushCloud()
         } catch {
-            lastError = error.localizedDescription
+            let detail = error.localizedDescription
+            print("[AppStore] Switch failed: \(detail)")
             swappingTo = nil
-            print("[AppStore] Switch failed: \(error.localizedDescription)")
+            let name = snapshot?.accounts.first(where: { $0.account.number == num })?.account.displayName
+                ?? "tài khoản #\(num)"
+            swapError = SwapError(targetAccount: num, targetName: name, message: detail)
+            // Keep lastError nil for swap failures: the header status line is
+            // for steady-state polling errors, not user-actionable swap modals.
+            lastError = nil
         }
+    }
+
+    /// Re-attempt the swap that produced `swapError`. Clears the error first
+    /// so the overlay doesn't flicker between the failure and the next outcome.
+    func retryFailedSwap() async {
+        guard let err = swapError, err.allowsRetry else { return }
+        let num = err.targetAccount
+        swapError = nil
+        await swap(to: num)
+    }
+
+    /// Dismiss the swap error overlay without retrying.
+    func dismissSwapError() {
+        swapError = nil
     }
 
     private func schedulePostSwapIntegrations() {

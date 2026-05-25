@@ -4,9 +4,17 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/soi/claude-swap-widget/backend/internal/domain"
 )
+
+// freshAccessTokenWindow is the minimum runway remaining on a backup's
+// access token before we trust it for an immediate swap without calling
+// the OAuth refresh endpoint. Wide enough that the freshly-installed token
+// survives at least one Claude Code internal refresh cycle; narrow enough
+// that the live slot always boots with a usable AT.
+const freshAccessTokenWindow = 10 * time.Minute
 
 // SwitchAccount swaps the live Keychain credential to the given account number.
 //
@@ -202,6 +210,17 @@ func (s *Service) credentialFromBackup(ctx context.Context, acc *domain.Account,
 	if err != nil {
 		return "", fmt.Errorf("parse backup credential: %w", err)
 	}
+
+	// Fast path: backup AT still has decent runway → skip OAuth refresh. This
+	// avoids piling extra refresh calls on top of the periodic background
+	// refresher, which would otherwise raise 429 rate-limit risk and surface
+	// as a misleading "need login again" right after a background cycle.
+	// Claude Code itself rotates the token when it later expires, and our
+	// next snapshotLiveCredential picks the rotated RT back up.
+	if accessTokenHasRunway(payload, freshAccessTokenWindow) {
+		return creds, nil
+	}
+
 	if payload.RefreshToken == "" {
 		if requireRefresh {
 			return "", fmt.Errorf("account %d credentials need login again: backup has no refresh token", acc.Number)
@@ -215,7 +234,7 @@ func (s *Service) credentialFromBackup(ctx context.Context, acc *domain.Account,
 	fresh, err := s.Refresh.Refresh(ctx, payload.RefreshToken)
 	if err != nil {
 		if requireRefresh {
-			return "", fmt.Errorf("account %d credentials need login again: refresh backup token: %w", acc.Number, err)
+			return "", classifyBackupRefreshError(acc.Number, err)
 		}
 		return creds, nil
 	}
@@ -249,4 +268,27 @@ func (s *Service) credentialFromBackup(ctx context.Context, acc *domain.Account,
 	// Persist the fresh token back so the next swap is also pre-warmed.
 	_ = s.Backup.Write(ctx, acc.Number, acc.Email, refreshed)
 	return refreshed, nil
+}
+
+func accessTokenHasRunway(p *domain.OAuthPayload, window time.Duration) bool {
+	if p == nil || p.AccessToken == "" || p.ExpiresAt == 0 {
+		return false
+	}
+	return time.Until(time.UnixMilli(p.ExpiresAt)) > window
+}
+
+// classifyBackupRefreshError differentiates a permanent re-login condition
+// (invalid_grant) from transient OAuth failures (429 rate-limit, network,
+// 5xx). Previously every refresh error surfaced as "credentials need login
+// again", which sent users hunting for a re-login flow they did not need
+// — a 429 from a background refresh storm self-clears within minutes.
+func classifyBackupRefreshError(num int, err error) error {
+	switch {
+	case isInvalidGrant(err):
+		return fmt.Errorf("account %d credentials need login again: refresh backup token: %w", num, err)
+	case isRateLimited(err):
+		return fmt.Errorf("account %d swap deferred: OAuth refresh %w (no re-login needed; retry shortly)", num, err)
+	default:
+		return fmt.Errorf("account %d swap deferred: refresh backup token transiently failed: %w (retry shortly; no re-login needed)", num, err)
+	}
 }
