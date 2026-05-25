@@ -140,6 +140,20 @@ final class AppSettings: ObservableObject {
     /// no cycle has run yet. Surfaced as the secondary text on the sync chip.
     @AppStorage("lastAutoSyncError") var lastAutoSyncError: String = ""
 
+    /// Master switch for iCloud cloud-sync. When false, every call into
+    /// `loadPassphrase()` short-circuits to nil — the app never reads the
+    /// Keychain item, so a freshly-signed Sparkle build doesn't trigger the
+    /// macOS "Allow ClaudeBar to access this keychain item?" ACL prompt on
+    /// first run after each update. Defaults to off; the diagnostics toggle
+    /// flips it on, and a one-time migration in `ClaudeSwapWidgetApp` turns
+    /// it on for users who were already syncing before this flag existed.
+    @AppStorage("iCloudSyncEnabled") var iCloudSyncEnabled: Bool = false
+
+    /// Set to true once the one-time auto-migration from "implicit-on" to
+    /// "explicit toggle" has run, so we never silently re-enable a user who
+    /// has deliberately turned the toggle off.
+    @AppStorage("iCloudSyncToggleMigratedV1") var iCloudSyncToggleMigratedV1: Bool = false
+
     @AppStorage("menuBarIconColor") var menuBarIconColor: MenuBarIconColor = .system
 
     /// Display name shown in the Daily window's top-left profile chip.

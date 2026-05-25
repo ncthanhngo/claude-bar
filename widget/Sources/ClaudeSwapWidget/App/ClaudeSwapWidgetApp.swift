@@ -177,6 +177,7 @@ struct ClaudeSwapWidgetApp: App {
                     registerBriefingHotkeys(briefing: briefingCoord)
                     prefsCloudSync.start()
                     await cloudSync.refreshStatus()
+                    migrateCloudSyncToggleIfNeeded()
                     await cloudSync.checkOnboarding(snapshot: store.snapshot)
                     presentOnboardingIfNeeded()
                 }
@@ -204,6 +205,22 @@ struct ClaudeSwapWidgetApp: App {
             settings: settings,
             cloudSync: cloudSync
         )
+    }
+
+    /// One-shot migration for users who were silently syncing before the
+    /// Diagnostics toggle existed. Runs once per install. Uses signals that
+    /// don't touch the Keychain (cloud-bundle file presence, a recorded
+    /// successful auto-sync timestamp) so the migration itself doesn't
+    /// trip the ACL prompt we're trying to eliminate.
+    @MainActor
+    private func migrateCloudSyncToggleIfNeeded() {
+        guard !settings.iCloudSyncToggleMigratedV1 else { return }
+        let hadBundle = cloudSync.status?.exists == true
+        let hadSuccess = settings.lastAutoSyncSuccessAt > 0
+        if hadBundle || hadSuccess {
+            settings.iCloudSyncEnabled = true
+        }
+        settings.iCloudSyncToggleMigratedV1 = true
     }
 }
 

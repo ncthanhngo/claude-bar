@@ -232,7 +232,10 @@ enum WebCookieCloudSync {
     /// Read the cloud-sync passphrase that CloudSyncCoordinator persists under
     /// the same Keychain service. Returns nil when the user has not enabled
     /// iCloud cloud sync — in which case every entry point above no-ops.
+    /// Also gated on `iCloudSyncEnabled` so a fresh Sparkle build doesn't
+    /// trigger the macOS ACL prompt for users who never opted in.
     private static func loadPassphrase() -> String? {
+        guard AppSettings.shared.iCloudSyncEnabled else { return nil }
         let q: [CFString: Any] = [
             kSecClass: kSecClassGenericPassword,
             kSecAttrService: "claude-bar-cloudsync-passphrase",

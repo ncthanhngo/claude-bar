@@ -194,6 +194,7 @@ struct ClaudeTabContent: View {
     @AppStorage("lastAutoSyncAt") private var lastAutoSyncAt: Double = 0
     @AppStorage("lastAutoSyncSuccessAt") private var lastAutoSyncSuccessAt: Double = 0
     @AppStorage("lastAutoSyncError") private var lastAutoSyncError: String = ""
+    @AppStorage("iCloudSyncEnabled") private var iCloudSyncEnabled: Bool = false
 
     var body: some View {
         // GeometryReader → ScrollView → VStack with `minHeight: geo.height`
@@ -252,7 +253,7 @@ struct ClaudeTabContent: View {
     /// yet, so the header stays clean for users who don't use sync.
     @ViewBuilder
     private var syncChip: some View {
-        let cloudEnabled = cloudSync.status?.exists == true
+        let cloudEnabled = iCloudSyncEnabled && cloudSync.status?.exists == true
         let hasSuccess = lastAutoSyncSuccessAt > 0
         let attemptFailed = !lastAutoSyncError.isEmpty
         let now = Date().timeIntervalSince1970
