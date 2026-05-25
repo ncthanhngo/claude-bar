@@ -242,7 +242,7 @@ struct LocalMCPSettingsView: View {
     }
 
     private var connectorsSection: some View {
-        SettingsGroup("Shared connectors", subtitle: "Connect once here and every Claude Bar account on this Mac uses the same token. Tokens live in the macOS Keychain; nothing per-account is needed.") {
+        SettingsGroup("Shared connectors", subtitle: "Connect once here and every Claude Bar account on this Mac uses the same token. Tokens live in the macOS Keychain. The on/off switch hides a connector's tools from Claude (saves ~thousands of context tokens per message) — running `claude` sessions auto-restart so the change takes effect immediately.") {
             let shared = coordinator.accounts.first { $0.shared == true }
             if coordinator.accounts.isEmpty {
                 Text(coordinator.isBusy ? "Loading…" : "No accounts yet — add one in the Accounts tab.")
@@ -331,8 +331,8 @@ struct LocalMCPSettingsView: View {
                     .controlSize(.mini)
                     .labelsHidden()
                     .help(connector.enabled
-                          ? "Tắt connector này — Claude sẽ không gọi được tools của \(connector.labelTitle) nhưng token vẫn giữ trong Keychain."
-                          : "Bật lại connector này.")
+                          ? "Tắt \(connector.labelTitle) — tools của connector này sẽ bị gỡ khỏi tools/list (tiết kiệm ~vài ngàn tokens/message). Token vẫn giữ trong Keychain. Các phiên Claude Code đang chạy sẽ tự restart để áp dụng."
+                          : "Bật lại \(connector.labelTitle). Các phiên Claude Code đang chạy sẽ tự restart để load thêm tools.")
                 }
                 promptDisclosureButton(account: account, service: connector.service)
                 if connector.enabled && connector.hasSecret {

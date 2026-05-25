@@ -9,6 +9,7 @@ import (
 	"github.com/mark3labs/mcp-go/server"
 
 	"github.com/soi/claude-swap-widget/backend/internal/adapter/bwcli"
+	"github.com/soi/claude-swap-widget/backend/internal/domain"
 	"github.com/soi/claude-swap-widget/backend/internal/port"
 )
 
@@ -63,27 +64,86 @@ func New(registry port.RegistryStore, secrets port.MCPSecretStore, version strin
 	}
 }
 
-// BuildServer registers every connector's tools and returns the MCP server.
+// BuildServer registers every enabled connector's tools and returns the MCP
+// server. Tools belonging to disabled connectors are skipped entirely so they
+// never reach the client's tools/list — which keeps thousands of schema
+// tokens out of every Claude Code system prompt. Toggling a connector
+// requires the user to restart their Claude Code session; the widget wires
+// that up automatically by SIGINT-ing running `claude` processes after the
+// set-enabled call lands.
 func (g *Gateway) BuildServer() *server.MCPServer {
 	srv := server.NewMCPServer(
 		"claude-bar-mcp",
 		g.Version,
 		server.WithToolCapabilities(true),
 	)
-	g.registerSlackTools(srv)
-	g.registerSlackWriteTools(srv)
-	g.registerClickUpTools(srv)
-	g.registerClickUpWriteTools(srv)
-	g.registerClickUpCaptureTool(srv)
-	g.registerGDriveTools(srv)
-	g.registerGCalTools(srv)
-	g.registerGmailTools(srv)
-	g.registerGitHubTools(srv)
-	g.registerGitHubWriteTools(srv)
+	enabled := g.enabledServices()
+	if enabled[domain.MCPServiceSlack] {
+		g.registerSlackTools(srv)
+		g.registerSlackWriteTools(srv)
+	}
+	if enabled[domain.MCPServiceClickUp] {
+		g.registerClickUpTools(srv)
+		g.registerClickUpWriteTools(srv)
+		g.registerClickUpCaptureTool(srv)
+	}
+	if enabled[domain.MCPServiceGDrive] {
+		// One Google OAuth scope covers Drive + Calendar + Gmail, so the
+		// three tool groups share a single Enabled flag.
+		g.registerGDriveTools(srv)
+		g.registerGCalTools(srv)
+		g.registerGmailTools(srv)
+	}
+	if enabled[domain.MCPServiceGitHub] {
+		g.registerGitHubTools(srv)
+		g.registerGitHubWriteTools(srv)
+	}
+	if enabled[domain.MCPServiceGitLab] {
+		g.registerGitLabTools(srv)
+	}
+	if enabled[domain.MCPServiceBitwarden] {
+		g.registerBitwardenTools(srv)
+	}
+	// SSH has no per-connector Enabled flag in the registry — it gates on
+	// SSHStore being non-nil, which is wired separately. Always register.
 	g.registerSSHTools(srv)
-	g.registerGitLabTools(srv)
-	g.registerBitwardenTools(srv)
 	return srv
+}
+
+// enabledServices returns the set of connector services that should appear in
+// tools/list for this gateway process. A service is enabled when EITHER the
+// shared meta has Enabled=true OR any account has Enabled=true — the
+// resolver picks the right one per call. If the registry load fails (e.g.
+// first-run before any account exists), we degrade to "register everything"
+// rather than ship an empty toolset that masks the real error.
+func (g *Gateway) enabledServices() map[domain.MCPService]bool {
+	out := map[domain.MCPService]bool{}
+	if g.Resolver == nil || g.Resolver.Registry == nil {
+		for _, svc := range domain.AllMCPServices {
+			out[svc] = true
+		}
+		return out
+	}
+	reg, err := g.Resolver.Registry.Load(context.Background())
+	if err != nil {
+		for _, svc := range domain.AllMCPServices {
+			out[svc] = true
+		}
+		return out
+	}
+	for svc, meta := range reg.SharedMCPConnectors {
+		if meta != nil && meta.Enabled {
+			out[svc] = true
+		}
+	}
+	for _, acc := range reg.Accounts {
+		for svc, meta := range acc.MCPConnectors {
+			if meta != nil && meta.Enabled {
+				out[svc] = true
+			}
+		}
+	}
+	return out
 }
 
 // ServeStdio runs the MCP server over stdio until the client disconnects.
