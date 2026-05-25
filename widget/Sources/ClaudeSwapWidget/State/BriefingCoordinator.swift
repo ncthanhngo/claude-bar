@@ -13,15 +13,35 @@ final class BriefingCoordinator: ObservableObject {
     @Published private(set) var lastError: String?
     @Published var isWindowOpen = false
 
+    /// The instance the SwiftUI view tree is actually using. Set in `start()`
+    /// (called from the popover's `.task`, with the @StateObject instance as
+    /// `self`). Carbon hotkey callbacks resolve through this so they always
+    /// hit the live instance — capturing `_briefingCoord.wrappedValue` in
+    /// `App.init()` returned a transient instance that wasn't observed by
+    /// BriefingWindowController, leaving ⌥X a no-op.
+    static weak var shared: BriefingCoordinator?
+
     private let client: CswClient
     private var pollTask: Task<Void, Never>?
     private var keyWindowObserver: NSObjectProtocol?
     private var appDeactivateObserver: NSObjectProtocol?
 
-    init(client: CswClient) { self.client = client }
+    init(client: CswClient) {
+        self.client = client
+        // Stake the singleton immediately so the ⌥X hotkey works on a
+        // cold-launched session — even before the popover's `.task`
+        // runs `start()`. `start()` re-stakes too as a last-wins safety.
+        Self.shared = self
+    }
 
     /// Start initial load + poll loop. Idempotent.
     func start() {
+        // Stake the live-instance pointer so hotkey callbacks can find us.
+        // Safe to overwrite on every start() — the prior instance was
+        // either this same object (idempotent re-attach) or has already
+        // been replaced by the SwiftUI runtime, in which case we want the
+        // newer one anyway.
+        Self.shared = self
         pollTask?.cancel()
         pollTask = Task { [weak self] in
             await self?.loadInitial()
