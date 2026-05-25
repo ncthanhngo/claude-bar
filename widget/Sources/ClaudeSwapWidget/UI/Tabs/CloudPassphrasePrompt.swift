@@ -38,7 +38,7 @@ enum CloudPassphrasePrompt {
         // to commit (Return triggers the default first button).
         alert.window.initialFirstResponder = field
 
-        let response = alert.runModal()
+        let response = PopoverModal.runAlert(alert)
         guard response == .alertFirstButtonReturn else { return nil }
         let value = field.stringValue.trimmingCharacters(in: .whitespaces)
         return value.isEmpty ? nil : value

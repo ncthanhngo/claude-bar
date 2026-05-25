@@ -175,7 +175,7 @@ struct ChatComposer: View {
         panel.canChooseDirectories = false
         panel.canChooseFiles = true
         panel.allowedContentTypes = [] // any
-        guard panel.runModal() == .OK, let url = panel.url else { return }
+        guard PopoverModal.runPanel(panel) == .OK, let url = panel.url else { return }
         Task { await uploadAttachment(url: url) }
     }
 

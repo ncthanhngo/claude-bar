@@ -320,7 +320,7 @@ struct AccountRowView: View {
         alert.alertStyle = .warning
         alert.addButton(withTitle: "Force switch")
         alert.addButton(withTitle: "Cancel")
-        if alert.runModal() == .alertFirstButtonReturn {
+        if PopoverModal.runAlert(alert) == .alertFirstButtonReturn {
             doSwap()
         }
     }

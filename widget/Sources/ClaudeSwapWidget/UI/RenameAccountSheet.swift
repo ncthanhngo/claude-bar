@@ -41,7 +41,7 @@ enum AccountRenamePrompt {
         // Return to commit (Return triggers the default Save button).
         alert.window.initialFirstResponder = field
 
-        let response = alert.runModal()
+        let response = PopoverModal.runAlert(alert)
         switch response {
         case .alertFirstButtonReturn:
             let trimmed = field.stringValue.trimmingCharacters(in: .whitespaces)

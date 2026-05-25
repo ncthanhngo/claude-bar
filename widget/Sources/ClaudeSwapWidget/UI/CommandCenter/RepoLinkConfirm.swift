@@ -71,7 +71,7 @@ struct RepoLinkConfirm: View {
         panel.allowsMultipleSelection = false
         panel.message = "Choose the local checkout for \(origin)"
         panel.prompt = "Use folder"
-        if panel.runModal() == .OK, let url = panel.url {
+        if PopoverModal.runPanel(panel) == .OK, let url = panel.url {
             onConfirm(url.path)
             dismiss()
         }
