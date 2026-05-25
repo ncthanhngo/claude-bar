@@ -211,18 +211,20 @@ enum WidgetTheme: String, CaseIterable, Identifiable {
     }
 
     var activeAccent: Color {
+        // Green across every theme — the "this is the live account" cue is
+        // load-bearing enough that we don't want it shifting hue per theme.
+        // Rainbow used to lean purple/magenta; that read as a decorative
+        // accent, not "active". One colour, everywhere.
         switch self {
-        case .light, .dark: return .green
-        case .rainbow:      return Color(red: 0.75, green: 0.2, blue: 0.85)
-        case .apple:        return Color(nsColor: .systemGreen)
+        case .apple: return Color(nsColor: .systemGreen)
+        default:     return .green
         }
     }
 
     var activeChipBackground: Color {
         switch self {
-        case .light, .dark: return .green
-        case .rainbow:      return Color(red: 0.85, green: 0.15, blue: 0.65)
-        case .apple:        return Color(nsColor: .systemGreen)
+        case .apple: return Color(nsColor: .systemGreen)
+        default:     return .green
         }
     }
 

@@ -61,9 +61,13 @@ struct ThresholdSliderView: View {
 
     @ViewBuilder
     private func currentMarker(_ geo: GeometryProxy, pct: Int) -> some View {
-        Rectangle()
-            .fill(Color.primary.opacity(0.55))
-            .frame(width: 2, height: 20)
+        // Orange + 4× thicker than the old 2pt hairline. The marker now
+        // reads as "you are HERE" instead of a stray gridline next to the
+        // threshold knob. Orange contrasts the accent-blue fill so the
+        // user sees current vs trigger at a glance.
+        RoundedRectangle(cornerRadius: 2)
+            .fill(Color.orange)
+            .frame(width: 8, height: 20)
             .position(x: geo.size.width * fraction(pct), y: geo.size.height / 2)
     }
 
@@ -90,7 +94,11 @@ struct ThresholdSliderView: View {
     private var legend: some View {
         HStack {
             if let cur = currentPct {
-                marker(text: "current \(cur)%", color: .primary.opacity(0.55), bold: false)
+                // The "current X%" number uses the same traffic-light palette
+                // as the usage bars in each account row above, so the slider
+                // legend visually agrees with the per-account percentages
+                // instead of fading into secondary grey.
+                marker(text: "current \(cur)%", color: UsagePalette.color(for: cur), bold: true)
             }
             Spacer()
             marker(text: "trigger \(threshold)%", color: thresholdColor, bold: true)
