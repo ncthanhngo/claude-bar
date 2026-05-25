@@ -24,23 +24,41 @@ struct GitLabAddSheet: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        // Manual VStack of (label, field) rows instead of SwiftUI `Form` —
+        // Form's auto-sized label column clipped longer labels ("Personal
+        // Access Token") when the host window was anything under ~560 px
+        // wide. Fixed-width label column keeps everything aligned and
+        // legible at the FloatingWindow's content size.
+        VStack(alignment: .leading, spacing: 14) {
             Text("Add GitLab self-host").font(.headline)
-            Form {
-                TextField("Display name", text: $name)
-                TextField("Base URL (https://…/api/v4)", text: $baseURL)
-                TextField("Note", text: $note, axis: .vertical)
-                    .lineLimit(2...4)
-                SecureField("Personal Access Token", text: $pat)
-                Text("Scopes recommended: `api` (write) or `read_api` (read-only).")
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
+            field(label: "Display name") {
+                TextField("e.g. Work GitLab", text: $name)
+                    .textFieldStyle(.roundedBorder)
             }
+            field(label: "Base URL") {
+                TextField("https://gitlab.example.com/api/v4", text: $baseURL)
+                    .textFieldStyle(.roundedBorder)
+            }
+            field(label: "Note", alignment: .top) {
+                TextField("Optional", text: $note, axis: .vertical)
+                    .lineLimit(2...4)
+                    .textFieldStyle(.roundedBorder)
+            }
+            field(label: "Access Token") {
+                SecureField("Personal Access Token", text: $pat)
+                    .textFieldStyle(.roundedBorder)
+            }
+            Text("Scopes recommended: `api` (write) or `read_api` (read-only).")
+                .font(.caption2)
+                .foregroundColor(.secondary)
+                .padding(.leading, labelWidth + 12)
+
             HStack {
                 Spacer()
                 Button("Cancel") {
                     if let onCancel { onCancel() } else { dismiss() }
                 }
+                .keyboardShortcut(.cancelAction)
                 Button("Add") {
                     onSubmit(name, baseURL, note, pat)
                     // Host closes the window in the MCP-tab path (onCancel
@@ -51,8 +69,27 @@ struct GitLabAddSheet: View {
                 .keyboardShortcut(.defaultAction)
                 .disabled(!canSubmit)
             }
+            .padding(.top, 4)
         }
         .padding(20)
-        .frame(width: 460)
+        .frame(minWidth: 460, maxWidth: .infinity, alignment: .leading)
+    }
+
+    private let labelWidth: CGFloat = 110
+
+    @ViewBuilder
+    private func field<Content: View>(
+        label: String,
+        alignment: VerticalAlignment = .firstTextBaseline,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        HStack(alignment: alignment, spacing: 12) {
+            Text(label)
+                .frame(width: labelWidth, alignment: .trailing)
+                .foregroundColor(.secondary)
+                .font(.system(size: 12))
+            content()
+                .frame(maxWidth: .infinity)
+        }
     }
 }

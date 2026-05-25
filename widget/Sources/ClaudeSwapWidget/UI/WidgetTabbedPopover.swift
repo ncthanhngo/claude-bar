@@ -27,9 +27,19 @@ struct WidgetTabbedPopover: View {
                 MenuHeaderBar(onAddAccount: {
                     withAnimation(.easeInOut(duration: 0.18)) { showAddAccount = true }
                 })
+                // Tiny top inset so the status row sits clear of the
+                // MenuBarExtra(.window) chrome — without it the popover's
+                // own top padding clipped the first row of icons / text.
+                .padding(.top, 6)
                 Divider().opacity(0.5)
-                mainBody
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                // ScrollView so accounts + auto-swap + token chart + KPI
+                // strip never overflow the popover bottom on dense screens
+                // ("footer thiếu chân"). Header stays pinned outside the
+                // scroll surface.
+                ScrollView(.vertical, showsIndicators: false) {
+                    mainBody
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
 
             if showAddAccount {
@@ -37,7 +47,7 @@ struct WidgetTabbedPopover: View {
                     .zIndex(10)
             }
         }
-        .frame(width: 440, height: 720)
+        .frame(width: 440, height: 760)
         .background(popoverBackground)
         .background(WindowAppearanceSetter(theme: settings.widgetTheme))
         .background(PopoverWindowCapture())
@@ -59,6 +69,10 @@ struct WidgetTabbedPopover: View {
 
     @ViewBuilder
     private var mainBody: some View {
+        // Plain VStack inside the ScrollView — no `maxHeight: .infinity`
+        // on children (would force them to fill the scroll content and
+        // defeat scrolling). Bottom padding gives the last KPI card
+        // breathing room when the scroll is at its bottom limit.
         VStack(alignment: .leading, spacing: 4) {
             accountsHeader
             AccountListSection()
@@ -66,9 +80,9 @@ struct WidgetTabbedPopover: View {
             AutoSwapSection()
             sectionTitle("Token usage").padding(.top, 6)
             TokenStatsSection()
-                .frame(maxHeight: .infinity, alignment: .top)
         }
-        .padding(.vertical, 6)
+        .padding(.top, 6)
+        .padding(.bottom, 12)
     }
 
     private var accountsHeader: some View {
