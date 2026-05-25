@@ -41,6 +41,9 @@ func runGitLabList(ctx context.Context, store *mcp.GitLabInstanceStore) error {
 	if err != nil {
 		return err
 	}
+	if insts == nil {
+		insts = []mcp.GitLabInstance{}
+	}
 	return json.NewEncoder(os.Stdout).Encode(insts)
 }
 

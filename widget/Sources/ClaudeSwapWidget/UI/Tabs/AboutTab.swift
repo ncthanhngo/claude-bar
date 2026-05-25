@@ -19,17 +19,12 @@ struct AboutTab: View {
                         Text(appVersionLabel)
                             .foregroundColor(.secondary)
                             .monospacedDigit()
-                        Text("Stable")
-                            .font(.system(size: 10, weight: .medium))
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(Color.green.opacity(0.8))
-                            .clipShape(Capsule())
+                        channelBadge
                     }
                     .font(.caption)
                     infoRow(label: "Build date", value: aboutInfo.buildDate)
                     infoRow(label: "License", value: aboutInfo.license)
+                    releaseNotesSection
                     HStack(spacing: 8) {
                         Button {
                             updateController.checkForUpdates()
@@ -119,6 +114,90 @@ struct AboutTab: View {
                     .font(.caption)
                 }
             }
+        }
+    }
+
+    /// Badge tinted by release channel per the convention in `.claude/commands/rl.md`:
+    /// bare-integer versions ship as Stable (green), dotted versions as Beta (orange).
+    /// Source of truth is the explicit `CBReleaseChannel` Info.plist key so a future
+    /// hotfix branch can pin the badge without touching the version string.
+    @ViewBuilder
+    private var channelBadge: some View {
+        let channel = releaseChannel
+        Text(channel)
+            .font(.system(size: 10, weight: .medium))
+            .foregroundColor(.white)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .background(channelTint(channel).opacity(0.85))
+            .clipShape(Capsule())
+    }
+
+    /// "What's new / Hotfixes / Known issues" populated from Info.plist by the
+    /// /rl release skill. Each category falls back to nothing when the key is
+    /// absent (dev builds) so the section disappears cleanly instead of
+    /// rendering empty headers.
+    @ViewBuilder
+    private var releaseNotesSection: some View {
+        let whatsNew = bulletLines(forKey: "CBReleaseWhatsNew")
+        let hotfixes = bulletLines(forKey: "CBReleaseHotfixes")
+        let knownIssues = bulletLines(forKey: "CBReleaseKnownIssues")
+
+        if !whatsNew.isEmpty || !hotfixes.isEmpty || !knownIssues.isEmpty {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("What's new in this version")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundColor(.secondary)
+                    .padding(.top, 4)
+                bulletGroup(title: "What's new", lines: whatsNew, color: .primary)
+                bulletGroup(title: "Hotfixes", lines: hotfixes, color: .primary)
+                bulletGroup(title: "Known issues", lines: knownIssues, color: .orange)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func bulletGroup(title: String, lines: [String], color: Color) -> some View {
+        if !lines.isEmpty {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                ForEach(lines, id: \.self) { line in
+                    HStack(alignment: .firstTextBaseline, spacing: 6) {
+                        Text("•").foregroundColor(.secondary)
+                        Text(line)
+                            .font(.caption)
+                            .foregroundColor(color)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+            }
+        }
+    }
+
+    private func bulletLines(forKey key: String) -> [String] {
+        guard let raw = Bundle.main.infoDictionary?[key] as? String else { return [] }
+        return raw
+            .split(whereSeparator: \.isNewline)
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+    }
+
+    private var releaseChannel: String {
+        let raw = (Bundle.main.infoDictionary?["CBReleaseChannel"] as? String)?
+            .trimmingCharacters(in: .whitespaces) ?? ""
+        if !raw.isEmpty { return raw }
+        // Fallback: derive from version. Dotted = Beta, bare integer = Stable.
+        let version = (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String) ?? ""
+        return version.contains(".") ? "Beta" : "Stable"
+    }
+
+    private func channelTint(_ channel: String) -> Color {
+        switch channel.lowercased() {
+        case "stable": return .green
+        case "beta":   return .orange
+        default:       return .gray
         }
     }
 
