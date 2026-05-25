@@ -12,6 +12,26 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 10.30 (BETA)</title>
+      <sparkle:version>10.30</sparkle:version>
+      <sparkle:shortVersionString>10.30</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li><strong>Alerts and floating sheets triggered from Settings now sit on top of the Settings window and centered on it</strong> — previously they could land behind Settings or off to one side.</li>
+          <li><strong>Fixed /exit in claude-watch feeling like a freeze.</strong> Post-exit credential-change window shrank 8s → 2s, and the background session watcher is now SIGKILL'd on cleanup so the shell prompt actually returns.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Mon, 25 May 2026 22:39:16 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v10.30/ClaudeBar.zip"
+        sparkle:version="10.30"
+        sparkle:shortVersionString="10.30"
+        sparkle:edSignature="4wz/dLsl8cbCBrGOuBvmZbVOtcEASRMlfWIRCsvDn2qtZgOMaJXpCYusVRy6wW1/XfQMQQvmFglQ5UGSnfoTDw=="
+        length="8465542"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 10.29 (BETA)</title>
       <sparkle:version>10.29</sparkle:version>
       <sparkle:shortVersionString>10.29</sparkle:shortVersionString>
