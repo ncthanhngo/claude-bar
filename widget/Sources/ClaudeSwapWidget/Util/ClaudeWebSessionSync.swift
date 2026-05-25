@@ -21,12 +21,25 @@ import WebKit
 enum ClaudeWebSessionSync {
     private static let service = "claude-bar-web-usage-session"
 
+    /// Master Keychain gate — same toggle as iCloud sync because every read
+    /// here also hits a Keychain item the app didn't create with its current
+    /// code signature, which is exactly the second "Allow access?" prompt
+    /// users were getting after each Sparkle update. When the toggle is off,
+    /// the WKWebsiteDataStore still holds its own persisted cookies on disk,
+    /// so the embedded web profile survives across launches without this
+    /// secondary Keychain cache.
+    private static var keychainAccessAllowed: Bool {
+        AppSettings.shared.iCloudSyncEnabled
+    }
+
     static func hasSession(for account: AccountDTO) -> Bool {
+        guard keychainAccessAllowed else { return false }
         if loadLocal(for: account) != nil { return true }
         return WebCookieCloudSync.hasSession(for: account)
     }
 
     static func save(account: AccountDTO, dataStore: WKWebsiteDataStore) async {
+        guard keychainAccessAllowed else { return }
         let now = Date()
         let cookies = await dataStore.httpCookieStore.allCookies()
             .filter { $0.domain.hasSuffix("claude.ai") }
@@ -51,6 +64,7 @@ enum ClaudeWebSessionSync {
     }
 
     static func restore(account: AccountDTO, dataStore: WKWebsiteDataStore) async -> Bool {
+        guard keychainAccessAllowed else { return false }
         let local = loadLocal(for: account)
         let cloud = WebCookieCloudSync.loadCookies(for: account)
 
@@ -81,6 +95,9 @@ enum ClaudeWebSessionSync {
     }
 
     static func remove(account: AccountDTO) {
+        // Delete is allowed even with the toggle off — explicit user-initiated
+        // cleanup (Disconnect button) and SecItemDelete doesn't pop the ACL
+        // prompt the way reads/updates do.
         SecItemDelete(itemQuery(for: account) as CFDictionary)
         WebCookieCloudSync.remove(account: account)
     }
