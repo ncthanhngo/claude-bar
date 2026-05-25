@@ -15,129 +15,107 @@ import (
 	"github.com/mark3labs/mcp-go/server"
 )
 
-// registerGitHubWriteTools registers the 4 write-capable GitHub tools. Each
-// blocks on Gateway.Gate.AwaitApproval before hitting GitHub; without a wired
-// emitter it fails closed (user_cancelled) and never reaches the API.
+// registerGitHubWriteTools registers GitHub write tools. Each blocks on
+// Gateway.Gate.AwaitApproval before hitting the API; without a wired
+// emitter it fails closed (user_cancelled). Descriptions stay terse — the
+// "gated" behavior is enforced server-side, no need to spend tokens
+// reminding the model on every tools/list dump.
 func (g *Gateway) registerGitHubWriteTools(srv *server.MCPServer) {
-	addTool(srv, "cb_github_post_review",
-		"Post a pull-request review (approve / request_changes / comment). Gated.",
+	owner := mcpgo.WithString("owner", mcpgo.Required())
+	repo := mcpgo.WithString("repo", mcpgo.Required())
+	num := mcpgo.WithNumber("number", mcpgo.Required())
+
+	addTool(srv, "cb_github_post_review", "Post PR review.",
 		[]mcpgo.ToolOption{
-			mcpgo.WithString("owner", mcpgo.Required(), mcpgo.Description("Repo owner.")),
-			mcpgo.WithString("repo", mcpgo.Required(), mcpgo.Description("Repository name.")),
-			mcpgo.WithNumber("number", mcpgo.Required(), mcpgo.Description("Pull request number.")),
-			mcpgo.WithString("event", mcpgo.Required(), mcpgo.Description("APPROVE | REQUEST_CHANGES | COMMENT.")),
-			mcpgo.WithString("body", mcpgo.Description("Review body. Required for REQUEST_CHANGES and COMMENT.")),
+			owner, repo, num,
+			mcpgo.WithString("event", mcpgo.Required(), mcpgo.Description("APPROVE|REQUEST_CHANGES|COMMENT.")),
+			mcpgo.WithString("body", mcpgo.Description("Required for REQUEST_CHANGES/COMMENT.")),
 		},
 		g.githubPostReview,
 	)
 
-	addTool(srv, "cb_github_comment_issue",
-		"Add a comment to an issue or pull request. Gated.",
+	addTool(srv, "cb_github_comment_issue", "Comment on issue/PR.",
 		[]mcpgo.ToolOption{
-			mcpgo.WithString("owner", mcpgo.Required(), mcpgo.Description("Repo owner.")),
-			mcpgo.WithString("repo", mcpgo.Required(), mcpgo.Description("Repository name.")),
-			mcpgo.WithNumber("number", mcpgo.Required(), mcpgo.Description("Issue or PR number.")),
-			mcpgo.WithString("body", mcpgo.Required(), mcpgo.Description("Comment body (markdown).")),
+			owner, repo, num,
+			mcpgo.WithString("body", mcpgo.Required()),
 		},
 		g.githubCommentIssue,
 	)
 
-	addTool(srv, "cb_github_merge_pr",
-		"Merge a pull request. Destructive — surfaces a modal gate.",
+	addTool(srv, "cb_github_merge_pr", "Merge a PR.",
 		[]mcpgo.ToolOption{
-			mcpgo.WithString("owner", mcpgo.Required(), mcpgo.Description("Repo owner.")),
-			mcpgo.WithString("repo", mcpgo.Required(), mcpgo.Description("Repository name.")),
-			mcpgo.WithNumber("number", mcpgo.Required(), mcpgo.Description("Pull request number.")),
-			mcpgo.WithString("method", mcpgo.Description("merge | squash | rebase. Default merge.")),
-			mcpgo.WithString("commit_title", mcpgo.Description("Optional commit title.")),
+			owner, repo, num,
+			mcpgo.WithString("method", mcpgo.Description("merge|squash|rebase.")),
+			mcpgo.WithString("commit_title"),
 		},
 		g.githubMergePR,
 	)
 
-	addTool(srv, "cb_github_close_issue",
-		"Close an issue. Destructive — surfaces a modal gate.",
+	addTool(srv, "cb_github_close_issue", "Close an issue.",
 		[]mcpgo.ToolOption{
-			mcpgo.WithString("owner", mcpgo.Required(), mcpgo.Description("Repo owner.")),
-			mcpgo.WithString("repo", mcpgo.Required(), mcpgo.Description("Repository name.")),
-			mcpgo.WithNumber("number", mcpgo.Required(), mcpgo.Description("Issue number.")),
-			mcpgo.WithString("reason", mcpgo.Description("completed | not_planned | reopened. Default completed.")),
+			owner, repo, num,
+			mcpgo.WithString("reason", mcpgo.Description("completed|not_planned|reopened.")),
 		},
 		g.githubCloseIssue,
 	)
 
-	addTool(srv, "cb_github_create_issue",
-		"Open a new issue. Gated.",
+	addTool(srv, "cb_github_create_issue", "Open an issue.",
 		[]mcpgo.ToolOption{
-			mcpgo.WithString("owner", mcpgo.Required(), mcpgo.Description("Repo owner.")),
-			mcpgo.WithString("repo", mcpgo.Required(), mcpgo.Description("Repository name.")),
-			mcpgo.WithString("title", mcpgo.Required(), mcpgo.Description("Issue title.")),
-			mcpgo.WithString("body", mcpgo.Description("Issue body (markdown).")),
-			mcpgo.WithString("labels", mcpgo.Description("Comma-separated label names.")),
-			mcpgo.WithString("assignees", mcpgo.Description("Comma-separated GitHub logins.")),
+			owner, repo,
+			mcpgo.WithString("title", mcpgo.Required()),
+			mcpgo.WithString("body"),
+			mcpgo.WithString("labels", mcpgo.Description("CSV.")),
+			mcpgo.WithString("assignees", mcpgo.Description("CSV logins.")),
 		},
 		g.githubCreateIssue,
 	)
 
-	addTool(srv, "cb_github_create_pr",
-		"Open a new pull request. Gated.",
+	addTool(srv, "cb_github_create_pr", "Open a PR.",
 		[]mcpgo.ToolOption{
-			mcpgo.WithString("owner", mcpgo.Required(), mcpgo.Description("Repo owner.")),
-			mcpgo.WithString("repo", mcpgo.Required(), mcpgo.Description("Repository name.")),
-			mcpgo.WithString("title", mcpgo.Required(), mcpgo.Description("Pull request title.")),
-			mcpgo.WithString("head", mcpgo.Required(), mcpgo.Description("Source branch (e.g. feature-x or fork:branch).")),
-			mcpgo.WithString("base", mcpgo.Required(), mcpgo.Description("Target branch (e.g. main).")),
-			mcpgo.WithString("body", mcpgo.Description("PR description (markdown).")),
-			mcpgo.WithBoolean("draft", mcpgo.Description("Open as draft. Default false.")),
-			mcpgo.WithBoolean("maintainer_can_modify", mcpgo.Description("Allow maintainer edits on cross-fork PRs. Default true.")),
+			owner, repo,
+			mcpgo.WithString("title", mcpgo.Required()),
+			mcpgo.WithString("head", mcpgo.Required(), mcpgo.Description("Source branch (or fork:branch).")),
+			mcpgo.WithString("base", mcpgo.Required(), mcpgo.Description("Target branch.")),
+			mcpgo.WithString("body"),
+			mcpgo.WithBoolean("draft"),
+			mcpgo.WithBoolean("maintainer_can_modify"),
 		},
 		g.githubCreatePR,
 	)
 
-	addTool(srv, "cb_github_update_issue",
-		"Edit an issue's title, body, labels, assignees, or milestone. Use cb_github_close_issue to change state. Gated.",
+	addTool(srv, "cb_github_update_issue", "Edit issue (title/body/labels/assignees/milestone). Use close_issue for state.",
 		[]mcpgo.ToolOption{
-			mcpgo.WithString("owner", mcpgo.Required(), mcpgo.Description("Repo owner.")),
-			mcpgo.WithString("repo", mcpgo.Required(), mcpgo.Description("Repository name.")),
-			mcpgo.WithNumber("number", mcpgo.Required(), mcpgo.Description("Issue number.")),
-			mcpgo.WithString("title", mcpgo.Description("New title.")),
-			mcpgo.WithString("body", mcpgo.Description("New body (markdown). Empty string clears the body.")),
-			mcpgo.WithString("labels", mcpgo.Description("Comma-separated label names — REPLACES the entire label set. Use add_labels / remove_label for delta edits.")),
-			mcpgo.WithString("assignees", mcpgo.Description("Comma-separated GitHub logins — REPLACES the entire assignee set.")),
-			mcpgo.WithNumber("milestone", mcpgo.Description("Milestone number. Use 0 to clear.")),
+			owner, repo, num,
+			mcpgo.WithString("title"),
+			mcpgo.WithString("body", mcpgo.Description("Empty string clears.")),
+			mcpgo.WithString("labels", mcpgo.Description("CSV — REPLACES set. Use add_labels/remove_label for delta.")),
+			mcpgo.WithString("assignees", mcpgo.Description("CSV — REPLACES set.")),
+			mcpgo.WithNumber("milestone", mcpgo.Description("0 clears.")),
 		},
 		g.githubUpdateIssue,
 	)
 
-	addTool(srv, "cb_github_request_reviewers",
-		"Request reviewers (users or teams) on a pull request. Gated.",
+	addTool(srv, "cb_github_request_reviewers", "Request PR reviewers.",
 		[]mcpgo.ToolOption{
-			mcpgo.WithString("owner", mcpgo.Required(), mcpgo.Description("Repo owner.")),
-			mcpgo.WithString("repo", mcpgo.Required(), mcpgo.Description("Repository name.")),
-			mcpgo.WithNumber("number", mcpgo.Required(), mcpgo.Description("Pull request number.")),
-			mcpgo.WithString("reviewers", mcpgo.Description("Comma-separated GitHub logins.")),
-			mcpgo.WithString("team_reviewers", mcpgo.Description("Comma-separated team slugs (org PRs only).")),
+			owner, repo, num,
+			mcpgo.WithString("reviewers", mcpgo.Description("CSV logins.")),
+			mcpgo.WithString("team_reviewers", mcpgo.Description("CSV team slugs.")),
 		},
 		g.githubRequestReviewers,
 	)
 
-	addTool(srv, "cb_github_add_labels",
-		"Add labels to an issue or pull request. Existing labels are preserved. Gated.",
+	addTool(srv, "cb_github_add_labels", "Add labels (existing preserved).",
 		[]mcpgo.ToolOption{
-			mcpgo.WithString("owner", mcpgo.Required(), mcpgo.Description("Repo owner.")),
-			mcpgo.WithString("repo", mcpgo.Required(), mcpgo.Description("Repository name.")),
-			mcpgo.WithNumber("number", mcpgo.Required(), mcpgo.Description("Issue or PR number.")),
-			mcpgo.WithString("labels", mcpgo.Required(), mcpgo.Description("Comma-separated label names to add.")),
+			owner, repo, num,
+			mcpgo.WithString("labels", mcpgo.Required(), mcpgo.Description("CSV.")),
 		},
 		g.githubAddLabels,
 	)
 
-	addTool(srv, "cb_github_remove_label",
-		"Remove a single label from an issue or pull request. Gated.",
+	addTool(srv, "cb_github_remove_label", "Remove one label.",
 		[]mcpgo.ToolOption{
-			mcpgo.WithString("owner", mcpgo.Required(), mcpgo.Description("Repo owner.")),
-			mcpgo.WithString("repo", mcpgo.Required(), mcpgo.Description("Repository name.")),
-			mcpgo.WithNumber("number", mcpgo.Required(), mcpgo.Description("Issue or PR number.")),
-			mcpgo.WithString("label", mcpgo.Required(), mcpgo.Description("Exact label name to remove.")),
+			owner, repo, num,
+			mcpgo.WithString("label", mcpgo.Required()),
 		},
 		g.githubRemoveLabel,
 	)

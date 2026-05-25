@@ -14,7 +14,10 @@ import (
 // tools/list handler without going through stdio. Confirms every cb_* tool
 // is registered and uses the cb_ prefix.
 func TestGatewayToolsListExposesEveryConnector(t *testing.T) {
-	gw := newSmokeGateway(0, false)
+	// BuildServer now skips disabled connectors so we seed an account with
+	// every service Enabled — mirroring the real "user has connected
+	// everything" path the assertions below describe.
+	gw := newSmokeGateway(1, false)
 	srv := gw.BuildServer()
 
 	msg := json.RawMessage(`{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}`)
@@ -53,7 +56,10 @@ func TestGatewayToolsListExposesEveryConnector(t *testing.T) {
 // no active account configured and asserts the response is a fail-closed
 // error that does not leak which other accounts have the connector.
 func TestGatewayCallToolFailsClosedWhenNoActiveAccount(t *testing.T) {
-	gw := newSmokeGateway(0, false)
+	// Seed the shared connector as Enabled so the Slack tool is registered
+	// and reachable via tools/call. ActiveAccountNumber stays 0, so the
+	// resolver returns ErrNoActiveAccount → connector_unavailable.
+	gw := newSmokeGatewayWithSharedEnabled()
 	srv := gw.BuildServer()
 
 	msg := json.RawMessage(`{
@@ -138,5 +144,20 @@ func newSmokeGateway(activeAccount int, withSecret bool) *Gateway {
 	}
 	gw := newTestGateway()
 	gw.Resolver = &Resolver{Registry: &fakeRegistry{reg: reg}, Secrets: secrets}
+	return gw
+}
+
+// newSmokeGatewayWithSharedEnabled wires a registry that has every service
+// Enabled on the shared meta but no active account. Lets us register tools
+// in tools/list (so tools/call can reach them) while still triggering the
+// resolver's ErrNoActiveAccount path.
+func newSmokeGatewayWithSharedEnabled() *Gateway {
+	reg := domain.NewRegistry()
+	reg.SharedMCPConnectors = domain.AccountConnectors{}
+	for _, s := range domain.AllMCPServices {
+		reg.SharedMCPConnectors[s] = &domain.MCPConnector{Enabled: true}
+	}
+	gw := newTestGateway()
+	gw.Resolver = &Resolver{Registry: &fakeRegistry{reg: reg}, Secrets: fakeSecrets{}}
 	return gw
 }

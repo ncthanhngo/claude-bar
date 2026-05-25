@@ -16,203 +16,147 @@ import (
 	"github.com/soi/claude-swap-widget/backend/internal/domain"
 )
 
-// registerGitHubTools registers the GitHub read tools. Write tools (Phase 2
-// continued) plug in here alongside once the widget gate UI lands.
+// registerGitHubTools registers GitHub read tools. Descriptions are kept
+// terse on purpose — every word ships in tools/list for every Claude Code
+// message in the session, and self-explanatory fields (owner, repo, number)
+// don't need help text. See PR notes on the v10.34 → v10.35 schema slim.
 func (g *Gateway) registerGitHubTools(srv *server.MCPServer) {
-	addTool(srv, "cb_github_list_prs",
-		"List pull requests in a GitHub repository. Read-only.",
+	owner := mcpgo.WithString("owner", mcpgo.Required())
+	repo := mcpgo.WithString("repo", mcpgo.Required())
+	prNum := mcpgo.WithNumber("number", mcpgo.Required())
+	perPage := mcpgo.WithNumber("per_page", mcpgo.Description("1–100, default 30."))
+
+	addTool(srv, "cb_github_list_prs", "List PRs.",
 		[]mcpgo.ToolOption{
-			mcpgo.WithString("owner", mcpgo.Required(), mcpgo.Description("Repo owner (user or organisation).")),
-			mcpgo.WithString("repo", mcpgo.Required(), mcpgo.Description("Repository name.")),
-			mcpgo.WithString("state", mcpgo.Description("open | closed | all. Default open.")),
-			mcpgo.WithString("sort", mcpgo.Description("created | updated | popularity | long-running. Default created.")),
-			mcpgo.WithNumber("per_page", mcpgo.Description("1–100. Default 30.")),
+			owner, repo,
+			mcpgo.WithString("state", mcpgo.Description("open|closed|all.")),
+			mcpgo.WithString("sort", mcpgo.Description("created|updated|popularity|long-running.")),
+			perPage,
 		},
 		g.githubListPRs,
 	)
 
-	addTool(srv, "cb_github_get_pr",
-		"Get one pull request including head/base, mergeable state, and labels. Read-only.",
-		[]mcpgo.ToolOption{
-			mcpgo.WithString("owner", mcpgo.Required(), mcpgo.Description("Repo owner.")),
-			mcpgo.WithString("repo", mcpgo.Required(), mcpgo.Description("Repository name.")),
-			mcpgo.WithNumber("number", mcpgo.Required(), mcpgo.Description("Pull request number.")),
-		},
+	addTool(srv, "cb_github_get_pr", "Get a PR.",
+		[]mcpgo.ToolOption{owner, repo, prNum},
 		g.githubGetPR,
 	)
 
-	addTool(srv, "cb_github_get_pr_diff",
-		"Get the unified diff for a pull request as text. Read-only.",
-		[]mcpgo.ToolOption{
-			mcpgo.WithString("owner", mcpgo.Required(), mcpgo.Description("Repo owner.")),
-			mcpgo.WithString("repo", mcpgo.Required(), mcpgo.Description("Repository name.")),
-			mcpgo.WithNumber("number", mcpgo.Required(), mcpgo.Description("Pull request number.")),
-		},
+	addTool(srv, "cb_github_get_pr_diff", "Get PR unified diff.",
+		[]mcpgo.ToolOption{owner, repo, prNum},
 		g.githubGetPRDiff,
 	)
 
-	addTool(srv, "cb_github_list_issues",
-		"List issues in a GitHub repository. Read-only. Excludes pull requests.",
+	addTool(srv, "cb_github_list_issues", "List issues (excludes PRs).",
 		[]mcpgo.ToolOption{
-			mcpgo.WithString("owner", mcpgo.Required(), mcpgo.Description("Repo owner.")),
-			mcpgo.WithString("repo", mcpgo.Required(), mcpgo.Description("Repository name.")),
-			mcpgo.WithString("state", mcpgo.Description("open | closed | all. Default open.")),
-			mcpgo.WithString("labels", mcpgo.Description("Comma-separated label names.")),
-			mcpgo.WithNumber("per_page", mcpgo.Description("1–100. Default 30.")),
+			owner, repo,
+			mcpgo.WithString("state", mcpgo.Description("open|closed|all.")),
+			mcpgo.WithString("labels", mcpgo.Description("CSV label names.")),
+			perPage,
 		},
 		g.githubListIssues,
 	)
 
-	addTool(srv, "cb_github_search_code",
-		"Search code across repositories visible to the authenticated user. Read-only.",
+	addTool(srv, "cb_github_search_code", "Search code (GitHub query syntax).",
 		[]mcpgo.ToolOption{
-			mcpgo.WithString("query", mcpgo.Required(), mcpgo.Description("GitHub code-search query (e.g. `repo:owner/name path:src foo`).")),
-			mcpgo.WithNumber("per_page", mcpgo.Description("1–100. Default 30.")),
+			mcpgo.WithString("query", mcpgo.Required()),
+			perPage,
 		},
 		g.githubSearchCode,
 	)
 
-	addTool(srv, "cb_github_search_issues",
-		"Search issues and pull requests across GitHub. Read-only.",
+	addTool(srv, "cb_github_search_issues", "Search issues/PRs (GitHub query syntax).",
 		[]mcpgo.ToolOption{
-			mcpgo.WithString("query", mcpgo.Required(), mcpgo.Description("GitHub issue-search query (e.g. `repo:owner/name is:open author:me`).")),
-			mcpgo.WithString("sort", mcpgo.Description("comments | reactions | created | updated. Default best match.")),
-			mcpgo.WithNumber("per_page", mcpgo.Description("1–100. Default 30.")),
+			mcpgo.WithString("query", mcpgo.Required()),
+			mcpgo.WithString("sort", mcpgo.Description("comments|reactions|created|updated.")),
+			perPage,
 		},
 		g.githubSearchIssues,
 	)
 
-	addTool(srv, "cb_github_get_issue",
-		"Get one issue including labels, assignees, and state. Read-only.",
-		[]mcpgo.ToolOption{
-			mcpgo.WithString("owner", mcpgo.Required(), mcpgo.Description("Repo owner.")),
-			mcpgo.WithString("repo", mcpgo.Required(), mcpgo.Description("Repository name.")),
-			mcpgo.WithNumber("number", mcpgo.Required(), mcpgo.Description("Issue number.")),
-		},
+	addTool(srv, "cb_github_get_issue", "Get an issue.",
+		[]mcpgo.ToolOption{owner, repo, prNum},
 		g.githubGetIssue,
 	)
 
-	addTool(srv, "cb_github_list_issue_comments",
-		"List conversation comments on an issue or pull request. Read-only.",
-		[]mcpgo.ToolOption{
-			mcpgo.WithString("owner", mcpgo.Required(), mcpgo.Description("Repo owner.")),
-			mcpgo.WithString("repo", mcpgo.Required(), mcpgo.Description("Repository name.")),
-			mcpgo.WithNumber("number", mcpgo.Required(), mcpgo.Description("Issue or PR number.")),
-			mcpgo.WithNumber("per_page", mcpgo.Description("1–100. Default 30.")),
-		},
+	addTool(srv, "cb_github_list_issue_comments", "List comments on issue/PR.",
+		[]mcpgo.ToolOption{owner, repo, prNum, perPage},
 		g.githubListIssueComments,
 	)
 
-	addTool(srv, "cb_github_list_pr_reviews",
-		"List submitted reviews on a pull request (APPROVED / CHANGES_REQUESTED / COMMENTED). Read-only.",
-		[]mcpgo.ToolOption{
-			mcpgo.WithString("owner", mcpgo.Required(), mcpgo.Description("Repo owner.")),
-			mcpgo.WithString("repo", mcpgo.Required(), mcpgo.Description("Repository name.")),
-			mcpgo.WithNumber("number", mcpgo.Required(), mcpgo.Description("Pull request number.")),
-			mcpgo.WithNumber("per_page", mcpgo.Description("1–100. Default 30.")),
-		},
+	addTool(srv, "cb_github_list_pr_reviews", "List PR reviews (APPROVED/CHANGES_REQUESTED/COMMENTED).",
+		[]mcpgo.ToolOption{owner, repo, prNum, perPage},
 		g.githubListPRReviews,
 	)
 
-	addTool(srv, "cb_github_list_pr_review_comments",
-		"List inline review comments anchored to lines in the PR diff. Read-only.",
-		[]mcpgo.ToolOption{
-			mcpgo.WithString("owner", mcpgo.Required(), mcpgo.Description("Repo owner.")),
-			mcpgo.WithString("repo", mcpgo.Required(), mcpgo.Description("Repository name.")),
-			mcpgo.WithNumber("number", mcpgo.Required(), mcpgo.Description("Pull request number.")),
-			mcpgo.WithNumber("per_page", mcpgo.Description("1–100. Default 30.")),
-		},
+	addTool(srv, "cb_github_list_pr_review_comments", "List inline PR review comments.",
+		[]mcpgo.ToolOption{owner, repo, prNum, perPage},
 		g.githubListPRReviewComments,
 	)
 
-	addTool(srv, "cb_github_list_pr_files",
-		"List files changed in a pull request with patch hunks and stats. Read-only.",
-		[]mcpgo.ToolOption{
-			mcpgo.WithString("owner", mcpgo.Required(), mcpgo.Description("Repo owner.")),
-			mcpgo.WithString("repo", mcpgo.Required(), mcpgo.Description("Repository name.")),
-			mcpgo.WithNumber("number", mcpgo.Required(), mcpgo.Description("Pull request number.")),
-			mcpgo.WithNumber("per_page", mcpgo.Description("1–100. Default 30.")),
-		},
+	addTool(srv, "cb_github_list_pr_files", "List PR files with patches.",
+		[]mcpgo.ToolOption{owner, repo, prNum, perPage},
 		g.githubListPRFiles,
 	)
 
-	addTool(srv, "cb_github_list_pr_commits",
-		"List commits included in a pull request. Read-only.",
-		[]mcpgo.ToolOption{
-			mcpgo.WithString("owner", mcpgo.Required(), mcpgo.Description("Repo owner.")),
-			mcpgo.WithString("repo", mcpgo.Required(), mcpgo.Description("Repository name.")),
-			mcpgo.WithNumber("number", mcpgo.Required(), mcpgo.Description("Pull request number.")),
-			mcpgo.WithNumber("per_page", mcpgo.Description("1–100. Default 30.")),
-		},
+	addTool(srv, "cb_github_list_pr_commits", "List PR commits.",
+		[]mcpgo.ToolOption{owner, repo, prNum, perPage},
 		g.githubListPRCommits,
 	)
 
-	addTool(srv, "cb_github_get_file_content",
-		"Read a file from the repo at a given ref. Returns raw text decoded from the contents API. Read-only.",
+	addTool(srv, "cb_github_get_file_content", "Read a file at ref.",
 		[]mcpgo.ToolOption{
-			mcpgo.WithString("owner", mcpgo.Required(), mcpgo.Description("Repo owner.")),
-			mcpgo.WithString("repo", mcpgo.Required(), mcpgo.Description("Repository name.")),
-			mcpgo.WithString("path", mcpgo.Required(), mcpgo.Description("File path relative to repo root (e.g. README.md).")),
-			mcpgo.WithString("ref", mcpgo.Description("Branch, tag, or commit SHA. Default repo default branch.")),
+			owner, repo,
+			mcpgo.WithString("path", mcpgo.Required()),
+			mcpgo.WithString("ref", mcpgo.Description("Branch/tag/SHA. Default repo default branch.")),
 		},
 		g.githubGetFileContent,
 	)
 
-	addTool(srv, "cb_github_list_commits",
-		"List commits on a branch or path. Read-only.",
+	addTool(srv, "cb_github_list_commits", "List commits.",
 		[]mcpgo.ToolOption{
-			mcpgo.WithString("owner", mcpgo.Required(), mcpgo.Description("Repo owner.")),
-			mcpgo.WithString("repo", mcpgo.Required(), mcpgo.Description("Repository name.")),
-			mcpgo.WithString("sha", mcpgo.Description("Branch / tag / SHA to start from. Default default branch.")),
-			mcpgo.WithString("path", mcpgo.Description("Filter commits touching this path.")),
-			mcpgo.WithString("author", mcpgo.Description("GitHub login or email of commit author.")),
-			mcpgo.WithNumber("per_page", mcpgo.Description("1–100. Default 30.")),
+			owner, repo,
+			mcpgo.WithString("sha", mcpgo.Description("Branch/tag/SHA to start from.")),
+			mcpgo.WithString("path", mcpgo.Description("Filter to this path.")),
+			mcpgo.WithString("author", mcpgo.Description("Login or email.")),
+			perPage,
 		},
 		g.githubListCommits,
 	)
 
-	addTool(srv, "cb_github_get_commit",
-		"Get one commit including file-level patches. Read-only.",
+	addTool(srv, "cb_github_get_commit", "Get a commit with patches.",
 		[]mcpgo.ToolOption{
-			mcpgo.WithString("owner", mcpgo.Required(), mcpgo.Description("Repo owner.")),
-			mcpgo.WithString("repo", mcpgo.Required(), mcpgo.Description("Repository name.")),
-			mcpgo.WithString("ref", mcpgo.Required(), mcpgo.Description("Commit SHA, branch, or tag.")),
+			owner, repo,
+			mcpgo.WithString("ref", mcpgo.Required(), mcpgo.Description("SHA/branch/tag.")),
 		},
 		g.githubGetCommit,
 	)
 
-	addTool(srv, "cb_github_list_branches",
-		"List branches in a repository. Read-only.",
+	addTool(srv, "cb_github_list_branches", "List branches.",
 		[]mcpgo.ToolOption{
-			mcpgo.WithString("owner", mcpgo.Required(), mcpgo.Description("Repo owner.")),
-			mcpgo.WithString("repo", mcpgo.Required(), mcpgo.Description("Repository name.")),
-			mcpgo.WithBoolean("protected", mcpgo.Description("Filter to protected branches only.")),
-			mcpgo.WithNumber("per_page", mcpgo.Description("1–100. Default 30.")),
+			owner, repo,
+			mcpgo.WithBoolean("protected", mcpgo.Description("Only protected.")),
+			perPage,
 		},
 		g.githubListBranches,
 	)
 
-	addTool(srv, "cb_github_list_check_runs",
-		"List CI check runs for a commit / branch / tag. Useful before merging. Read-only.",
+	addTool(srv, "cb_github_list_check_runs", "List CI check runs at ref.",
 		[]mcpgo.ToolOption{
-			mcpgo.WithString("owner", mcpgo.Required(), mcpgo.Description("Repo owner.")),
-			mcpgo.WithString("repo", mcpgo.Required(), mcpgo.Description("Repository name.")),
-			mcpgo.WithString("ref", mcpgo.Required(), mcpgo.Description("Commit SHA, branch, or tag.")),
-			mcpgo.WithString("status", mcpgo.Description("queued | in_progress | completed.")),
-			mcpgo.WithNumber("per_page", mcpgo.Description("1–100. Default 30.")),
+			owner, repo,
+			mcpgo.WithString("ref", mcpgo.Required(), mcpgo.Description("SHA/branch/tag.")),
+			mcpgo.WithString("status", mcpgo.Description("queued|in_progress|completed.")),
+			perPage,
 		},
 		g.githubListCheckRuns,
 	)
 
-	addTool(srv, "cb_github_list_workflow_runs",
-		"List GitHub Actions workflow runs for a repository. Read-only.",
+	addTool(srv, "cb_github_list_workflow_runs", "List Actions workflow runs.",
 		[]mcpgo.ToolOption{
-			mcpgo.WithString("owner", mcpgo.Required(), mcpgo.Description("Repo owner.")),
-			mcpgo.WithString("repo", mcpgo.Required(), mcpgo.Description("Repository name.")),
-			mcpgo.WithString("branch", mcpgo.Description("Filter runs to this branch.")),
-			mcpgo.WithString("status", mcpgo.Description("queued | in_progress | completed | success | failure | cancelled.")),
-			mcpgo.WithString("event", mcpgo.Description("push | pull_request | schedule | workflow_dispatch.")),
-			mcpgo.WithNumber("per_page", mcpgo.Description("1–100. Default 30.")),
+			owner, repo,
+			mcpgo.WithString("branch"),
+			mcpgo.WithString("status", mcpgo.Description("queued|in_progress|completed|success|failure|cancelled.")),
+			mcpgo.WithString("event", mcpgo.Description("push|pull_request|schedule|workflow_dispatch.")),
+			perPage,
 		},
 		g.githubListWorkflowRuns,
 	)

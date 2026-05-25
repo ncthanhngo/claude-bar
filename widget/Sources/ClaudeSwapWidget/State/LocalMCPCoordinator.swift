@@ -137,9 +137,23 @@ final class LocalMCPCoordinator: ObservableObject {
         do {
             try await client.mcpConnectorSetEnabled(account: account, service: service, enabled: enabled)
             accounts = try await client.mcpConnectorsList()
+            // BuildServer() reads Enabled flags on each spawn, so a toggle
+            // only takes effect on the next Claude Code session. SIGINT
+            // running `claude` processes so claude-watch restarts them with
+            // the new toolset — same machinery the swap flow uses, minus
+            // the credential switch. cmux panes are skipped because the
+            // cmux relauncher would race the resume; user keeps cmux state.
+            await restartClaudeForMCPReload()
         } catch {
             lastError = error.localizedDescription
         }
+    }
+
+    private func restartClaudeForMCPReload() async {
+        let killed = CLISessionKiller.killAll(skipCmuxTracked: true)
+        guard !killed.isEmpty else { return }
+        try? await Task.sleep(nanoseconds: 800_000_000)
+        CLISessionKiller.forceKillSurvivors(killed)
     }
 
     func disconnect(account: Int, service: String) async {
