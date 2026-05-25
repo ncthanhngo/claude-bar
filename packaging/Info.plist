@@ -13,9 +13,9 @@
     <key>CFBundleIdentifier</key>
     <string>dev.ncthanhngo.claude-bar</string>
     <key>CFBundleVersion</key>
-    <string>10.29</string>
+    <string>10.30</string>
     <key>CFBundleShortVersionString</key>
-    <string>10.29</string>
+    <string>10.30</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleSignature</key>
@@ -35,7 +35,7 @@
     <key>NSHumanReadableCopyright</key>
     <string>Copyright © 2026 Thanh Ngô. Licensed under MIT.</string>
     <key>CFBundleGetInfoString</key>
-    <string>Claude Bar 10.29 — menu-bar manager for multiple Claude Code accounts</string>
+    <string>Claude Bar 10.30 — menu-bar manager for multiple Claude Code accounts</string>
     <key>CBAuthorName</key>
     <string>Thanh Ngô</string>
     <key>CBAuthorEmail</key>
@@ -49,12 +49,9 @@
     <key>CBReleaseChannel</key>
     <string>Beta</string>
     <key>CBReleaseWhatsNew</key>
-    <string>Footer is gone — every global action (Add account, Verify all, Force refresh, Health check, Theme, Quit, Settings) lives in the header now. Settings anchors the top-right corner; Verify all is icon-only.
-MCP tab drops the per-account override rows — only the flat shared connectors list shows. No more six duplicate "using shared" entries below the canonical row.
-Web-linked accounts now use their WebView usage as the source of truth. OAuth (the terminal-side /api/oauth/usage path) only fires when the web scrape returned absolutely nothing for that cycle.
-Auto-swap threshold bar is taller, easier to grab, and stays a single accent blue instead of shifting through yellow/orange as you drag.</string>
+    <string>Alerts and floating sheets triggered from Settings now sit on top of the Settings window and centered on it — previously they could land behind Settings or off to one side.</string>
     <key>CBReleaseHotfixes</key>
-    <string>Fixed claude-watch refusing to let you /exit when you had manually swapped accounts mid-session. The watcher now snapshots credentials at the moment claude exits and only auto-restarts when a swap completes in the post-exit window (i.e. the actual auto-swap signature).</string>
+    <string>Fixed /exit in claude-watch feeling like a freeze — the post-exit credential-change window shrank from 8s to 2s, and the background session watcher gets SIGKILL on cleanup so the shell prompt actually returns.</string>
     <key>CBReleaseKnownIssues</key>
     <string>If your shell still has an old claude-watch process loaded (you were stuck before updating), close that terminal tab and open a new one — only new shells pick up the patched script.</string>
     <key>CFBundleDevelopmentRegion</key>
