@@ -12,6 +12,30 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 10.16 (BETA)</title>
+      <sparkle:version>10.16</sparkle:version>
+      <sparkle:shortVersionString>10.16</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li><strong>BETA RELEASE — not stable.</strong> Wide change surface this cycle (20 new MCP tools across 6 services + a Keychain-ACL prompt fix that touches launch-time code paths). If you depend on Claude Bar for daily account-switch work, stay on v10.15 until the next stable spin.</li>
+          <li>Updates no longer trigger a macOS "Allow ClaudeBar to access this keychain item?" prompt every time you upgrade. iCloud sync is now an explicit toggle in Diagnostics (off by default). Users who were already syncing get auto-migrated on first launch — your existing bundle and passphrase survive. Turning the toggle off doesn't delete anything; it just stops Claude Bar reading the Keychain until you opt back in.</li>
+          <li>GitLab MCP grew from 7 to 19 tools, finally reaching parity with the GitHub surface. New reads: MR diff, MR / issue notes, MR changes, get_issue, get_file (raw text at a ref), list_branches, list_commits, list_pipelines. New gated writes: create_issue, create_mr (draft-aware), update_issue.</li>
+          <li>Google Workspace MCP filled out: Drive gained list_folder + download_file (raw bytes for non-Doc files), Calendar gained list_calendars + get_free_busy, Gmail gained list_labels + get_thread (full conversation with every message expanded).</li>
+          <li>SSH MCP added read_file — head -c with a server-side byte cap (default 100 KiB, max 5 MiB). Safer than exec("cat") when the agent just needs a config file's contents.</li>
+          <li>Bitwarden MCP added list_folders so the agent can discover folder IDs before constraining a vault search, instead of asking you for them.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Mon, 25 May 2026 11:36:59 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v10.16/ClaudeBar.zip"
+        sparkle:version="10.16"
+        sparkle:shortVersionString="10.16"
+        sparkle:edSignature="ZGRfGarcfVXA5aORtK8ScnjXh/1ctC1WytF/ZodpY+LH5m8fmkOduTyjdc7E3kcDc/bT+5PMGi1cFCFDPkNbBQ=="
+        length="8590124"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 10.15</title>
       <sparkle:version>10.15</sparkle:version>
       <sparkle:shortVersionString>10.15</sparkle:shortVersionString>
