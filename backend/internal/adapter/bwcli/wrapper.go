@@ -92,6 +92,31 @@ type Item struct {
 	Fields   map[string]string `json:"fields,omitempty"`
 }
 
+// Folder is the redacted shape returned by ListFolders. Folder names are
+// not secret material per se, but the structure of a vault can hint at
+// what the user stores — so the surface is still gated.
+type Folder struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+// ListFolders returns every folder the user has access to. `bw list
+// folders` always includes the implicit "No Folder" entry with a null
+// ID — we surface it as id="" so the agent can filter on it cleanly.
+func ListFolders(ctx context.Context, r Runner, session string) ([]Folder, error) {
+	if r == nil {
+		r = ExecRunner{}
+	}
+	stdout, stderr, code, err := r.Run(ctx, []string{"list", "folders"}, map[string]string{"BW_SESSION": session})
+	if err != nil {
+		return nil, fmt.Errorf("bw list folders: %w", err)
+	}
+	if code != 0 {
+		return nil, fmt.Errorf("bw list folders exit %d: %s", code, strings.TrimSpace(stderr))
+	}
+	return parseFolders(stdout), nil
+}
+
 // Search returns redacted item summaries that match q. Empty q returns
 // nothing (we never want a "give me every secret" path).
 func Search(ctx context.Context, r Runner, session, q string) ([]ItemSummary, error) {

@@ -41,6 +41,12 @@ func (g *Gateway) registerBitwardenTools(srv *server.MCPServer) {
 		},
 		g.bwGetItem,
 	)
+
+	addTool(srv, "cb_bw_list_folders",
+		"List Bitwarden vault folders (id + name). Lets the agent discover folder IDs before constraining a search. Per-call approve gate.",
+		nil,
+		g.bwListFolders,
+	)
 }
 
 func (g *Gateway) bwSearchItems(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
@@ -66,6 +72,28 @@ func (g *Gateway) bwSearchItems(ctx context.Context, req mcpgo.CallToolRequest) 
 				return toolErrorf("bw search: %v", err), nil
 			}
 			b, _ := json.Marshal(results)
+			return mcpgo.NewToolResultText(string(b)), nil
+		},
+	})
+}
+
+func (g *Gateway) bwListFolders(ctx context.Context, _ mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
+	token, ok := g.BWSession.Token()
+	if !ok {
+		return toolErrorf("%s", ErrBitwardenLocked.Error()), nil
+	}
+	return g.runThroughGate(ctx, writeGateRequest{
+		Tool:    "cb_bw_list_folders",
+		Risk:    RiskReadSensitive,
+		Origin:  OriginLLM,
+		Summary: "Bitwarden: list folders",
+		Args:    map[string]any{},
+		Execute: func(ctx context.Context) (*mcpgo.CallToolResult, error) {
+			folders, err := bwcli.ListFolders(ctx, g.BWRunner, token)
+			if err != nil {
+				return toolErrorf("bw list folders: %v", err), nil
+			}
+			b, _ := json.Marshal(folders)
 			return mcpgo.NewToolResultText(string(b)), nil
 		},
 	})
