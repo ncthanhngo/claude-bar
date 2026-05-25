@@ -73,9 +73,7 @@ struct MenuHeaderBar: View {
                 .font(.system(size: 11))
                 .foregroundColor(store.lastError == nil ? Color.secondary : Color.red)
                 .lineLimit(1)
-            Spacer()
-            briefingButton
-            Spacer()
+            Spacer(minLength: 12)
             if isBusy {
                 ProgressView().controlSize(.mini)
             } else {
@@ -85,6 +83,11 @@ struct MenuHeaderBar: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 6)
+        // Geometric center: status (left) and refresh/health (right) have
+        // different intrinsic widths, so two HStack Spacers around the pill
+        // would drift it off-axis. Overlay pins the pill to the bar's
+        // midpoint regardless of how long "Updated 12s ago" gets.
+        .overlay(briefingButton)
     }
 
     private var briefingButton: some View {
