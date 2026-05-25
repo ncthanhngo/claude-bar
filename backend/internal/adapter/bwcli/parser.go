@@ -88,6 +88,28 @@ func parseItem(out string) (*Item, error) {
 	return item, nil
 }
 
+// parseFolders decodes the JSON array `bw list folders` returns. The
+// implicit "No Folder" entry has a null id — we surface it as id="" so
+// the caller sees a stable string type.
+func parseFolders(out string) []Folder {
+	var raw []struct {
+		ID   *string `json:"id"`
+		Name string  `json:"name"`
+	}
+	if err := json.Unmarshal([]byte(out), &raw); err != nil {
+		return nil
+	}
+	results := make([]Folder, 0, len(raw))
+	for _, r := range raw {
+		f := Folder{Name: r.Name}
+		if r.ID != nil {
+			f.ID = *r.ID
+		}
+		results = append(results, f)
+	}
+	return results
+}
+
 func itemTypeLabel(t int) string {
 	switch t {
 	case 1:
