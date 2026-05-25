@@ -12,6 +12,29 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 10.29 (BETA)</title>
+      <sparkle:version>10.29</sparkle:version>
+      <sparkle:shortVersionString>10.29</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li><strong>Footer is gone.</strong> Every global action (Add account, Verify all, Force refresh, Health check, Theme, Quit, Settings) lives in the header now. Settings anchors the top-right corner; Verify all is icon-only.</li>
+          <li><strong>MCP tab drops the per-account override rows.</strong> Only the flat shared connectors list shows — no more six duplicate "using shared" entries below the canonical row.</li>
+          <li><strong>Web-linked accounts now use WebView usage as source of truth.</strong> OAuth (the terminal-side /api/oauth/usage path) only fires when the web scrape returned absolutely nothing for that cycle.</li>
+          <li><strong>Auto-swap threshold bar</strong> is taller, easier to grab, and stays a single accent blue instead of shifting through yellow/orange as you drag.</li>
+          <li><strong>Fixed claude-watch refusing to let /exit</strong> when you had manually swapped accounts mid-session — the watcher now snapshots credentials at the moment claude exits and only auto-restarts on a real post-exit swap.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Mon, 25 May 2026 22:25:12 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v10.29/ClaudeBar.zip"
+        sparkle:version="10.29"
+        sparkle:shortVersionString="10.29"
+        sparkle:edSignature="v6vaYULr6AnzKIdczTq8bxH+NbIwUenO6SOtYLPADosX6lntmIEi/KntXRa9Jnw5t/G6vLIenc5mjAr4h2U9Bw=="
+        length="8465118"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 10.28 (BETA)</title>
       <sparkle:version>10.28</sparkle:version>
       <sparkle:shortVersionString>10.28</sparkle:shortVersionString>
