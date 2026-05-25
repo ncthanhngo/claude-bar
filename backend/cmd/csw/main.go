@@ -111,6 +111,7 @@ Commands:
   mcp connectors list     List connectors per account
   mcp connectors connect --account N --service slack|clickup|gdrive|github [--token=- | --client-id ID]
   mcp connectors disconnect --account N --service slack|clickup|gdrive|github
+  mcp connectors set-enabled --account N --service slack|clickup|gdrive|github|gitlab --enabled true|false
   briefing run [--force]  Generate today's Daily Briefing (uses MCPs + Claude)
   briefing show [--date]  Read a cached briefing
   briefing schedule get|set|check       Manage briefing cron schedule
