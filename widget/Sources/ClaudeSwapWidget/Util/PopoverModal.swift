@@ -21,7 +21,9 @@ import AppKit
 /// level is set before macOS displays the window.
 @MainActor
 enum PopoverModal {
-    private static let level = NSWindow.Level(rawValue: NSWindow.Level.popUpMenu.rawValue + 1)
+    /// One step above Settings window level (popUpMenu+1) so alerts/panels
+    /// triggered from inside Settings sit ABOVE Settings, not behind it.
+    private static let level = NSWindow.Level(rawValue: NSWindow.Level.popUpMenu.rawValue + 2)
     private static let behavior: NSWindow.CollectionBehavior = [.moveToActiveSpace, .fullScreenAuxiliary]
 
     static func configure(_ window: NSWindow) {
@@ -32,12 +34,38 @@ enum PopoverModal {
     @discardableResult
     static func runAlert(_ alert: NSAlert) -> NSApplication.ModalResponse {
         configure(alert.window)
+        // Make the alert appear centered on the Settings window if it's
+        // currently visible, rather than at the geometric center of the
+        // screen. Without this, an alert triggered from Settings can land
+        // off to the side and feel disconnected from the click target.
+        centerOverSettingsWindowIfVisible(alert.window)
         return alert.runModal()
     }
 
     @discardableResult
     static func runPanel(_ panel: NSSavePanel) -> NSApplication.ModalResponse {
         configure(panel)
+        centerOverSettingsWindowIfVisible(panel)
         return panel.runModal()
+    }
+
+    private static func centerOverSettingsWindowIfVisible(_ window: NSWindow) {
+        guard let target = settingsWindow() else { return }
+        // layoutIfNeeded so the alert/panel has its final size before we
+        // compute the centered origin — otherwise width/height read as 0.
+        window.layoutIfNeeded()
+        let size = window.frame.size
+        let tFrame = target.frame
+        let origin = NSPoint(
+            x: tFrame.midX - size.width / 2,
+            y: tFrame.midY - size.height / 2
+        )
+        window.setFrameOrigin(origin)
+    }
+
+    private static func settingsWindow() -> NSWindow? {
+        // Title-match is good enough — SettingsWindowController is the only
+        // window with this title and only ever exists once.
+        NSApp.windows.first { $0.title == "Claude Bar Settings" && $0.isVisible }
     }
 }
