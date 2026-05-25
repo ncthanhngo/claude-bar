@@ -445,30 +445,43 @@ struct LocalMCPSettingsView: View {
     private func presentConnectWindow(_ target: LocalMCPCoordinator.ConnectSheetTarget) {
         // Close any previous instance so the new target's content is mounted.
         connectWindow.close()
-        connectWindow.onClose = { coordinator.connectSheet = nil }
+        connectWindow.onClose = { [coordinator] in coordinator.connectSheet = nil }
+        // Capture stable class refs for the dismiss closure. The sheet uses
+        // this to close the NSWindow directly — bypassing `.onChange` on the
+        // popover, which stops firing once the floating window steals focus.
+        let window = connectWindow
+        let coord = coordinator
         let title = target.accountNumber == 0
             ? "Connect \(target.serviceLabel) for all accounts"
             : "Connect \(target.serviceLabel)"
         connectWindow.show(title: title, size: NSSize(width: 480, height: 340)) {
             AnyView(
-                ConnectTokenSheet(target: target)
-                    .environmentObject(coordinator)
-                    .environmentObject(cloudSync)
+                ConnectTokenSheet(target: target, onDismiss: {
+                    coord.connectSheet = nil
+                    window.close()
+                })
+                .environmentObject(coordinator)
+                .environmentObject(cloudSync)
             )
         }
     }
 
     private func presentGDriveWindow(_ target: LocalMCPCoordinator.GDriveSheetTarget) {
         gdriveWindow.close()
-        gdriveWindow.onClose = { coordinator.gdriveSheet = nil }
+        gdriveWindow.onClose = { [coordinator] in coordinator.gdriveSheet = nil }
+        let window = gdriveWindow
+        let coord = coordinator
         let title = target.accountNumber == 0
             ? "Connect Google for all accounts"
             : "Connect Google"
         gdriveWindow.show(title: title, size: NSSize(width: 520, height: 460)) {
             AnyView(
-                ConnectGoogleSheet(target: target)
-                    .environmentObject(coordinator)
-                    .environmentObject(cloudSync)
+                ConnectGoogleSheet(target: target, onDismiss: {
+                    coord.gdriveSheet = nil
+                    window.close()
+                })
+                .environmentObject(coordinator)
+                .environmentObject(cloudSync)
             )
         }
     }
@@ -499,6 +512,13 @@ struct LocalMCPSettingsView: View {
 
 private struct ConnectTokenSheet: View {
     let target: LocalMCPCoordinator.ConnectSheetTarget
+    /// Closure that closes the hosting floating NSWindow AND clears the
+    /// coordinator state. Injected by the presenter so this sheet does not
+    /// depend on the popover's `.onChange` listener — that listener stops
+    /// firing the instant the floating window steals focus from the
+    /// MenuBarExtra popover, which would otherwise leave the window
+    /// unable to dismiss on Cancel.
+    let onDismiss: () -> Void
     @EnvironmentObject var coordinator: LocalMCPCoordinator
     @EnvironmentObject var cloudSync: CloudSyncCoordinator
     @State private var token: String = ""
@@ -511,7 +531,7 @@ private struct ConnectTokenSheet: View {
     @State private var successMessage: String?
     @State private var isSubmitting = false
 
-    private func dismiss() { coordinator.connectSheet = nil }
+    private func dismiss() { onDismiss() }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -640,6 +660,8 @@ private struct ConnectTokenSheet: View {
 
 private struct ConnectGoogleSheet: View {
     let target: LocalMCPCoordinator.GDriveSheetTarget
+    /// See `ConnectTokenSheet.onDismiss` — same popover-collapse caveat.
+    let onDismiss: () -> Void
     @EnvironmentObject var coordinator: LocalMCPCoordinator
     @EnvironmentObject var cloudSync: CloudSyncCoordinator
     @State private var clientID: String = ""
@@ -650,7 +672,7 @@ private struct ConnectGoogleSheet: View {
     @State private var successMessage: String?
     @State private var isSubmitting = false
 
-    private func dismiss() { coordinator.gdriveSheet = nil }
+    private func dismiss() { onDismiss() }
 
     private var hasDefault: Bool {
         coordinator.installStatus?.hasDefaultGDriveClient == true
