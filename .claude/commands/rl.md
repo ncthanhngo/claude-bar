@@ -39,6 +39,24 @@ commit message.
 
 ---
 
+## Release channel convention (Stable vs Beta)
+
+Channel is derived purely from the `<NEW>` version string:
+
+- **Stable** — version is a bare integer with NO dot
+  (e.g. `10`, `11`, `12`). Major-only versions are public-ready.
+- **Beta** — version has a dot
+  (e.g. `10.4`, `10.7`, `11.2`). Anything with a minor component is a
+  beta / preview build, even if it's been smoke-tested.
+
+This rule is the single source of truth for the channel badge rendered
+in the About panel, the GitHub release title prefix, and any future
+appcast `<sparkle:channel>` field. Do NOT introduce a third channel
+without updating this skill, `CLAUDE.md`, and the AboutTab badge logic
+together.
+
+---
+
 ## Preflight (fail fast — STOP and report if any check fails)
 
 1. Confirm CWD is the project root (`/Users/soi/dev/02-claude-bar`) and
@@ -65,6 +83,56 @@ Edit three string values:
 
 Do not touch `CBBuildDate` unless the current value is in the past — keep
 it at today's date if it already is.
+
+## Step 1.5 — Update the in-app About panel BEFORE you build
+
+The user must be able to read, inside the running app, exactly what this
+release changes — what's new, what was hot-fixed, and what may still be
+rough. This MUST be done before `make release` runs, because the notes
+are baked into the signed `.app` bundle and cannot be patched
+out-of-band afterwards.
+
+Required content for the About → Claude Bar group, this release:
+
+1. **What's new** — 2–5 user-facing bullets. Reuse the same bullets
+   derived above for the GitHub release notes; drop anything the user
+   can't observe (CI churn, internal refactors that don't change UX).
+2. **Hotfixes** — bugs fixed since the previous release. Bullets,
+   short, "Fixed …" phrasing. If this release ships no bug fixes
+   (pure feature release), write a single bullet `None` rather than
+   omitting the section — empty sections look like a missing field.
+3. **Known issues** — anything shipping in this build that the user
+   should be warned about (a feature that's still flaky, a workaround
+   in place, a planned regression). If genuinely none, write `None`.
+4. **Channel badge** — derived from the version per the convention
+   above: bare integer → `Stable` (green), dotted → `Beta` (orange).
+
+Storage — add/update these custom keys in `packaging/Info.plist`. They
+read like any other CFBundle string, so AboutTab can pull them via
+`Bundle.main.infoDictionary` with no extra plumbing:
+
+- `CBReleaseWhatsNew` — newline-separated bullets, no leading bullet
+  marker (AboutTab adds its own).
+- `CBReleaseHotfixes` — same shape.
+- `CBReleaseKnownIssues` — same shape.
+- `CBReleaseChannel` — literal `"Stable"` or `"Beta"`. Set explicitly
+  rather than re-deriving in Swift, so a future hotfix branch can pin
+  the badge without touching the version string.
+
+Then verify `widget/Sources/ClaudeSwapWidget/UI/Tabs/AboutTab.swift`
+actually renders these four keys + the channel badge. If it doesn't
+(first time running this skill, or someone removed the rendering),
+wire it now: replace the hard-coded `"Stable"` capsule with one that
+reads `CBReleaseChannel` and tints green for Stable / orange for Beta,
+and add a "What's new in this version" sub-section under the version
+row that lists the three categories as bulleted text. Keep the
+rendering tolerant of empty/missing keys so dev builds without the
+keys set still render cleanly.
+
+Build only after the four keys are populated AND AboutTab renders them.
+If you skip this step, the user opens About after the update and sees a
+stale "Stable" badge with no release notes — that's the bug this step
+exists to prevent.
 
 ## Step 2 — Build and sign
 
@@ -189,10 +257,15 @@ unresolved questions at the end, if any.
 
 If any step fails partway through, STOP and tell the user:
 - Which step failed.
-- Current state: is `packaging/Info.plist` bumped on disk? was the
-  GitHub release created? was the appcast updated on `main` / on
-  `gh-pages` / live?
+- Current state: is `packaging/Info.plist` bumped on disk? are the
+  `CBRelease*` notes keys populated? was the GitHub release created?
+  was the appcast updated on `main` / on `gh-pages` / live?
 - Suggested remediation (e.g. `gh release delete v<NEW>` to roll back
   step 3, `git reset HEAD~` to roll back the main commit, etc.).
+
+Special case — Step 1.5 fails (AboutTab build error after wiring the
+new keys): do NOT proceed to `make release`. The signed zip would ship
+without the release notes the user expects. Fix the rendering, then
+re-run the build.
 
 Do not silently retry destructive operations.

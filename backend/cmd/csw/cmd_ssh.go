@@ -112,6 +112,9 @@ func runSSHList(ctx context.Context, store *sshadp.HostStore) error {
 	if err != nil {
 		return err
 	}
+	if hosts == nil {
+		hosts = []sshadp.TrackedHost{}
+	}
 	return json.NewEncoder(os.Stdout).Encode(hosts)
 }
 

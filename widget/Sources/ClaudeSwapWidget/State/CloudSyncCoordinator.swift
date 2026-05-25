@@ -73,7 +73,6 @@ final class CloudSyncCoordinator: ObservableObject {
         // Any explicit write through Enable sync / Sync now / Restore is an
         // opt-in: flip the master toggle on so subsequent loads succeed.
         AppSettings.shared.iCloudSyncEnabled = true
-        AppSettings.shared.iCloudSyncToggleMigratedV1 = true
     }
 
     func clearPassphrase() {
@@ -90,7 +89,6 @@ final class CloudSyncCoordinator: ObservableObject {
     /// the way to wipe the Keychain item entirely.
     func setSyncEnabled(_ enabled: Bool) {
         AppSettings.shared.iCloudSyncEnabled = enabled
-        AppSettings.shared.iCloudSyncToggleMigratedV1 = true
     }
 
     // MARK: - Actions
