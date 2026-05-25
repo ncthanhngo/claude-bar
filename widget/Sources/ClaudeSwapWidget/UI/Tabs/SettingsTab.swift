@@ -1,34 +1,32 @@
 import SwiftUI
 
 // One home for every configuration screen — General, MCP, Briefing,
-// Privacy, Diagnostics, About — picked from a narrow sidebar on the left.
-// Each detail pane is the existing tab view (GeneralTab, MCPTab, …) unmodified,
-// so the routing change here doesn't require touching the settings content.
+// Privacy, Diagnostics, About — picked from a tab strip across the top.
+// Each detail pane is the existing tab view (GeneralTab, MCPTab, …) unmodified.
 struct SettingsTab: View {
     @State private var selected: SettingsSubTab = .general
 
     var body: some View {
-        HStack(spacing: 0) {
-            sidebar
-                .frame(width: 132)
-                .background(Color.primary.opacity(0.025))
+        VStack(spacing: 0) {
+            tabStrip
             Divider().opacity(0.5)
             detail
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
     }
 
-    private var sidebar: some View {
-        VStack(alignment: .leading, spacing: 2) {
+    private var tabStrip: some View {
+        HStack(spacing: 2) {
             ForEach(SettingsSubTab.allCases) { sub in
-                SettingsSidebarButton(sub: sub, isSelected: sub == selected) {
+                SettingsTopTabButton(sub: sub, isSelected: sub == selected) {
                     selected = sub
                 }
             }
-            Spacer()
+            Spacer(minLength: 0)
         }
-        .padding(.vertical, 10)
-        .padding(.horizontal, 6)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 6)
+        .background(Color.primary.opacity(0.025))
     }
 
     @ViewBuilder
@@ -72,7 +70,7 @@ enum SettingsSubTab: String, CaseIterable, Identifiable {
     }
 }
 
-private struct SettingsSidebarButton: View {
+private struct SettingsTopTabButton: View {
     let sub: SettingsSubTab
     let isSelected: Bool
     let action: () -> Void
@@ -81,30 +79,21 @@ private struct SettingsSidebarButton: View {
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 8) {
+            HStack(spacing: 6) {
                 Image(systemName: sub.systemImage)
-                    .font(.system(size: 12, weight: isSelected ? .semibold : .regular))
-                    .frame(width: 16)
+                    .font(.system(size: 11, weight: isSelected ? .semibold : .regular))
                 Text(sub.label)
                     .font(.system(size: 12, weight: isSelected ? .semibold : .regular))
-                Spacer(minLength: 0)
             }
             .foregroundColor(isSelected ? .primary : (isHovering ? .primary.opacity(0.85) : .secondary))
-            .padding(.horizontal, 8)
+            .padding(.horizontal, 10)
             .padding(.vertical, 6)
-            .frame(maxWidth: .infinity, alignment: .leading)
             .background(
                 RoundedRectangle(cornerRadius: 6, style: .continuous)
                     .fill(isSelected
                           ? Color.accentColor.opacity(0.15)
                           : Color.primary.opacity(isHovering ? 0.05 : 0))
             )
-            .overlay(alignment: .leading) {
-                RoundedRectangle(cornerRadius: 1.5)
-                    .fill(isSelected ? Color.accentColor : Color.clear)
-                    .frame(width: 2.5, height: 14)
-                    .offset(x: -4)
-            }
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
