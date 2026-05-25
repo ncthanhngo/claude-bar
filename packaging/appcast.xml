@@ -12,6 +12,26 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 10.34 (BETA)</title>
+      <sparkle:version>10.34</sparkle:version>
+      <sparkle:shortVersionString>10.34</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li><strong>Per-connector on/off toggle in Local MCP.</strong> Slack, ClickUp, GitHub, Google, and GitLab each get a switch — silence a provider's tools without deleting the token from your Keychain. Re-enable instantly when you need it back.</li>
+          <li><strong>Local MCP tab reordered:</strong> connectors sit at the top, with Tool permissions and Gateway moved below so the controls you touch most are right under your cursor.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Mon, 25 May 2026 23:43:09 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v10.34/ClaudeBar.zip"
+        sparkle:version="10.34"
+        sparkle:shortVersionString="10.34"
+        sparkle:edSignature="T6PLljjxVLv8j9+urZIZWDyAp5lXcgPdQkpPwJufRpY41ld9vAS5xO6FV4mzRkc+84/B2aqIy/kVuEgVJOhoDQ=="
+        length="8429159"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 10.33 (BETA)</title>
       <sparkle:version>10.33</sparkle:version>
       <sparkle:shortVersionString>10.33</sparkle:shortVersionString>
