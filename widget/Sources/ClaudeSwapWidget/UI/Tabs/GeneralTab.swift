@@ -3,6 +3,7 @@ import SwiftUI
 struct GeneralTab: View {
     @ObservedObject private var settings = AppSettings.shared
     @EnvironmentObject private var loginCoordinator: LoginCoordinator
+    @EnvironmentObject private var updateController: UpdateController
     @State private var axGranted = IDEReloader.isAccessibilityGranted
     @State private var installedKeybindingTargets: [KeybindingsInstaller.Target] = KeybindingsInstaller.detectInstalled()
     @State private var keybindingApplyStatus: String?
@@ -29,6 +30,20 @@ struct GeneralTab: View {
                     .frame(maxWidth: 360, alignment: .leading)
                     Divider()
                     iconColorPicker
+                }
+
+                SettingsGroup("Popover layout", subtitle: "Choose how much information the menu-bar popover shows. Switch takes effect immediately.") {
+                    Picker("Layout", selection: $settings.popoverLayout) {
+                        ForEach(PopoverLayout.allCases) { layout in
+                            Text(layout.label).tag(layout)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .frame(maxWidth: 360, alignment: .leading)
+                    Text(settings.popoverLayout.detail)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
 
                 SettingsGroup("IDE integration", subtitle: "Optional helpers for keeping editors and terminal sessions aligned after a swap.") {
@@ -58,6 +73,21 @@ struct GeneralTab: View {
                         Text("Open a new terminal tab after running the alias command. claude-watch detects the credential change and restarts automatically.")
                             .font(.caption)
                             .foregroundColor(.secondary)
+                    }
+                }
+
+                SettingsGroup("Updates", subtitle: "Claude Bar checks GitHub for new signed builds on a daily schedule.") {
+                    Toggle(isOn: $updateController.autoUpdateEnabled) {
+                        SettingsToggleLabel(
+                            title: "Auto-update Claude Bar",
+                            detail: "When a new version is published, Claude Bar downloads it silently and installs it on the next idle moment — no prompt, no relaunch click. Turn off to keep manual control via About → Check for updates…."
+                        )
+                    }
+                    .disabled(updateController.placeholderKey)
+                    if updateController.placeholderKey {
+                        Label("Signing key placeholder — updates are disabled in this build.", systemImage: "exclamationmark.triangle")
+                            .font(.caption)
+                            .foregroundColor(.orange)
                     }
                 }
 

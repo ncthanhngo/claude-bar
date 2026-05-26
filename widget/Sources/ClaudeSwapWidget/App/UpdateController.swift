@@ -31,12 +31,48 @@ final class UpdateController: ObservableObject {
     /// Surfaced in About so the UI can explain WHY updates are disabled.
     let placeholderKey: Bool
 
+    /// User-facing toggle. When true Sparkle: (a) polls the appcast on its
+    /// scheduled cadence (daily via SUScheduledCheckInterval), (b) downloads
+    /// new builds silently in the background, (c) auto-installs the next
+    /// time the app is idle so the user doesn't have to click through. When
+    /// false: user must trigger every check + install from About manually.
+    ///
+    /// Backed by UserDefaults via @Published so the value survives relaunch
+    /// and SwiftUI Toggles bind cleanly. The two Sparkle flags
+    /// (`automaticallyChecksForUpdates`, `automaticallyDownloadsUpdates`)
+    /// are kept in lock-step here so we never end up in the bizarre state
+    /// "check daily but don't download" — that just produces yet another
+    /// silent prompt and is precisely what users opt out of by choosing
+    /// auto-update.
+    @Published var autoUpdateEnabled: Bool {
+        didSet {
+            UserDefaults.standard.set(autoUpdateEnabled, forKey: Self.autoUpdateKey)
+            applyAutoUpdate(autoUpdateEnabled)
+            driver.autoUpdateEnabled = autoUpdateEnabled
+        }
+    }
+
+    private static let autoUpdateKey = "cb.autoUpdate.enabled"
+
     init() {
         let pub = Bundle.main.object(forInfoDictionaryKey: "SUPublicEDKey") as? String ?? ""
         let isPlaceholder = pub.isEmpty || pub.hasPrefix("REPLACE_WITH_")
         self.placeholderKey = isPlaceholder
         let driver = InPopoverUpdateDriver()
         self.driver = driver
+
+        // Default ON for first-launch — every Claude Bar release ships
+        // EdDSA-signed via Sparkle, so the user is safer up-to-date than
+        // pinned to an old build. Subsequent launches honour whatever the
+        // user toggled.
+        let storedAuto: Bool = {
+            if UserDefaults.standard.object(forKey: Self.autoUpdateKey) == nil {
+                return true
+            }
+            return UserDefaults.standard.bool(forKey: Self.autoUpdateKey)
+        }()
+        self.autoUpdateEnabled = storedAuto
+        driver.autoUpdateEnabled = storedAuto
 
         if isPlaceholder {
             self.updater = nil
@@ -51,14 +87,13 @@ final class UpdateController: ObservableObject {
             delegate: nil
         )
         do {
-            // Silence the "new version available" notifications — background
-            // checks are off by default, so Sparkle never surfaces an update
-            // card on its own. Users still get the full flow when they click
-            // "Check for updates…" in About.
-            u.automaticallyChecksForUpdates = false
             try u.start()
             self.updater = u
             self.canCheck = u.canCheckForUpdates
+            // Apply the persisted preference AFTER start() — Sparkle resets
+            // these flags during boot if the host's Info.plist disagrees,
+            // so re-asserting here keeps user intent authoritative.
+            applyAutoUpdate(storedAuto)
         } catch {
             // Starting failed (e.g. malformed appcast URL). Leave the
             // controller disabled rather than crashing — About will show
@@ -74,11 +109,9 @@ final class UpdateController: ObservableObject {
         updater?.checkForUpdates()
     }
 
-    /// Bind to a SwiftUI Toggle in Settings → General. Mirrors Sparkle's
-    /// `UserDefaults`-backed `SUEnableAutomaticChecks` so the setting
-    /// survives relaunches. No-op when the updater isn't running.
-    var automaticChecksEnabled: Bool {
-        get { updater?.automaticallyChecksForUpdates ?? false }
-        set { updater?.automaticallyChecksForUpdates = newValue }
+    private func applyAutoUpdate(_ on: Bool) {
+        guard let u = updater else { return }
+        u.automaticallyChecksForUpdates = on
+        u.automaticallyDownloadsUpdates = on
     }
 }
