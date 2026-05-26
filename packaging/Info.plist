@@ -13,9 +13,9 @@
     <key>CFBundleIdentifier</key>
     <string>dev.ncthanhngo.claude-bar</string>
     <key>CFBundleVersion</key>
-    <string>10.39</string>
+    <string>10.40</string>
     <key>CFBundleShortVersionString</key>
-    <string>10.39</string>
+    <string>10.40</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleSignature</key>
@@ -35,7 +35,7 @@
     <key>NSHumanReadableCopyright</key>
     <string>Copyright © 2026 Thanh Ngô. Licensed under MIT.</string>
     <key>CFBundleGetInfoString</key>
-    <string>Claude Bar 10.39 — menu-bar manager for multiple Claude Code accounts</string>
+    <string>Claude Bar 10.40 — menu-bar manager for multiple Claude Code accounts</string>
     <key>CBAuthorName</key>
     <string>Thanh Ngô</string>
     <key>CBAuthorEmail</key>
@@ -49,9 +49,7 @@
     <key>CBReleaseChannel</key>
     <string>Beta</string>
     <key>CBReleaseWhatsNew</key>
-    <string>Standard popover now shows each account's 5h and 7d usage as a labelled bar with a readable percentage in monospaced digits, tinted with the same green/amber/red traffic-light palette as the bar fill. The old pair of 5pt-tall bars side by side was a width-only encoding nobody could read at a glance.
-Tiny popover's 5h/7d chips bumped to 13pt semibold (vs the old 10pt) with bolder borders so the percentages are legible even with the popover off to one side of the screen.
-Wasted shell padding trimmed in both Standard and Tiny — about 70pt less vertical empty space in Standard, no more bottom strip below the last row in Tiny.</string>
+    <string>Every 5h / 7d usage percentage now renders in a single, consistent blue across the Full, Standard, and Tiny popover layouts. The numeric value previously shifted hue per quota tier (green / amber / red), which made low and high values look like different fields — now the digit weight is constant and only the bar fill / chip background carries the traffic-light tier signal.</string>
     <key>CBReleaseHotfixes</key>
     <string>None.</string>
     <key>CBReleaseKnownIssues</key>
