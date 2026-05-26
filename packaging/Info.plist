@@ -13,9 +13,9 @@
     <key>CFBundleIdentifier</key>
     <string>dev.ncthanhngo.claude-bar</string>
     <key>CFBundleVersion</key>
-    <string>10.40</string>
+    <string>10.41</string>
     <key>CFBundleShortVersionString</key>
-    <string>10.40</string>
+    <string>10.41</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleSignature</key>
@@ -35,7 +35,7 @@
     <key>NSHumanReadableCopyright</key>
     <string>Copyright © 2026 Thanh Ngô. Licensed under MIT.</string>
     <key>CFBundleGetInfoString</key>
-    <string>Claude Bar 10.40 — menu-bar manager for multiple Claude Code accounts</string>
+    <string>Claude Bar 10.41 — menu-bar manager for multiple Claude Code accounts</string>
     <key>CBAuthorName</key>
     <string>Thanh Ngô</string>
     <key>CBAuthorEmail</key>
@@ -49,7 +49,8 @@
     <key>CBReleaseChannel</key>
     <string>Beta</string>
     <key>CBReleaseWhatsNew</key>
-    <string>Every 5h / 7d usage percentage now renders in a single, consistent blue across the Full, Standard, and Tiny popover layouts. The numeric value previously shifted hue per quota tier (green / amber / red), which made low and high values look like different fields — now the digit weight is constant and only the bar fill / chip background carries the traffic-light tier signal.</string>
+    <string>New Settings → Update tab consolidates everything related to keeping the app current. The Auto-update toggle (moved from General → Updates) plus Check for updates… button + release notes + version info (moved from About) now all live in one focused panel, with the installed-build version, channel badge and build date right above the changelog.
+About tab trims down to a one-line breadcrumb pointing at the new Update tab, plus the static Author / Tech Stack / Welcome flow / Legal sections.</string>
     <key>CBReleaseHotfixes</key>
     <string>None.</string>
     <key>CBReleaseKnownIssues</key>
