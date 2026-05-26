@@ -92,26 +92,38 @@ struct ThresholdSliderView: View {
     }
 
     private var legend: some View {
-        HStack {
+        HStack(spacing: 0) {
             if let cur = currentPct {
                 // The "current X%" number uses the same traffic-light palette
                 // as the usage bars in each account row above, so the slider
                 // legend visually agrees with the per-account percentages
-                // instead of fading into secondary grey.
-                marker(text: "current \(cur)%", color: UsagePalette.color(for: cur), bold: true)
+                // instead of fading into secondary grey. Fixed-width value
+                // slot prevents the row from twitching as digit count
+                // crosses 9→10 or 99→100 — every percentage rendered into
+                // the same 30pt cell.
+                marker(label: "current", value: cur, color: UsagePalette.color(for: cur), alignment: .leading)
             }
-            Spacer()
-            marker(text: "trigger \(threshold)%", color: thresholdColor, bold: true)
+            Spacer(minLength: 0)
+            marker(label: "trigger", value: threshold, color: thresholdColor, alignment: .trailing)
         }
     }
 
-    private func marker(text: String, color: Color, bold: Bool) -> some View {
+    private func marker(label: String, value: Int, color: Color, alignment: HorizontalAlignment) -> some View {
         HStack(spacing: 4) {
-            Circle().fill(color).frame(width: 6, height: 6)
-            Text(text)
-                .font(.system(size: 11, weight: bold ? .semibold : .regular))
+            if alignment == .leading {
+                Circle().fill(color).frame(width: 6, height: 6)
+            }
+            Text(label)
+                .font(.system(size: 11, weight: .regular))
+                .foregroundColor(.primary.opacity(0.6))
+            Text("\(value)%")
+                .font(.system(size: 11, weight: .semibold))
                 .monospacedDigit()
-                .foregroundColor(bold ? color : .primary.opacity(0.6))
+                .foregroundColor(color)
+                .frame(width: 30, alignment: alignment == .leading ? .leading : .trailing)
+            if alignment == .trailing {
+                Circle().fill(color).frame(width: 6, height: 6)
+            }
         }
     }
 

@@ -45,6 +45,16 @@ struct PopoverWindowCapture: NSViewRepresentable {
     private func capture(from view: NSView) {
         guard let w = view.window else { return }
         PopoverWindowRegistry.shared.window = w
+        // Pin the popover above other app windows so opening Settings or
+        // the Briefing panel doesn't push the menu-bar popover under them.
+        // .floating is the right tier here — it sits above .normal
+        // (Settings, Briefing, FloatingWindow sheets) but stays below
+        // system modals + the actual menu bar. Set every capture call
+        // because SwiftUI MenuBarExtra recreates the popover window on
+        // display reconfiguration and the level resets to .normal.
+        if w.level != .floating {
+            w.level = .floating
+        }
     }
 
     /// If the popover NSWindow opened on a different screen than the one
