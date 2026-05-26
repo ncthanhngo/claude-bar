@@ -42,6 +42,6 @@ struct DailyModeSwitcher: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .help(item == .plan ? "Editorial planner (⌘1)" : "Trò chuyện với Claude (⌘2)")
+        .help("Trò chuyện với Claude (⌘2)")
     }
 }
