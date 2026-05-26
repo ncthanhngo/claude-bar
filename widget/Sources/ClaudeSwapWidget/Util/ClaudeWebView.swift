@@ -282,16 +282,40 @@ final class ClaudeWebUsageFetcher: NSObject, WKNavigationDelegate {
         return null;
       }
 
+      // Pull the percentage from the visible "X% used" text inside the
+      // labelling cell — that's the number the user actually reads. The
+      // page's `aria-valuenow` is not on a 0-100 scale (we have observed
+      // values that diverge ~2x from the rendered percentage, both above
+      // and below, e.g. 14 vs 7 % and 52 vs 59 %), so trusting it directly
+      // gave wrong quota numbers for every web-linked account. We still
+      // fall back to (aria-valuenow / aria-valuemax) when no "% used"
+      // string is present so a future markup change degrades gracefully
+      // instead of dropping the window entirely.
+      function readPct(progress, labelText) {
+        const m = (labelText || "").match(/(\\d+(?:\\.\\d+)?)\\s*%\\s*used/i)
+              || (labelText || "").match(/(\\d+(?:\\.\\d+)?)\\s*%/);
+        if (m) {
+          const pct = Number(m[1]);
+          if (Number.isFinite(pct) && pct >= 0 && pct <= 100) return pct;
+        }
+        const now = Number(progress.getAttribute("aria-valuenow"));
+        if (!Number.isFinite(now)) return null;
+        const maxAttr = progress.getAttribute("aria-valuemax");
+        const max = Number(maxAttr);
+        const denom = Number.isFinite(max) && max > 0 ? max : 100;
+        const pct = (now / denom) * 100;
+        return Number.isFinite(pct) ? Math.max(0, Math.min(100, pct)) : null;
+      }
+
       const out = { fiveHour: null, sevenDay: null, fetchedAtMillis: Date.now() };
       const progressbars = Array.from(document.querySelectorAll("[role=progressbar][aria-valuenow]"));
       for (const progress of progressbars) {
-        const aria = progress.getAttribute("aria-valuenow");
-        const utilizationPct = aria != null && Number.isFinite(Number(aria)) ? Number(aria) : null;
-        if (utilizationPct == null) continue;
         const labelled = labellingAncestor(progress);
         if (!labelled) continue;
         const kind = classify(labelled.text);
         if (!kind || out[kind]) continue;
+        const utilizationPct = readPct(progress, labelled.text);
+        if (utilizationPct == null) continue;
         const resetsAtMillis = findResetMillis(labelled.node);
         if (resetsAtMillis == null) continue;
         out[kind] = { utilizationPct, resetsAtMillis };
