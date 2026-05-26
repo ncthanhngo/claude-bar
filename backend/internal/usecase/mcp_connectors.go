@@ -208,11 +208,18 @@ type MCPToolSummary struct {
 	Category    string `json:"category"`
 	Priority    int    `json:"priority"`
 	Enabled     bool   `json:"enabled"`
+	// TokenCost is a per-spawn estimate of how many context tokens this
+	// tool's schema adds to Claude Code's system prompt every message.
+	// Computed once by mcp.Gateway.MeasureToolCosts via real
+	// JSON-Schema serialisation (bytes / 4), then cached on the
+	// Service so successive ListMCPTools calls are free.
+	TokenCost int `json:"tokenCost"`
 }
 
 // ListMCPTools returns the curated catalog for one service merged with
-// the current per-tool disable flags from the registry. Sort order is
-// stable across calls so the widget can render without re-sorting.
+// the current per-tool disable flags from the registry plus a cached
+// token-cost estimate per tool. Sort order is stable across calls so
+// the widget can render without re-sorting.
 func (s *Service) ListMCPTools(ctx context.Context, service domain.MCPService) ([]MCPToolSummary, error) {
 	reg, err := s.Registry.Load(ctx)
 	if err != nil {
@@ -222,6 +229,7 @@ func (s *Service) ListMCPTools(ctx context.Context, service domain.MCPService) (
 	for _, id := range reg.DisabledMCPTools {
 		disabled[id] = true
 	}
+	costs := s.mcpToolCosts()
 	catalog := mcp.ToolsForService(service)
 	out := make([]MCPToolSummary, 0, len(catalog))
 	for _, t := range catalog {
@@ -233,9 +241,22 @@ func (s *Service) ListMCPTools(ctx context.Context, service domain.MCPService) (
 			Category:    t.Category,
 			Priority:    int(t.Priority),
 			Enabled:     !disabled[t.ID],
+			TokenCost:   costs[t.ID],
 		})
 	}
 	return out, nil
+}
+
+// mcpToolCosts lazily computes per-tool token estimates once per process
+// and caches the result. Building the gateway + serialising tools/list
+// is cheap (~tens of ms) but doing it on every Settings open would be
+// wasteful — schemas don't change between Sparkle builds.
+func (s *Service) mcpToolCosts() map[string]int {
+	s.mcpToolCostsOnce.Do(func() {
+		gw := mcp.New(s.Registry, s.MCPSecrets, "internal")
+		s.mcpToolCostsCache = gw.MeasureToolCosts()
+	})
+	return s.mcpToolCostsCache
 }
 
 // SetMCPToolEnabled adds or removes one tool ID from the registry-wide

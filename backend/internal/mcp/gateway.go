@@ -2,6 +2,7 @@ package mcp
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"time"
 
@@ -172,6 +173,56 @@ func (g *Gateway) addTool(srv *server.MCPServer, name, description string, opts 
 	}
 	full := append([]mcpgo.ToolOption{mcpgo.WithDescription(description)}, opts...)
 	srv.AddTool(mcpgo.NewTool(name, full...), handler)
+}
+
+// MeasureToolCosts builds a one-shot MCP server with every tool
+// registered (disabledTools temporarily cleared) and serialises the
+// `tools/list` response to count JSON bytes per tool. Returns
+// `map[toolID] → tokenEstimate` using the cl100k rule-of-thumb
+// `tokens ≈ bytes / 4`.
+//
+// Called once per backend process from the usecase layer and cached —
+// the schemas don't change between Sparkle builds, so a single pass is
+// enough. ListMCPTools enriches its rows with the cached map.
+func (g *Gateway) MeasureToolCosts() map[string]int {
+	prev := g.disabledTools
+	g.disabledTools = nil
+	defer func() { g.disabledTools = prev }()
+
+	srv := g.BuildServer()
+	msg := json.RawMessage(`{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}`)
+	resp := srv.HandleMessage(context.Background(), msg)
+	if resp == nil {
+		return nil
+	}
+	type toolItem struct {
+		Name        string          `json:"name"`
+		Description string          `json:"description"`
+		InputSchema json.RawMessage `json:"inputSchema"`
+	}
+	type rpcResp struct {
+		Result struct {
+			Tools []toolItem `json:"tools"`
+		} `json:"result"`
+	}
+	body, _ := json.Marshal(resp)
+	var parsed rpcResp
+	if err := json.Unmarshal(body, &parsed); err != nil {
+		return nil
+	}
+	out := map[string]int{}
+	for _, t := range parsed.Result.Tools {
+		// Re-encode just this tool entry so the count matches what
+		// Claude Code actually sees in tools/list. cl100k tokens are
+		// ~3.5-4 chars on average for English+JSON; we use /4 as a
+		// stable conservative estimate.
+		enc, err := json.Marshal(t)
+		if err != nil {
+			continue
+		}
+		out[t.Name] = len(enc) / 4
+	}
+	return out
 }
 
 // loadDisabledTools reads the registry once per BuildServer call and

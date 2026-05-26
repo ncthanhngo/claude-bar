@@ -318,6 +318,7 @@ struct MCPToolSummaryDTO: Codable, Hashable, Identifiable {
     let category: String
     let priority: Int
     let enabled: Bool
+    let tokenCost: Int
 }
 
 /// Mirrors backend/internal/usecase/mcp_connectors.go MCPAccountSummary.

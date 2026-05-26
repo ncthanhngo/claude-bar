@@ -18,7 +18,10 @@ struct TinyPopoverView: View {
     @EnvironmentObject private var updateController: UpdateController
     @ObservedObject private var settings = AppSettings.shared
 
-    private static let popoverWidth: CGFloat = 340
+    // 2/3 of the previous 340 — Tiny is now ~227pt wide so it hugs the
+    // menu-bar edge. Chip widths stay readable because the values are
+    // monospaced 13pt; only the account name truncates earlier.
+    private static let popoverWidth: CGFloat = 227
     // Each row is avatar 22 + 8pt vertical padding × 2 + chip height ≈ 46.
     private static let rowHeight: CGFloat = 46
     // Header (~32) + divider + list padding + Auto-swap bar (toggle row

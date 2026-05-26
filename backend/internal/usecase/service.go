@@ -39,6 +39,14 @@ type Service struct {
 	usageStatsMu       sync.Mutex
 	usageStatsCached   *domain.UsageStatsReport
 	usageStatsCachedAt time.Time
+
+	// mcpToolCostsOnce gates a one-shot computation of per-tool schema
+	// token cost. The result feeds Settings → MCP's per-tool table so
+	// users see "this tool costs X tokens per message". Computed lazily
+	// the first time the widget asks for tool list — cheap (~tens of
+	// ms) but no point paying it on every refresh.
+	mcpToolCostsOnce  sync.Once
+	mcpToolCostsCache map[string]int
 }
 
 // UsageStatsCacheTTL is the maximum age a cached report can serve before
