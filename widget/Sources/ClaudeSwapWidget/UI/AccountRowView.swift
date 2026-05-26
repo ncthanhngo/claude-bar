@@ -33,7 +33,7 @@ struct AccountRowView: View {
         .contentShape(Rectangle())
         .allowsHitTesting(store.swappingTo == nil)
         .onHover { isHovering = $0 }
-        .contextMenu { contextMenuBody }
+        .contextMenu { AccountActionMenu(view: view, onRename: onRename) }
     }
 
     private var isSwappingThisRow: Bool { store.swappingTo == view.account.number }
@@ -108,7 +108,7 @@ struct AccountRowView: View {
 
     private var moreButton: some View {
         Menu {
-            accountMenuItems
+            AccountActionMenu(view: view, onRename: onRename)
         } label: {
             Image(systemName: "ellipsis")
                 .font(.system(size: 11, weight: .semibold))
@@ -253,42 +253,6 @@ struct AccountRowView: View {
                 }
                 .buttonStyle(.plain)
                 .pointingHandCursor()
-            }
-        }
-    }
-
-    // MARK: - Context menu
-
-    @ViewBuilder
-    private var contextMenuBody: some View {
-        accountMenuItems
-    }
-
-    @ViewBuilder
-    private var accountMenuItems: some View {
-        if webFallback.isLinked(view.account) {
-            Button("Open web usage") {
-                webFallback.open(for: view)
-            }
-            Button("Refresh web usage") {
-                Task { await store.refreshNow() }
-            }
-            Button("Disconnect web usage", role: .destructive) {
-                Task { await webFallback.disconnect(view.account) }
-            }
-        } else {
-            Button("Connect web usage") {
-                webFallback.open(for: view)
-            }
-        }
-        Divider()
-        Button("Rename…", action: onRename)
-        if !view.isActive {
-            Button("Switch to this account", action: trySwap)
-            Button("Force switch", action: doSwap)
-            Divider()
-            Button("Remove…", role: .destructive) {
-                Task { await store.remove(view.account.number) }
             }
         }
     }

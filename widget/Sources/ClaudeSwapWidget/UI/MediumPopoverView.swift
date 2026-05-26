@@ -67,6 +67,14 @@ struct MediumPopoverView: View {
         Self.shellHeight + visibleAccountsHeight
     }
 
+    private func promptRename(for acc: AccountViewDTO) {
+        let num = acc.account.number
+        let storeRef = store
+        RenameAccountCoordinator.shared.present(for: acc) { newName in
+            Task { await storeRef.rename(num, to: newName) }
+        }
+    }
+
     /// Height the account list actually consumes — at most three rows;
     /// anything beyond scrolls inside. Used by `popoverHeight` to grow
     /// the frame for 1/2/3 accounts and to cap it at the 3-row size for
@@ -101,7 +109,7 @@ struct MediumPopoverView: View {
             ScrollView(.vertical, showsIndicators: hasOverflow) {
                 VStack(spacing: 4) {
                     ForEach(sorted) { acc in
-                        MediumAccountRow(view: acc)
+                        MediumAccountRow(view: acc, onRename: { promptRename(for: acc) })
                     }
                 }
                 .padding(.horizontal, 6)
@@ -173,6 +181,7 @@ struct MediumPopoverView: View {
 /// row to swap — no separate Switch button, no overflow menu.
 private struct MediumAccountRow: View {
     let view: AccountViewDTO
+    let onRename: () -> Void
     @EnvironmentObject var store: AppStore
     @ObservedObject private var settings = AppSettings.shared
     @State private var isHovering = false
@@ -219,6 +228,7 @@ private struct MediumAccountRow: View {
         .pointingHandCursor(when: !view.isActive)
         .allowsHitTesting(store.swappingTo == nil)
         .onHover { isHovering = $0 }
+        .contextMenu { AccountActionMenu(view: view, onRename: onRename) }
     }
 
     /// Per-window usage line: `"5h" label · color-coded bar · readable %`.

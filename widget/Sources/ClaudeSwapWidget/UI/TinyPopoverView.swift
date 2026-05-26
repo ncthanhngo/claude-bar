@@ -83,7 +83,7 @@ struct TinyPopoverView: View {
             ScrollView(.vertical, showsIndicators: hasOverflow) {
                 VStack(spacing: 2) {
                     ForEach(sorted) { acc in
-                        TinyAccountRow(view: acc)
+                        TinyAccountRow(view: acc, onRename: { promptRename(for: acc) })
                     }
                 }
                 .padding(.horizontal, 6)
@@ -114,6 +114,14 @@ struct TinyPopoverView: View {
         Self.shellHeight + visibleAccountsHeight
     }
 
+    private func promptRename(for acc: AccountViewDTO) {
+        let num = acc.account.number
+        let storeRef = store
+        RenameAccountCoordinator.shared.present(for: acc) { newName in
+            Task { await storeRef.rename(num, to: newName) }
+        }
+    }
+
     @ViewBuilder
     private var popoverBackground: some View {
         if settings.widgetTheme.useVibrancy {
@@ -130,6 +138,7 @@ struct TinyPopoverView: View {
 /// a tiny "5h X%" / "7d Y%" pill each.
 private struct TinyAccountRow: View {
     let view: AccountViewDTO
+    let onRename: () -> Void
     @EnvironmentObject var store: AppStore
     @ObservedObject private var settings = AppSettings.shared
     @State private var isHovering = false
@@ -165,6 +174,7 @@ private struct TinyAccountRow: View {
         .pointingHandCursor(when: !view.isActive)
         .allowsHitTesting(store.swappingTo == nil)
         .onHover { isHovering = $0 }
+        .contextMenu { AccountActionMenu(view: view, onRename: onRename) }
     }
 
     @ViewBuilder
