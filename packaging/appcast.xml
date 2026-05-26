@@ -12,6 +12,26 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 10.43 (BETA)</title>
+      <sparkle:version>10.43</sparkle:version>
+      <sparkle:shortVersionString>10.43</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li><strong>Per-tool enable/disable for every MCP connector.</strong> Open Settings → MCP, click the new purple <strong>Tools (k/n)</strong> pill on any connector row to expand a categorised list — Essential tools at the top (green badge), Common in the middle, Advanced (writes, destructive) at the bottom (grey badge). Each row carries a one-line description and an on/off toggle. Disabled tools are stripped from <code>tools/list</code> entirely, dropping their schema bytes from Claude Code's system prompt and blocking calls. Toggling one auto-restarts running <code>claude</code> sessions so the change takes effect immediately. Catalog covers all 85 currently-shipped MCP tools across Slack, ClickUp, Google (Drive / Gmail / Calendar), GitHub, GitLab, and Bitwarden.</li>
+          <li><strong>Settings → General → Popover layout</strong> now auto-opens the menu-bar popover when you pick a layout, so you can preview Full / Standard / Tiny side-by-side with the settings window and decide without committing.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Tue, 26 May 2026 10:27:10 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v10.43/ClaudeBar.zip"
+        sparkle:version="10.43"
+        sparkle:shortVersionString="10.43"
+        sparkle:edSignature="V/zqCdZX71X4Mm/2LAzbs47a+QmsDtDhFVyXiHfBI4fP4+L9FfXlE6MOaWJdUfBxOac3s1UuMZtD1bODWddBAQ=="
+        length="8567818"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 10.42 (BETA)</title>
       <sparkle:version>10.42</sparkle:version>
       <sparkle:shortVersionString>10.42</sparkle:shortVersionString>
