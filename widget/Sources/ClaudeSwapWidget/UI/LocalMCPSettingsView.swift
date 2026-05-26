@@ -408,8 +408,11 @@ struct LocalMCPSettingsView: View {
     }
 
     /// The expanded body — grouped by Category, sorted by Priority within
-    /// each group. Each row carries label + description + a Toggle that
-    /// calls `setToolEnabled` (which also restarts running Claude sessions).
+    /// each group. Rendered as a striped table with a header row so the
+    /// user can scan tool / description / token-cost / on-off in
+    /// columns. Each tool row's toggle calls `setToolEnabled` (which
+    /// restarts running Claude sessions for the new tool set to take
+    /// effect on the next message).
     @ViewBuilder private func connectorToolsList(service: String) -> some View {
         let tools = coordinator.toolsByService[service] ?? []
         if tools.isEmpty {
@@ -419,20 +422,63 @@ struct LocalMCPSettingsView: View {
             }
         } else {
             let buckets = groupTools(tools)
-            VStack(alignment: .leading, spacing: 10) {
+            let totalTokens = tools.filter { $0.enabled }.reduce(0) { $0 + $1.tokenCost }
+            VStack(alignment: .leading, spacing: 8) {
+                toolsTableHeader(activeTokens: totalTokens)
                 ForEach(buckets, id: \.0) { (category, items) in
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(category.uppercased())
-                            .font(.system(size: 9, weight: .heavy))
-                            .tracking(0.6)
-                            .foregroundColor(.secondary)
-                        ForEach(items) { tool in
-                            toolRow(service: service, tool: tool)
+                    VStack(alignment: .leading, spacing: 0) {
+                        toolsCategoryHeader(category)
+                        VStack(spacing: 0) {
+                            ForEach(Array(items.enumerated()), id: \.element.id) { idx, tool in
+                                toolTableRow(service: service, tool: tool, stripe: idx.isMultiple(of: 2))
+                            }
                         }
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 4)
+                                .stroke(Color.secondary.opacity(0.18), lineWidth: 0.5)
+                        )
+                        .clipShape(RoundedRectangle(cornerRadius: 4))
                     }
                 }
             }
         }
+    }
+
+    /// Top strip — column titles + a small chip showing total tokens
+    /// currently enabled across this connector. Gives the user a
+    /// running budget as they toggle individual rows.
+    private func toolsTableHeader(activeTokens: Int) -> some View {
+        HStack(spacing: 0) {
+            Text("TOOL").font(.system(size: 9, weight: .heavy)).tracking(0.5)
+                .foregroundColor(.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            Text("TOKENS").font(.system(size: 9, weight: .heavy)).tracking(0.5)
+                .foregroundColor(.secondary)
+                .frame(width: 60, alignment: .trailing)
+            Text("ON").font(.system(size: 9, weight: .heavy)).tracking(0.5)
+                .foregroundColor(.secondary)
+                .frame(width: 38, alignment: .trailing)
+        }
+        .padding(.horizontal, 6)
+        .overlay(alignment: .topTrailing) {
+            Text("\(activeTokens) tokens / message")
+                .font(.system(size: 9, weight: .medium))
+                .foregroundColor(.accentColor)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 1)
+                .background(Capsule().fill(Color.accentColor.opacity(0.10)))
+                .offset(y: -14)
+        }
+    }
+
+    private func toolsCategoryHeader(_ category: String) -> some View {
+        Text(category.uppercased())
+            .font(.system(size: 9, weight: .heavy))
+            .tracking(0.6)
+            .foregroundColor(.secondary)
+            .padding(.horizontal, 8)
+            .padding(.top, 6)
+            .padding(.bottom, 4)
     }
 
     /// Groups by Category preserving the order tools appear in the
@@ -448,7 +494,12 @@ struct LocalMCPSettingsView: View {
         return order.map { ($0, bucket[$0] ?? []) }
     }
 
-    @ViewBuilder private func toolRow(service: String, tool: MCPToolSummaryDTO) -> some View {
+    /// One striped row of the tools table. Three columns sized so the
+    /// description column flexes while the cost + toggle columns stay
+    /// pinned to a stable right edge (numbers line up across rows).
+    /// Even rows get a faint stripe so a long category list stays
+    /// readable without per-row dividers.
+    @ViewBuilder private func toolTableRow(service: String, tool: MCPToolSummaryDTO, stripe: Bool) -> some View {
         HStack(alignment: .top, spacing: 8) {
             VStack(alignment: .leading, spacing: 1) {
                 HStack(spacing: 6) {
@@ -474,8 +525,16 @@ struct LocalMCPSettingsView: View {
                     .font(.system(size: 10))
                     .foregroundColor(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
+                Text(tool.id)
+                    .font(.system(size: 9, design: .monospaced))
+                    .foregroundColor(.secondary.opacity(0.6))
             }
-            Spacer(minLength: 6)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            Text("\(tool.tokenCost)")
+                .font(.system(size: 11, weight: .semibold))
+                .monospacedDigit()
+                .foregroundColor(tokenCostColor(tool.tokenCost))
+                .frame(width: 60, alignment: .trailing)
             Toggle("", isOn: Binding(
                 get: { tool.enabled },
                 set: { newValue in
@@ -485,8 +544,20 @@ struct LocalMCPSettingsView: View {
             .toggleStyle(.switch)
             .controlSize(.mini)
             .labelsHidden()
+            .frame(width: 38, alignment: .trailing)
         }
-        .padding(.vertical, 3)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 5)
+        .background(stripe ? Color.secondary.opacity(0.05) : Color.clear)
+    }
+
+    /// Heuristic tint so a heavy tool stands out at a glance. The
+    /// thresholds match the rough cost buckets (light <80, medium
+    /// 80-180, heavy ≥180) the GitHub schema slim measured in v10.40.
+    private func tokenCostColor(_ n: Int) -> Color {
+        if n >= 180 { return Color(red: 0.94, green: 0.27, blue: 0.27) }
+        if n >= 80  { return Color(red: 0.92, green: 0.70, blue: 0.03) }
+        return Color(red: 0.13, green: 0.77, blue: 0.37)
     }
 
     private func promptKey(account: Int, service: String) -> String {
