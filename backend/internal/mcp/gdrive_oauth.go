@@ -19,7 +19,15 @@ import (
 const (
 	gdriveAuthURL  = "https://accounts.google.com/o/oauth2/v2/auth"
 	gdriveTokenURL = "https://oauth2.googleapis.com/token"
-	gdriveScope    = "https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/calendar.events.readonly https://www.googleapis.com/auth/gmail.readonly"
+	// Existing Google connectors only need read scopes; cb_gsheets_*
+	// (added for the markdown-table → Google Sheet use case) needs
+	// write access to spreadsheets. Bundling all four in one scope set
+	// means there is still exactly one OAuth flow per Google account —
+	// the user re-runs Connect once to upgrade an existing v11 token,
+	// then every Google tool works against the upgraded grant. The
+	// `spreadsheets` scope is the narrowest one that allows both
+	// creating new sheets and writing cells into existing ones.
+	gdriveScope = "https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/calendar.events.readonly https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/spreadsheets"
 )
 
 // tokenURLForTest is overridden by tests pointing at httptest. Production

@@ -322,7 +322,7 @@ func runMCPConnectorsConnect(ctx context.Context, svc *usecase.Service, args []s
 			AccountNumber: targetAccount, Service: svcID, Payload: payload,
 			DisplayName: pickDisplayName(*displayName, vr.DisplayName),
 			Account:     vr.Account,
-			Scopes:      []string{"drive.readonly", "calendar.events.readonly", "gmail.readonly"},
+			Scopes:      []string{"drive.readonly", "calendar.events.readonly", "gmail.readonly", "spreadsheets"},
 			Verified:    true,
 		})
 	case domain.MCPServiceGitHub:
