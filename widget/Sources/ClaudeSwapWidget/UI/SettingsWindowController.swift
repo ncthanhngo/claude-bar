@@ -16,6 +16,7 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
     static let shared = SettingsWindowController()
 
     private var window: NSWindow?
+    private var cursorTracker: SettingsCursorTracker?
     /// Environment dependencies are injected when the popover first wires
     /// the controller, so the SwiftUI content has the same coordinators
     /// the in-popover SettingsTab used to receive automatically.
@@ -64,6 +65,9 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
         w.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
         window = w
+        // Single-point pointing-hand cursor manager — no need to decorate
+        // every Button / Toggle in every tab.
+        cursorTracker = SettingsCursorTracker.install(on: w)
     }
 
     /// Programmatic close. The user-driven path (red X / ⌘W) lands in
@@ -76,6 +80,10 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
     // MARK: - NSWindowDelegate
 
     func windowWillClose(_ notification: Notification) {
+        // Tear down the cursor monitor first so it stops firing for
+        // mouse moves once the window is gone.
+        cursorTracker?.uninstall()
+        cursorTracker = nil
         // Clear the reference so a subsequent show() builds a fresh
         // window instead of trying to re-front the closed instance.
         window = nil
