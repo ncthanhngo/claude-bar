@@ -121,11 +121,14 @@ func (g *Gateway) BuildServer() *server.MCPServer {
 }
 
 // enabledServices returns the set of connector services that should appear in
-// tools/list for this gateway process. A service is enabled when EITHER the
-// shared meta has Enabled=true OR any account has Enabled=true — the
-// resolver picks the right one per call. If the registry load fails (e.g.
-// first-run before any account exists), we degrade to "register everything"
-// rather than ship an empty toolset that masks the real error.
+// tools/list for this gateway process. The shared meta is authoritative when
+// it exists — toggling the shared connector off in Settings → MCP must
+// silence the service even if a stale per-account override from an older
+// iCloud restore still has Enabled=true. Per-account is only consulted as a
+// fallback for services where no shared meta is configured at all. If the
+// registry load fails (e.g. first-run before any account exists), we degrade
+// to "register everything" rather than ship an empty toolset that masks the
+// real error.
 func (g *Gateway) enabledServices() map[domain.MCPService]bool {
 	out := map[domain.MCPService]bool{}
 	if g.Resolver == nil || g.Resolver.Registry == nil {
@@ -141,15 +144,21 @@ func (g *Gateway) enabledServices() map[domain.MCPService]bool {
 		}
 		return out
 	}
-	for svc, meta := range reg.SharedMCPConnectors {
-		if meta != nil && meta.Enabled {
-			out[svc] = true
-		}
-	}
-	for _, acc := range reg.Accounts {
-		for svc, meta := range acc.MCPConnectors {
-			if meta != nil && meta.Enabled {
+	for _, svc := range domain.AllMCPServices {
+		if sharedMeta, ok := reg.SharedMCPConnectors[svc]; ok && sharedMeta != nil {
+			if sharedMeta.Enabled {
 				out[svc] = true
+			}
+			// Shared exists — its flag wins. Skip the per-account scan
+			// so a stale account-level Enabled=true cannot override an
+			// explicit user-flipped shared toggle.
+			continue
+		}
+		// No shared meta for this service — fall back to per-account.
+		for _, acc := range reg.Accounts {
+			if meta, ok := acc.MCPConnectors[svc]; ok && meta != nil && meta.Enabled {
+				out[svc] = true
+				break
 			}
 		}
 	}
