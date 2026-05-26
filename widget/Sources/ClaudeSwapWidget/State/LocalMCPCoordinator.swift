@@ -201,8 +201,39 @@ final class LocalMCPCoordinator: ObservableObject {
         do {
             try await client.mcpConnectorDisconnect(account: account, service: service)
             accounts = try await client.mcpConnectorsList()
+            await restartClaudeForMCPReload()
         } catch {
             lastError = error.localizedDescription
+        }
+    }
+
+    /// Attempt to re-enable a soft-disconnected connector using the
+    /// saved Keychain credential. Returns `true` when the credential
+    /// verified and Enabled flipped back to true — the UI then stays
+    /// on the connector row. Returns `false` when the saved credential
+    /// is missing or rejected; the caller is expected to fall through
+    /// to the existing connect-sheet flow so the user can paste fresh
+    /// credentials.
+    func reconnect(account: Int, service: String) async -> Bool {
+        guard !isBusy else { return false }
+        isBusy = true
+        lastError = nil
+        defer { isBusy = false }
+        do {
+            let outcome = try await client.mcpConnectorReconnect(account: account, service: service)
+            accounts = try await client.mcpConnectorsList()
+            switch outcome {
+            case .reEnabled:
+                await restartClaudeForMCPReload()
+                return true
+            case .needsFreshCredential:
+                return false
+            }
+        } catch {
+            // Treat any other error (no saved credential, IO) as "needs
+            // fresh" so the UI proceeds to the connect sheet rather
+            // than dead-ending on an opaque error toast.
+            return false
         }
     }
 }

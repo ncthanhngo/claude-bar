@@ -202,7 +202,7 @@ func runMCPStatus(ctx context.Context, args []string) error {
 
 func runMCPConnectors(ctx context.Context, svc *usecase.Service, args []string) error {
 	if len(args) == 0 {
-		return errors.New("usage: csw mcp connectors <list|connect|disconnect|set-enabled>")
+		return errors.New("usage: csw mcp connectors <list|connect|disconnect|reconnect|set-enabled>")
 	}
 	sub, rest := args[0], args[1:]
 	switch sub {
@@ -212,6 +212,8 @@ func runMCPConnectors(ctx context.Context, svc *usecase.Service, args []string) 
 		return runMCPConnectorsConnect(ctx, svc, rest)
 	case "disconnect":
 		return runMCPConnectorsDisconnect(ctx, svc, rest)
+	case "reconnect":
+		return runMCPConnectorsReconnect(ctx, svc, rest)
 	case "set-enabled":
 		return runMCPConnectorsSetEnabled(ctx, svc, rest)
 	default:
@@ -496,6 +498,90 @@ func runMCPConnectorsSetEnabled(ctx context.Context, svc *usecase.Service, args 
 		return errors.New("--service is required")
 	}
 	return svc.SetMCPConnectorEnabled(ctx, targetAccount, domain.MCPService(*service), *enabled)
+}
+
+// runMCPConnectorsReconnect tries to bring a soft-disconnected connector
+// back online without prompting the user for fresh credentials. The
+// Keychain payload from the prior session is re-verified against the
+// provider's API; on success the connector's Enabled flag flips back to
+// true. On verification failure the function exits with code 2 so the
+// Swift caller can fall through to the paste-token / OAuth sheet.
+//
+// Exit codes:
+//   0 — verified and re-enabled
+//   2 — credential present but invalid (caller should prompt for new)
+//   1 — anything else (no saved credential, missing flags, IO error)
+func runMCPConnectorsReconnect(ctx context.Context, svc *usecase.Service, args []string) error {
+	fs := flag.NewFlagSet("connectors-reconnect", flag.ExitOnError)
+	account := fs.Int("account", -1, "account number")
+	shared := fs.Bool("shared", false, "target the shared connector")
+	service := fs.String("service", "", "slack | clickup | gdrive | github")
+	_ = fs.Parse(args)
+	targetAccount, err := mcpTargetAccount(*account, *shared)
+	if err != nil {
+		return err
+	}
+	if *service == "" {
+		return errors.New("--service is required")
+	}
+	svcID := domain.MCPService(*service)
+
+	payload, err := svc.MCPSecrets.Read(ctx, targetAccount, svcID)
+	if err != nil {
+		return fmt.Errorf("read mcp secret: %w", err)
+	}
+	if payload == "" {
+		return fmt.Errorf("no saved credential for %s — run `csw mcp connectors connect` first", *service)
+	}
+
+	verifyErr := verifySavedMCPCredential(ctx, svc, targetAccount, svcID, payload)
+	if verifyErr != nil {
+		// Mark as needing re-auth so the UI status pill reflects reality.
+		_ = svc.MarkMCPNeedsReauth(ctx, targetAccount, svcID)
+		fmt.Fprintf(os.Stderr, "reconnect failed: %v\n", verifyErr)
+		os.Exit(2)
+	}
+	if err := svc.SetMCPConnectorEnabled(ctx, targetAccount, svcID, true); err != nil {
+		return fmt.Errorf("set enabled: %w", err)
+	}
+	fmt.Println("reconnected")
+	return nil
+}
+
+// verifySavedMCPCredential dispatches to the per-service Verify* helper
+// using the payload already on disk. GDrive needs a refresh round-trip
+// to mint an access token before the /about probe; the refreshed token
+// is best-effort persisted back so the next tool call doesn't re-refresh.
+func verifySavedMCPCredential(ctx context.Context, svc *usecase.Service, accountNum int, svcID domain.MCPService, payload string) error {
+	switch svcID {
+	case domain.MCPServiceSlack:
+		_, err := mcp.VerifySlackToken(ctx, verifyClient(), payload)
+		return err
+	case domain.MCPServiceClickUp:
+		_, err := mcp.VerifyClickUpToken(ctx, verifyClient(), payload)
+		return err
+	case domain.MCPServiceGitHub:
+		_, err := mcp.VerifyGitHubToken(ctx, verifyClient(), payload)
+		return err
+	case domain.MCPServiceGDrive:
+		gp, err := mcp.UnmarshalGDrivePayload(payload)
+		if err != nil {
+			return fmt.Errorf("decode gdrive payload: %w", err)
+		}
+		access, updated, err := mcp.RefreshGDriveAccessToken(ctx, gp)
+		if err != nil {
+			return fmt.Errorf("gdrive refresh: %w", err)
+		}
+		if updated != nil {
+			if marshalled, mErr := updated.Marshal(); mErr == nil {
+				_ = svc.MCPSecrets.Write(ctx, accountNum, svcID, marshalled)
+			}
+		}
+		_, err = mcp.VerifyGDriveAccess(ctx, verifyClient(), access)
+		return err
+	default:
+		return fmt.Errorf("reconnect not supported for %s — disconnect + connect manually", svcID)
+	}
 }
 
 func mcpTargetAccount(account int, shared bool) (int, error) {

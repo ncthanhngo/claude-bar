@@ -161,8 +161,56 @@ func (s *Service) ConnectMCPConnector(ctx context.Context, req ConnectMCPRequest
 	return s.Registry.Save(ctx, reg)
 }
 
-// DisconnectMCPConnector deletes the Keychain secret and clears registry metadata.
+// DisconnectMCPConnector performs a SOFT disconnect: the Keychain payload
+// stays put and the registry metadata is preserved with `Enabled=false`.
+// This is what the Settings UI's Disconnect button calls — the next click
+// on Connect can then re-verify the saved credential via
+// ReconnectMCPConnector and re-enable the connector without prompting the
+// user for fresh credentials. If verify fails (token expired, scope
+// revoked) the Connect flow falls back to the paste-token sheet.
+//
+// Callers that need to fully purge the credential (e.g. account removal,
+// rotating a leaked token) should call ForgetMCPConnector instead.
 func (s *Service) DisconnectMCPConnector(ctx context.Context, accountNum int, svc domain.MCPService) error {
+	if err := s.Lock.Acquire(ctx); err != nil {
+		return err
+	}
+	defer s.Lock.Release()
+
+	reg, err := s.Registry.Load(ctx)
+	if err != nil {
+		return err
+	}
+	if accountNum == 0 {
+		if reg.SharedMCPConnectors == nil {
+			return nil
+		}
+		meta, ok := reg.SharedMCPConnectors[svc]
+		if !ok || meta == nil {
+			return nil
+		}
+		meta.Enabled = false
+		return s.Registry.Save(ctx, reg)
+	}
+	acc, ok := reg.Accounts[accountNum]
+	if !ok {
+		return fmt.Errorf("account %d not found", accountNum)
+	}
+	if acc.MCPConnectors == nil {
+		return nil
+	}
+	meta, ok := acc.MCPConnectors[svc]
+	if !ok || meta == nil {
+		return nil
+	}
+	meta.Enabled = false
+	return s.Registry.Save(ctx, reg)
+}
+
+// ForgetMCPConnector is the hard-delete path: erase the Keychain payload
+// AND remove the registry entry. Use for credential rotation or full
+// account teardown; the daily Disconnect button uses the soft path above.
+func (s *Service) ForgetMCPConnector(ctx context.Context, accountNum int, svc domain.MCPService) error {
 	if err := s.Lock.Acquire(ctx); err != nil {
 		return err
 	}

@@ -171,8 +171,39 @@ func (g *Gateway) gdriveRefresh(ctx context.Context, cc *CallContext) (string, e
 	if err != nil {
 		return "", fmt.Errorf("decode gdrive payload: %w", err)
 	}
+	access, updated, err := RefreshGDriveAccessToken(ctx, payload)
+	if err != nil {
+		return "", err
+	}
+	if updated != nil {
+		if marshalled, mErr := updated.Marshal(); mErr == nil {
+			if werr := g.Resolver.Secrets.Write(ctx, cc.AccountNumber, cc.Service, marshalled); werr != nil {
+				// Refresh succeeded but we couldn't persist the new access token.
+				// Token in memory is still valid for this call; next call will
+				// trigger another refresh round-trip. Log redacted, never panic.
+				fmt.Fprintln(os.Stderr, "claude-bar-mcp gdrive: persist refreshed token failed:", Redact(werr.Error()))
+			}
+		}
+	}
+	return access, nil
+}
+
+// RefreshGDriveAccessToken is the Gateway-free version of token refresh —
+// callers outside the running gateway (CLI reconnect flow, tests) reuse it
+// to swap a refresh token for a fresh access token without instantiating a
+// full Gateway+Resolver stack.
+//
+// Returns (accessToken, updatedPayload, err). updatedPayload is non-nil
+// only when a network round-trip happened; callers persist it via their
+// own MCPSecrets.Write so the next call doesn't re-refresh. When the
+// cached access token in `payload` is still valid, the function returns
+// (payload.AccessToken, nil, nil) — no persist required.
+func RefreshGDriveAccessToken(ctx context.Context, payload *GDrivePayload) (string, *GDrivePayload, error) {
+	if payload == nil {
+		return "", nil, fmt.Errorf("nil gdrive payload")
+	}
 	if payload.AccessToken != "" && time.Now().Before(payload.AccessExpiresAt) {
-		return payload.AccessToken, nil
+		return payload.AccessToken, nil, nil
 	}
 	form := url.Values{
 		"client_id":     {payload.ClientID},
@@ -184,20 +215,11 @@ func (g *Gateway) gdriveRefresh(ctx context.Context, cc *CallContext) (string, e
 	}
 	tokens, err := postTokenForm(ctx, form)
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 	payload.AccessToken = tokens.AccessToken
 	payload.AccessExpiresAt = time.Now().Add(time.Duration(tokens.ExpiresIn) * time.Second).Add(-1 * time.Minute)
-	updated, err := payload.Marshal()
-	if err == nil {
-		if werr := g.Resolver.Secrets.Write(ctx, cc.AccountNumber, cc.Service, updated); werr != nil {
-			// Refresh succeeded but we couldn't persist the new access token.
-			// Token in memory is still valid for this call; next call will
-			// trigger another refresh round-trip. Log redacted, never panic.
-			fmt.Fprintln(os.Stderr, "claude-bar-mcp gdrive: persist refreshed token failed:", Redact(werr.Error()))
-		}
-	}
-	return payload.AccessToken, nil
+	return payload.AccessToken, payload, nil
 }
 
 type tokenResponse struct {

@@ -74,7 +74,7 @@ struct LocalMCPSettingsView: View {
             }
             Button("Cancel", role: .cancel) { pendingDisconnect = nil }
         } message: { _ in
-            Text("Removes the token from this Mac's Keychain and clears the connector from your registry. Shared connector removal affects every account that does not have its own connector.")
+            Text("Tools của connector này sẽ bị gỡ khỏi tools/list ngay sau khi disconnect. Token vẫn được giữ trong Keychain — bấm Reconnect sau để bật lại mà không phải nhập lại. Muốn rotate token mới? Reconnect → nếu fail nó sẽ mở ô nhập, paste token mới sẽ ghi đè cái cũ.")
         }
         .overlay(alignment: .bottom) {
             if let msg = coordinator.lastError {
@@ -362,7 +362,20 @@ struct LocalMCPSettingsView: View {
                     .buttonStyle(.borderless)
                     .foregroundColor(.red)
                     .font(.system(size: 12))
-                } else if !connector.hasSecret {
+                    .help("Tắt connector này nhưng vẫn giữ token đã lưu trong Keychain. Bấm Reconnect sau để bật lại mà không phải nhập lại token.")
+                } else if connector.hasSecret {
+                    // Soft-disconnected: token still in Keychain, just
+                    // gated off. Reconnect verifies the saved token
+                    // against the provider; on success we re-enable
+                    // without prompting. On failure (token expired /
+                    // revoked) the existing connect-sheet opens.
+                    Button("Reconnect") {
+                        Task { await reconnectOrPrompt(account: account, service: connector.service, label: connector.labelTitle) }
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.small)
+                    .help("Dùng lại token đã lưu — verify với \(connector.labelTitle), nếu vẫn hợp lệ thì bật lại ngay. Nếu token hết hạn, mở ô nhập token mới.")
+                } else {
                     Button("Connect…") {
                         presentConnect(account: account, service: connector.service, label: connector.labelTitle)
                     }
@@ -805,6 +818,25 @@ struct LocalMCPSettingsView: View {
             coordinator.gitlabSheet = .init()
         default:
             coordinator.connectSheet = .init(accountNumber: account, service: service, serviceLabel: label)
+        }
+    }
+
+    /// Reconnect entry point: try the saved Keychain credential via
+    /// `csw mcp connectors reconnect` first. If it verifies, the row
+    /// flips back to enabled without showing any sheet. If not, fall
+    /// through to the normal sheet so the user can paste a fresh
+    /// credential. GitLab is multi-instance and doesn't have a
+    /// reconnect path yet — go straight to the sheet for it.
+    private func reconnectOrPrompt(account: Int, service: String, label: String) async {
+        if service == "gitlab" {
+            presentConnect(account: account, service: service, label: label)
+            return
+        }
+        let ok = await coordinator.reconnect(account: account, service: service)
+        if !ok {
+            presentConnect(account: account, service: service, label: label)
+        } else {
+            await pushCloudIfConfigured()
         }
     }
 

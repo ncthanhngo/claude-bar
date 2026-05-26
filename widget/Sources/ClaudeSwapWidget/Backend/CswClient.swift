@@ -320,6 +320,35 @@ actor CswClient {
         _ = try await runRaw(args)
     }
 
+    /// Outcome of `csw mcp connectors reconnect` — the Go side returns
+    /// distinct exit codes for the two cases the Swift UI needs to
+    /// branch on (saved credential still valid vs. invalid + must
+    /// prompt for fresh).
+    enum ReconnectOutcome {
+        /// Saved credential verified and Enabled flipped back to true.
+        case reEnabled
+        /// Saved credential present but rejected by the provider —
+        /// caller should fall through to the existing connect-sheet
+        /// flow so the user can paste a fresh token / re-run OAuth.
+        case needsFreshCredential(detail: String)
+    }
+
+    func mcpConnectorReconnect(account: Int, service: String) async throws -> ReconnectOutcome {
+        var args = ["mcp", "connectors", "reconnect"]
+        if account == 0 {
+            args.append("--shared")
+        } else {
+            args.append(contentsOf: ["--account", String(account)])
+        }
+        args.append(contentsOf: ["--service", service])
+        do {
+            _ = try await runRaw(args)
+            return .reEnabled
+        } catch CswError.nonZeroExit(let code, let stderr) where code == 2 {
+            return .needsFreshCredential(detail: stderr.trimmingCharacters(in: .whitespacesAndNewlines))
+        }
+    }
+
     func mcpToolsList(service: String) async throws -> [MCPToolSummaryDTO] {
         try await run(["mcp", "tools", "list", "--service", service, "--json"], decode: [MCPToolSummaryDTO].self)
     }
