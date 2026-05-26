@@ -13,9 +13,9 @@
     <key>CFBundleIdentifier</key>
     <string>dev.ncthanhngo.claude-bar</string>
     <key>CFBundleVersion</key>
-    <string>11.2</string>
+    <string>11.3</string>
     <key>CFBundleShortVersionString</key>
-    <string>11.2</string>
+    <string>11.3</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleSignature</key>
@@ -35,7 +35,7 @@
     <key>NSHumanReadableCopyright</key>
     <string>Copyright © 2026 Thanh Ngô. Licensed under MIT.</string>
     <key>CFBundleGetInfoString</key>
-    <string>Claude Bar 11.2 — menu-bar manager for multiple Claude Code accounts</string>
+    <string>Claude Bar 11.3 — menu-bar manager for multiple Claude Code accounts</string>
     <key>CBAuthorName</key>
     <string>Thanh Ngô</string>
     <key>CBAuthorEmail</key>
@@ -49,13 +49,14 @@
     <key>CBReleaseChannel</key>
     <string>Beta</string>
     <key>CBReleaseWhatsNew</key>
-    <string>Fixed the MCP connector toggle in Settings → Local MCP — turning a connector OFF now actually disables its tools. Verified end-to-end across all five connectors (Slack, ClickUp, Google, GitHub, GitLab): OFF drops the service's tools from tools/list immediately on the next message; ON restores them.
-Shared connector toggle is now authoritative. A stale per-account Enabled flag left over from an older iCloud restore can no longer keep a service in tools/list after the shared toggle is flipped off.
-Registry auto-prunes stale per-account Enabled flags at load time so debug dumps and cloud bundle pushes reflect the same state the UI shows.</string>
+    <string>Google Sheets write tools — closes #10. Three new tools turn an ad-hoc data structure (a markdown table from a GitHub issue, a CSV scrape) into a real spreadsheet with addressable cells, not just an uploaded blob: cb_gsheets_create_spreadsheet, cb_gsheets_update_values, cb_gsheets_append_values. The Google OAuth scope set adds `spreadsheets` — existing v11.x users must Disconnect + Reconnect the Google connector once to upgrade the token.
+Disconnect now keeps your saved credentials. Click Disconnect in Settings → Local MCP and the Keychain payload stays put — only the Enabled flag flips off. The button next to the row swaps from Disconnect to Reconnect, which verifies the saved token against the provider (Slack auth.test / ClickUp /user / GitHub /user / GDrive /about with refresh) and flips Enabled back on if still valid. No re-paste, no re-OAuth.
+Replace + Forget. Replace… opens the paste-token / OAuth sheet directly while a connector is still enabled — useful for rotating a token without disconnecting first. Forget (trash icon) hard-deletes the Keychain payload AND the registry entry; the next Connect must enter from scratch. Use Forget for security rotation, Disconnect for everyday "pause this for a bit".</string>
     <key>CBReleaseHotfixes</key>
-    <string>Fixed: toggling MCP connectors silently no-ops (issue #2). Root cause was the Swift CLI client sending bool flags as `--enabled false` (space-separated), which Go's flag parser treats as `--enabled=true` with `false` dropped as an ignored positional. Every OFF toggle therefore persisted the opposite value. Both connector and per-tool toggles fixed.</string>
-    <key>CBReleaseKnownIssues</key>
     <string>None.</string>
+    <key>CBReleaseKnownIssues</key>
+    <string>Existing v11.x Google tokens are missing the `spreadsheets` scope. The cb_gsheets_* tools will return Google "insufficient permission" until you Disconnect + Reconnect the Google connector — that mints a fresh token with the new scope set. Drive / Calendar / Gmail tools keep working on the old scope until you do.
+Reconnect is not wired for GitLab (multi-instance + per-instance base URL) or Bitwarden (no verify API). Their Reconnect button takes you straight to the existing add-instance / paste-token sheet.</string>
     <key>CFBundleDevelopmentRegion</key>
     <string>en</string>
     <key>CFBundleLocalizations</key>

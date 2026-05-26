@@ -12,6 +12,28 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 11.3 (BETA)</title>
+      <sparkle:version>11.3</sparkle:version>
+      <sparkle:shortVersionString>11.3</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <p>Closes <a href="https://github.com/ncthanhngo/claude-bar/issues/10">#10</a> — Google Sheets write tools.</p>
+        <ul>
+          <li><strong>Google Sheets write tools.</strong> Three new tools — <code>cb_gsheets_create_spreadsheet</code>, <code>cb_gsheets_update_values</code>, <code>cb_gsheets_append_values</code> — turn an ad-hoc data structure into a real spreadsheet with addressable cells. Google OAuth scope bumps to include <code>spreadsheets</code>; existing users must Disconnect + Reconnect the Google connector once to upgrade the token.</li>
+          <li><strong>Disconnect now keeps your saved credentials.</strong> Disconnect leaves the Keychain payload intact; Reconnect verifies the saved token against the provider and re-enables without re-paste / re-OAuth. Works for Slack, ClickUp, GitHub, GDrive (GitLab + Bitwarden go straight to the add sheet).</li>
+          <li><strong>Replace + Forget.</strong> Replace… rotates a token while a connector is still enabled. Forget hard-deletes the Keychain payload AND the registry entry for security rotation.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Tue, 26 May 2026 19:19:54 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v11.3/ClaudeBar.zip"
+        sparkle:version="11.3"
+        sparkle:shortVersionString="11.3"
+        sparkle:edSignature="Sk4fc+OPrtLjK1/FlVYaW09pohYbSyuPH/0lMqbBIXDL5Dl2ztyNEma9Gs01SrolvxCWEpz2SUr7dEj2o1ugBQ=="
+        length="7901485"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 11.2 (BETA)</title>
       <sparkle:version>11.2</sparkle:version>
       <sparkle:shortVersionString>11.2</sparkle:shortVersionString>
