@@ -12,6 +12,33 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 10.38 (BETA)</title>
+      <sparkle:version>10.38</sparkle:version>
+      <sparkle:shortVersionString>10.38</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li><strong>Popover layout picker now offers three sizes</strong> — <strong>Full</strong>, <strong>Standard</strong>, <strong>Tiny</strong> — in Settings → General → Popover layout.
+            <ul>
+              <li><strong>Full</strong> — original dashboard (status header, usage bars, auto-swap slider, token chart).</li>
+              <li><strong>Standard</strong> — 2/3-scaled compact dashboard with twin 5h/7d bars and small auto-swap + token KPI cards.</li>
+              <li><strong>Tiny</strong> — header + account list only; each row carries avatar, name and tiny colour-coded <code>5h X%</code> / <code>7d Y%</code> chips.</li>
+            </ul>
+          </li>
+          <li>Switching takes effect immediately, no restart.</li>
+          <li>Users on the previous "Minimum" layout are migrated automatically to <strong>Standard</strong> so nothing changes underfoot.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Tue, 26 May 2026 08:09:25 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v10.38/ClaudeBar.zip"
+        sparkle:version="10.38"
+        sparkle:shortVersionString="10.38"
+        sparkle:edSignature="P9lQo7qnxACei1LNpVgaP+rWWkeaadRoP+lONpqnjEFzZFkArC2stxIlAMZyvnkqU3Tx/k2xhEfxvImN6y5OCA=="
+        length="8518767"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 10.37 (BETA)</title>
       <sparkle:version>10.37</sparkle:version>
       <sparkle:shortVersionString>10.37</sparkle:shortVersionString>
