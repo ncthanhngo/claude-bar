@@ -221,6 +221,17 @@ struct ClaudeSwapWidgetApp: App {
                     await cloudSync.refreshStatus()
                     await cloudSync.checkOnboarding(snapshot: store.snapshot)
                     presentOnboardingIfNeeded()
+                    // Pre-warm the MCP coordinator off the main path so
+                    // Settings → Local MCP is hot the first time the user
+                    // opens it. Without this, the .task inside
+                    // LocalMCPSettingsView fires on first open and the
+                    // connector list inflates from a 1-line "Loading…"
+                    // placeholder to ~5 connector rows AFTER first paint,
+                    // shifting the page contents downward — the user
+                    // perceives this as a "flash".
+                    Task.detached(priority: .utility) { [localMCP] in
+                        await localMCP.refresh()
+                    }
                 }
         } label: {
             MenuBarLabelView()

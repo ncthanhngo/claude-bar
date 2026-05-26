@@ -1,14 +1,12 @@
 import SwiftUI
 
-/// Settings → Update.
+/// Settings → Updates.
 ///
-/// One tab consolidating everything the user cares about for keeping the
-/// app current: the auto-update preference (previously in General →
-/// Updates), the manual "Check for updates…" button (previously in
-/// About), the version + channel badge + build date, and the release
-/// notes for the currently installed build. AboutTab stops carrying
-/// these so version/changelog/auto-update lives in exactly one place —
-/// the user no longer has to remember which screen surfaced what.
+/// Release-only surface: auto-update preference, installed build, release
+/// notes, and the manual "Check for updates…" button. iCloud sync and
+/// operational diagnostics live on their own sidebar entries now —
+/// previously they were dumped at the bottom of this tab, which buried
+/// data-management actions under a release-flow heading.
 ///
 /// Release notes are pulled from `CBReleaseWhatsNew` /
 /// `CBReleaseHotfixes` / `CBReleaseKnownIssues` keys in Info.plist; the
@@ -19,33 +17,13 @@ struct UpdateTab: View {
     @EnvironmentObject private var updateController: UpdateController
 
     var body: some View {
-        SettingsPage {
-            autoUpdateGroup
-            currentBuildGroup
-            releaseNotesGroup
-            manualCheckGroup
-            // Legacy Diagnostics groups (iCloud sync wizard, schema /
-            // verify / refresh, logs, web-usage diagnostics) appended
-            // here as the catch-all "advanced" surface. The Diagnostics
-            // sidebar slot was retired; users who need this content
-            // scroll to the bottom of Update.
-            advancedHeader
-            DiagnosticsTab()
-        }
-    }
-
-    /// Visual separator so the user reads "I'm leaving the update
-    /// section now, this is the catch-all advanced stuff" rather than
-    /// mistaking the iCloud / verify groups for part of the release flow.
-    private var advancedHeader: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Divider()
-            Text("Advanced — moved from the old Diagnostics tab")
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundColor(.secondary)
-                .textCase(.uppercase)
-                .tracking(0.4)
-                .padding(.top, 6)
+        ScrollView {
+            SettingsPage {
+                autoUpdateGroup
+                currentBuildGroup
+                releaseNotesGroup
+                manualCheckGroup
+            }
         }
     }
 

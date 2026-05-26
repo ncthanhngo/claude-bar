@@ -1,13 +1,10 @@
 import SwiftUI
 
-// Thin wrapper around the existing standalone BriefingSettingsView so it
-// composes cleanly inside the tabbed popover.
+// BriefingSettingsView owns its own SettingsPage scroll surface. The old
+// wrapper added a second ScrollView + tighter gutter that broke parity
+// with the other tabs (see also MCPTab).
 struct BriefingTab: View {
     var body: some View {
-        ScrollView {
-            BriefingSettingsView()
-                .padding(.horizontal, 16)
-                .padding(.vertical, 14)
-        }
+        BriefingSettingsView()
     }
 }

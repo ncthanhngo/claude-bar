@@ -158,6 +158,10 @@ struct LocalMCPSettingsView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        // Without this, AppKit auto-scrolls the first focusable button
+        // into view on tab appearance — landing users mid-page on the
+        // "Tool permissions for chat" card instead of the page top.
+        .focusable(false)
     }
 
     @ViewBuilder private func chatToolModeBadge(_ mode: ChatToolMode) -> some View {
