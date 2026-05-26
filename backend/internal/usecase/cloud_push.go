@@ -113,33 +113,23 @@ func (s *Service) buildLocalBundle(ctx context.Context, passphrase string) (*clo
 		Version:  3,
 		PushedAt: now,
 	}
-
-	sharedConnectors, err := s.bundleMCPConnectors(ctx, 0, reg.SharedMCPConnectors, passphrase)
-	if err != nil {
-		return nil, err
-	}
-	bundle.SharedMCPConnectors = sharedConnectors
-
+	// Metadata-only push. The bundle intentionally omits CredentialBlob,
+	// per-account MCPConnectors, and SharedMCPConnectors — those are
+	// service tokens the user explicitly opted out of syncing. What
+	// crosses iCloud is the account *roster* (email, nickname, org) so a
+	// new Mac can see "these are the accounts that exist" and prompt the
+	// user to run `claude /login` locally for each one. `passphrase` is
+	// still required because the bundle ciphertext stays AES-GCM-sealed —
+	// even an empty-credential bundle should not leak the email list to
+	// anyone who can read the iCloud Drive file.
+	_ = passphrase
 	for _, acc := range reg.Accounts {
-		blob, err := s.readAccountBlobForPush(ctx, reg, acc)
-		if err != nil {
-			return nil, err
-		}
-		if blob == "" {
-			continue
-		}
-		connectors, err := s.bundleMCPConnectors(ctx, acc.Number, acc.MCPConnectors, passphrase)
-		if err != nil {
-			return nil, err
-		}
 		bundle.Accounts = append(bundle.Accounts, cloudsync.BundleAccount{
 			Number:           acc.Number,
 			Email:            acc.Email,
 			Nickname:         acc.Nickname,
 			OrganizationName: acc.OrganizationName,
 			OrganizationUUID: acc.OrganizationUUID,
-			CredentialBlob:   blob,
-			MCPConnectors:    connectors,
 			UpdatedAt:        now.Format(time.RFC3339),
 			UpdatedAtTime:    now,
 			CreatedAt:        acc.CreatedAt,
@@ -147,7 +137,7 @@ func (s *Service) buildLocalBundle(ctx context.Context, passphrase string) (*clo
 	}
 
 	if len(bundle.Accounts) == 0 {
-		return nil, fmt.Errorf("no accounts with credentials to push")
+		return nil, fmt.Errorf("no accounts to push")
 	}
 	return bundle, nil
 }

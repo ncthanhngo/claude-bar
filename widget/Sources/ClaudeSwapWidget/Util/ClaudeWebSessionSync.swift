@@ -34,8 +34,7 @@ enum ClaudeWebSessionSync {
 
     static func hasSession(for account: AccountDTO) -> Bool {
         guard keychainAccessAllowed else { return false }
-        if loadLocal(for: account) != nil { return true }
-        return WebCookieCloudSync.hasSession(for: account)
+        return loadLocal(for: account) != nil
     }
 
     static func save(account: AccountDTO, dataStore: WKWebsiteDataStore) async {
@@ -48,10 +47,7 @@ enum ClaudeWebSessionSync {
         guard !cookies.isEmpty else { return }
 
         // Idempotent guard: if the cookie set is byte-identical to what we
-        // last persisted, skip writing. Cross-device sync relies on this —
-        // otherwise the periodic `restore → save` echo in WebFallbackCoordinator
-        // re-pushes restored-from-iCloud cookies and clobbers a fresher push
-        // from the other machine.
+        // last persisted, skip writing.
         let newFingerprint = fingerprint(of: cookies)
         if let cached = loadLocal(for: account), cached.fingerprint == newFingerprint {
             return
@@ -60,44 +56,22 @@ enum ClaudeWebSessionSync {
         let session = SyncedSession(cookies: cookies, updatedAt: now)
         guard let data = try? JSONEncoder().encode(session) else { return }
         saveLocal(account: account, data: data)
-        await WebCookieCloudSync.save(account: account, dataStore: dataStore)
+        // iCloud cross-device cookie sync intentionally not invoked — web
+        // session cookies are credentials, and this Mac is opted out of
+        // pushing credentials to iCloud. Cookies remain local-only.
     }
 
     static func restore(account: AccountDTO, dataStore: WKWebsiteDataStore) async -> Bool {
         guard keychainAccessAllowed else { return false }
-        let local = loadLocal(for: account)
-        let cloud = WebCookieCloudSync.loadCookies(for: account)
-
-        // Pick freshest. Local payloads from the v1 format have no timestamp
-        // (treated as distantPast) so the cloud wins on first restore after
-        // upgrade, which is the safer direction.
-        let localAge = local?.updatedAt ?? .distantPast
-        let cloudAge = cloud?.updatedAt ?? .distantPast
-
-        if let cloud, cloudAge >= localAge {
-            // Cloud wins: apply cloud cookies + warm local cache so subsequent
-            // restores on this machine pick the same set without decrypting.
-            let applied = await apply(cookies: cloud.cookies, to: dataStore)
-            if applied {
-                let synced = cloud.cookies.map(SyncedCookie.init)
-                let session = SyncedSession(cookies: synced, updatedAt: cloud.updatedAt)
-                if let data = try? JSONEncoder().encode(session) {
-                    saveLocal(account: account, data: data)
-                }
-            }
-            return applied
-        }
-
-        if let local {
-            return await apply(session: local, to: dataStore)
-        }
-        return false
+        guard let local = loadLocal(for: account) else { return false }
+        return await apply(session: local, to: dataStore)
     }
 
     static func remove(account: AccountDTO) {
         // Delete is allowed even with the toggle off — explicit user-initiated
         // cleanup (Disconnect button) and SecItemDelete doesn't pop the ACL
-        // prompt the way reads/updates do.
+        // prompt the way reads/updates do. Best-effort sweep of any legacy
+        // iCloud cookie bundle written by an earlier build that still synced.
         SecItemDelete(itemQuery(for: account) as CFDictionary)
         WebCookieCloudSync.remove(account: account)
     }

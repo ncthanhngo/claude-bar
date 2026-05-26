@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/soi/claude-swap-widget/backend/internal/adapter"
@@ -278,38 +277,20 @@ func (s *Service) applyBundle(ctx context.Context, bundle *cloudsync.CloudBundle
 	if err != nil {
 		return fmt.Errorf("load registry: %w", err)
 	}
-	restoreMCP := bundle.Version >= 2
-	if restoreMCP {
-		shared, err := s.restoreMCPConnectors(ctx, 0, bundle.SharedMCPConnectors, passphrase)
-		if err != nil {
-			return err
-		}
-		reg.SharedMCPConnectors = shared
-	}
+	// Metadata-only restore. Cross-version safety: if an older Mac on the
+	// same iCloud bundle still pushes CredentialBlob / MCPConnectors /
+	// SharedMCPConnectors, we deliberately drop them on this side — the
+	// user opted out of credential sync, and silently writing tokens
+	// pushed from a peer that still does sync them would defeat the
+	// switch. Only the account roster (email, nickname, org, createdAt)
+	// is reconstructed locally.
+	_ = passphrase
 
-	var failures []string
 	for _, ba := range bundle.Accounts {
 		if selectedIdentities != nil && !selectedIdentities[bundleIdentityKey(ba)] {
 			continue
 		}
 		accountNum, exists := pullAccountNumber(reg, ba)
-		bundleBlob := domain.CredentialBlob(ba.CredentialBlob)
-		writeBlob := bundleBlob
-
-		localBlob, localErr := s.Backup.Read(ctx, accountNum, ba.Email)
-		if localErr == nil && localBlob != "" {
-			bundlePayload, bErr := bundleBlob.Extract()
-			localPayload, lErr := localBlob.Extract()
-			if bErr == nil && lErr == nil && localPayload.ExpiresAt > bundlePayload.ExpiresAt {
-				writeBlob = localBlob
-			}
-		}
-
-		if writeErr := s.Backup.Write(ctx, accountNum, ba.Email, writeBlob); writeErr != nil {
-			failures = append(failures, fmt.Sprintf("account %d (%s): %v", accountNum, ba.Email, writeErr))
-			continue
-		}
-
 		if !exists {
 			reg.Accounts[accountNum] = &domain.Account{}
 			reg.Sequence = append(reg.Sequence, accountNum)
@@ -320,13 +301,6 @@ func (s *Service) applyBundle(ctx context.Context, bundle *cloudsync.CloudBundle
 		acc.Nickname = ba.Nickname
 		acc.OrganizationName = ba.OrganizationName
 		acc.OrganizationUUID = ba.OrganizationUUID
-		if restoreMCP {
-			connectors, err := s.restoreMCPConnectors(ctx, accountNum, ba.MCPConnectors, passphrase)
-			if err != nil {
-				return err
-			}
-			acc.MCPConnectors = connectors
-		}
 		if acc.CreatedAt.IsZero() {
 			if !ba.CreatedAt.IsZero() {
 				acc.CreatedAt = ba.CreatedAt.UTC()
@@ -338,12 +312,6 @@ func (s *Service) applyBundle(ctx context.Context, bundle *cloudsync.CloudBundle
 
 	if saveErr := s.Registry.Save(ctx, reg); saveErr != nil {
 		return fmt.Errorf("save registry: %w", saveErr)
-	}
-
-	if len(failures) > 0 {
-		return fmt.Errorf("partial restore (%d/%d): %s",
-			len(bundle.Accounts)-len(failures), len(bundle.Accounts),
-			strings.Join(failures, "; "))
 	}
 	return nil
 }

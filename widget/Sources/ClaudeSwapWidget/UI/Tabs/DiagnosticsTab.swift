@@ -232,7 +232,7 @@ struct DiagnosticsTab: View {
     private var iCloudGroup: some View {
         SettingsGroup(
             "iCloud Sync",
-            subtitle: "Encrypt and store accounts plus local MCP connectors in iCloud Drive. Background sync runs automatically every ~6h once enabled — Sync now is only needed to push changes immediately."
+            subtitle: "Sync the account roster (email · nickname · organization) across Macs that share your Apple ID. Credentials are never uploaded — each new Mac still needs its own `claude /login`. MCP connector tokens and claude.ai web cookies also stay local-only."
         ) {
             Toggle(isOn: Binding(
                 get: { iCloudSyncEnabled },
@@ -241,7 +241,7 @@ struct DiagnosticsTab: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Enable iCloud sync")
                         .font(.system(size: 12, weight: .medium))
-                    Text("Off by default after every update. Turn on if you want accounts and MCP connectors backed up across your Macs, or if you want claude.ai web profile cookies restored from the Keychain cache. When off, Claude Bar never reads any Keychain item, so updates don't trigger password prompts.")
+                    Text("Off by default after every update. When on, only account metadata roams — open Claude Bar on a second Mac and you'll see the same account names ready to be filled in. No OAuth tokens, no MCP credentials, no cookies leave this Mac. Turning sync off skips every Keychain read, so Sparkle updates don't trigger password prompts.")
                         .font(.caption)
                         .foregroundColor(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
