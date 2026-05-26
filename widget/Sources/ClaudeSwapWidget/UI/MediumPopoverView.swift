@@ -22,14 +22,25 @@ struct MediumPopoverView: View {
     @ObservedObject private var settings = AppSettings.shared
 
     private static let popoverWidth: CGFloat = 300
-    // Shell = header + Accounts label + 2 KPI cards (Auto-swap + Token
-    // usage) + paddings. Auto-swap card now hosts a slider + status
-    // toggle + KPI row, so it's ~50pt taller than the static read-only
-    // version. Bumped budget from 240 → 290 to account for it.
-    private static let shellHeight: CGFloat = 290
-    // Row = avatar 28 + name line + 2 stacked "label · bar · %" rows + 6pt
-    // vertical padding above/below = ≈ 66pt.
-    private static let rowHeight: CGFloat = 66
+    // Empirically-measured row height for one MediumAccountRow: avatar
+    // 28 + name line ~16 + 2 stacked usage rows (5h + 7d) ~36 + 12pt
+    // vertical padding ≈ 78pt. The old 66 underestimated this since
+    // the rewrite that replaced twin 5pt bars with full labelled "X%"
+    // rows — popovers with 3 accounts ended up scrolling because the
+    // computed height was too small.
+    private static let rowHeight: CGFloat = 78
+    // The non-scrolling shell — header + accounts section title +
+    // auto-swap card + token card + paddings. Re-measured against the
+    // current rendered layout: header 36, accounts header 24, two
+    // section titles 22 × 2, auto-swap card 132, token card 82,
+    // outer paddings 18 = ~336pt. Used to cap the popover frame so
+    // overflow ONLY hits the account list, never the bottom cards.
+    private static let shellHeight: CGFloat = 336
+    /// The most accounts shown at full row height. Anything past this
+    /// scrolls inside the account list — the auto-swap + token cards
+    /// below stay anchored regardless. Matches the user's request:
+    /// "≤ 3 accounts: no scroll; > 3: scroll only the account section".
+    private static let accountsRowsBeforeScroll = 3
 
     var body: some View {
         ZStack {
@@ -37,10 +48,10 @@ struct MediumPopoverView: View {
                 MenuHeaderBar()
                     .padding(.top, 4)
                 Divider().opacity(0.5)
-                ScrollView(.vertical, showsIndicators: false) {
-                    mainBody
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                accountsHeader
+                accountsSection
+                Divider().opacity(0.4)
+                bottomFixedSection
             }
         }
         .frame(width: Self.popoverWidth, height: popoverHeight)
@@ -55,13 +66,20 @@ struct MediumPopoverView: View {
     }
 
     private var popoverHeight: CGFloat {
+        Self.shellHeight + visibleAccountsHeight
+    }
+
+    /// Height the account list actually consumes — at most three rows;
+    /// anything beyond scrolls inside. Used by `popoverHeight` to grow
+    /// the frame for 1/2/3 accounts and to cap it at the 3-row size for
+    /// 4+ accounts (the user's stated cutoff).
+    private var visibleAccountsHeight: CGFloat {
         let count = store.snapshot?.accounts.count ?? 0
-        switch count {
-        case 0:      return 260
-        case 1:      return Self.shellHeight + Self.rowHeight        // 306
-        case 2:      return Self.shellHeight + Self.rowHeight * 2    // 372
-        default:     return Self.shellHeight + Self.rowHeight * 3    // 438
-        }
+        if count == 0 { return 0 }
+        let visible = min(count, Self.accountsRowsBeforeScroll)
+        // Inter-row spacing 4pt × (visible - 1) + 4 vertical padding on
+        // the wrapping VStack.
+        return CGFloat(visible) * Self.rowHeight + CGFloat(max(0, visible - 1)) * 4 + 8
     }
 
     @ViewBuilder
@@ -73,41 +91,46 @@ struct MediumPopoverView: View {
         }
     }
 
+    /// Account list. Sized to exactly the visible-rows height so the
+    /// frame doesn't reserve extra space when fewer than 3 accounts
+    /// exist. Wraps in ScrollView only when there's overflow — the
+    /// auto-swap + token cards below remain pinned regardless.
     @ViewBuilder
-    private var mainBody: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            accountsHeader
-            if let snap = store.snapshot, !snap.accounts.isEmpty {
-                let sorted = snap.accounts.sorted { $0.isActive && !$1.isActive }
-                let visible = Array(sorted.prefix(3))
+    private var accountsSection: some View {
+        if let snap = store.snapshot, !snap.accounts.isEmpty {
+            let sorted = snap.accounts.sorted { $0.isActive && !$1.isActive }
+            let hasOverflow = sorted.count > Self.accountsRowsBeforeScroll
+            ScrollView(.vertical, showsIndicators: hasOverflow) {
                 VStack(spacing: 4) {
-                    ForEach(visible) { acc in
+                    ForEach(sorted) { acc in
                         MediumAccountRow(view: acc)
-                    }
-                    if sorted.count > visible.count {
-                        ScrollView { extraRows(Array(sorted.dropFirst(visible.count))) }
-                            .frame(maxHeight: Self.rowHeight * 2)
                     }
                 }
                 .padding(.horizontal, 6)
-            } else {
-                EmptyAccountsView().padding(.top, 12)
+                .padding(.vertical, 4)
             }
+            .frame(height: visibleAccountsHeight)
+            .scrollDisabled(!hasOverflow)
+        } else {
+            EmptyAccountsView()
+                .padding(.top, 12)
+                .frame(maxWidth: .infinity)
+        }
+    }
+
+    /// Always-visible footer with the Auto-swap and Token-usage cards.
+    /// Lives outside any ScrollView so users can drag the threshold
+    /// slider and read token totals even when the account list above is
+    /// scrolling. Padding mirrors the previous mainBody so spacing
+    /// across both halves looks unified.
+    private var bottomFixedSection: some View {
+        VStack(alignment: .leading, spacing: 2) {
             sectionTitle("Auto-swap").padding(.top, 6)
             MediumAutoSwapCard()
             sectionTitle("Token usage").padding(.top, 6)
             MediumTokenUsageCard()
         }
-        .padding(.top, 4)
         .padding(.bottom, 8)
-    }
-
-    private func extraRows(_ accounts: [AccountViewDTO]) -> some View {
-        VStack(spacing: 4) {
-            ForEach(accounts) { acc in
-                MediumAccountRow(view: acc)
-            }
-        }
     }
 
     private var accountsHeader: some View {

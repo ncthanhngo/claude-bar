@@ -91,22 +91,22 @@ struct LocalMCPSettingsView: View {
     }
 
     private var privacyNotice: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Label("Local connectors stay on this Mac", systemImage: "lock.shield")
-                .font(.subheadline.weight(.medium))
-            Text("Slack, ClickUp, GitHub, and Google Workspace tokens live in the macOS Keychain. Shared connectors work for every Claude Bar account on this Mac; account-specific connectors override shared ones. Tool results still flow through your Claude chat history, which may be shared if you share that Claude login.")
+        // Quiet inline footer — used to be a loud yellow callout that
+        // dominated the top of the panel. macOS Settings panes lead with
+        // the actual controls, not warnings. We keep the safety message
+        // but render it as inline secondary text, paired with a single
+        // SF Symbol, so it sits naturally above the connector list.
+        HStack(alignment: .top, spacing: 8) {
+            Image(systemName: "lock.shield")
+                .foregroundColor(.secondary)
+                .font(.system(size: 14))
+                .padding(.top, 1)
+            Text("Tokens live in the macOS Keychain on this Mac. Shared connectors work across every Claude Bar account; account-specific connectors override them. Tool results still flow through your Claude chat history.")
                 .font(.caption)
                 .foregroundColor(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
-        .padding(10)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.yellow.opacity(0.12))
-        .overlay(
-            RoundedRectangle(cornerRadius: 8)
-                .stroke(Color.yellow.opacity(0.5), lineWidth: 1)
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .padding(.horizontal, 4)
     }
 
     private var chatToolModeSection: some View {
@@ -304,16 +304,23 @@ struct LocalMCPSettingsView: View {
     }
 
     private func connectorRow(account: Int, connector: MCPConnectorSummaryDTO) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 8) {
+        // Apple-style connector card: SF symbol + display name + status
+        // pill on the top line, secondary controls (Tools / Prompt /
+        // Connect-Disconnect) on a bottom action row. The whole card
+        // sits on a quaternary fill with a 10pt corner radius — same
+        // visual language as `GroupBox` rows in macOS Settings.
+        let key = promptKey(account: account, service: connector.service)
+        let toolsOpen = expandedConnectorTools == key
+        let promptOpen = expandedConnectorPrompt == key
+        return VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 10) {
                 Image(systemName: connector.systemImageName)
-                    .frame(width: 18)
+                    .font(.system(size: 16, weight: .regular))
                     .foregroundColor(connector.enabled && connector.hasSecret ? .accentColor : .secondary)
-                Text(connector.labelTitle).font(.system(size: 12))
-                Text("·").foregroundColor(.secondary)
-                Text(connector.state)
-                    .font(.caption)
-                    .foregroundColor(stateColor(for: connector))
+                    .frame(width: 22)
+                Text(connector.labelTitle)
+                    .font(.system(size: 13, weight: .semibold))
+                statusPill(for: connector)
                 Spacer()
                 if connector.hasSecret {
                     Toggle("", isOn: Binding(
@@ -335,8 +342,11 @@ struct LocalMCPSettingsView: View {
                           ? "Tắt \(connector.labelTitle) — tools của connector này sẽ bị gỡ khỏi tools/list (tiết kiệm ~vài ngàn tokens/message). Token vẫn giữ trong Keychain. Các phiên Claude Code đang chạy sẽ tự restart để áp dụng."
                           : "Bật lại \(connector.labelTitle). Các phiên Claude Code đang chạy sẽ tự restart để load thêm tools.")
                 }
+            }
+            HStack(spacing: 14) {
                 toolsDisclosureButton(account: account, service: connector.service)
                 promptDisclosureButton(account: account, service: connector.service)
+                Spacer()
                 if connector.enabled && connector.hasSecret {
                     Button("Disconnect") {
                         pendingDisconnect = .init(
@@ -347,34 +357,55 @@ struct LocalMCPSettingsView: View {
                     }
                     .buttonStyle(.borderless)
                     .foregroundColor(.red)
-                    .font(.caption)
+                    .font(.system(size: 12))
                 } else if !connector.hasSecret {
-                    Button("Connect") {
+                    Button("Connect…") {
                         presentConnect(account: account, service: connector.service, label: connector.labelTitle)
                     }
-                    .buttonStyle(.bordered)
+                    .buttonStyle(.borderedProminent)
                     .controlSize(.small)
                 }
             }
-            .padding(.vertical, 2)
-            if expandedConnectorPrompt == promptKey(account: account, service: connector.service) {
+            if promptOpen {
+                Divider().opacity(0.4)
                 connectorPromptEditor(service: connector.service)
-                    .padding(.leading, 26)
-                    .padding(.top, 6)
-                    .padding(.bottom, 4)
+                    .padding(.top, 4)
             }
-            if expandedConnectorTools == promptKey(account: account, service: connector.service) {
+            if toolsOpen {
+                Divider().opacity(0.4)
                 connectorToolsList(service: connector.service)
-                    .padding(.leading, 26)
-                    .padding(.top, 6)
-                    .padding(.bottom, 4)
+                    .padding(.top, 4)
             }
         }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .background(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(Color.primary.opacity(0.04))
+        )
     }
 
-    /// Disclosure pill for per-tool toggles. Opening it triggers a
-    /// `loadTools(service:)` fetch on the coordinator; the rendered list
-    /// shows up as soon as the @Published cache populates.
+    /// Apple-style status capsule with an SF Symbol + short word — the
+    /// same shape Settings.app uses for "Connected" / "Off" indicators
+    /// inside its panes. Colour-coded against `stateColor(for:)`.
+    private func statusPill(for connector: MCPConnectorSummaryDTO) -> some View {
+        let color = stateColor(for: connector)
+        return HStack(spacing: 4) {
+            Circle().fill(color).frame(width: 6, height: 6)
+            Text(connector.state)
+                .font(.system(size: 10, weight: .medium))
+                .foregroundColor(color)
+        }
+        .padding(.horizontal, 7)
+        .padding(.vertical, 2)
+        .background(Capsule().fill(color.opacity(0.12)))
+    }
+
+    /// Restrained disclosure link — chevron + label, native accent
+    /// colour, no fill. Replaces the bright purple pill that punched
+    /// out of the page. Reads like a sidebar disclosure in
+    /// Settings.app: subtle in idle state, clear arrow rotation when
+    /// expanded.
     @ViewBuilder private func toolsDisclosureButton(account: Int, service: String) -> some View {
         let key = promptKey(account: account, service: service)
         let isOpen = expandedConnectorTools == key
@@ -388,97 +419,98 @@ struct LocalMCPSettingsView: View {
                 Task { await coordinator.loadTools(service: service) }
             }
         } label: {
-            HStack(spacing: 4) {
-                Image(systemName: isOpen ? "chevron.down" : "chevron.right")
-                    .font(.system(size: 9, weight: .semibold))
-                Text(disabledCount > 0 && count > 0
-                     ? "Tools (\(count - disabledCount)/\(count))"
-                     : "Tools")
-                    .font(.system(size: 11, weight: .semibold))
+            HStack(spacing: 5) {
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 10, weight: .semibold))
+                    .rotationEffect(.degrees(isOpen ? 90 : 0))
+                Text("Tools")
+                    .font(.system(size: 12, weight: .medium))
+                if count > 0 {
+                    Text(disabledCount > 0 ? "\(count - disabledCount)/\(count)" : "\(count)")
+                        .font(.system(size: 11))
+                        .monospacedDigit()
+                        .foregroundColor(.secondary)
+                }
             }
-            .foregroundColor(.white)
-            .padding(.horizontal, 9)
-            .padding(.vertical, 4)
-            .background(Capsule().fill(Color.purple))
-            .overlay(Capsule().stroke(Color.white.opacity(0.25), lineWidth: 0.5))
-            .shadow(color: Color.black.opacity(0.12), radius: 1, y: 1)
+            .foregroundColor(.accentColor)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .help("Bật / tắt từng tool của connector. Tools tắt sẽ không xuất hiện trong tools/list, tiết kiệm context tokens và ngăn Claude gọi.")
     }
 
-    /// The expanded body — grouped by Category, sorted by Priority within
-    /// each group. Rendered as a striped table with a header row so the
-    /// user can scan tool / description / token-cost / on-off in
-    /// columns. Each tool row's toggle calls `setToolEnabled` (which
-    /// restarts running Claude sessions for the new tool set to take
-    /// effect on the next message).
+    /// Apple-style grouped list — categories surface as small grey
+    /// captions, tool rows are hairline-separated, no zebra striping.
+    /// The running-total chip moves into the header alongside the
+    /// "Active tools" caption so it reads like a Settings-pane summary.
     @ViewBuilder private func connectorToolsList(service: String) -> some View {
         let tools = coordinator.toolsByService[service] ?? []
         if tools.isEmpty {
-            HStack {
+            HStack(spacing: 8) {
                 ProgressView().controlSize(.mini)
-                Text("Loading…").font(.caption).foregroundColor(.secondary)
+                Text("Loading tools…")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
             }
+            .padding(.vertical, 8)
         } else {
             let buckets = groupTools(tools)
+            let activeCount = tools.filter { $0.enabled }.count
             let totalTokens = tools.filter { $0.enabled }.reduce(0) { $0 + $1.tokenCost }
-            VStack(alignment: .leading, spacing: 8) {
-                toolsTableHeader(activeTokens: totalTokens)
+            VStack(alignment: .leading, spacing: 10) {
+                toolsSummaryHeader(active: activeCount, total: tools.count, tokens: totalTokens)
                 ForEach(buckets, id: \.0) { (category, items) in
-                    VStack(alignment: .leading, spacing: 0) {
-                        toolsCategoryHeader(category)
-                        VStack(spacing: 0) {
-                            ForEach(Array(items.enumerated()), id: \.element.id) { idx, tool in
-                                toolTableRow(service: service, tool: tool, stripe: idx.isMultiple(of: 2))
-                            }
-                        }
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 4)
-                                .stroke(Color.secondary.opacity(0.18), lineWidth: 0.5)
-                        )
-                        .clipShape(RoundedRectangle(cornerRadius: 4))
-                    }
+                    toolsCategorySection(service: service, category: category, items: items)
                 }
             }
         }
     }
 
-    /// Top strip — column titles + a small chip showing total tokens
-    /// currently enabled across this connector. Gives the user a
-    /// running budget as they toggle individual rows.
-    private func toolsTableHeader(activeTokens: Int) -> some View {
-        HStack(spacing: 0) {
-            Text("TOOL").font(.system(size: 9, weight: .heavy)).tracking(0.5)
+    /// Compact summary line at the top of the expanded tools list —
+    /// "N of M tools enabled" + a soft accent-tinted chip with the
+    /// running token total. Sets the user's mental frame ("how much
+    /// am I spending here?") before they scan the rows.
+    private func toolsSummaryHeader(active: Int, total: Int, tokens: Int) -> some View {
+        HStack(spacing: 8) {
+            Text("\(active) of \(total) tools enabled")
+                .font(.system(size: 11, weight: .medium))
                 .foregroundColor(.secondary)
-                .frame(maxWidth: .infinity, alignment: .leading)
-            Text("TOKENS").font(.system(size: 9, weight: .heavy)).tracking(0.5)
-                .foregroundColor(.secondary)
-                .frame(width: 60, alignment: .trailing)
-            Text("ON").font(.system(size: 9, weight: .heavy)).tracking(0.5)
-                .foregroundColor(.secondary)
-                .frame(width: 38, alignment: .trailing)
-        }
-        .padding(.horizontal, 6)
-        .overlay(alignment: .topTrailing) {
-            Text("\(activeTokens) tokens / message")
-                .font(.system(size: 9, weight: .medium))
-                .foregroundColor(.accentColor)
-                .padding(.horizontal, 6)
-                .padding(.vertical, 1)
-                .background(Capsule().fill(Color.accentColor.opacity(0.10)))
-                .offset(y: -14)
+            Spacer()
+            HStack(spacing: 4) {
+                Image(systemName: "circle.hexagongrid")
+                    .font(.system(size: 10, weight: .medium))
+                Text("\(tokens) tokens / message")
+                    .font(.system(size: 11, weight: .medium))
+                    .monospacedDigit()
+            }
+            .foregroundColor(.accentColor)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 3)
+            .background(Capsule().fill(Color.accentColor.opacity(0.12)))
         }
     }
 
-    private func toolsCategoryHeader(_ category: String) -> some View {
-        Text(category.uppercased())
-            .font(.system(size: 9, weight: .heavy))
-            .tracking(0.6)
-            .foregroundColor(.secondary)
-            .padding(.horizontal, 8)
-            .padding(.top, 6)
-            .padding(.bottom, 4)
+    /// One Category block — caption header + a rounded card whose
+    /// inner rows are separated by hairline dividers. Matches the
+    /// macOS Settings "list of items in a section" pattern.
+    private func toolsCategorySection(service: String, category: String, items: [MCPToolSummaryDTO]) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(category.uppercased())
+                .font(.system(size: 10, weight: .semibold))
+                .tracking(0.4)
+                .foregroundColor(.secondary)
+                .padding(.leading, 2)
+            VStack(spacing: 0) {
+                ForEach(Array(items.enumerated()), id: \.element.id) { idx, tool in
+                    toolTableRow(service: service, tool: tool)
+                    if idx < items.count - 1 {
+                        Divider().opacity(0.35).padding(.leading, 10)
+                    }
+                }
+            }
+            .background(Color.primary.opacity(0.03))
+            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        }
     }
 
     /// Groups by Category preserving the order tools appear in the
@@ -494,47 +526,30 @@ struct LocalMCPSettingsView: View {
         return order.map { ($0, bucket[$0] ?? []) }
     }
 
-    /// One striped row of the tools table. Three columns sized so the
-    /// description column flexes while the cost + toggle columns stay
-    /// pinned to a stable right edge (numbers line up across rows).
-    /// Even rows get a faint stripe so a long category list stays
-    /// readable without per-row dividers.
-    @ViewBuilder private func toolTableRow(service: String, tool: MCPToolSummaryDTO, stripe: Bool) -> some View {
-        HStack(alignment: .top, spacing: 8) {
-            VStack(alignment: .leading, spacing: 1) {
+    /// Native list-row layout: label + tinted priority badge on the
+    /// first line, secondary description in grey, monospaced tool ID
+    /// in tertiary grey below. Right edge holds the token-cost chip
+    /// and the toggle, both right-aligned at fixed widths so numbers
+    /// line up across rows.
+    @ViewBuilder private func toolTableRow(service: String, tool: MCPToolSummaryDTO) -> some View {
+        HStack(alignment: .center, spacing: 10) {
+            VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
                     Text(tool.label)
-                        .font(.system(size: 11, weight: .medium))
-                    if tool.priority == 0 {
-                        Text("ESSENTIAL")
-                            .font(.system(size: 8, weight: .bold))
-                            .tracking(0.4)
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 4).padding(.vertical, 1)
-                            .background(Capsule().fill(Color.green))
-                    } else if tool.priority == 2 {
-                        Text("ADVANCED")
-                            .font(.system(size: 8, weight: .bold))
-                            .tracking(0.4)
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 4).padding(.vertical, 1)
-                            .background(Capsule().fill(Color.gray))
-                    }
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(.primary)
+                    priorityBadge(tool.priority)
                 }
                 Text(tool.description)
-                    .font(.system(size: 10))
+                    .font(.system(size: 11))
                     .foregroundColor(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
                 Text(tool.id)
-                    .font(.system(size: 9, design: .monospaced))
-                    .foregroundColor(.secondary.opacity(0.6))
+                    .font(.system(size: 10, design: .monospaced))
+                    .foregroundColor(.secondary.opacity(0.55))
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            Text("\(tool.tokenCost)")
-                .font(.system(size: 11, weight: .semibold))
-                .monospacedDigit()
-                .foregroundColor(tokenCostColor(tool.tokenCost))
-                .frame(width: 60, alignment: .trailing)
+            tokenCostChip(tool.tokenCost)
             Toggle("", isOn: Binding(
                 get: { tool.enabled },
                 set: { newValue in
@@ -546,9 +561,43 @@ struct LocalMCPSettingsView: View {
             .labelsHidden()
             .frame(width: 38, alignment: .trailing)
         }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 5)
-        .background(stripe ? Color.secondary.opacity(0.05) : Color.clear)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+    }
+
+    /// Soft, semantic priority badge — only Essential and Advanced
+    /// surface a badge; Common is the silent default. Filled-text
+    /// pairs match the Settings-pane "Recommended" capsule style.
+    @ViewBuilder private func priorityBadge(_ priority: Int) -> some View {
+        if priority == 0 {
+            badgeCapsule("Essential", color: .green)
+        } else if priority == 2 {
+            badgeCapsule("Advanced", color: .orange)
+        }
+    }
+
+    private func badgeCapsule(_ text: String, color: Color) -> some View {
+        Text(text)
+            .font(.system(size: 9, weight: .semibold))
+            .foregroundColor(color)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 1)
+            .background(Capsule().fill(color.opacity(0.14)))
+    }
+
+    /// Token-cost chip — tinted by the same green/amber/red bucket the
+    /// usage palette uses elsewhere, but with a low-alpha capsule
+    /// behind so the number doesn't sit naked next to the description.
+    private func tokenCostChip(_ n: Int) -> some View {
+        let color = tokenCostColor(n)
+        return Text("\(n)")
+            .font(.system(size: 11, weight: .semibold))
+            .monospacedDigit()
+            .foregroundColor(color)
+            .padding(.horizontal, 7)
+            .padding(.vertical, 2)
+            .background(Capsule().fill(color.opacity(0.14)))
+            .frame(width: 50, alignment: .trailing)
     }
 
     /// Heuristic tint so a heavy tool stands out at a glance. The
@@ -571,22 +620,20 @@ struct LocalMCPSettingsView: View {
         Button {
             expandedConnectorPrompt = isOpen ? nil : key
         } label: {
-            HStack(spacing: 4) {
-                Image(systemName: filled ? "text.badge.checkmark" : "square.and.pencil")
+            HStack(spacing: 5) {
+                Image(systemName: "chevron.right")
                     .font(.system(size: 10, weight: .semibold))
-                Text(isOpen ? "Hide Prompt" : (filled ? "Edit Prompt ✓" : "Edit Prompt"))
-                    .font(.system(size: 11, weight: .semibold))
+                    .rotationEffect(.degrees(isOpen ? 90 : 0))
+                Text("Prompt")
+                    .font(.system(size: 12, weight: .medium))
+                if filled {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 11))
+                        .foregroundColor(.green)
+                }
             }
-            .foregroundColor(.white)
-            .padding(.horizontal, 9)
-            .padding(.vertical, 4)
-            .background(
-                Capsule().fill(filled ? Color.green : Color.accentColor)
-            )
-            .overlay(
-                Capsule().stroke(Color.white.opacity(0.25), lineWidth: 0.5)
-            )
-            .shadow(color: Color.black.opacity(0.12), radius: 1, y: 1)
+            .foregroundColor(.accentColor)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .help("Markdown hướng dẫn Claude khi đọc dữ liệu từ connector này. Tự lưu khi gõ.")
