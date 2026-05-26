@@ -32,6 +32,15 @@ final class InPopoverUpdateDriver: NSObject, ObservableObject, SPUUserDriver {
 
     @Published private(set) var stage: Stage = .idle
 
+    /// Mirror of UpdateController.autoUpdateEnabled — set from the
+    /// controller, read here to decide whether to auto-reply on Sparkle
+    /// prompts. When ON and the check was started by Sparkle's scheduler
+    /// (not a manual "Check for updates…" click), we skip the "Update
+    /// available" + "Ready to install" cards and tell Sparkle to install
+    /// immediately. User-initiated checks still get the full flow so
+    /// nothing surprises someone who clicked the button on purpose.
+    var autoUpdateEnabled: Bool = false
+
     // Closures handed to us by Sparkle — we invoke them when the user
     // clicks the corresponding button on the overlay card.
     private var cancelCheckHandler: (() -> Void)?
@@ -106,10 +115,12 @@ final class InPopoverUpdateDriver: NSObject, ObservableObject, SPUUserDriver {
     // MARK: - SPUUserDriver
 
     func show(_ request: SPUUpdatePermissionRequest, reply: @escaping (SUUpdatePermissionResponse) -> Void) {
-        // Background update notifications are disabled — users opt into
-        // checking manually from the About tab. Decline automatic checks so
-        // Sparkle never surfaces a "new version" card unprompted.
-        reply(SUUpdatePermissionResponse(automaticUpdateChecks: false, sendSystemProfile: false))
+        // We surface our own toggle in Settings → General (autoUpdateEnabled
+        // on UpdateController) so Sparkle's first-run permission popup is
+        // redundant. Reply with whatever the user already chose — true on
+        // first launch (we default auto-update ON) or whatever they flipped
+        // to since.
+        reply(SUUpdatePermissionResponse(automaticUpdateChecks: autoUpdateEnabled, sendSystemProfile: false))
     }
 
     func showUserInitiatedUpdateCheck(cancellation: @escaping () -> Void) {
@@ -121,6 +132,15 @@ final class InPopoverUpdateDriver: NSObject, ObservableObject, SPUUserDriver {
                         state: SPUUserUpdateState,
                         reply: @escaping (SPUUserUpdateChoice) -> Void) {
         cancelCheckHandler = nil
+        // Silent flow when auto-update is ON and Sparkle's scheduler (not
+        // the user) discovered the new version. We jump straight to
+        // .install so Sparkle starts downloading without an "Update
+        // available" card; the showReady callback below then auto-installs
+        // when the download finishes. Skips the popover entirely.
+        if autoUpdateEnabled && state.userInitiated == false {
+            reply(.install)
+            return
+        }
         foundReply = reply
         let version = appcastItem.displayVersionString
         stage = .foundUpdate(version: version, notes: nil)
@@ -153,6 +173,15 @@ final class InPopoverUpdateDriver: NSObject, ObservableObject, SPUUserDriver {
         downloadCancelHandler = cancellation
         expectedDownloadLength = 0
         receivedDownloadLength = 0
+        // Stay invisible when auto-update is doing its quiet thing — the
+        // user didn't ask for a download UI right now. We still hang onto
+        // the cancellation closure in case the controller wants to cancel
+        // for any reason later. The .idle stage means the overlay does
+        // not render anything during the download.
+        if autoUpdateEnabled {
+            stage = .idle
+            return
+        }
         stage = .downloading(progress: 0)
     }
 
@@ -163,6 +192,7 @@ final class InPopoverUpdateDriver: NSObject, ObservableObject, SPUUserDriver {
 
     func showDownloadDidReceiveData(ofLength length: UInt64) {
         receivedDownloadLength &+= length
+        if autoUpdateEnabled { return }
         let p: Double
         if expectedDownloadLength > 0 {
             p = min(1.0, Double(receivedDownloadLength) / Double(expectedDownloadLength))
@@ -174,14 +204,25 @@ final class InPopoverUpdateDriver: NSObject, ObservableObject, SPUUserDriver {
 
     func showDownloadDidStartExtractingUpdate() {
         downloadCancelHandler = nil
+        if autoUpdateEnabled { return }
         stage = .extracting(progress: 0)
     }
 
     func showExtractionReceivedProgress(_ progress: Double) {
+        if autoUpdateEnabled { return }
         stage = .extracting(progress: progress)
     }
 
     func showReady(toInstallAndRelaunch reply: @escaping (SPUUserUpdateChoice) -> Void) {
+        // Auto-update path: relaunch silently. Claude Bar is a menu-bar
+        // utility — no editor state to save, no document the user can lose
+        // — so a quiet relaunch is the desired UX, not a surprise. Users
+        // who manually triggered the check still get the install card so
+        // their click leads to a visible outcome.
+        if autoUpdateEnabled {
+            reply(.install)
+            return
+        }
         installReply = reply
         stage = .readyToInstall
     }

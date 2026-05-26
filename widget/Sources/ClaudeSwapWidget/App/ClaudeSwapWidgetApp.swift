@@ -152,7 +152,7 @@ struct ClaudeSwapWidgetApp: App {
 
     var body: some Scene {
         MenuBarExtra {
-            WidgetTabbedPopover()
+            PopoverRoot()
                 .environmentObject(store)
                 .environmentObject(loginCoordinator)
                 .environmentObject(verifyCoordinator)

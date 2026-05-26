@@ -41,6 +41,12 @@ final class AppSettings: ObservableObject {
 
     @AppStorage("widgetTheme") var widgetTheme: WidgetTheme = .light
 
+    /// Popover layout — Standard (full status, auto-swap, token chart) vs
+    /// Minimum (header + account list only). Stored as the raw string so
+    /// SwiftUI Picker tag(s) line up with @AppStorage directly without a
+    /// custom RawRepresentable bridge.
+    @AppStorage("popoverLayout") var popoverLayout: PopoverLayout = .standard
+
     /// Active body of the Daily window: "plan" (editorial briefing) or "chat"
     /// (OAuth-bound conversation thread). Persisted so the window opens in
     /// whichever mode the user last used.
@@ -175,6 +181,37 @@ final class AppSettings: ObservableObject {
     /// string is malformed (e.g. user-edited UserDefaults).
     var parsedReloadShortcut: KeyboardShortcut {
         KeyboardShortcut.parse(reloadShortcut) ?? .defaultShortcut
+    }
+}
+
+/// Visual density of the menu-bar popover.
+///
+/// **Standard** — the full surface: status header, accounts with usage bars,
+/// auto-swap slider, and the token-usage chart. Intended for people who
+/// drive auto-swap and watch quota burn live.
+///
+/// **Minimum** — header bar + accounts list only. No auto-swap section, no
+/// token chart, no usage bars. For users who just need to click-to-switch
+/// account and don't care about the dashboard. Popover stays short and
+/// opens instantly.
+enum PopoverLayout: String, CaseIterable, Identifiable {
+    case standard
+    case minimum
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .standard: return "Standard"
+        case .minimum:  return "Minimum"
+        }
+    }
+
+    var detail: String {
+        switch self {
+        case .standard: return "Status header + accounts with usage bars + auto-swap + token chart."
+        case .minimum:  return "Header + accounts list only. Tap to switch."
+        }
     }
 }
 
