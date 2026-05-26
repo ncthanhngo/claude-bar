@@ -21,9 +21,9 @@ struct TinyPopoverView: View {
     private static let popoverWidth: CGFloat = 340
     // Each row is avatar 22 + 8pt vertical padding × 2 + chip height ≈ 46.
     private static let rowHeight: CGFloat = 46
-    // Header bar + divider + list padding ≈ 48pt; tighter than the
-    // previous 64 to drop ~16pt of dead space below the last row.
-    private static let shellHeight: CGFloat = 48
+    // Header (~32) + divider + list padding + Auto-swap bar (toggle row
+    // ~22 + slider 30 + legend 16 + paddings ~16 = ~84) = ~140.
+    private static let shellHeight: CGFloat = 140
 
     var body: some View {
         ZStack {
@@ -35,6 +35,11 @@ struct TinyPopoverView: View {
                     accountList
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                Divider().opacity(0.4)
+                TinyAutoSwapBar()
+                    .padding(.horizontal, 10)
+                    .padding(.top, 8)
+                    .padding(.bottom, 6)
             }
         }
         .frame(width: Self.popoverWidth, height: popoverHeight)
@@ -196,4 +201,46 @@ private struct UsageChip: View {
     }
 
     private var background: Color { palette.opacity(0.16) }
+}
+
+/// Compact auto-swap controls at the bottom of the Tiny popover. Same
+/// data path as Full / Standard — `settings.autoSwapEnabled` +
+/// `settings.thresholdPct` — but rendered as a single tight strip so the
+/// user can flip auto-swap on/off and drag the threshold without leaving
+/// the smallest layout. The slider's traffic-light current marker and
+/// trigger legend stay visible at this width because they were sized
+/// against a 320pt-wide rail to begin with.
+private struct TinyAutoSwapBar: View {
+    @EnvironmentObject var store: AppStore
+    @ObservedObject private var settings = AppSettings.shared
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 8) {
+                PointingHandSwitch(isOn: $settings.autoSwapEnabled, accessibilityName: "Auto-swap")
+                Text("Auto-swap")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundColor(.primary.opacity(0.78))
+                Text(statusLabel)
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundColor(statusColor)
+                Spacer()
+            }
+            ThresholdSliderView(
+                threshold: $settings.thresholdPct,
+                currentPct: store.snapshot?.active?.usage?.fiveHour?.percentInt,
+                isEnabled: settings.autoSwapEnabled
+            )
+        }
+    }
+
+    private var statusLabel: String {
+        if !settings.autoSwapEnabled { return "off" }
+        return store.snapshot?.active?.usage?.fiveHour?.percentInt != nil ? "on" : "paused"
+    }
+
+    private var statusColor: Color {
+        if !settings.autoSwapEnabled { return .secondary }
+        return store.snapshot?.active?.usage?.fiveHour?.percentInt != nil ? .green : .orange
+    }
 }

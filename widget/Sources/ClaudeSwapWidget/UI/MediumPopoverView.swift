@@ -23,12 +23,12 @@ struct MediumPopoverView: View {
 
     private static let popoverWidth: CGFloat = 300
     // Shell = header + Accounts label + 2 KPI cards (Auto-swap + Token
-    // usage) + paddings. Empirically ≈ 240pt with the trimmed cards
-    // below — measured against the previous over-padded 317 budget.
-    private static let shellHeight: CGFloat = 240
+    // usage) + paddings. Auto-swap card now hosts a slider + status
+    // toggle + KPI row, so it's ~50pt taller than the static read-only
+    // version. Bumped budget from 240 → 290 to account for it.
+    private static let shellHeight: CGFloat = 290
     // Row = avatar 28 + name line + 2 stacked "label · bar · %" rows + 6pt
-    // vertical padding above/below = ≈ 66pt. The new readable
-    // percentages each take ~14pt vs the old 5pt bar pair.
+    // vertical padding above/below = ≈ 66pt.
     private static let rowHeight: CGFloat = 66
 
     var body: some View {
@@ -240,28 +240,29 @@ private struct MediumAccountRow: View {
 
 // MARK: - Auto-swap card
 
-/// One-line summary + 2-column KPI grid. Read-only — to change the
-/// threshold or toggle auto-swap, open the Standard layout or Settings.
+/// Editable auto-swap controls — toggle + threshold slider + KPI grid.
+/// Mirrors the Full layout's `AutoSwapSection` semantics so the popover
+/// is functionally complete even at Standard size: the user can flip
+/// auto-swap on/off and drag the threshold from inside this card without
+/// opening Settings or switching to Full.
 private struct MediumAutoSwapCard: View {
     @EnvironmentObject var store: AppStore
     @ObservedObject private var settings = AppSettings.shared
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 6) {
-                Text("Threshold")
-                    .font(.system(size: 10))
-                    .foregroundColor(.secondary)
-                Text("\(settings.thresholdPct)%")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundColor(.primary)
-                Text("·")
-                    .foregroundColor(.secondary)
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                PointingHandSwitch(isOn: $settings.autoSwapEnabled, accessibilityName: "Auto-swap")
                 Text(statusLabel)
-                    .font(.system(size: 10, weight: .medium))
+                    .font(.system(size: 11, weight: .medium))
                     .foregroundColor(statusColor)
                 Spacer()
             }
+            ThresholdSliderView(
+                threshold: $settings.thresholdPct,
+                currentPct: store.snapshot?.active?.usage?.fiveHour?.percentInt,
+                isEnabled: settings.autoSwapEnabled
+            )
             HStack(spacing: 10) {
                 kpi("Current", value: currentText, color: currentColor)
                 Divider().frame(height: 26)
