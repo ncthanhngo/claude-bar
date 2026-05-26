@@ -13,9 +13,9 @@
     <key>CFBundleIdentifier</key>
     <string>dev.ncthanhngo.claude-bar</string>
     <key>CFBundleVersion</key>
-    <string>10.49</string>
+    <string>11</string>
     <key>CFBundleShortVersionString</key>
-    <string>10.49</string>
+    <string>11</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleSignature</key>
@@ -35,7 +35,7 @@
     <key>NSHumanReadableCopyright</key>
     <string>Copyright © 2026 Thanh Ngô. Licensed under MIT.</string>
     <key>CFBundleGetInfoString</key>
-    <string>Claude Bar 10.49 — menu-bar manager for multiple Claude Code accounts</string>
+    <string>Claude Bar 11 — menu-bar manager for multiple Claude Code accounts</string>
     <key>CBAuthorName</key>
     <string>Thanh Ngô</string>
     <key>CBAuthorEmail</key>
@@ -47,12 +47,16 @@
     <key>CBBuildDate</key>
     <string>2026-05-26</string>
     <key>CBReleaseChannel</key>
-    <string>Beta</string>
+    <string>Stable</string>
     <key>CBReleaseWhatsNew</key>
-    <string>Medium popover slimmed down. The boxed "Token usage" card with its duplicated section title was replaced by the same compact Day / Week / Month strip that Tiny uses, and the row + shell heights were retuned to remove ~65pt of dead chrome. Both layouts now read identically when switching between them.
-Settings → MCP tool-cost catalog now includes GitLab connector rows. Measurement previously skipped GitLab because its instance store was nil during catalog scanning; the gateway is now wired with throw-away stub stores so every connector's tools show up with their measured schema-byte cost.</string>
+    <string>Settings window redesigned. Sidebar now groups tabs under App, Features, Data &amp; Sync, and System — Accounts, IDE Integration, iCloud Sync, and Diagnostics are first-class tabs instead of being buried inside General or Update.
+Sidebar search (⌘F). Type to filter tabs by name; Enter picks the first match, Esc clears. Each tab also gets its own tinted icon so the sidebar is scannable at a glance.
+About panel got a proper hero — app icon, version, channel badge, and a direct "Check for updates…" button without leaving the page.
+Empty-state hero on the Accounts tab when you haven't enrolled anything yet, so the first-launch path leads with a single big CTA instead of an empty list.
+Settings remembers the last tab you were viewing between opens.</string>
     <key>CBReleaseHotfixes</key>
-    <string>Fixed MCP tool-cost table showing 0 across every GitLab row.</string>
+    <string>Fixed the 7-day usage bar flickering on and off for web-linked accounts. The claude.ai scraper now waits for both the 5h and 7d blocks to hydrate before returning, instead of grabbing the first one and dropping the other.
+Fixed the brief layout shift when opening Settings → Local MCP the first time after launch — the MCP coordinator is now pre-warmed at startup.</string>
     <key>CBReleaseKnownIssues</key>
     <string>None.</string>
     <key>CFBundleDevelopmentRegion</key>

@@ -12,6 +12,31 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 11</title>
+      <sparkle:version>11</sparkle:version>
+      <sparkle:shortVersionString>11</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li><strong>Settings window redesigned.</strong> Sidebar now groups tabs under App, Features, Data &amp; Sync, and System. Accounts, IDE Integration, iCloud Sync, and Diagnostics are first-class tabs instead of being buried inside General or Update.</li>
+          <li><strong>Sidebar search (⌘F).</strong> Type to filter tabs by name; Enter picks the first match, Esc clears. Each tab also gets its own tinted icon so the sidebar is scannable at a glance.</li>
+          <li><strong>About panel hero</strong> — app icon, version, channel badge, and a direct "Check for updates…" button without leaving the page.</li>
+          <li><strong>Empty-state hero on the Accounts tab</strong> when no accounts are enrolled, so the first-launch path leads with a single big CTA instead of an empty list.</li>
+          <li><strong>Settings remembers the last tab</strong> you were viewing between opens.</li>
+          <li><strong>Fixed the 7-day usage bar flickering</strong> on and off for web-linked accounts. The claude.ai scraper now waits for both the 5h and 7d blocks to hydrate before returning.</li>
+          <li><strong>Fixed the brief layout shift</strong> when opening Settings → Local MCP the first time after launch — the MCP coordinator is now pre-warmed at startup.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Tue, 26 May 2026 15:22:14 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v11/ClaudeBar.zip"
+        sparkle:version="11"
+        sparkle:shortVersionString="11"
+        sparkle:edSignature="yWm4oLh9vzBrTz/FhDPZ73zUDohWrcwgDRSkvBuJBiDg56XP9DJ4DuijGmj0A2CTDCk+Hg/x7ohrUSPhlVnQCw=="
+        length="8821298"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 10.49 (BETA)</title>
       <sparkle:version>10.49</sparkle:version>
       <sparkle:shortVersionString>10.49</sparkle:shortVersionString>
