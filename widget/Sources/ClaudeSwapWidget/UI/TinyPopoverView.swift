@@ -28,9 +28,10 @@ struct TinyPopoverView: View {
     private static let popoverWidth: CGFloat = 290
     // Each row is avatar 22 + 8pt vertical padding × 2 + chip height ≈ 46.
     private static let rowHeight: CGFloat = 46
-    // Header (~32) + divider + list padding + Auto-swap bar (toggle row
-    // ~22 + slider 30 + legend 16 + paddings ~16 = ~84) = ~140.
-    private static let shellHeight: CGFloat = 140
+    // Header (~32) + divider + list padding + Token strip (Day/Week/Month
+    // row ~42) + divider + Auto-swap bar (toggle row 22 + slider 30 +
+    // legend 16 + paddings 16 = 84) = ~190.
+    private static let shellHeight: CGFloat = 190
 
     var body: some View {
         ZStack {
@@ -42,6 +43,10 @@ struct TinyPopoverView: View {
                     accountList
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                Divider().opacity(0.4)
+                TinyTokenUsageStrip()
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
                 Divider().opacity(0.4)
                 TinyAutoSwapBar()
                     .padding(.horizontal, 10)
@@ -174,22 +179,24 @@ private struct UsageChip: View {
     let pct: Int?
 
     var body: some View {
-        // The value reads in `UsagePalette.percentText` (blue) so the
-        // number itself is high-contrast and consistent with Standard /
-        // Full. The chip's background and border still pick up the
-        // traffic-light palette so the quota tier (safe / warn / critical)
-        // is encoded in the surrounding tint without the digit colour
-        // shifting under the eye.
-        HStack(spacing: 4) {
+        // Fixed widths on both inner Text cells so chips render at
+        // the same total width whether the value is "0%", "10%", or
+        // "100%". Without these, the chip pair in a row with "0%"
+        // values sat further right than a row with "10%" values, and
+        // the right edge of the popover zig-zagged. Label slot 14pt
+        // (fits "5h" / "7d"); value slot 30pt (fits "100%" monospaced).
+        HStack(spacing: 3) {
             Text(label)
                 .font(.system(size: 10, weight: .medium))
                 .foregroundColor(.secondary)
+                .frame(width: 14, alignment: .leading)
             Text(valueText)
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundColor(valueColor)
                 .monospacedDigit()
+                .frame(width: 30, alignment: .trailing)
         }
-        .padding(.horizontal, 7)
+        .padding(.horizontal, 6)
         .padding(.vertical, 3)
         .background(Capsule().fill(background))
         .overlay(Capsule().stroke(palette.opacity(0.30), lineWidth: 0.6))
@@ -249,5 +256,69 @@ private struct TinyAutoSwapBar: View {
     private var statusColor: Color {
         if !settings.autoSwapEnabled { return .secondary }
         return store.snapshot?.active?.usage?.fiveHour?.percentInt != nil ? .green : .orange
+    }
+}
+
+/// Three-column token-usage summary that fills the previously-empty
+/// strip between the account list and the auto-swap bar. Matches the
+/// Standard layout's MediumTokenUsageCard but at half the height: just
+/// the headline "X tokens" per period, no cost column, no labels in a
+/// separate row. Pulled from `store.tokenStats` (same data source as
+/// the Full layout's chart) so numbers stay consistent.
+private struct TinyTokenUsageStrip: View {
+    @EnvironmentObject var store: AppStore
+
+    var body: some View {
+        HStack(spacing: 0) {
+            column("Day", value: dayText)
+            Divider().frame(height: 22).opacity(0.4)
+            column("Week", value: weekText)
+            Divider().frame(height: 22).opacity(0.4)
+            column("Month", value: monthText)
+        }
+    }
+
+    private func column(_ label: String, value: String) -> some View {
+        VStack(spacing: 1) {
+            Text(label)
+                .font(.system(size: 9, weight: .medium))
+                .foregroundColor(.secondary)
+                .textCase(.uppercase)
+                .tracking(0.4)
+            Text(value)
+                .font(.system(size: 13, weight: .semibold))
+                .monospacedDigit()
+                .foregroundColor(.primary)
+                .lineLimit(1)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private var dayText: String {
+        guard let s = store.tokenStats else { return "—" }
+        return compactTokens(s.today.totalTokens)
+    }
+
+    private var weekText: String {
+        guard let s = store.tokenStats else { return "—" }
+        return compactTokens(s.thisWeek.totalTokens)
+    }
+
+    private var monthText: String {
+        guard let s = store.tokenStats else { return "—" }
+        return compactTokens(s.thisMonth.totalTokens)
+    }
+
+    /// Local copy of Medium's `compactTokens` helper — kept private here
+    /// to avoid cross-file coupling between two unrelated popover
+    /// layouts. 14_300_000 → "14.3M", 312_000_000 → "312M".
+    private func compactTokens(_ n: Int64) -> String {
+        let v = Double(n)
+        switch v {
+        case ..<1_000:         return "\(n)"
+        case ..<1_000_000:     return String(format: "%.1fK", v / 1_000)
+        case ..<1_000_000_000: return String(format: "%.1fM", v / 1_000_000)
+        default:               return String(format: "%.2fB", v / 1_000_000_000)
+        }
     }
 }

@@ -7,6 +7,13 @@ struct ThresholdSliderView: View {
     let currentPct: Int?
     var isEnabled: Bool = true
 
+    /// Named coordinate space pinned to the track ZStack. Both the
+    /// parent drag and the knob's simultaneous drag report
+    /// `value.location.x` in this space, so dragging from inside the
+    /// small knob no longer collapses to the knob's local x ≈ 0 (which
+    /// previously snapped threshold back to the left on every grab).
+    private static let trackSpaceName = "threshold-track"
+
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             GeometryReader { geo in
@@ -19,6 +26,7 @@ struct ThresholdSliderView: View {
                     thresholdKnob(geo)
                 }
                 .contentShape(Rectangle())
+                .coordinateSpace(name: Self.trackSpaceName)
                 .pointingHandCursorRect(when: isEnabled)
                 .gesture(dragGesture(width: geo.size.width))
             }
@@ -142,9 +150,16 @@ struct ThresholdSliderView: View {
     private var thresholdColor: Color { .accentColor }
 
     private func dragGesture(width: CGFloat) -> some Gesture {
-        DragGesture(minimumDistance: 0).onChanged { value in
-            let pct = Int((value.location.x / width * 100).rounded())
-            threshold = max(1, min(100, pct))
-        }
+        // Read .location in the track's named coordinate space so the
+        // knob's simultaneous drag reports x relative to the FULL track
+        // (not the knob's tiny local frame). Without this, grabbing the
+        // knob and dragging right snapped threshold to ~0 because
+        // value.location.x measured from the knob's left edge — pixels
+        // 0…18 instead of 0…trackWidth.
+        DragGesture(minimumDistance: 0, coordinateSpace: .named(Self.trackSpaceName))
+            .onChanged { value in
+                let pct = Int((value.location.x / width * 100).rounded())
+                threshold = max(1, min(100, pct))
+            }
     }
 }

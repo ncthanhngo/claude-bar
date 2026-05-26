@@ -18,23 +18,51 @@ struct WidgetTabbedPopover: View {
     @AppStorage("lastAutoSyncError") private var lastAutoSyncError: String = ""
     @AppStorage("iCloudSyncEnabled") private var iCloudSyncEnabled: Bool = false
 
+    /// Maximum account rows shown at full height before the in-list
+    /// scroll engages. Matches Standard's behaviour so the layouts feel
+    /// related: ≤ 3 accounts means no scroll bar anywhere, 4+ means the
+    /// account list scrolls internally while the auto-swap + token
+    /// dashboard underneath stays pinned.
+    private static let accountsRowsBeforeScroll = 3
+    private static let popoverWidth: CGFloat = 400
+    /// Re-measured against the rendered shell: header 36 + divider 1 +
+    /// accountsHeader 22 + divider 1 + auto-swap title 22 + auto-swap
+    /// section 86 + token-usage title 22 + token stats minimum 196
+    /// + outer paddings ~16 = 402pt. Was 475 — that overshoot is what
+    /// pushed the popover taller than it needed to be even with one
+    /// account.
+    private static let shellHeight: CGFloat = 402
+    /// One AccountRowView (Full's verbose row with avatar, email, full
+    /// 5h/7d bars, reset countdowns). Measured at ~100pt in practice;
+    /// the previous 95pt undersized the row by enough that 3 accounts
+    /// already overflowed.
+    private static let rowHeight: CGFloat = 100
+
     var body: some View {
         ZStack {
             VStack(spacing: 0) {
                 MenuHeaderBar()
                     .padding(.top, 6)
                 Divider().opacity(0.5)
-                ScrollView(.vertical, showsIndicators: false) {
-                    mainBody
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                accountsHeader
+                accountsSection
+                Divider().opacity(0.4)
+                bottomFixedSection
             }
         }
-        .frame(width: 440, height: popoverHeight)
+        .frame(width: Self.popoverWidth, height: popoverHeight)
         .animation(.easeInOut(duration: 0.18), value: popoverHeight)
         .background(popoverBackground)
         .background(WindowAppearanceSetter(theme: settings.widgetTheme))
         .background(PopoverWindowCapture())
+        .overlay(
+            // Hairline border so the popover edge stays crisp against
+            // bright wallpapers — macOS' default popover chrome is
+            // subtle and disappears on light desktops. 8pt corner
+            // radius matches the system popover shape.
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .stroke(Color.primary.opacity(0.12), lineWidth: 0.5)
+        )
         .overlay(UpdateOverlayView(driver: updateController.driver))
         .overlay(alignment: .bottom) { ConfirmGateOverlay() }
         .overlay { SwapErrorOverlay() }
@@ -42,27 +70,18 @@ struct WidgetTabbedPopover: View {
         .focusEffectDisabled()
     }
 
-    /// Popover height adapts to the visible account count:
-    ///   • 0 / no snapshot → empty-state size (no full account list)
-    ///   • 1 account       → compact
-    ///   • 2 accounts      → mid
-    ///   • 3+ accounts     → full size; the account list itself caps at
-    ///                       3 visible rows and scrolls internally past
-    ///                       that, so the popover frame never grows past
-    ///                       the 3-row layout.
     private var popoverHeight: CGFloat {
+        Self.shellHeight + visibleAccountsHeight
+    }
+
+    /// Height the account list actually consumes — capped at three
+    /// rows. Beyond that, the inner ScrollView scrolls; the popover
+    /// frame stops growing. Same shape Standard's popover uses.
+    private var visibleAccountsHeight: CGFloat {
         let count = store.snapshot?.accounts.count ?? 0
-        // Per-account row height ≈ 95pt (avatar + email + 5h/7d bars). The
-        // "shell" (header + accounts header + auto-swap + token usage +
-        // paddings) takes the remainder.
-        let shellHeight: CGFloat = 475
-        let rowHeight: CGFloat = 95
-        switch count {
-        case 0:      return 520            // empty-state card centred in the body
-        case 1:      return shellHeight + rowHeight        // 570
-        case 2:      return shellHeight + rowHeight * 2    // 665
-        default:     return shellHeight + rowHeight * 3    // 760 — cap at 3 rows; rest scroll
-        }
+        if count == 0 { return 0 }
+        let visible = min(count, Self.accountsRowsBeforeScroll)
+        return CGFloat(visible) * Self.rowHeight + CGFloat(max(0, visible - 1)) * 3 + 8
     }
 
     @ViewBuilder
@@ -74,22 +93,51 @@ struct WidgetTabbedPopover: View {
         }
     }
 
+    /// Account list, bounded so it never pushes the bottom sections
+    /// off-screen. Up to three rows visible at full height; beyond
+    /// that the inner ScrollView engages while the popover frame
+    /// stops growing.
     @ViewBuilder
-    private var mainBody: some View {
-        // Plain VStack inside the ScrollView — no `maxHeight: .infinity`
-        // on children (would force them to fill the scroll content and
-        // defeat scrolling). Bottom padding gives the last KPI card
-        // breathing room when the scroll is at its bottom limit.
+    private var accountsSection: some View {
+        if let snap = store.snapshot, !snap.accounts.isEmpty {
+            let sorted = snap.accounts.sorted { $0.isActive && !$1.isActive }
+            let hasOverflow = sorted.count > Self.accountsRowsBeforeScroll
+            ScrollView(.vertical, showsIndicators: hasOverflow) {
+                VStack(alignment: .leading, spacing: 3) {
+                    ForEach(sorted) { acc in
+                        AccountRowView(view: acc, onRename: { promptRename(for: acc) })
+                    }
+                }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+            }
+            .frame(height: visibleAccountsHeight)
+            .scrollDisabled(!hasOverflow)
+        } else {
+            EmptyAccountsView()
+                .padding(.top, 12)
+                .frame(maxWidth: .infinity)
+        }
+    }
+
+    /// Always-visible footer — auto-swap + token-usage sections. Lives
+    /// outside any ScrollView so the user can drag the threshold
+    /// slider, read totals, or interact with chart controls even when
+    /// the account list above is scrolling.
+    private var bottomFixedSection: some View {
         VStack(alignment: .leading, spacing: 4) {
-            accountsHeader
-            AccountListSection()
             sectionTitle("Auto-swap").padding(.top, 6)
             AutoSwapSection()
             sectionTitle("Token usage").padding(.top, 6)
             TokenStatsSection()
         }
-        .padding(.top, 6)
-        .padding(.bottom, 12)
+        .padding(.bottom, 8)
+    }
+
+    private func promptRename(for acc: AccountViewDTO) {
+        AccountRenamePrompt.run(for: acc) { newName in
+            Task { await store.rename(acc.account.number, to: newName) }
+        }
     }
 
     private var accountsHeader: some View {
