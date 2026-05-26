@@ -21,9 +21,15 @@ struct MediumPopoverView: View {
     @EnvironmentObject private var updateController: UpdateController
     @ObservedObject private var settings = AppSettings.shared
 
-    private static let popoverWidth: CGFloat = 293
-    private static let shellHeight: CGFloat = 317
-    private static let rowHeight: CGFloat = 63
+    private static let popoverWidth: CGFloat = 300
+    // Shell = header + Accounts label + 2 KPI cards (Auto-swap + Token
+    // usage) + paddings. Empirically ≈ 240pt with the trimmed cards
+    // below — measured against the previous over-padded 317 budget.
+    private static let shellHeight: CGFloat = 240
+    // Row = avatar 28 + name line + 2 stacked "label · bar · %" rows + 6pt
+    // vertical padding above/below = ≈ 66pt. The new readable
+    // percentages each take ~14pt vs the old 5pt bar pair.
+    private static let rowHeight: CGFloat = 66
 
     var body: some View {
         ZStack {
@@ -51,10 +57,10 @@ struct MediumPopoverView: View {
     private var popoverHeight: CGFloat {
         let count = store.snapshot?.accounts.count ?? 0
         switch count {
-        case 0:      return 347
-        case 1:      return Self.shellHeight + Self.rowHeight        // 380
-        case 2:      return Self.shellHeight + Self.rowHeight * 2    // 443
-        default:     return Self.shellHeight + Self.rowHeight * 3    // 506
+        case 0:      return 260
+        case 1:      return Self.shellHeight + Self.rowHeight        // 306
+        case 2:      return Self.shellHeight + Self.rowHeight * 2    // 372
+        default:     return Self.shellHeight + Self.rowHeight * 3    // 438
         }
     }
 
@@ -160,7 +166,7 @@ private struct MediumAccountRow: View {
                 VStack(alignment: .leading, spacing: 4) {
                     HStack(spacing: 6) {
                         Text(view.account.displayName)
-                            .font(.system(size: 11, weight: view.isActive ? .semibold : .regular))
+                            .font(.system(size: 12, weight: view.isActive ? .semibold : .regular))
                             .foregroundColor(.primary)
                             .lineLimit(1)
                         if view.isActive {
@@ -173,7 +179,8 @@ private struct MediumAccountRow: View {
                             ProgressView().controlSize(.mini)
                         }
                     }
-                    bars
+                    usageRow(label: "5h", pct: view.usage?.fiveHour?.percentInt)
+                    usageRow(label: "7d", pct: view.usage?.sevenDay?.percentInt)
                 }
             }
             .padding(.horizontal, 8)
@@ -189,12 +196,24 @@ private struct MediumAccountRow: View {
         .onHover { isHovering = $0 }
     }
 
-    private var bars: some View {
-        HStack(spacing: 5) {
-            usageBar(view.usage?.fiveHour?.percentInt)
-            usageBar(view.usage?.sevenDay?.percentInt)
+    /// Per-window usage line: `"5h" label · color-coded bar · readable %`.
+    /// The old design rendered just two 5pt-tall bars side-by-side which
+    /// was unreadable — width alone doesn't communicate the value. Now
+    /// the percentage is spelled out in monospaced digits next to a 6pt
+    /// bar, with palette colour tinting both the bar fill and the %.
+    private func usageRow(label: String, pct: Int?) -> some View {
+        HStack(spacing: 6) {
+            Text(label)
+                .font(.system(size: 9, weight: .medium))
+                .foregroundColor(.secondary)
+                .frame(width: 14, alignment: .leading)
+            usageBar(pct).frame(height: 6)
+            Text(pct.map { "\($0)%" } ?? "—")
+                .font(.system(size: 11, weight: .semibold))
+                .monospacedDigit()
+                .foregroundColor(pct.map { UsagePalette.color(for: $0) } ?? .secondary)
+                .frame(width: 34, alignment: .trailing)
         }
-        .frame(height: 5)
     }
 
     @ViewBuilder

@@ -18,9 +18,12 @@ struct TinyPopoverView: View {
     @EnvironmentObject private var updateController: UpdateController
     @ObservedObject private var settings = AppSettings.shared
 
-    private static let popoverWidth: CGFloat = 320
-    private static let rowHeight: CGFloat = 44
-    private static let shellHeight: CGFloat = 64
+    private static let popoverWidth: CGFloat = 340
+    // Each row is avatar 22 + 8pt vertical padding × 2 + chip height ≈ 46.
+    private static let rowHeight: CGFloat = 46
+    // Header bar + divider + list padding ≈ 48pt; tighter than the
+    // previous 64 to drop ~16pt of dead space below the last row.
+    private static let shellHeight: CGFloat = 48
 
     var body: some View {
         ZStack {
@@ -51,10 +54,13 @@ struct TinyPopoverView: View {
     /// has no accounts yet.
     private var popoverHeight: CGFloat {
         let count = store.snapshot?.accounts.count ?? 0
+        // Hug content tightly — every popover layout previously left a
+        // visible empty strip below the last row. The `+ 4` covers list
+        // top/bottom padding (4 each); no extra slack.
         switch count {
-        case 0:     return 200
-        case 1...6: return Self.shellHeight + Self.rowHeight * CGFloat(count) + 10
-        default:    return Self.shellHeight + Self.rowHeight * 6 + 10
+        case 0:     return 160
+        case 1...6: return Self.shellHeight + Self.rowHeight * CGFloat(count) + 4
+        default:    return Self.shellHeight + Self.rowHeight * 6 + 4
         }
     }
 
@@ -156,19 +162,24 @@ private struct UsageChip: View {
     let pct: Int?
 
     var body: some View {
-        HStack(spacing: 3) {
+        // Two-tier text: small grey "5h"/"7d" tag + bold high-contrast
+        // value. The previous chip ran the value at 10pt which was
+        // borderline unreadable on Retina at popover viewing distance.
+        // 13pt semibold + matching palette tint reads cleanly even with
+        // the popover off to one side of the screen.
+        HStack(spacing: 4) {
             Text(label)
-                .font(.system(size: 9, weight: .medium))
-                .foregroundColor(textColor.opacity(0.8))
+                .font(.system(size: 10, weight: .medium))
+                .foregroundColor(.secondary)
             Text(valueText)
-                .font(.system(size: 10, weight: .semibold))
+                .font(.system(size: 13, weight: .semibold))
                 .foregroundColor(textColor)
                 .monospacedDigit()
         }
-        .padding(.horizontal, 5)
-        .padding(.vertical, 2)
+        .padding(.horizontal, 7)
+        .padding(.vertical, 3)
         .background(Capsule().fill(background))
-        .overlay(Capsule().stroke(textColor.opacity(0.18), lineWidth: 0.5))
+        .overlay(Capsule().stroke(textColor.opacity(0.25), lineWidth: 0.6))
     }
 
     private var valueText: String {
