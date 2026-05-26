@@ -12,7 +12,7 @@ struct BriefingSettingsView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 18) {
+            SettingsPage {
                 schedSection
                 promptSection
                 hotkeySection
@@ -20,7 +20,6 @@ struct BriefingSettingsView: View {
                 actionsSection
                 healthSection
             }
-            .padding(20)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .task {
@@ -37,59 +36,56 @@ struct BriefingSettingsView: View {
     @State private var showAdvancedCron: Bool = false
 
     @ViewBuilder private var schedSection: some View {
-        GroupBox("Daily schedule") {
-            VStack(alignment: .leading, spacing: 10) {
-                Text("Add times of day for the briefing to run automatically. Each run takes ~30s.")
-                    .font(.caption).foregroundStyle(.secondary)
-
-                // Chip list of existing times
-                if !times.isEmpty {
-                    FlowLayout(spacing: 6) {
-                        ForEach(times, id: \.self) { t in
-                            timeChip(t)
-                        }
+        SettingsGroup(
+            "Daily schedule",
+            subtitle: "Add times of day for the briefing to run automatically. Each run takes ~30s."
+        ) {
+            // Chip list of existing times
+            if !times.isEmpty {
+                FlowLayout(spacing: 6) {
+                    ForEach(times, id: \.self) { t in
+                        timeChip(t)
                     }
-                } else {
-                    Text("No times yet — add one below.")
-                        .font(.caption).foregroundStyle(.tertiary)
                 }
+            } else {
+                Text("No times yet — add one below.")
+                    .font(.caption).foregroundStyle(.tertiary)
+            }
 
-                HStack(spacing: 8) {
-                    TextField("HH:mm", text: $newTimeDraft)
-                        .frame(width: 80)
-                        .textFieldStyle(.roundedBorder)
-                        .font(.system(.body, design: .monospaced))
-                    Button("Add time") { addTime() }
-                        .disabled(!isValidTime(newTimeDraft) || times.contains(newTimeDraft))
-                    Spacer()
-                }
+            HStack(spacing: 8) {
+                TextField("HH:mm", text: $newTimeDraft)
+                    .frame(width: 80)
+                    .textFieldStyle(.roundedBorder)
+                    .font(.system(.body, design: .monospaced))
+                Button("Add time") { addTime() }
+                    .disabled(!isValidTime(newTimeDraft) || times.contains(newTimeDraft))
+                Spacer()
+            }
 
-                Toggle("Enable automatic scheduler", isOn: $enabledDraft)
+            Toggle("Enable automatic scheduler", isOn: $enabledDraft)
 
-                DisclosureGroup("Edit cron manually (advanced)", isExpanded: $showAdvancedCron) {
-                    HStack {
-                        Text("Cron").frame(width: 40, alignment: .leading)
-                        TextField("0 8,12,17 * * *", text: $cronDraft)
-                            .font(.system(.body, design: .monospaced))
-                            .textFieldStyle(.roundedBorder)
-                    }
-                    .padding(.top, 4)
-                }
-                .font(.caption)
-
+            DisclosureGroup("Edit cron manually (advanced)", isExpanded: $showAdvancedCron) {
                 HStack {
-                    Button("Save schedule") { saveSchedule() }
-                        .disabled(times.isEmpty && cronDraft.isEmpty)
-                    if let s = saveStatus {
-                        Text(s).font(.caption).foregroundStyle(.secondary)
-                    }
+                    Text("Cron").frame(width: 40, alignment: .leading)
+                    TextField("0 8,12,17 * * *", text: $cronDraft)
+                        .font(.system(.body, design: .monospaced))
+                        .textFieldStyle(.roundedBorder)
                 }
-                if let sched = coord.schedule {
-                    Text("Current: `\(sched.cronExpr)` · \(sched.enabled ? "enabled" : "disabled")")
-                        .font(.caption).foregroundStyle(.secondary)
+                .padding(.top, 4)
+            }
+            .font(.caption)
+
+            HStack {
+                Button("Save schedule") { saveSchedule() }
+                    .disabled(times.isEmpty && cronDraft.isEmpty)
+                if let s = saveStatus {
+                    Text(s).font(.caption).foregroundStyle(.secondary)
                 }
             }
-            .padding(10)
+            if let sched = coord.schedule {
+                Text("Current: `\(sched.cronExpr)` · \(sched.enabled ? "enabled" : "disabled")")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
         }
     }
 
@@ -115,29 +111,26 @@ struct BriefingSettingsView: View {
     // MARK: - User markdown prompt
 
     @ViewBuilder private var promptSection: some View {
-        GroupBox("Priorities for Claude (markdown)") {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Describe what you care about so Claude ranks actions accordingly. Example: \"focus on engineering, skip marketing\", or a list of priority projects.")
-                    .font(.caption).foregroundStyle(.secondary)
+        SettingsGroup(
+            "Priorities for Claude (markdown)",
+            subtitle: "Describe what you care about so Claude ranks actions accordingly. Example: \"focus on engineering, skip marketing\", or a list of priority projects."
+        ) {
+            TextEditor(text: $settings.briefingUserPrompt)
+                .font(.system(.body, design: .monospaced))
+                .frame(minHeight: 120, maxHeight: 220)
+                .padding(6)
+                .background(Color(NSColor.textBackgroundColor))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 6)
+                        .stroke(Color.secondary.opacity(0.3), lineWidth: 1)
+                )
+                .clipShape(RoundedRectangle(cornerRadius: 6))
+                .onChange(of: settings.briefingUserPrompt) { _, newValue in
+                    BriefingUserPromptWriter.write(newValue)
+                }
 
-                TextEditor(text: $settings.briefingUserPrompt)
-                    .font(.system(.body, design: .monospaced))
-                    .frame(minHeight: 120, maxHeight: 220)
-                    .padding(6)
-                    .background(Color(NSColor.textBackgroundColor))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 6)
-                            .stroke(Color.secondary.opacity(0.3), lineWidth: 1)
-                    )
-                    .clipShape(RoundedRectangle(cornerRadius: 6))
-                    .onChange(of: settings.briefingUserPrompt) { _, newValue in
-                        BriefingUserPromptWriter.write(newValue)
-                    }
-
-                Text("Auto-saves as you type. Every Daily run injects this text into Claude's prompt.")
-                    .font(.caption).foregroundStyle(.tertiary)
-            }
-            .padding(10)
+            Text("Auto-saves as you type. Every Daily run injects this text into Claude's prompt.")
+                .font(.caption).foregroundStyle(.tertiary)
         }
     }
 
@@ -223,90 +216,80 @@ struct BriefingSettingsView: View {
     // MARK: - Hotkeys
 
     @ViewBuilder private var hotkeySection: some View {
-        GroupBox("Hotkey") {
-            VStack(alignment: .leading, spacing: 10) {
-                hotkeyRow(
-                    title: "Open Claude Bar",
-                    keyCode: $settings.briefingHotkeyOpenAppKeyCode,
-                    modifiers: $settings.briefingHotkeyOpenAppModifiers
-                )
-                hotkeyRow(
-                    title: "Open Daily Briefing",
-                    keyCode: $settings.briefingHotkeyOpenBriefingKeyCode,
-                    modifiers: $settings.briefingHotkeyOpenBriefingModifiers
-                )
-                Text("ESC inside the briefing window closes it. Click 'Apply' after changes.")
-                    .font(.caption).foregroundStyle(.secondary)
-                Button("Apply hotkeys") { applyHotkeys() }
-            }
-            .padding(10)
+        SettingsGroup("Hotkey") {
+            hotkeyRow(
+                title: "Open Claude Bar",
+                keyCode: $settings.briefingHotkeyOpenAppKeyCode,
+                modifiers: $settings.briefingHotkeyOpenAppModifiers
+            )
+            hotkeyRow(
+                title: "Open Daily Briefing",
+                keyCode: $settings.briefingHotkeyOpenBriefingKeyCode,
+                modifiers: $settings.briefingHotkeyOpenBriefingModifiers
+            )
+            Text("ESC inside the briefing window closes it. Click 'Apply' after changes.")
+                .font(.caption).foregroundStyle(.secondary)
+            Button("Apply hotkeys") { applyHotkeys() }
         }
     }
 
     // MARK: - News
 
     @ViewBuilder private var newsSection: some View {
-        GroupBox("News (optional)") {
-            VStack(alignment: .leading, spacing: 10) {
-                HStack {
-                    Text("Daily fetch time")
-                    TextField("08:00", text: $settings.briefingNewsFetchTime)
-                        .frame(width: 80)
-                        .textFieldStyle(.roundedBorder)
-                    Stepper(value: $settings.briefingNewsFetchesPerDay, in: 1...6) {
-                        Text("\(settings.briefingNewsFetchesPerDay)x per day")
-                    }
+        SettingsGroup(
+            "News (optional)",
+            subtitle: "'AI summary' mode: Claude opens the URL and writes a summary instead of pulling RSS."
+        ) {
+            HStack {
+                Text("Daily fetch time")
+                TextField("08:00", text: $settings.briefingNewsFetchTime)
+                    .frame(width: 80)
+                    .textFieldStyle(.roundedBorder)
+                Stepper(value: $settings.briefingNewsFetchesPerDay, in: 1...6) {
+                    Text("\(settings.briefingNewsFetchesPerDay)x per day")
                 }
-                Divider()
-                Text("Feeds").font(.subheadline.bold())
-                NewsFeedsEditor()
-                Text("'AI summary' mode: Claude opens the URL and writes a summary instead of pulling RSS.")
-                    .font(.caption).foregroundStyle(.secondary)
             }
-            .padding(10)
+            Divider()
+            Text("Feeds").font(.subheadline.bold())
+            NewsFeedsEditor()
         }
     }
 
     // MARK: - Actions & health
 
     @ViewBuilder private var actionsSection: some View {
-        GroupBox("Actions") {
-            VStack(alignment: .leading, spacing: 6) {
-                HStack(spacing: 10) {
-                    Button("Run briefing now") {
-                        Task { await coord.runNow() }
-                    }
-                    .disabled(coord.isRunning)
-                    Button("Open briefing window") { coord.show() }
-                    if coord.isRunning {
-                        ProgressView().controlSize(.small)
-                        Text("Generating…").font(.caption)
-                    }
+        SettingsGroup("Actions") {
+            HStack(spacing: 10) {
+                Button("Run briefing now") {
+                    Task { await coord.runNow() }
                 }
-                if let err = coord.lastError {
-                    Text(err).font(.caption).foregroundStyle(.red)
+                .disabled(coord.isRunning)
+                Button("Open briefing window") { coord.show() }
+                if coord.isRunning {
+                    ProgressView().controlSize(.small)
+                    Text("Generating…").font(.caption)
                 }
             }
-            .padding(10)
+            if let err = coord.lastError {
+                Text(err).font(.caption).foregroundStyle(.red)
+            }
         }
     }
 
     @ViewBuilder private var healthSection: some View {
-        GroupBox("Source status") {
-            VStack(alignment: .leading, spacing: 6) {
-                if let b = coord.briefing {
-                    ForEach(Array(b.sourcesHealth.keys.sorted()), id: \.self) { key in
-                        HStack {
-                            Text(key.capitalized)
-                            Spacer()
-                            healthBadge(b.sourcesHealth[key] ?? "—")
-                        }
+        SettingsGroup("Source status") {
+            if let b = coord.briefing {
+                ForEach(Array(b.sourcesHealth.keys.sorted()), id: \.self) { key in
+                    HStack {
+                        Text(key.capitalized)
+                        Spacer()
+                        healthBadge(b.sourcesHealth[key] ?? "—")
                     }
-                } else {
-                    Text("No briefing yet — click 'Run briefing now'.")
-                        .font(.caption).foregroundStyle(.secondary)
                 }
-            }.padding(10)
+            } else {
+                Text("No briefing yet — click 'Run briefing now'.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
         }
     }
 

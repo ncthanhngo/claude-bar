@@ -2,6 +2,17 @@ import AppKit
 import SwiftUI
 
 struct DiagnosticsTab: View {
+    /// Settings IA splits this surface across two sidebar entries —
+    /// `iCloud Sync` (sync toggle + bundle file share) and `Diagnostics`
+    /// (the operational read-mostly stuff). One struct still owns all the
+    /// state and sheet plumbing because both modes share the same iCloud
+    /// passphrase prompts and restore preview windows when the iCloud
+    /// surface launches them; rendering is just gated on `mode` so each
+    /// tab shows only the groups it owns.
+    enum Mode { case iCloud, diagnostics }
+
+    var mode: Mode = .diagnostics
+
     @EnvironmentObject var store: AppStore
     @EnvironmentObject var verifyCoordinator: VerifyCoordinator
     @EnvironmentObject var webFallback: WebFallbackCoordinator
@@ -48,23 +59,26 @@ struct DiagnosticsTab: View {
     @State private var forceRefreshCooldownActive = false
     private static let forceRefreshCooldownSec: Int = 10
 
-    /// Renders the legacy Diagnostics groups inline — no outer `ScrollView`
-    /// or `SettingsPage` wrapper. Removed in v10.42 when the Diagnostics
-    /// sidebar slot was retired and this content moved to the bottom of
-    /// the new Update tab. Embedding bare groups lets the parent's
-    /// `SettingsPage` provide a single, top-level scroll surface instead
-    /// of stacking nested ScrollViews (which mis-size inner content under
-    /// macOS SwiftUI).
+    /// Renders the groups belonging to `mode`. Each mode is a top-level
+    /// Settings tab now (iCloud Sync vs. Diagnostics) so this view brings
+    /// its own scroll surface and `SettingsPage` padding — no outer
+    /// wrapper expected from a parent.
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            iCloudGroup
-            bundleFileGroup
-            CommandCenterDiagnosticsCard()
-            SchedulerSettingsCard()
-            verifyGroup
-            credentialRefreshGroup
-            webUsageGroup
-            logsGroup
+        ScrollView {
+            SettingsPage {
+                switch mode {
+                case .iCloud:
+                    iCloudGroup
+                    bundleFileGroup
+                case .diagnostics:
+                    CommandCenterDiagnosticsCard()
+                    SchedulerSettingsCard()
+                    verifyGroup
+                    credentialRefreshGroup
+                    webUsageGroup
+                    logsGroup
+                }
+            }
         }
         .onChange(of: showRestoreBackupSheet) { _, newValue in
             if newValue {

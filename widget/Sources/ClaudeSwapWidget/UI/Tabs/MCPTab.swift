@@ -1,14 +1,11 @@
 import SwiftUI
 
-// Thin wrapper around the existing standalone LocalMCPSettingsView so it
-// composes cleanly inside the tabbed popover. Padding matches the look of
-// other tabs (SettingsPage applies its own padding internally).
+// LocalMCPSettingsView already wraps its content in `SettingsPage` (which
+// owns the ScrollView + 24/20 gutters). Wrapping it again here added a
+// nested ScrollView and a tighter 16/14 gutter — the look-and-feel drift
+// you could spot by tabbing between Local MCP and any other settings page.
 struct MCPTab: View {
     var body: some View {
-        ScrollView {
-            LocalMCPSettingsView()
-                .padding(.horizontal, 16)
-                .padding(.vertical, 14)
-        }
+        LocalMCPSettingsView()
     }
 }
