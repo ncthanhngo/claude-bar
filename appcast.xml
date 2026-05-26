@@ -12,6 +12,26 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 11.7 (BETA)</title>
+      <sparkle:version>11.7</sparkle:version>
+      <sparkle:shortVersionString>11.7</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <p>Layout fix for the Full popover.</p>
+        <ul>
+          <li><strong>Full popover stops clipping the third account row.</strong> With three accounts where two of them showed a "Needs login" or usage-error chip, the in-row badge added ~17pt that the popover hadn't budgeted for — the third row's 5h / 7d bars hid under the Auto-swap section because the bounded ScrollView clipped them and scroll was disabled at three accounts. The popover frame now sums each visible row's actual height (base + badge extras), so the third row stays fully visible regardless of credential state.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Tue, 26 May 2026 20:07:00 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v11.7/ClaudeBar.zip"
+        sparkle:version="11.7"
+        sparkle:shortVersionString="11.7"
+        sparkle:edSignature="+AzfostKtqzCTqkBYf0jn6F9/MK12tvSMQtPaUb8FDlXJytF94sXqFFIMBMt7gzX9Yynm/BDecI8JfHm9NlzDQ=="
+        length="7914909"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 11.6 (BETA)</title>
       <sparkle:version>11.6</sparkle:version>
       <sparkle:shortVersionString>11.6</sparkle:shortVersionString>
