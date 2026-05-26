@@ -12,6 +12,27 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 11.9 (BETA)</title>
+      <sparkle:version>11.9</sparkle:version>
+      <sparkle:shortVersionString>11.9</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <p>Faster refresh cycle for web-linked accounts.</p>
+        <ul>
+          <li><strong>Web-linked accounts now refresh every 60 seconds</strong> (every 30 seconds when the active account's 5h usage is ≥ 80%), instead of waiting the OAuth-pinned 180 / 120 second cycle. The web scrape rides your own claude.ai cookie session via WKWebView, so it doesn't share Anthropic's rate-limited <code>/usage</code> budget — usage bars and auto-swap react ~3× faster for web-linked accounts.</li>
+          <li>OAuth <code>/usage</code> cadence (180s / 120s, user-configurable via <code>refreshIntervalSec</code> / <code>refreshIntervalHighSec</code>) is preserved for terminal-only accounts and is independently gated, so the faster outer loop doesn't burn the rate-limited endpoint.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Tue, 26 May 2026 21:43:50 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v11.9/ClaudeBar.zip"
+        sparkle:version="11.9"
+        sparkle:shortVersionString="11.9"
+        sparkle:edSignature="qZANgHUigmi+E3gKePkcAsDqslIUau/m7iRmxbvgMy+o/VCln3j295H2EfJ9enksxFT9wQKoiI2/02/IJtsRDw=="
+        length="7780712"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 11.8 (BETA)</title>
       <sparkle:version>11.8</sparkle:version>
       <sparkle:shortVersionString>11.8</sparkle:shortVersionString>
