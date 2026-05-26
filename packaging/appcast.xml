@@ -12,6 +12,28 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 11.4 (BETA)</title>
+      <sparkle:version>11.4</sparkle:version>
+      <sparkle:shortVersionString>11.4</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <p>Closes <a href="https://github.com/ncthanhngo/claude-bar/issues/11">#11</a> — MCP approval prompts no longer time out silently.</p>
+        <ul>
+          <li><strong>MCP approval prompts now actually surface.</strong> Gated write tools (<code>cb_slack_post_message</code>, <code>cb_gsheets_*</code>, <code>cb_github_create_pr</code>, …) used to time out silently when the popover was closed (which it always is while you're in Claude Code). The widget now auto-opens the popover and fires a system notification with the tool + summary on every new prompt, so the confirm UI is one click away regardless of focus.</li>
+          <li><strong>Approval window widened from 30s to 60s.</strong> Backend gate timeout and widget countdown bar share a single constant so they stay in lock-step.</li>
+          <li><strong>Gate IPC proxy starts at launch.</strong> Previously spawned lazily on first popover render, so MCP writes before you'd ever opened the menu came back with "no emitter configured". Now starts unconditionally from <code>applicationDidFinishLaunching</code>.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Tue, 26 May 2026 19:36:57 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v11.4/ClaudeBar.zip"
+        sparkle:version="11.4"
+        sparkle:shortVersionString="11.4"
+        sparkle:edSignature="mW5vJ0gnOnoQV3TpdwVMf8ynjtXnSC0U1whPyNLjxyLCOLaKZH+1QvXOgq0MMQs1+mOU35/UVEZpq0+rYHGeCw=="
+        length="7914944"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 11.3 (BETA)</title>
       <sparkle:version>11.3</sparkle:version>
       <sparkle:shortVersionString>11.3</sparkle:shortVersionString>

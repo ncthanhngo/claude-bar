@@ -13,9 +13,9 @@
     <key>CFBundleIdentifier</key>
     <string>dev.ncthanhngo.claude-bar</string>
     <key>CFBundleVersion</key>
-    <string>11.3</string>
+    <string>11.4</string>
     <key>CFBundleShortVersionString</key>
-    <string>11.3</string>
+    <string>11.4</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleSignature</key>
@@ -35,7 +35,7 @@
     <key>NSHumanReadableCopyright</key>
     <string>Copyright © 2026 Thanh Ngô. Licensed under MIT.</string>
     <key>CFBundleGetInfoString</key>
-    <string>Claude Bar 11.3 — menu-bar manager for multiple Claude Code accounts</string>
+    <string>Claude Bar 11.4 — menu-bar manager for multiple Claude Code accounts</string>
     <key>CBAuthorName</key>
     <string>Thanh Ngô</string>
     <key>CBAuthorEmail</key>
@@ -49,14 +49,14 @@
     <key>CBReleaseChannel</key>
     <string>Beta</string>
     <key>CBReleaseWhatsNew</key>
-    <string>Google Sheets write tools — closes #10. Three new tools turn an ad-hoc data structure (a markdown table from a GitHub issue, a CSV scrape) into a real spreadsheet with addressable cells, not just an uploaded blob: cb_gsheets_create_spreadsheet, cb_gsheets_update_values, cb_gsheets_append_values. The Google OAuth scope set adds `spreadsheets` — existing v11.x users must Disconnect + Reconnect the Google connector once to upgrade the token.
-Disconnect now keeps your saved credentials. Click Disconnect in Settings → Local MCP and the Keychain payload stays put — only the Enabled flag flips off. The button next to the row swaps from Disconnect to Reconnect, which verifies the saved token against the provider (Slack auth.test / ClickUp /user / GitHub /user / GDrive /about with refresh) and flips Enabled back on if still valid. No re-paste, no re-OAuth.
-Replace + Forget. Replace… opens the paste-token / OAuth sheet directly while a connector is still enabled — useful for rotating a token without disconnecting first. Forget (trash icon) hard-deletes the Keychain payload AND the registry entry; the next Connect must enter from scratch. Use Forget for security rotation, Disconnect for everyday "pause this for a bit".</string>
+    <string>MCP approval prompts now actually surface. When Claude Code calls a gated write tool (cb_slack_post_message, cb_gsheets_update_values, cb_github_create_pr, etc.) the approval banner used to live inside the menu-bar popover only — if the popover was closed (which it always is while you're typing in Claude Code) the prompt silently timed out and the tool came back user_cancelled. The widget now auto-opens the popover and fires a system notification with the tool name + summary every time a new prompt arrives, so the confirm UI is one click away regardless of which app has focus.
+Approval window widened from 30s to 60s. The notification banner takes a beat to land and you need a moment to read the args before deciding — 30s was cutting it too close, especially when the popover had to open from cold. Backend gate timeout and widget countdown bar are now driven by the same constant so they stay in lock-step.
+Gate IPC proxy starts at launch. Previously the proxy spawned lazily the first time the popover rendered, so any MCP write call before you'd ever opened the menu would fail with "no emitter configured". It now starts unconditionally from applicationDidFinishLaunching, the same hook the onboarding window uses.</string>
     <key>CBReleaseHotfixes</key>
-    <string>None.</string>
+    <string>Fixed cb_slack_post_message + every other gated MCP write tool silently timing out when invoked from Claude Code while the popover was closed (issue #11).</string>
     <key>CBReleaseKnownIssues</key>
-    <string>Existing v11.x Google tokens are missing the `spreadsheets` scope. The cb_gsheets_* tools will return Google "insufficient permission" until you Disconnect + Reconnect the Google connector — that mints a fresh token with the new scope set. Drive / Calendar / Gmail tools keep working on the old scope until you do.
-Reconnect is not wired for GitLab (multi-instance + per-instance base URL) or Bitwarden (no verify API). Their Reconnect button takes you straight to the existing add-instance / paste-token sheet.</string>
+    <string>Existing v11.x Google tokens are still missing the `spreadsheets` scope shipped in 11.3. The cb_gsheets_* tools return Google "insufficient permission" until you Disconnect + Reconnect the Google connector — that mints a fresh token with the new scope set. Drive / Calendar / Gmail tools keep working on the old scope until you do.
+First MCP write call right after launch can still race the gate proxy's IPC handshake by a few hundred ms. If the very first approval prompt never lands, re-run the tool — the second attempt always works because the proxy is warm by then.</string>
     <key>CFBundleDevelopmentRegion</key>
     <string>en</string>
     <key>CFBundleLocalizations</key>
