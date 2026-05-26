@@ -25,6 +25,15 @@ struct LocalMCPSettingsView: View {
         let serviceLabel: String
     }
 
+    private struct PendingForget: Identifiable {
+        let id = UUID()
+        let accountNumber: Int
+        let service: String
+        let serviceLabel: String
+    }
+
+    @State private var pendingForget: PendingForget?
+
     var body: some View {
         SettingsPage {
             privacyNotice
@@ -74,7 +83,26 @@ struct LocalMCPSettingsView: View {
             }
             Button("Cancel", role: .cancel) { pendingDisconnect = nil }
         } message: { _ in
-            Text("Tools của connector này sẽ bị gỡ khỏi tools/list ngay sau khi disconnect. Token vẫn được giữ trong Keychain — bấm Reconnect sau để bật lại mà không phải nhập lại. Muốn rotate token mới? Reconnect → nếu fail nó sẽ mở ô nhập, paste token mới sẽ ghi đè cái cũ.")
+            Text("Tools của connector này sẽ bị gỡ khỏi tools/list ngay sau khi disconnect. Token vẫn được giữ trong Keychain — bấm Reconnect sau để bật lại mà không phải nhập lại. Muốn rotate token mới? Bấm Replace để paste token mới đè lên cái cũ, không cần Disconnect trước.")
+        }
+        .confirmationDialog(
+            "Forget \(pendingForget?.serviceLabel ?? "") credentials?",
+            isPresented: Binding(
+                get: { pendingForget != nil },
+                set: { if !$0 { pendingForget = nil } }
+            ),
+            presenting: pendingForget
+        ) { p in
+            Button("Forget credentials", role: .destructive) {
+                Task {
+                    await coordinator.forget(account: p.accountNumber, service: p.service)
+                    await pushCloudIfConfigured()
+                    pendingForget = nil
+                }
+            }
+            Button("Cancel", role: .cancel) { pendingForget = nil }
+        } message: { _ in
+            Text("Xoá hẳn token \(pendingForget?.serviceLabel ?? "") khỏi Keychain. Khác Disconnect — không có Reconnect, lần Connect tới phải nhập / OAuth lại từ đầu. Dùng khi rotate hẳn hoặc nghi token bị compromise.")
         }
         .overlay(alignment: .bottom) {
             if let msg = coordinator.lastError {
@@ -352,6 +380,18 @@ struct LocalMCPSettingsView: View {
                 promptDisclosureButton(account: account, service: connector.service)
                 Spacer()
                 if connector.enabled && connector.hasSecret {
+                    Button("Replace…") {
+                        // Bypass reconnect, go straight to the sheet so
+                        // the user can paste a fresh token over the
+                        // existing one. ConnectMCPConnector overwrites
+                        // unconditionally, so this is the right path
+                        // when rotating a still-valid token without
+                        // touching Disconnect first.
+                        presentConnect(account: account, service: connector.service, label: connector.labelTitle)
+                    }
+                    .buttonStyle(.borderless)
+                    .font(.system(size: 12))
+                    .help("Nhập token mới đè lên cái đang dùng — không cần Disconnect trước. Hữu ích khi rotate token định kỳ hoặc token bị compromise.")
                     Button("Disconnect") {
                         pendingDisconnect = .init(
                             accountNumber: account,
@@ -381,6 +421,25 @@ struct LocalMCPSettingsView: View {
                     }
                     .buttonStyle(.borderedProminent)
                     .controlSize(.small)
+                }
+                // Forget = hard delete the Keychain payload. Only
+                // available when a credential actually exists; the
+                // dialog spells out that this is the hard-delete path
+                // distinct from the soft Disconnect.
+                if connector.hasSecret {
+                    Button {
+                        pendingForget = .init(
+                            accountNumber: account,
+                            service: connector.service,
+                            serviceLabel: connector.labelTitle
+                        )
+                    } label: {
+                        Image(systemName: "trash")
+                            .font(.system(size: 11))
+                    }
+                    .buttonStyle(.borderless)
+                    .foregroundColor(.secondary)
+                    .help("Xoá hẳn token \(connector.labelTitle) khỏi Keychain. Khác với Disconnect — không recover lại được, Connect lần sau phải nhập từ đầu.")
                 }
             }
             if promptOpen {

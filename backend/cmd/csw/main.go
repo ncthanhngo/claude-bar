@@ -112,6 +112,7 @@ Commands:
   mcp connectors connect --account N --service slack|clickup|gdrive|github [--token=- | --client-id ID]
   mcp connectors disconnect --account N --service slack|clickup|gdrive|github     (soft — keeps saved credential)
   mcp connectors reconnect --account N --service slack|clickup|gdrive|github      (verify+enable saved credential)
+  mcp connectors forget --account N --service slack|clickup|gdrive|github         (hard delete — wipes Keychain payload)
   mcp connectors set-enabled --account N --service slack|clickup|gdrive|github|gitlab --enabled=true|false
   briefing run [--force]  Generate today's Daily Briefing (uses MCPs + Claude)
   briefing show [--date]  Read a cached briefing

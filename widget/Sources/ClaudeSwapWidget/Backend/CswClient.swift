@@ -333,6 +333,17 @@ actor CswClient {
         case needsFreshCredential(detail: String)
     }
 
+    func mcpConnectorForget(account: Int, service: String) async throws {
+        var args = ["mcp", "connectors", "forget"]
+        if account == 0 {
+            args.append("--shared")
+        } else {
+            args.append(contentsOf: ["--account", String(account)])
+        }
+        args.append(contentsOf: ["--service", service])
+        _ = try await runRaw(args)
+    }
+
     func mcpConnectorReconnect(account: Int, service: String) async throws -> ReconnectOutcome {
         var args = ["mcp", "connectors", "reconnect"]
         if account == 0 {

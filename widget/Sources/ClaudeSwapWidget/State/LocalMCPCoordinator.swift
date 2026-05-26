@@ -207,6 +207,25 @@ final class LocalMCPCoordinator: ObservableObject {
         }
     }
 
+    /// Hard-delete the Keychain payload AND remove the registry entry.
+    /// Use when the user explicitly wants to wipe a saved credential
+    /// (security rotation, drop the connector entirely, scrub a leaked
+    /// token). The everyday Disconnect path stays soft so Reconnect can
+    /// reuse the credential without re-entry.
+    func forget(account: Int, service: String) async {
+        guard !isBusy else { return }
+        isBusy = true
+        lastError = nil
+        defer { isBusy = false }
+        do {
+            try await client.mcpConnectorForget(account: account, service: service)
+            accounts = try await client.mcpConnectorsList()
+            await restartClaudeForMCPReload()
+        } catch {
+            lastError = error.localizedDescription
+        }
+    }
+
     /// Attempt to re-enable a soft-disconnected connector using the
     /// saved Keychain credential. Returns `true` when the credential
     /// verified and Enabled flipped back to true — the UI then stays

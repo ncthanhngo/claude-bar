@@ -202,7 +202,7 @@ func runMCPStatus(ctx context.Context, args []string) error {
 
 func runMCPConnectors(ctx context.Context, svc *usecase.Service, args []string) error {
 	if len(args) == 0 {
-		return errors.New("usage: csw mcp connectors <list|connect|disconnect|reconnect|set-enabled>")
+		return errors.New("usage: csw mcp connectors <list|connect|disconnect|reconnect|forget|set-enabled>")
 	}
 	sub, rest := args[0], args[1:]
 	switch sub {
@@ -214,6 +214,8 @@ func runMCPConnectors(ctx context.Context, svc *usecase.Service, args []string) 
 		return runMCPConnectorsDisconnect(ctx, svc, rest)
 	case "reconnect":
 		return runMCPConnectorsReconnect(ctx, svc, rest)
+	case "forget":
+		return runMCPConnectorsForget(ctx, svc, rest)
 	case "set-enabled":
 		return runMCPConnectorsSetEnabled(ctx, svc, rest)
 	default:
@@ -430,6 +432,27 @@ func runMCPConnectorsDisconnect(ctx context.Context, svc *usecase.Service, args 
 		return errors.New("--service is required")
 	}
 	return svc.DisconnectMCPConnector(ctx, targetAccount, domain.MCPService(*service))
+}
+
+// runMCPConnectorsForget hard-deletes the Keychain payload AND removes
+// the registry entry. Used when the user explicitly wants to wipe a
+// saved credential — security rotation, dropping a connector entirely,
+// removing leaked secrets. The everyday Disconnect button uses the
+// soft path that preserves the credential for Reconnect.
+func runMCPConnectorsForget(ctx context.Context, svc *usecase.Service, args []string) error {
+	fs := flag.NewFlagSet("connectors-forget", flag.ExitOnError)
+	account := fs.Int("account", -1, "account number")
+	shared := fs.Bool("shared", false, "forget the shared connector")
+	service := fs.String("service", "", "slack | clickup | gdrive | github | gitlab | bitwarden")
+	_ = fs.Parse(args)
+	targetAccount, err := mcpTargetAccount(*account, *shared)
+	if err != nil {
+		return err
+	}
+	if *service == "" {
+		return errors.New("--service is required")
+	}
+	return svc.ForgetMCPConnector(ctx, targetAccount, domain.MCPService(*service))
 }
 
 func runMCPTools(ctx context.Context, svc *usecase.Service, args []string) error {
