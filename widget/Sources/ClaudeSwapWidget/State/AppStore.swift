@@ -211,6 +211,14 @@ final class AppStore: ObservableObject {
     }
 
     func refreshNow() async {
+        // Coalesce overlapping callers — manual "Refresh web usage"
+        // clicks, the timer-driven loop, post-swap re-refresh, and the
+        // initial-launch refresh can all race. Without this guard a
+        // hung WKWebView scrape from one call holds the main actor while
+        // the next call piles another scrape on top — minutes later we
+        // get a flood of 40–50s CancellationErrors and the popover
+        // cannot render. Drop the new call when one's already in flight.
+        if isRefreshing { return }
         isRefreshing = true
         defer { isRefreshing = false }
         do {
@@ -258,10 +266,30 @@ final class AppStore: ObservableObject {
                     }
                     .map(\.id)
                 : []
-            let fallback = fallbackNumbers.isEmpty
-                ? metadata
-                : try await client.list(usageAccounts: fallbackNumbers)
-            if !fallbackNumbers.isEmpty { lastOAuthFallbackAt = Date() }
+            // Isolate the OAuth fallback in its own do/catch so a transient
+            // 429 / expired-creds on a terminal account doesn't blow away
+            // the entire refresh cycle (including web-linked accounts that
+            // already returned fresh data). Pre-fix: a throw here aborted
+            // the outer `do`, snapshot stayed stale, popover hung on
+            // "Loading…" for everyone — that's what users see when Dev 2 /
+            // Dev 3 OAuth fails while Thanh's web scrape succeeds.
+            let fallback: ListAccountsDTO
+            if fallbackNumbers.isEmpty {
+                fallback = metadata
+            } else {
+                do {
+                    fallback = try await client.list(usageAccounts: fallbackNumbers)
+                    lastOAuthFallbackAt = Date()
+                } catch {
+                    DiagnosticsLogger.shared.log(.warning, subsystem: "oauth-usage",
+                        "fallback failed for \(fallbackNumbers) — \(error.localizedDescription)")
+                    fallback = metadata
+                    // Still bump the timestamp so we don't hammer the
+                    // failing endpoint every cycle; the next OAuth-due
+                    // window will retry naturally.
+                    lastOAuthFallbackAt = Date()
+                }
+            }
             let list = metadata
                 .mergingUsageRows(fallback)
                 .replacingUsage(webUsages)
