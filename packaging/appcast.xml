@@ -12,6 +12,29 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 10.45 (BETA)</title>
+      <sparkle:version>10.45</sparkle:version>
+      <sparkle:shortVersionString>10.45</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li><strong>Settings → MCP redesigned in Apple style.</strong> Connector rows become rounded cards with an SF Symbol, name, and small tinted status pill on top; Tools / Prompt are subtle chevron links instead of bright pills; the tool list drops the zebra stripes for native macOS Settings sectioning — small grey category captions, rounded cards, hairline dividers, and a summary chip "N of M tools enabled · X tokens / message" at the top of the expanded list. Priority badges (Essential, Advanced) are low-saturation tinted capsules.</li>
+          <li><strong>Standard popover only scrolls the account list now.</strong> Auto-swap and Token-usage cards are pinned to the bottom regardless of how many accounts you have. Up to three accounts no scroll at all; four or more scroll inside the account list only.</li>
+          <li><strong>Tiny popover's threshold slider no longer twitches</strong> on digit-count boundaries during drag — <code>current</code> and <code>trigger</code> render into fixed-width slots so the row stays still.</li>
+          <li><strong>Tiny popover width restored to 290pt</strong> — the 227pt squeeze in v10.44 broke the 5h/7d chip text onto multiple lines.</li>
+          <li><strong>Menu-bar popover now floats above the Settings window</strong> so picking a layout in Settings → General actually shows the live preview instead of hiding it behind the panel.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Tue, 26 May 2026 11:20:38 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v10.45/ClaudeBar.zip"
+        sparkle:version="10.45"
+        sparkle:shortVersionString="10.45"
+        sparkle:edSignature="WKJZEOKY9iRaJC4L6X3RXA9q5VcZ5pcscrNJdlPDKIFocUURF3UPud09gUl0D0PgsRwDRLeKGQoZ/6h2T3JVDg=="
+        length="8588004"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 10.44 (BETA)</title>
       <sparkle:version>10.44</sparkle:version>
       <sparkle:shortVersionString>10.44</sparkle:shortVersionString>

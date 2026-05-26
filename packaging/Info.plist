@@ -13,9 +13,9 @@
     <key>CFBundleIdentifier</key>
     <string>dev.ncthanhngo.claude-bar</string>
     <key>CFBundleVersion</key>
-    <string>10.44</string>
+    <string>10.45</string>
     <key>CFBundleShortVersionString</key>
-    <string>10.44</string>
+    <string>10.45</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleSignature</key>
@@ -35,7 +35,7 @@
     <key>NSHumanReadableCopyright</key>
     <string>Copyright © 2026 Thanh Ngô. Licensed under MIT.</string>
     <key>CFBundleGetInfoString</key>
-    <string>Claude Bar 10.44 — menu-bar manager for multiple Claude Code accounts</string>
+    <string>Claude Bar 10.45 — menu-bar manager for multiple Claude Code accounts</string>
     <key>CBAuthorName</key>
     <string>Thanh Ngô</string>
     <key>CBAuthorEmail</key>
@@ -49,10 +49,16 @@
     <key>CBReleaseChannel</key>
     <string>Beta</string>
     <key>CBReleaseWhatsNew</key>
-    <string>Settings → MCP tool list is now a table with a TOKENS column. Every tool's cost in Claude Code's system prompt is measured live — the backend builds tools/list once, serialises each entry, and reports JSON-bytes ÷ 4. Cost numbers tint green / amber / red for light / medium / heavy tools so you can spot the schema hogs at a glance, and a floating chip in the header shows the running total currently enabled for the connector. Tool ID surfaces underneath the description for grep / docs hunting.
-Tiny popover layout slimmed to ~2/3 of its previous width (340 → 227pt). The 5h/7d chips still read at 13pt monospaced; only long account names truncate earlier.</string>
+    <string>Settings → MCP redesigned in Apple style. Connector rows become rounded cards with an SF Symbol, name, and small tinted status pill on top; Tools / Prompt are subtle chevron links instead of bright pills; the tool list drops the zebra stripes for native macOS Settings sectioning — small grey category captions, rounded cards, hairline dividers, and a summary chip "N of M tools enabled · X tokens / message" at the top of the expanded list. Priority badges (Essential, Advanced) are low-saturation tinted capsules.
+Standard popover only scrolls the account list now. Auto-swap and Token-usage cards are pinned to the bottom of the popover regardless of how many accounts you have. Up to three accounts no scroll at all; four or more scroll inside the account list only.
+Tiny popover's threshold slider no longer twitches as the digits cross 9→10 or 99→100 — the "current" and "trigger" values render into fixed-width slots so the row stays still during drag.
+Tiny popover width restored to 290pt — the 227pt squeeze in v10.44 broke the 5h/7d chip text onto multiple lines.
+Menu-bar popover now floats above the Settings window so picking a layout in Settings → General actually shows the live preview instead of hiding it behind the panel.</string>
     <key>CBReleaseHotfixes</key>
-    <string>None.</string>
+    <string>Fixed Tiny popover threshold slider jittering on digit-count boundaries during drag.
+Fixed Tiny popover layout collapsing 5h/7d chip values onto multiple lines at 227pt width.
+Fixed Standard popover scrolling the entire body (including Auto-swap + Token cards) when more than 3 accounts existed — those bottom cards are now pinned and only the account list scrolls.
+Fixed live popover preview being hidden behind the Settings window when picking a layout.</string>
     <key>CBReleaseKnownIssues</key>
     <string>None.</string>
     <key>CFBundleDevelopmentRegion</key>
