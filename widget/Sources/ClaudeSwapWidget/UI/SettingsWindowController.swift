@@ -33,6 +33,14 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
     /// Open Settings, or bring it forward if already open.
     func show() {
         if let existing = window {
+            // Belt-and-suspenders: an earlier build pinned this window at
+            // `popUpMenu + 1` so it floated above Chrome / other apps; if
+            // a user's existing window object came from that build (state
+            // restoration, hot-reload) it keeps the old level until we
+            // explicitly reset it here. Forces `.normal` so the window
+            // behaves like a standard app panel — coverable by Chrome
+            // when Chrome activates.
+            existing.level = .normal
             existing.makeKeyAndOrderFront(nil)
             NSApp.activate(ignoringOtherApps: true)
             return
@@ -54,10 +62,14 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
         w.contentViewController = host
         w.setContentSize(size)
         w.minSize = NSSize(width: 820, height: 540)
-        // Above popUpMenu so opening this window from the menu-bar popover
-        // does not get covered when the popover reopens. Matches the level
-        // FloatingWindow uses for connect sheets.
-        w.level = NSWindow.Level(rawValue: NSWindow.Level.popUpMenu.rawValue + 1)
+        // Normal window level so other apps (Chrome, terminals, etc.) can
+        // cover Settings by activating their own front window — Settings
+        // should behave like any standard app panel, not a floating
+        // overlay. The menu-bar popover sits at `.floating` so it
+        // naturally overlaps Settings when both are visible together;
+        // `MenuBarPopoverToggle.openIfClosedAbove` boosts the popover
+        // further if needed for the layout-preview flow.
+        w.level = .normal
         w.collectionBehavior = [.moveToActiveSpace, .fullScreenAuxiliary]
         w.isReleasedWhenClosed = false
         w.delegate = self

@@ -35,6 +35,33 @@ enum MenuBarPopoverToggle {
         button.performClick(nil)
     }
 
+    /// Same as `openIfClosed` but lifts the popover window above any
+    /// other app windows (Settings, Daily) that may otherwise cover it.
+    /// Used by the Settings popover-layout Picker so each layout change
+    /// re-opens the popover ON TOP of the Settings panel for preview,
+    /// instead of behind it.
+    ///
+    /// Settings is pinned at `popUpMenu + 1` (see SettingsWindowController)
+    /// so a normal popover at `.floating` (3) sits FAR below it. We boost
+    /// the popover window's level to `popUpMenu + 2` for this preview
+    /// flow only — z-order alone (`orderFrontRegardless`) is not enough
+    /// when window levels differ. The level snaps back to `.floating`
+    /// on the next normal menu-bar click because
+    /// `PopoverWindowCapture.capture(from:)` enforces `.floating` every
+    /// SwiftUI update cycle.
+    static func openIfClosedAbove() {
+        openIfClosed()
+        // The popover window is captured asynchronously by
+        // PopoverWindowCapture after `performClick`. Give it one runloop
+        // tick to land in the registry, then lift.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) {
+            guard let w = PopoverWindowRegistry.shared.window else { return }
+            let aboveSettings = NSWindow.Level(rawValue: NSWindow.Level.popUpMenu.rawValue + 2)
+            w.level = aboveSettings
+            w.orderFrontRegardless()
+        }
+    }
+
     /// Dismiss the popover if it's currently shown. No-op if already closed.
     /// Used when opening another window (Daily) so the popover collapses back
     /// into the menu bar instead of overlapping the new window.

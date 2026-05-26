@@ -52,7 +52,13 @@ struct PopoverWindowCapture: NSViewRepresentable {
         // system modals + the actual menu bar. Set every capture call
         // because SwiftUI MenuBarExtra recreates the popover window on
         // display reconfiguration and the level resets to .normal.
-        if w.level != .floating {
+        //
+        // The check uses `== .normal` (not `!= .floating`) so callers
+        // that temporarily boost the popover to a HIGHER level (e.g.
+        // `MenuBarPopoverToggle.openIfClosedAbove` lifts it above
+        // Settings for layout preview) don't get clobbered back to
+        // .floating on the next SwiftUI body update.
+        if w.level == .normal {
             w.level = .floating
         }
     }
