@@ -325,7 +325,13 @@ actor CswClient {
     }
 
     func mcpToolsSetEnabled(toolID: String, enabled: Bool) async throws {
-        _ = try await runRaw(["mcp", "tools", "set-enabled", "--tool", toolID, "--enabled", enabled ? "true" : "false"])
+        // Bool flags in Go's `flag` package MUST use `--name=value` form —
+        // the space-separated `--name value` form silently treats `--name`
+        // as a no-arg switch (defaulting to true) and drops `value` as an
+        // ignored positional. The previous shape sent `--enabled false`
+        // which evaluated to `enabled=true`, so the OFF toggle never
+        // actually persisted to the registry.
+        _ = try await runRaw(["mcp", "tools", "set-enabled", "--tool", toolID, "--enabled=\(enabled ? "true" : "false")"])
     }
 
     func mcpConnectorSetEnabled(account: Int, service: String, enabled: Bool) async throws {
@@ -335,7 +341,8 @@ actor CswClient {
         } else {
             args.append(contentsOf: ["--account", String(account)])
         }
-        args.append(contentsOf: ["--service", service, "--enabled", enabled ? "true" : "false"])
+        // See mcpToolsSetEnabled — Go bool flags need `--enabled=false`.
+        args.append(contentsOf: ["--service", service, "--enabled=\(enabled ? "true" : "false")"])
         _ = try await runRaw(args)
     }
 

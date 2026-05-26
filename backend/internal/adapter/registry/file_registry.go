@@ -47,7 +47,47 @@ func (r *FileRegistry) Load(ctx context.Context) (*domain.Registry, error) {
 	if reg.Sequence == nil {
 		reg.Sequence = []int{}
 	}
+	// Normalize stale per-account MCP Enabled flags. The Settings UI only
+	// exposes shared connectors now, so a per-account meta carrying
+	// Enabled=true while a shared meta of the same service also exists is
+	// always stale — usually an artefact of an iCloud restore from a Mac
+	// running an older build that surfaced per-account configuration. The
+	// gateway already treats shared as authoritative for tools/list, but
+	// pruning the stale flag here keeps the on-disk registry honest so
+	// downstream tools (debug dumps, cloud bundle pushes, future
+	// migrations) don't have to re-derive the same invariant.
+	if normalizeStaleMCPState(&reg) {
+		if saveErr := r.Save(ctx, &reg); saveErr != nil {
+			// Read still succeeds — normalize is best-effort.
+			_ = saveErr
+		}
+	}
 	return &reg, nil
+}
+
+// normalizeStaleMCPState clears per-account Enabled flags for services that
+// also have a shared meta configured. Returns true iff at least one flag
+// was flipped, signaling the caller should persist.
+func normalizeStaleMCPState(reg *domain.Registry) bool {
+	if len(reg.SharedMCPConnectors) == 0 {
+		return false
+	}
+	changed := false
+	for _, acc := range reg.Accounts {
+		if acc == nil {
+			continue
+		}
+		for svc, meta := range acc.MCPConnectors {
+			if meta == nil || !meta.Enabled {
+				continue
+			}
+			if _, hasShared := reg.SharedMCPConnectors[svc]; hasShared {
+				meta.Enabled = false
+				changed = true
+			}
+		}
+	}
+	return changed
 }
 
 // Save atomically writes the registry with 0600 perms.
