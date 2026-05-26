@@ -26,12 +26,19 @@ struct TinyPopoverView: View {
     // single-line chips and leaves the row compact without re-introducing
     // the wide-Standard look.
     private static let popoverWidth: CGFloat = 290
-    // Each row is avatar 22 + 8pt vertical padding × 2 + chip height ≈ 46.
-    private static let rowHeight: CGFloat = 46
-    // Header (~32) + divider + list padding + Token strip (Day/Week/Month
-    // row ~42) + divider + Auto-swap bar (toggle row 22 + slider 30 +
-    // legend 16 + paddings 16 = 84) = ~190.
-    private static let shellHeight: CGFloat = 190
+    // Real measured height of one TinyAccountRow: avatar 22 + 7pt vertical
+    // padding × 2 = 36pt; tightened from the previous 46 because the
+    // previous estimate over-budgeted the row and left visible slack
+    // inside the bounded ScrollView below the last row.
+    private static let rowHeight: CGFloat = 38
+    // Shell = header (32) + divider (1) + token strip (10pt padding +
+    // 30pt content = 40) + divider (1) + auto-swap (12pt padding +
+    // ~84pt slider+toggle+legend = 96) = ~170.
+    private static let shellHeight: CGFloat = 170
+    /// Max account rows shown at full height before the in-list scroll
+    /// engages. Picked low for Tiny because the layout's whole point is
+    /// to stay short — past 4 rows the user should be on Standard / Full.
+    private static let accountsRowsBeforeScroll = 4
 
     var body: some View {
         ZStack {
@@ -39,19 +46,16 @@ struct TinyPopoverView: View {
                 MenuHeaderBar()
                     .padding(.top, 4)
                 Divider().opacity(0.5)
-                ScrollView(.vertical, showsIndicators: false) {
-                    accountList
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                accountsSection
                 Divider().opacity(0.4)
                 TinyTokenUsageStrip()
                     .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
+                    .padding(.vertical, 5)
                 Divider().opacity(0.4)
                 TinyAutoSwapBar()
                     .padding(.horizontal, 10)
-                    .padding(.top, 8)
-                    .padding(.bottom, 6)
+                    .padding(.top, 7)
+                    .padding(.bottom, 5)
             }
         }
         .frame(width: Self.popoverWidth, height: popoverHeight)
@@ -65,20 +69,49 @@ struct TinyPopoverView: View {
         .focusEffectDisabled()
     }
 
-    /// Caps at 6 visible rows. Beyond that the list scrolls internally so
-    /// the popover frame never grows unbounded. Empty state has its own
-    /// height so the popover isn't a tall blank rectangle when the user
-    /// has no accounts yet.
-    private var popoverHeight: CGFloat {
-        let count = store.snapshot?.accounts.count ?? 0
-        // Hug content tightly — every popover layout previously left a
-        // visible empty strip below the last row. The `+ 4` covers list
-        // top/bottom padding (4 each); no extra slack.
-        switch count {
-        case 0:     return 160
-        case 1...6: return Self.shellHeight + Self.rowHeight * CGFloat(count) + 4
-        default:    return Self.shellHeight + Self.rowHeight * 6 + 4
+    /// Bounded ScrollView around the account list — height computed
+    /// exactly from rowHeight × visible-rows so no slack leaks below
+    /// the last row. Replaces the previous `maxHeight: .infinity`
+    /// frame that let the ScrollView absorb every spare pixel of
+    /// vertical space, leaving an unwanted blank strip above the
+    /// token-usage divider.
+    @ViewBuilder
+    private var accountsSection: some View {
+        if let snap = store.snapshot, !snap.accounts.isEmpty {
+            let sorted = snap.accounts.sorted { $0.isActive && !$1.isActive }
+            let hasOverflow = sorted.count > Self.accountsRowsBeforeScroll
+            ScrollView(.vertical, showsIndicators: hasOverflow) {
+                VStack(spacing: 2) {
+                    ForEach(sorted) { acc in
+                        TinyAccountRow(view: acc)
+                    }
+                }
+                .padding(.horizontal, 6)
+                .padding(.vertical, 4)
+            }
+            .frame(height: visibleAccountsHeight)
+            .scrollDisabled(!hasOverflow)
+        } else {
+            EmptyAccountsView()
+                .padding(.top, 16)
+                .frame(maxWidth: .infinity)
+                .frame(height: 90)
         }
+    }
+
+    /// Pixel-exact height for `min(count, accountsRowsBeforeScroll)`
+    /// rows + inter-row spacing + the VStack's 4pt top/bottom padding.
+    /// Empty state has its own 90pt slot via accountsSection so the
+    /// popover doesn't go full-tall when no accounts exist yet.
+    private var visibleAccountsHeight: CGFloat {
+        let count = store.snapshot?.accounts.count ?? 0
+        if count == 0 { return 90 }
+        let visible = min(count, Self.accountsRowsBeforeScroll)
+        return CGFloat(visible) * Self.rowHeight + CGFloat(max(0, visible - 1)) * 2 + 8
+    }
+
+    private var popoverHeight: CGFloat {
+        Self.shellHeight + visibleAccountsHeight
     }
 
     @ViewBuilder
@@ -90,21 +123,6 @@ struct TinyPopoverView: View {
         }
     }
 
-    @ViewBuilder
-    private var accountList: some View {
-        if let snap = store.snapshot, !snap.accounts.isEmpty {
-            let sorted = snap.accounts.sorted { $0.isActive && !$1.isActive }
-            VStack(spacing: 2) {
-                ForEach(sorted) { acc in
-                    TinyAccountRow(view: acc)
-                }
-            }
-            .padding(.horizontal, 6)
-            .padding(.vertical, 4)
-        } else {
-            EmptyAccountsView().padding(.top, 16)
-        }
-    }
 }
 
 /// Stripped-down account row. The two `UsageChip`s are the only quota
