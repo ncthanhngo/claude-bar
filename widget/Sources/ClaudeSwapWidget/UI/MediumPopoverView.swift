@@ -211,7 +211,7 @@ private struct MediumAccountRow: View {
             Text(pct.map { "\($0)%" } ?? "—")
                 .font(.system(size: 11, weight: .semibold))
                 .monospacedDigit()
-                .foregroundColor(pct.map { UsagePalette.color(for: $0) } ?? .secondary)
+                .foregroundColor(pct == nil ? .secondary : UsagePalette.percentText)
                 .frame(width: 34, alignment: .trailing)
         }
     }

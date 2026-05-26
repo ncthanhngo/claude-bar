@@ -162,25 +162,28 @@ private struct UsageChip: View {
     let pct: Int?
 
     var body: some View {
-        // Two-tier text: small grey "5h"/"7d" tag + bold high-contrast
-        // value. The previous chip ran the value at 10pt which was
-        // borderline unreadable on Retina at popover viewing distance.
-        // 13pt semibold + matching palette tint reads cleanly even with
-        // the popover off to one side of the screen.
+        // The value reads in `UsagePalette.percentText` (blue) so the
+        // number itself is high-contrast and consistent with Standard /
+        // Full. The chip's background and border still pick up the
+        // traffic-light palette so the quota tier (safe / warn / critical)
+        // is encoded in the surrounding tint without the digit colour
+        // shifting under the eye.
         HStack(spacing: 4) {
             Text(label)
                 .font(.system(size: 10, weight: .medium))
                 .foregroundColor(.secondary)
             Text(valueText)
                 .font(.system(size: 13, weight: .semibold))
-                .foregroundColor(textColor)
+                .foregroundColor(valueColor)
                 .monospacedDigit()
         }
         .padding(.horizontal, 7)
         .padding(.vertical, 3)
         .background(Capsule().fill(background))
-        .overlay(Capsule().stroke(textColor.opacity(0.25), lineWidth: 0.6))
+        .overlay(Capsule().stroke(palette.opacity(0.30), lineWidth: 0.6))
     }
+
+    private var valueColor: Color { pct == nil ? .secondary : UsagePalette.percentText }
 
     private var valueText: String {
         guard let p = pct else { return "—" }
@@ -193,5 +196,4 @@ private struct UsageChip: View {
     }
 
     private var background: Color { palette.opacity(0.16) }
-    private var textColor: Color { pct == nil ? .secondary : palette }
 }
