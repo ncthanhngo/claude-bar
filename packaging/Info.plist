@@ -13,9 +13,9 @@
     <key>CFBundleIdentifier</key>
     <string>dev.ncthanhngo.claude-bar</string>
     <key>CFBundleVersion</key>
-    <string>11.6</string>
+    <string>11.7</string>
     <key>CFBundleShortVersionString</key>
-    <string>11.6</string>
+    <string>11.7</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleSignature</key>
@@ -35,7 +35,7 @@
     <key>NSHumanReadableCopyright</key>
     <string>Copyright © 2026 Thanh Ngô. Licensed under MIT.</string>
     <key>CFBundleGetInfoString</key>
-    <string>Claude Bar 11.6 — menu-bar manager for multiple Claude Code accounts</string>
+    <string>Claude Bar 11.7 — menu-bar manager for multiple Claude Code accounts</string>
     <key>CBAuthorName</key>
     <string>Thanh Ngô</string>
     <key>CBAuthorEmail</key>
@@ -49,9 +49,9 @@
     <key>CBReleaseChannel</key>
     <string>Beta</string>
     <key>CBReleaseWhatsNew</key>
-    <string>Usage windows are even less likely to read wrong now. v11.5 anchored each progressbar to its smallest labelling ancestor and dropped per-model weekly bars; this release adds the safety net that was missing for a degenerate DOM shape — when a single wrapper carries both the "current session" label and the "weekly" label (so the scraper can't tell which window the progressbar belongs to), the slot is now surfaced as Unavailable instead of guessed. Follow-up to issue #6.</string>
+    <string>Full popover no longer clips the bottom row. With three accounts where two have "Needs login" or a usage-error chip, the in-row badge added ~17pt that the popover hadn't budgeted for — the third account's 5h / 7d bars hid under the Auto-swap section because the bounded ScrollView clipped them and scroll was disabled at three accounts. The popover frame now sums each visible row's actual height (base + badge extras) so the third row stays fully visible regardless of credential state.</string>
     <key>CBReleaseHotfixes</key>
-    <string>Fixed an edge case where a compact DOM wrapper containing both 5h and 7d labels could still feed the 7d slot a wrong percentage (follow-up to issue #6).</string>
+    <string>Fixed the third account row clipping its usage bars under the Auto-swap divider in the Full popover layout when two of three rows showed the "Needs login" or usage-error badge.</string>
     <key>CBReleaseKnownIssues</key>
     <string>The menu-bar popover still dismisses when the Rename window opens (macOS menu-bar app behaviour, not preventable without giving up the dropdown style). The rename itself goes through on Save; reopen the menu to see the new name.
 Existing v11.x Google tokens are still missing the `spreadsheets` scope shipped in 11.3. The cb_gsheets_* tools return Google "insufficient permission" until you Disconnect + Reconnect the Google connector — that mints a fresh token with the new scope set. Drive / Calendar / Gmail tools keep working on the old scope until you do.</string>
