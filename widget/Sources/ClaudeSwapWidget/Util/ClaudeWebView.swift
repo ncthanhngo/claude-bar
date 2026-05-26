@@ -96,12 +96,14 @@ final class ClaudeWebUsageFetcher: NSObject, WKNavigationDelegate {
         let decoder = JSONDecoder()
         var lastError: Error = ClaudeWebUsageError.usageUnavailable
         var lastPayload: WebUsagePayload?
+        var lastRaw: String?
         let maxAttempts = 16            // 16 * 0.5s = 8s ceiling
         let bailIfEmptyAfter = 4        // give up early if SPA never paints
         for attempt in 0..<maxAttempts {
             let result = try await webView.evaluateJavaScript(Self.scrapeScript)
             if let raw = result as? String,
                let data = raw.data(using: .utf8) {
+                lastRaw = raw
                 do {
                     let payload = try decoder.decode(WebUsagePayload.self, from: data)
                     if payload.fiveHour != nil || payload.sevenDay != nil {
@@ -120,6 +122,13 @@ final class ClaudeWebUsageFetcher: NSObject, WKNavigationDelegate {
             // all (signed-out / wrong session) or is too slow to chase. Let
             // upstream fall back to OAuth instead of burning 8s every poll.
             if attempt >= bailIfEmptyAfter - 1 && lastPayload == nil {
+                if let raw = lastRaw {
+                    DiagnosticsLogger.shared.log(.warning, subsystem: "web-usage",
+                        "scrape diag (bail attempt=\(attempt)) — \(raw.prefix(1200))")
+                }
+                let pageDiag = await pageDiagnostics()
+                DiagnosticsLogger.shared.log(.warning, subsystem: "web-usage",
+                    "page diag — \(pageDiag)")
                 throw lastError
             }
             if attempt < maxAttempts - 1 {
@@ -138,14 +147,28 @@ final class ClaudeWebUsageFetcher: NSObject, WKNavigationDelegate {
         try await withCheckedThrowingContinuation { continuation in
             loadContinuation = continuation
             // Bypass HTTP cache so a recent reset isn't masked by a 304 that
-            // re-renders the pre-reset DOM. The default protocol policy lets
-            // WKWebView serve `claude.ai/settings/usage` from disk cache,
-            // which encodes the old <time datetime> and locks the widget on
-            // a `resetsAt` in the past.
+            // re-renders the pre-reset DOM. (Earlier I added a `?t=<ms>`
+            // cache-bust here as a second belt against service-worker
+            // replays, but observed that subsequent loads then returned 0
+            // progressbars where a fresh load returned 5 — claude.ai may
+            // be reading the query string and serving a different bundle.
+            // Reverted to the bare URL with just the cache policy override.)
             var request = URLRequest(url: usageURL)
             request.cachePolicy = .reloadIgnoringLocalAndRemoteCacheData
             webView.load(request)
         }
+    }
+
+    /// Snapshot of the loaded page used for diagnostics when the scrape
+    /// returns no progressbars — lets us tell "claude.ai rendered a login
+    /// page" or "redirected" from "DOM structure changed" without needing
+    /// to re-run the widget under a debugger.
+    private func pageDiagnostics() async -> String {
+        let url = webView.url?.absoluteString ?? "<no url>"
+        let title = webView.title ?? "<no title>"
+        let bodyJS = "(document.body && document.body.innerText || '').slice(0, 200).replace(/\\s+/g, ' ')"
+        let body = (try? await webView.evaluateJavaScript(bodyJS)) as? String ?? "<no body>"
+        return "url=\(url) | title=\(title) | bodyPrefix=\(body)"
     }
 
     func webView(_: WKWebView, didFinish _: WKNavigation!) {
@@ -250,7 +273,13 @@ final class ClaudeWebUsageFetcher: NSObject, WKNavigationDelegate {
         let best = null;
         for (let depth = 0; depth < 8 && node; depth++, node = node.parentElement) {
           const text = visibleText(node);
-          if (!text || text.length > 900) break;
+          // Skip empty wrappers (the progressbar's immediate parent often
+          // has no innerText of its own — bailing here used to abort the
+          // whole walk before reaching the labelling row). Only break on
+          // the over-large guard so we don't walk past the usage section
+          // into page-wide containers.
+          if (text.length > 900) break;
+          if (!text) continue;
           const hasLabel = /current\\s+session|5\\s*-?\\s*hour|weekly|all\\s+models|7\\s*-?\\s*day/i.test(text);
           const hasReset = /reset/i.test(text);
           if (hasLabel && hasReset) {
@@ -269,14 +298,20 @@ final class ClaudeWebUsageFetcher: NSObject, WKNavigationDelegate {
       function classify(text) {
         const t = text.toLowerCase();
         const isWeekly  = /weekly|7\\s*-?\\s*day/.test(t);
+        const isAllModels = /all\\s+models/.test(t);
         const isSession = /current\\s+session|5\\s*-?\\s*hour/.test(t);
         // Ambiguous outer wrapper containing both window labels — refuse to
         // guess. A subsequent progressbar should find a tighter labelling
         // ancestor; if none does we surface UnavailableBar instead of wrong.
-        if (isSession && isWeekly) return null;
+        if (isSession && (isWeekly || isAllModels)) return null;
         if (isSession) return "fiveHour";
         const hasModelQualifier = /\\b(opus|sonnet|haiku)\\b/.test(t);
-        if (isWeekly && (t.includes("all models") || !hasModelQualifier)) {
+        // "All models" alone is the canonical weekly headline bar on
+        // current claude.ai — its label cell does NOT include the
+        // "Weekly limits" heading text (which lives one section up).
+        // Treat all-models without a per-model qualifier as sevenDay even
+        // when "weekly" itself isn't in the cell.
+        if ((isWeekly || isAllModels) && !hasModelQualifier) {
           return "sevenDay";
         }
         return null;
@@ -307,18 +342,62 @@ final class ClaudeWebUsageFetcher: NSObject, WKNavigationDelegate {
         return Number.isFinite(pct) ? Math.max(0, Math.min(100, pct)) : null;
       }
 
-      const out = { fiveHour: null, sevenDay: null, fetchedAtMillis: Date.now() };
+      // Sensible future fallback when the reset clause is unparseable
+      // (e.g., claude.ai sometimes prints "Resets Fri 7:00 PM" or a
+      // localised date format the regex below doesn't cover). Without a
+      // future `resetsAt`, downstream Swift drops the result via
+      // `hasPastResetWindow`, so a single DOM-format change wipes out the
+      // entire scrape. Returning a fallback at least keeps the percentage
+      // flowing — the countdown will be approximate until the next
+      // successful poll, but the usage bar updates.
+      function fallbackReset(kind) {
+        const now = Date.now();
+        return kind === "fiveHour" ? now + 5 * 60 * 60 * 1000
+                                   : now + 7 * 24 * 60 * 60 * 1000;
+      }
+
+      const out = { fiveHour: null, sevenDay: null, fetchedAtMillis: Date.now(), diag: { progressbarCount: 0, samples: [] } };
       const progressbars = Array.from(document.querySelectorAll("[role=progressbar][aria-valuenow]"));
+      out.diag.progressbarCount = progressbars.length;
       for (const progress of progressbars) {
         const labelled = labellingAncestor(progress);
+        const aria = progress.getAttribute("aria-valuenow");
+        if (out.diag.samples.length < 6) {
+          // Walk all 8 ancestors and report what each one contains, so we
+          // can see exactly where the label / reset text lives relative to
+          // the progressbar. The labellingAncestor function above breaks
+          // on `length > 900` and only sets `best` when both patterns
+          // are present — if claude.ai's wrapper exceeds that, we get
+          // null even though the data is right there in a deeper or
+          // shallower ancestor.
+          const ancestors = [];
+          let node = progress.parentElement;
+          for (let d = 0; d < 8 && node; d++, node = node.parentElement) {
+            const text = (node.innerText || node.textContent || "").trim();
+            ancestors.push({
+              d,
+              len: text.length,
+              hasLabel: /current\\s+session|5\\s*-?\\s*hour|weekly|all\\s+models|7\\s*-?\\s*day/i.test(text),
+              hasReset: /reset/i.test(text),
+              hasPct: /\\d+\\s*%/.test(text),
+              snippet: text.slice(0, 80).replace(/\\s+/g, " ")
+            });
+          }
+          out.diag.samples.push({
+            aria,
+            hasLabel: !!labelled,
+            label: labelled ? labelled.text.slice(0, 120).replace(/\\s+/g, " ") : null,
+            ancestors
+          });
+        }
         if (!labelled) continue;
         const kind = classify(labelled.text);
         if (!kind || out[kind]) continue;
         const utilizationPct = readPct(progress, labelled.text);
         if (utilizationPct == null) continue;
-        const resetsAtMillis = findResetMillis(labelled.node);
-        if (resetsAtMillis == null) continue;
-        out[kind] = { utilizationPct, resetsAtMillis };
+        const parsed = findResetMillis(labelled.node);
+        const resetsAtMillis = parsed != null ? parsed : fallbackReset(kind);
+        out[kind] = { utilizationPct, resetsAtMillis, resetParsed: parsed != null };
       }
 
       return JSON.stringify(out);

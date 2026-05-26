@@ -84,8 +84,26 @@ final class WebFallbackCoordinator: ObservableObject {
         // success previously meant a single bad poll on app launch could leave
         // the cloud bundle empty for the entire poll cycle.
         await ClaudeWebSessionSync.save(account: view.account, dataStore: dataStore)
+        let started = Date()
         do {
-            let usage = try await ClaudeWebUsageFetcher(dataStore: dataStore).fetchUsage()
+            // Hard 12s ceiling so a hung WKWebView load (DNS stall,
+            // claude.ai redirect loop, login race) can't block the
+            // entire refresh cycle. Without this we observed 40–50s
+            // pending tasks piling up on the main actor.
+            let fetcher = ClaudeWebUsageFetcher(dataStore: dataStore)
+            let usage = try await withThrowingTaskGroup(of: UsageDTO.self) { group in
+                group.addTask { try await fetcher.fetchUsage() }
+                group.addTask {
+                    try await Task.sleep(nanoseconds: 12_000_000_000)
+                    throw ClaudeWebUsageError.usagePageNotReady
+                }
+                defer { group.cancelAll() }
+                guard let first = try await group.next() else {
+                    throw ClaudeWebUsageError.usagePageNotReady
+                }
+                return first
+            }
+            let elapsedMs = Int(Date().timeIntervalSince(started) * 1000)
             // If any scraped window's resetsAt is already in the past the SPA
             // re-rendered a pre-reset cached state. Drop the result so the
             // OAuth fallback can fetch the new window — otherwise the widget
@@ -93,14 +111,21 @@ final class WebFallbackCoordinator: ObservableObject {
             if usage.hasPastResetWindow {
                 accountStates[view.account.identityKey] = .fallback("Web profile returned stale usage (post-reset)")
                 lastCheckedAt = Date()
+                DiagnosticsLogger.shared.log(.warning, subsystem: "web-usage",
+                    "stale post-reset \(view.account.email) (\(elapsedMs)ms) — \(usage.diagnosticSummary)")
                 return nil
             }
             accountStates[view.account.identityKey] = .connected(usage.diagnosticSummary)
             lastCheckedAt = Date()
+            DiagnosticsLogger.shared.log(.info, subsystem: "web-usage",
+                "ok \(view.account.email) (\(elapsedMs)ms) — \(usage.diagnosticSummary)")
             return usage
         } catch {
+            let elapsedMs = Int(Date().timeIntervalSince(started) * 1000)
             accountStates[view.account.identityKey] = .fallback(error.localizedDescription)
             lastCheckedAt = Date()
+            DiagnosticsLogger.shared.log(.warning, subsystem: "web-usage",
+                "fail \(view.account.email) (\(elapsedMs)ms) — \(error.localizedDescription)")
             return nil
         }
     }
