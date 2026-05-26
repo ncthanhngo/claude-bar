@@ -12,6 +12,26 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 11.6 (BETA)</title>
+      <sparkle:version>11.6</sparkle:version>
+      <sparkle:shortVersionString>11.6</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <p>Follow-up safety net for <a href="https://github.com/ncthanhngo/claude-bar/issues/6">#6</a>.</p>
+        <ul>
+          <li><strong>Usage scrape bails on ambiguous DOM wrappers.</strong> v11.5 anchored each progressbar to its smallest labelling ancestor and dropped per-model weekly bars; this release adds the safety net that was missing for a degenerate shape — when one wrapper carries both the "current session" label and the "weekly" label (so the scraper can't tell which window the progressbar belongs to), the slot is now surfaced as Unavailable instead of guessed.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Tue, 26 May 2026 20:01:16 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v11.6/ClaudeBar.zip"
+        sparkle:version="11.6"
+        sparkle:shortVersionString="11.6"
+        sparkle:edSignature="vxnx6LVGNcwoBGQK3OcbD8+e3k1OGrDr/1zPn+P6VL1QHYaXBAtT05K7kyisWydJFcJJ+e9Y6kZYZ7r95lp8AQ=="
+        length="7914859"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 11.5 (BETA)</title>
       <sparkle:version>11.5</sparkle:version>
       <sparkle:shortVersionString>11.5</sparkle:shortVersionString>
