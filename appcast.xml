@@ -12,6 +12,30 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 11.11 (BETA)</title>
+      <sparkle:version>11.11</sparkle:version>
+      <sparkle:shortVersionString>11.11</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <p>Web-usage scraper unstuck + popover anti-hang + Full-layout token-chart toggle.</p>
+        <ul>
+          <li><strong>Web-linked accounts update again.</strong> Three scrape bugs combined to freeze usage at stale values: the labelling-cell walk aborted at the progressbar's empty parent; the 7d classifier required the word "Weekly" inside the bar cell (it lives in the heading above on Max plans); and a hung WKWebView reload could block the refresh cycle for minutes. All three fixed; added a hard 12-second scrape timeout.</li>
+          <li><strong>Popover anti-hang.</strong> Refresh calls now coalesce — manual "Refresh web usage" clicks, the timer loop, post-swap re-refreshes, and the launch refresh can no longer stack on top of each other and saturate the main actor.</li>
+          <li><strong>Optional Token-usage chart on Full layout.</strong> Settings → General → Popover layout has a new "Show token usage chart in Full layout" toggle (default off). When off, the bottom token chart + KPI cards collapse and the popover shrinks by ~220pt.</li>
+          <li><strong>Settings stops floating above Chrome.</strong> Reverted Settings from <code>popUpMenu + 1</code> to normal level — other apps can cover it like any standard panel. The popover briefly lifts above Settings only while you preview a layout change.</li>
+          <li><strong>OAuth fallback error isolation.</strong> A failing terminal account (expired creds / 429) no longer aborts the entire refresh cycle and freezes every account at "Loading…".</li>
+        </ul>
+      ]]></description>
+      <pubDate>Tue, 26 May 2026 23:28:26 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v11.11/ClaudeBar.zip"
+        sparkle:version="11.11"
+        sparkle:shortVersionString="11.11"
+        sparkle:edSignature="FbjI2QjOlYmJSUJxp4B9WXjTC3INU0m5NrCa2EfCaIFrRKiphl8/7u7yWFaX/+t0Dwl1+VqtS0/VqR+14xfqDw=="
+        length="7792946"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 11.10 (BETA)</title>
       <sparkle:version>11.10</sparkle:version>
       <sparkle:shortVersionString>11.10</sparkle:shortVersionString>
