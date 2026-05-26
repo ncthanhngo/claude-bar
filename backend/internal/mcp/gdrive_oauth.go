@@ -21,13 +21,19 @@ const (
 	gdriveTokenURL = "https://oauth2.googleapis.com/token"
 	// Existing Google connectors only need read scopes; cb_gsheets_*
 	// (added for the markdown-table → Google Sheet use case) needs
-	// write access to spreadsheets. Bundling all four in one scope set
-	// means there is still exactly one OAuth flow per Google account —
-	// the user re-runs Connect once to upgrade an existing v11 token,
-	// then every Google tool works against the upgraded grant. The
-	// `spreadsheets` scope is the narrowest one that allows both
-	// creating new sheets and writing cells into existing ones.
-	gdriveScope = "https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/calendar.events.readonly https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/spreadsheets"
+	// write access to spreadsheets, and cb_gdrive_share needs the
+	// narrow `drive.file` write scope to grant per-user permissions on
+	// files this OAuth app created (which is exactly the Sheets that
+	// cb_gsheets_create_spreadsheet emits — drive.file does NOT grant
+	// access to arbitrary user-uploaded files, by design). Bundling all
+	// five in one scope set means there is still exactly one OAuth flow
+	// per Google account — the user re-runs Connect once to upgrade an
+	// existing v11 token, then every Google tool works against the
+	// upgraded grant. `spreadsheets` covers create + cell writes;
+	// `drive.file` covers per-file sharing without asking for full
+	// `drive` scope (which would let us read every file in the user's
+	// Drive, far more than we need).
+	gdriveScope = "https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/calendar.events.readonly https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/spreadsheets"
 )
 
 // tokenURLForTest is overridden by tests pointing at httptest. Production

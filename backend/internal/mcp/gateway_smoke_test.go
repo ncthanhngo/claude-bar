@@ -38,6 +38,11 @@ func TestGatewayToolsListExposesEveryConnector(t *testing.T) {
 		"cb_gdrive_search_files",
 		"cb_gdrive_get_file_metadata",
 		"cb_gdrive_get_doc_text",
+		"cb_gdrive_share",
+		"cb_gsheets_create_spreadsheet",
+		"cb_gsheets_create_from_csv",
+		"cb_gsheets_update_values",
+		"cb_gsheets_append_values",
 	}
 	for _, name := range wanted {
 		if !strings.Contains(out, name) {

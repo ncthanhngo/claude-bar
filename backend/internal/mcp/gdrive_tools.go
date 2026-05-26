@@ -1,8 +1,10 @@
 package mcp
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -60,19 +62,45 @@ func (g *Gateway) registerGDriveTools(srv *server.MCPServer) {
 		},
 		g.gdriveDownloadFile,
 	)
+
+	g.addTool(srv, "cb_gdrive_share",
+		"Grant a specific user access to a Google Drive file (most commonly a Sheet created via cb_gsheets_create_spreadsheet or cb_gsheets_create_from_csv). Uses Drive's narrow `drive.file` OAuth scope, so this only works on files this OAuth app created or opened — it cannot share arbitrary files in the user's Drive. To share with multiple people, call this tool once per recipient.",
+		[]mcpgo.ToolOption{
+			mcpgo.WithString("file_id", mcpgo.Required(), mcpgo.Description("Drive file ID to share. For a Sheet, this is the spreadsheetId returned by create_spreadsheet, or the segment after /d/ in the URL.")),
+			mcpgo.WithString("email_address", mcpgo.Required(), mcpgo.Description("Recipient's email address. Must be a Google-account email for direct add — non-Google emails get a sign-in invite.")),
+			mcpgo.WithString("role", mcpgo.Required(), mcpgo.Description("Permission role: 'reader' (view), 'commenter' (view + comment), or 'writer' (edit). Drive also supports 'owner' but transferring ownership requires extra confirmation and is intentionally not exposed here.")),
+			mcpgo.WithBoolean("send_notification", mcpgo.Description("Whether Drive sends the recipient an email notification. Default true. Set false to share silently — useful when you've already told them out-of-band.")),
+			mcpgo.WithString("message", mcpgo.Description("Optional message body included in the notification email. Ignored when send_notification is false.")),
+		},
+		g.gdriveShare,
+	)
 }
 
-func (g *Gateway) gdriveDo(ctx context.Context, accessToken, method, path string, params url.Values) (*http.Response, error) {
+// gdriveDo issues a JSON request to the Drive v3 REST API. body is JSON-
+// marshalled when non-nil; nil body sends an empty request (the existing
+// read tools all use this path).
+func (g *Gateway) gdriveDo(ctx context.Context, accessToken, method, path string, params url.Values, body any) (*http.Response, error) {
 	u := gdriveAPIBase + path
 	if len(params) > 0 {
 		u += "?" + params.Encode()
 	}
-	req, err := http.NewRequestWithContext(ctx, method, u, nil)
+	var reqBody io.Reader
+	if body != nil {
+		buf, err := json.Marshal(body)
+		if err != nil {
+			return nil, fmt.Errorf("marshal: %w", err)
+		}
+		reqBody = bytes.NewReader(buf)
+	}
+	req, err := http.NewRequestWithContext(ctx, method, u, reqBody)
 	if err != nil {
 		return nil, err
 	}
 	req.Header.Set("Authorization", "Bearer "+accessToken)
 	req.Header.Set("Accept", "application/json")
+	if body != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
 	req.Header.Set("User-Agent", g.UserAgent)
 	return g.HTTP.Do(req)
 }
@@ -95,7 +123,7 @@ func (g *Gateway) gdriveSearchFiles(ctx context.Context, req mcpgo.CallToolReque
 	params.Set("pageSize", strconv.Itoa(clampInt(req.GetInt("page_size", 25), 1, 100)))
 	params.Set("fields", "files(id,name,mimeType,modifiedTime,owners(emailAddress),webViewLink)")
 
-	resp, err := g.gdriveDo(ctx, access, http.MethodGet, "/files", params)
+	resp, err := g.gdriveDo(ctx, access, http.MethodGet, "/files", params, nil)
 	if err != nil {
 		return toolErrorf("gdrive search: %v", err), nil
 	}
@@ -128,7 +156,7 @@ func (g *Gateway) gdriveGetFileMetadata(ctx context.Context, req mcpgo.CallToolR
 	}
 	params := url.Values{}
 	params.Set("fields", "id,name,mimeType,modifiedTime,size,owners(emailAddress),webViewLink,parents")
-	resp, err := g.gdriveDo(ctx, access, http.MethodGet, "/files/"+fileID, params)
+	resp, err := g.gdriveDo(ctx, access, http.MethodGet, "/files/"+fileID, params, nil)
 	if err != nil {
 		return toolErrorf("gdrive metadata: %v", err), nil
 	}
@@ -162,7 +190,7 @@ func (g *Gateway) gdriveListFolder(ctx context.Context, req mcpgo.CallToolReques
 	params.Set("pageSize", strconv.Itoa(clampInt(req.GetInt("page_size", 50), 1, 100)))
 	params.Set("fields", "files(id,name,mimeType,modifiedTime,size,webViewLink)")
 
-	resp, err := g.gdriveDo(ctx, access, http.MethodGet, "/files", params)
+	resp, err := g.gdriveDo(ctx, access, http.MethodGet, "/files", params, nil)
 	if err != nil {
 		return toolErrorf("gdrive list folder: %v", err), nil
 	}
@@ -195,7 +223,7 @@ func (g *Gateway) gdriveDownloadFile(ctx context.Context, req mcpgo.CallToolRequ
 	}
 	params := url.Values{}
 	params.Set("alt", "media")
-	resp, err := g.gdriveDo(ctx, access, http.MethodGet, "/files/"+fileID, params)
+	resp, err := g.gdriveDo(ctx, access, http.MethodGet, "/files/"+fileID, params, nil)
 	if err != nil {
 		return toolErrorf("gdrive download: %v", err), nil
 	}
@@ -222,7 +250,7 @@ func (g *Gateway) gdriveGetDocText(ctx context.Context, req mcpgo.CallToolReques
 	}
 	params := url.Values{}
 	params.Set("mimeType", "text/plain")
-	resp, err := g.gdriveDo(ctx, access, http.MethodGet, "/files/"+fileID+"/export", params)
+	resp, err := g.gdriveDo(ctx, access, http.MethodGet, "/files/"+fileID+"/export", params, nil)
 	if err != nil {
 		return toolErrorf("gdrive export: %v", err), nil
 	}
@@ -232,4 +260,79 @@ func (g *Gateway) gdriveGetDocText(ctx context.Context, req mcpgo.CallToolReques
 		return toolErrorf("gdrive http %d: %s", resp.StatusCode, Redact(strings.TrimSpace(string(body)))), nil
 	}
 	return mcpgo.NewToolResultText(string(body)), nil
+}
+
+// gdriveShareValidRoles enumerates the per-user permission roles Drive
+// accepts that we want to surface. Drive also supports "owner" but
+// transferring ownership has surprising side effects (the source account
+// loses edit rights, the new owner gets billing implications for their
+// quota) so we deliberately don't expose it.
+var gdriveShareValidRoles = map[string]bool{
+	"reader":    true,
+	"writer":    true,
+	"commenter": true,
+}
+
+func (g *Gateway) gdriveShare(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
+	cc, err := g.Resolver.Resolve(ctx, domain.MCPServiceGDrive)
+	if err != nil {
+		return toolErrorForResolve(err), nil
+	}
+	fileID, err := req.RequireString("file_id")
+	if err != nil {
+		return toolErrorf("file_id is required"), nil
+	}
+	emailAddress, err := req.RequireString("email_address")
+	if err != nil {
+		return toolErrorf("email_address is required"), nil
+	}
+	role, err := req.RequireString("role")
+	if err != nil {
+		return toolErrorf("role is required"), nil
+	}
+	role = strings.ToLower(strings.TrimSpace(role))
+	if !gdriveShareValidRoles[role] {
+		return toolErrorf("role must be one of reader/writer/commenter, got %q", role), nil
+	}
+	sendNotification := req.GetBool("send_notification", true)
+	message := strings.TrimSpace(req.GetString("message", ""))
+
+	access, err := g.gdriveRefresh(ctx, cc)
+	if err != nil {
+		return toolErrorf("gdrive auth: %v", err), nil
+	}
+
+	body := map[string]any{
+		"type":         "user",
+		"role":         role,
+		"emailAddress": emailAddress,
+	}
+
+	params := url.Values{}
+	// sendNotificationEmail defaults to true on Drive's side, but we set
+	// it explicitly so the behavior matches the input regardless of any
+	// future Google default flip.
+	if sendNotification {
+		params.Set("sendNotificationEmail", "true")
+		if message != "" {
+			params.Set("emailMessage", message)
+		}
+	} else {
+		params.Set("sendNotificationEmail", "false")
+	}
+	// Returning the created permission resource lets the agent confirm
+	// what was actually granted (Drive sometimes downgrades writer→reader
+	// for external domains under workspace policy).
+	params.Set("fields", "id,type,role,emailAddress")
+
+	resp, err := g.gdriveDo(ctx, access, http.MethodPost, "/files/"+fileID+"/permissions", params, body)
+	if err != nil {
+		return toolErrorf("gdrive share: %v", err), nil
+	}
+	defer resp.Body.Close()
+	respBody, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode/100 != 2 {
+		return toolErrorf("gdrive http %d: %s", resp.StatusCode, Redact(strings.TrimSpace(string(respBody)))), nil
+	}
+	return mcpgo.NewToolResultText(string(respBody)), nil
 }
