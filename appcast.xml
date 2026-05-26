@@ -12,6 +12,27 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 11.5 (BETA)</title>
+      <sparkle:version>11.5</sparkle:version>
+      <sparkle:shortVersionString>11.5</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <p>Closes <a href="https://github.com/ncthanhngo/claude-bar/issues/7">#7</a> and <a href="https://github.com/ncthanhngo/claude-bar/issues/6">#6</a> — rename works first try and usage windows read the correct numbers.</p>
+        <ul>
+          <li><strong>Rename profile now works on the first Save.</strong> Three-dot menu → Rename… used to race the popover dismissal: first Save closed both popovers and skipped the rename, only the retry stuck. The rename form lives in a dedicated floating window now (same pattern as Add account) so its state is fully decoupled from the popover lifecycle.</li>
+          <li><strong>Web usage scrape now reports each window correctly.</strong> Anthropic added per-model weekly bars (Weekly · Opus / Sonnet / Haiku) alongside the all-models bar — accounts with Opus pinned at 100% were rendering 7d as 100% with headroom left, and certain compact layouts collapsed 5h and 7d to identical numbers. Scraping now anchors on each progressbar, classifies its smallest labelling ancestor, and drops per-model weekly blocks so the headline limit is what you see.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Tue, 26 May 2026 19:42:54 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v11.5/ClaudeBar.zip"
+        sparkle:version="11.5"
+        sparkle:shortVersionString="11.5"
+        sparkle:edSignature="nSEXkTUCPvLVzQmhuho0AHkHu+DYBJzNqO8CYUfXaDfHantiCHbl2xCeBfH1YjDZxR9dN62OGvYEOXE9WaAVBA=="
+        length="7914890"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 11.4 (BETA)</title>
       <sparkle:version>11.4</sparkle:version>
       <sparkle:shortVersionString>11.4</sparkle:shortVersionString>
