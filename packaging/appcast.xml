@@ -12,6 +12,26 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 10.44 (BETA)</title>
+      <sparkle:version>10.44</sparkle:version>
+      <sparkle:shortVersionString>10.44</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li><strong>Settings → MCP tool list is now a table with a TOKENS column.</strong> Every tool's cost in Claude Code's system prompt is measured live — the backend builds tools/list once, serialises each entry, and reports JSON-bytes ÷ 4. Cost numbers tint green / amber / red for light / medium / heavy tools, and a floating chip in the header shows the running total currently enabled for the connector. Tool ID surfaces underneath the description for grep / docs hunting.</li>
+          <li><strong>Tiny popover layout slimmed to ~2/3 of its previous width</strong> (340 → 227pt). The 5h/7d chips still read at 13pt monospaced; only long account names truncate earlier.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Tue, 26 May 2026 10:44:03 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v10.44/ClaudeBar.zip"
+        sparkle:version="10.44"
+        sparkle:shortVersionString="10.44"
+        sparkle:edSignature="qPZG3KZy2cJubxaoL9CsSe6m1SJpwNn+pPWBd2dRwqCHv9qw8z8nmVmuVgT2O1n2ZnLH1jX8yLCHcISw6i44Cw=="
+        length="8580817"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 10.43 (BETA)</title>
       <sparkle:version>10.43</sparkle:version>
       <sparkle:shortVersionString>10.43</sparkle:shortVersionString>
