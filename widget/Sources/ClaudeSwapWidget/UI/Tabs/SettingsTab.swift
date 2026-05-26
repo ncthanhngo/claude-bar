@@ -63,41 +63,41 @@ struct SettingsTab: View {
         case .mcp:         MCPTab()
         case .briefing:    BriefingTab()
         case .privacy:     PrivacyTab()
-        case .diagnostics: DiagnosticsTab()
+        case .update:      UpdateTab()
         case .about:       AboutTab()
         }
     }
 }
 
 enum SettingsSubTab: String, CaseIterable, Identifiable {
-    case general, mcp, briefing, privacy, diagnostics, about
+    case general, mcp, briefing, privacy, update, about
 
     var id: String { rawValue }
 
     /// User-facing app preferences — driving behavior of the menu-bar UI.
     static let appGroup: [SettingsSubTab] = [.general, .mcp, .briefing]
     /// System-level inspection / metadata — read-mostly screens.
-    static let systemGroup: [SettingsSubTab] = [.privacy, .diagnostics, .about]
+    static let systemGroup: [SettingsSubTab] = [.privacy, .update, .about]
 
     var label: String {
         switch self {
-        case .general:     return "General"
-        case .mcp:         return "MCP"
-        case .briefing:    return "Briefing"
-        case .privacy:     return "Privacy"
-        case .diagnostics: return "Diagnostics"
-        case .about:       return "About"
+        case .general:  return "General"
+        case .mcp:      return "MCP"
+        case .briefing: return "Briefing"
+        case .privacy:  return "Privacy"
+        case .update:   return "Update"
+        case .about:    return "About"
         }
     }
 
     var systemImage: String {
         switch self {
-        case .general:     return "gearshape"
-        case .mcp:         return "puzzlepiece.extension"
-        case .briefing:    return "sun.haze"
-        case .privacy:     return "hand.raised"
-        case .diagnostics: return "stethoscope"
-        case .about:       return "info.circle"
+        case .general:  return "gearshape"
+        case .mcp:      return "puzzlepiece.extension"
+        case .briefing: return "sun.haze"
+        case .privacy:  return "hand.raised"
+        case .update:   return "arrow.down.circle"
+        case .about:    return "info.circle"
         }
     }
 }
