@@ -13,9 +13,9 @@
     <key>CFBundleIdentifier</key>
     <string>dev.ncthanhngo.claude-bar</string>
     <key>CFBundleVersion</key>
-    <string>10.46</string>
+    <string>10.47</string>
     <key>CFBundleShortVersionString</key>
-    <string>10.46</string>
+    <string>10.47</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleSignature</key>
@@ -35,7 +35,7 @@
     <key>NSHumanReadableCopyright</key>
     <string>Copyright © 2026 Thanh Ngô. Licensed under MIT.</string>
     <key>CFBundleGetInfoString</key>
-    <string>Claude Bar 10.46 — menu-bar manager for multiple Claude Code accounts</string>
+    <string>Claude Bar 10.47 — menu-bar manager for multiple Claude Code accounts</string>
     <key>CBAuthorName</key>
     <string>Thanh Ngô</string>
     <key>CBAuthorEmail</key>
@@ -49,16 +49,11 @@
     <key>CBReleaseChannel</key>
     <string>Beta</string>
     <key>CBReleaseWhatsNew</key>
-    <string>Full popover layout restructured to match Standard. Auto-swap slider and the token-usage chart are pinned to the bottom regardless of account count; up to three accounts the popover doesn't scroll at all, four or more accounts only scroll the account list. Frame shrank from 440×760 down to 400×716, and a hairline border was added so the popover edge stays crisp on bright wallpapers.
-Tiny popover gained a three-column Day / Week / Month token-usage strip in the previously-empty space below the account list. Uses the same `tokenStats` source as Full's chart so the numbers stay in lock-step.
-Tiny popover threshold slider no longer snaps back when you grab the knob. Both the parent and knob drag gestures now report the cursor position in the same named track coordinate space — the knob's local x ≈ 0 no longer collapses threshold to the left edge.
-Tiny popover account chips now align cleanly down the right edge regardless of digit count. The "5h" / "7d" label slot and the value slot are pinned to fixed widths so "0%" rows no longer slide left relative to "10%" rows.
-Settings window gets the pointing-hand cursor on every Button, Toggle, Picker, Stepper, and Link via a single AppKit cursor tracker installed on the Settings NSWindow — no per-Button decoration needed.</string>
+    <string>Tiny popover height now hugs its content. The visible whitespace strip that used to sit between the last account row and the Day / Week / Month token strip is gone — the account list is now wrapped in a bounded ScrollView whose height is computed exactly from row count × row height + spacing, instead of consuming every remaining pixel via maxHeight: .infinity. rowHeight was also re-measured (38pt vs the previous 46pt over-budget) and inner paddings on the token strip and auto-swap bar were tightened by a couple of points.
+Tiny popover scroll cap is now 4 rows. Past 4 accounts the list scrolls inside its bounded frame; the token strip and auto-swap controls stay anchored at the bottom.
+Empty-account state in Tiny now uses a fixed 90pt slot instead of letting the popover collapse arbitrarily.</string>
     <key>CBReleaseHotfixes</key>
-    <string>Fixed Full popover overflowing into a scroll when more than one account existed.
-Fixed Tiny popover threshold slider snapping back to the left when grabbing the knob.
-Fixed Tiny popover account chips zig-zagging because chip width varied with value digit count.
-Fixed missing pointing-hand cursor on Settings buttons / toggles.</string>
+    <string>Fixed Tiny popover showing ~30-50pt of empty space below the last account row.</string>
     <key>CBReleaseKnownIssues</key>
     <string>None.</string>
     <key>CFBundleDevelopmentRegion</key>

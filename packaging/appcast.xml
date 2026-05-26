@@ -12,6 +12,27 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 10.47 (BETA)</title>
+      <sparkle:version>10.47</sparkle:version>
+      <sparkle:shortVersionString>10.47</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li><strong>Tiny popover height now hugs its content.</strong> The whitespace strip that used to sit between the last account row and the Day / Week / Month token strip is gone — account list is bounded with an exact row-count height, <code>rowHeight</code> tightened to 38pt, inner paddings on the token strip and auto-swap bar trimmed.</li>
+          <li><strong>Tiny popover scroll cap is now 4 rows.</strong> Past 4 accounts the list scrolls inside its bounded frame; the token strip and auto-swap controls stay anchored at the bottom.</li>
+          <li><strong>Empty-account state in Tiny</strong> uses a fixed 90pt slot instead of collapsing arbitrarily.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Tue, 26 May 2026 12:07:04 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v10.47/ClaudeBar.zip"
+        sparkle:version="10.47"
+        sparkle:shortVersionString="10.47"
+        sparkle:edSignature="HpofFrzg0jBz/x2CEBnhjVnaBm8v1iCo6AhQPo+e4ResXaD7IM5FSIbCEw4ZKRgCwuRFVZuRteFUa024hDpsBw=="
+        length="8598291"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 10.46 (BETA)</title>
       <sparkle:version>10.46</sparkle:version>
       <sparkle:shortVersionString>10.46</sparkle:shortVersionString>
