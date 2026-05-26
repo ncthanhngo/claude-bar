@@ -750,21 +750,23 @@ struct LocalMCPSettingsView: View {
         let client = coordinator.client
         gitlabWindow.show(title: "Add GitLab self-host instance", size: NSSize(width: 560, height: 420)) {
             AnyView(
-                GitLabAddSheet(onSubmit: { name, baseURL, note, pat in
-                    Task {
-                        do {
-                            try await client.gitlabAdd(name: name, baseURL: baseURL, note: note, pat: pat)
-                            await coord.refresh()
-                        } catch {
-                            coord.lastError = "Add GitLab instance failed: \(error.localizedDescription)"
-                        }
+                GitLabAddSheet(
+                    onSubmit: { name, baseURL, note, pat in
+                        // Sheet awaits this throw — sheet shows the error
+                        // inline if it propagates, or shows a success
+                        // confirmation before invoking onDismiss below.
+                        try await client.gitlabAdd(name: name, baseURL: baseURL, note: note, pat: pat)
+                        // Refresh BEFORE the sheet flips to "success" so
+                        // the MCP connectors list shows GitLab as
+                        // connected the moment the user looks back at
+                        // the panel.
+                        await coord.refresh()
+                    },
+                    onDismiss: {
                         coord.gitlabSheet = nil
                         window.close()
                     }
-                }, onCancel: {
-                    coord.gitlabSheet = nil
-                    window.close()
-                })
+                )
             )
         }
     }

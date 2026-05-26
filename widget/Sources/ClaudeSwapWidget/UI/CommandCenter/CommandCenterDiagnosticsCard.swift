@@ -35,10 +35,13 @@ struct CommandCenterDiagnosticsCard: View {
         }
         .task { await refreshAll() }
         .sheet(isPresented: $showAddGitLab) {
-            GitLabAddSheet(onSubmit: { name, base, note, pat in
-                Task { try? await client.gitlabAdd(name: name, baseURL: base, note: note, pat: pat); await loadGitLab() }
-                showAddGitLab = false
-            })
+            GitLabAddSheet(
+                onSubmit: { name, base, note, pat in
+                    try await client.gitlabAdd(name: name, baseURL: base, note: note, pat: pat)
+                    await loadGitLab()
+                },
+                onDismiss: { showAddGitLab = false }
+            )
         }
         .sheet(isPresented: $showUnlock) {
             BitwardenUnlockSheet(onUnlock: { pass in
