@@ -270,8 +270,12 @@ final class ClaudeWebUsageFetcher: NSObject, WKNavigationDelegate {
         const t = text.toLowerCase();
         const isWeekly  = /weekly|7\\s*-?\\s*day/.test(t);
         const isSession = /current\\s+session|5\\s*-?\\s*hour/.test(t);
+        // Ambiguous outer wrapper containing both window labels — refuse to
+        // guess. A subsequent progressbar should find a tighter labelling
+        // ancestor; if none does we surface UnavailableBar instead of wrong.
+        if (isSession && isWeekly) return null;
+        if (isSession) return "fiveHour";
         const hasModelQualifier = /\\b(opus|sonnet|haiku)\\b/.test(t);
-        if (isSession && !isWeekly) return "fiveHour";
         if (isWeekly && (t.includes("all models") || !hasModelQualifier)) {
           return "sevenDay";
         }
