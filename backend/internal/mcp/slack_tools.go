@@ -13,7 +13,7 @@ import (
 )
 
 func (g *Gateway) registerSlackTools(srv *server.MCPServer) {
-	addTool(srv, "cb_slack_list_channels",
+	g.addTool(srv, "cb_slack_list_channels",
 		"List Slack channels visible to the active Claude Bar account's Slack token. Read-only.",
 		[]mcpgo.ToolOption{
 			mcpgo.WithString("types", mcpgo.Description("Comma-separated channel types: public_channel, private_channel, mpim, im. Default: public_channel,private_channel.")),
@@ -22,7 +22,7 @@ func (g *Gateway) registerSlackTools(srv *server.MCPServer) {
 		g.slackListChannels,
 	)
 
-	addTool(srv, "cb_slack_search_messages",
+	g.addTool(srv, "cb_slack_search_messages",
 		"Search Slack messages with the given query. Read-only.",
 		[]mcpgo.ToolOption{
 			mcpgo.WithString("query", mcpgo.Required(), mcpgo.Description("Slack search query, same syntax as Slack search.")),
@@ -31,7 +31,7 @@ func (g *Gateway) registerSlackTools(srv *server.MCPServer) {
 		g.slackSearchMessages,
 	)
 
-	addTool(srv, "cb_slack_get_thread",
+	g.addTool(srv, "cb_slack_get_thread",
 		"Get all replies in a Slack thread. Read-only.",
 		[]mcpgo.ToolOption{
 			mcpgo.WithString("channel", mcpgo.Required(), mcpgo.Description("Channel ID, e.g. C0123ABCD.")),
@@ -40,7 +40,7 @@ func (g *Gateway) registerSlackTools(srv *server.MCPServer) {
 		g.slackGetThread,
 	)
 
-	addTool(srv, "cb_slack_get_channel_history",
+	g.addTool(srv, "cb_slack_get_channel_history",
 		"Fetch recent messages from a Slack channel. Read-only.",
 		[]mcpgo.ToolOption{
 			mcpgo.WithString("channel", mcpgo.Required(), mcpgo.Description("Channel ID, e.g. C0123ABCD.")),
@@ -51,7 +51,7 @@ func (g *Gateway) registerSlackTools(srv *server.MCPServer) {
 		g.slackGetChannelHistory,
 	)
 
-	addTool(srv, "cb_slack_list_users",
+	g.addTool(srv, "cb_slack_list_users",
 		"List Slack workspace users so the agent can resolve U0123ABC IDs to names. Read-only.",
 		[]mcpgo.ToolOption{
 			mcpgo.WithNumber("limit", mcpgo.Description("Max users per page (1-200). Default 100.")),
@@ -61,7 +61,7 @@ func (g *Gateway) registerSlackTools(srv *server.MCPServer) {
 		g.slackListUsers,
 	)
 
-	addTool(srv, "cb_slack_get_user",
+	g.addTool(srv, "cb_slack_get_user",
 		"Look up a single Slack user by ID. Read-only.",
 		[]mcpgo.ToolOption{
 			mcpgo.WithString("user", mcpgo.Required(), mcpgo.Description("Slack user ID, e.g. U0123ABCD.")),
@@ -69,7 +69,7 @@ func (g *Gateway) registerSlackTools(srv *server.MCPServer) {
 		g.slackGetUser,
 	)
 
-	addTool(srv, "cb_slack_get_permalink",
+	g.addTool(srv, "cb_slack_get_permalink",
 		"Get a shareable URL for a Slack message. Read-only.",
 		[]mcpgo.ToolOption{
 			mcpgo.WithString("channel", mcpgo.Required(), mcpgo.Description("Channel ID, e.g. C0123ABCD.")),

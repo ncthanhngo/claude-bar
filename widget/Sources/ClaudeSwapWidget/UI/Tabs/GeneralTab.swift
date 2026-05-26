@@ -31,7 +31,7 @@ struct GeneralTab: View {
                     iconColorPicker
                 }
 
-                SettingsGroup("Popover layout", subtitle: "Choose how much information the menu-bar popover shows. Switch takes effect immediately.") {
+                SettingsGroup("Popover layout", subtitle: "Choose how much information the menu-bar popover shows. The popover auto-opens when you pick a layout so you can preview the result.") {
                     Picker("Layout", selection: $settings.popoverLayout) {
                         ForEach(PopoverLayout.allCases) { layout in
                             Text(layout.label).tag(layout)
@@ -39,6 +39,18 @@ struct GeneralTab: View {
                     }
                     .pickerStyle(.segmented)
                     .frame(maxWidth: 360, alignment: .leading)
+                    .onChange(of: settings.popoverLayout) { _, _ in
+                        // Settings lives in its own NSWindow; clicking a
+                        // segment steals key focus from the popover, which
+                        // dismisses on focus loss. Reopen after a short
+                        // delay so the dismissal settles first, otherwise
+                        // performClick would arrive while SwiftUI's
+                        // "popover is shown" flag is still mid-transition
+                        // and the click would silently no-op.
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
+                            MenuBarPopoverToggle.openIfClosed()
+                        }
+                    }
                     Text(settings.popoverLayout.detail)
                         .font(.caption)
                         .foregroundColor(.secondary)

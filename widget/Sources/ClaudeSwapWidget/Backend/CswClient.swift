@@ -320,6 +320,14 @@ actor CswClient {
         _ = try await runRaw(args)
     }
 
+    func mcpToolsList(service: String) async throws -> [MCPToolSummaryDTO] {
+        try await run(["mcp", "tools", "list", "--service", service, "--json"], decode: [MCPToolSummaryDTO].self)
+    }
+
+    func mcpToolsSetEnabled(toolID: String, enabled: Bool) async throws {
+        _ = try await runRaw(["mcp", "tools", "set-enabled", "--tool", toolID, "--enabled", enabled ? "true" : "false"])
+    }
+
     func mcpConnectorSetEnabled(account: Int, service: String, enabled: Bool) async throws {
         var args = ["mcp", "connectors", "set-enabled"]
         if account == 0 {

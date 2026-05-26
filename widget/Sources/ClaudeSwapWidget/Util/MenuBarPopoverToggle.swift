@@ -17,6 +17,24 @@ enum MenuBarPopoverToggle {
         button.performClick(nil)
     }
 
+    /// Open the popover if it's currently hidden. No-op if already visible
+    /// — important when the caller is a Picker `onChange` handler: clicking
+    /// a segment in the standalone Settings window causes the popover to
+    /// dismiss on focus loss, so the handler runs *after* the popover is
+    /// already gone, and we need to bring it back without toggling.
+    /// `performClick` would toggle a still-visible popover off, so we gate
+    /// on the captured popover NSWindow's visibility (same source of truth
+    /// `closeIfOpen` uses).
+    static func openIfClosed() {
+        let alreadyVisible = PopoverWindowRegistry.shared.window?.isVisible == true
+        guard !alreadyVisible else { return }
+        guard let button = findStatusBarButton() else {
+            NSApp.activate(ignoringOtherApps: true)
+            return
+        }
+        button.performClick(nil)
+    }
+
     /// Dismiss the popover if it's currently shown. No-op if already closed.
     /// Used when opening another window (Daily) so the popover collapses back
     /// into the menu bar instead of overlapping the new window.

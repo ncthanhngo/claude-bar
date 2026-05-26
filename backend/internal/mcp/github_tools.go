@@ -26,7 +26,7 @@ func (g *Gateway) registerGitHubTools(srv *server.MCPServer) {
 	prNum := mcpgo.WithNumber("number", mcpgo.Required())
 	perPage := mcpgo.WithNumber("per_page", mcpgo.Description("1–100, default 30."))
 
-	addTool(srv, "cb_github_list_prs", "List PRs.",
+	g.addTool(srv, "cb_github_list_prs", "List PRs.",
 		[]mcpgo.ToolOption{
 			owner, repo,
 			mcpgo.WithString("state", mcpgo.Description("open|closed|all.")),
@@ -36,17 +36,17 @@ func (g *Gateway) registerGitHubTools(srv *server.MCPServer) {
 		g.githubListPRs,
 	)
 
-	addTool(srv, "cb_github_get_pr", "Get a PR.",
+	g.addTool(srv, "cb_github_get_pr", "Get a PR.",
 		[]mcpgo.ToolOption{owner, repo, prNum},
 		g.githubGetPR,
 	)
 
-	addTool(srv, "cb_github_get_pr_diff", "Get PR unified diff.",
+	g.addTool(srv, "cb_github_get_pr_diff", "Get PR unified diff.",
 		[]mcpgo.ToolOption{owner, repo, prNum},
 		g.githubGetPRDiff,
 	)
 
-	addTool(srv, "cb_github_list_issues", "List issues (excludes PRs).",
+	g.addTool(srv, "cb_github_list_issues", "List issues (excludes PRs).",
 		[]mcpgo.ToolOption{
 			owner, repo,
 			mcpgo.WithString("state", mcpgo.Description("open|closed|all.")),
@@ -56,7 +56,7 @@ func (g *Gateway) registerGitHubTools(srv *server.MCPServer) {
 		g.githubListIssues,
 	)
 
-	addTool(srv, "cb_github_search_code", "Search code (GitHub query syntax).",
+	g.addTool(srv, "cb_github_search_code", "Search code (GitHub query syntax).",
 		[]mcpgo.ToolOption{
 			mcpgo.WithString("query", mcpgo.Required()),
 			perPage,
@@ -64,7 +64,7 @@ func (g *Gateway) registerGitHubTools(srv *server.MCPServer) {
 		g.githubSearchCode,
 	)
 
-	addTool(srv, "cb_github_search_issues", "Search issues/PRs (GitHub query syntax).",
+	g.addTool(srv, "cb_github_search_issues", "Search issues/PRs (GitHub query syntax).",
 		[]mcpgo.ToolOption{
 			mcpgo.WithString("query", mcpgo.Required()),
 			mcpgo.WithString("sort", mcpgo.Description("comments|reactions|created|updated.")),
@@ -73,37 +73,37 @@ func (g *Gateway) registerGitHubTools(srv *server.MCPServer) {
 		g.githubSearchIssues,
 	)
 
-	addTool(srv, "cb_github_get_issue", "Get an issue.",
+	g.addTool(srv, "cb_github_get_issue", "Get an issue.",
 		[]mcpgo.ToolOption{owner, repo, prNum},
 		g.githubGetIssue,
 	)
 
-	addTool(srv, "cb_github_list_issue_comments", "List comments on issue/PR.",
+	g.addTool(srv, "cb_github_list_issue_comments", "List comments on issue/PR.",
 		[]mcpgo.ToolOption{owner, repo, prNum, perPage},
 		g.githubListIssueComments,
 	)
 
-	addTool(srv, "cb_github_list_pr_reviews", "List PR reviews (APPROVED/CHANGES_REQUESTED/COMMENTED).",
+	g.addTool(srv, "cb_github_list_pr_reviews", "List PR reviews (APPROVED/CHANGES_REQUESTED/COMMENTED).",
 		[]mcpgo.ToolOption{owner, repo, prNum, perPage},
 		g.githubListPRReviews,
 	)
 
-	addTool(srv, "cb_github_list_pr_review_comments", "List inline PR review comments.",
+	g.addTool(srv, "cb_github_list_pr_review_comments", "List inline PR review comments.",
 		[]mcpgo.ToolOption{owner, repo, prNum, perPage},
 		g.githubListPRReviewComments,
 	)
 
-	addTool(srv, "cb_github_list_pr_files", "List PR files with patches.",
+	g.addTool(srv, "cb_github_list_pr_files", "List PR files with patches.",
 		[]mcpgo.ToolOption{owner, repo, prNum, perPage},
 		g.githubListPRFiles,
 	)
 
-	addTool(srv, "cb_github_list_pr_commits", "List PR commits.",
+	g.addTool(srv, "cb_github_list_pr_commits", "List PR commits.",
 		[]mcpgo.ToolOption{owner, repo, prNum, perPage},
 		g.githubListPRCommits,
 	)
 
-	addTool(srv, "cb_github_get_file_content", "Read a file at ref.",
+	g.addTool(srv, "cb_github_get_file_content", "Read a file at ref.",
 		[]mcpgo.ToolOption{
 			owner, repo,
 			mcpgo.WithString("path", mcpgo.Required()),
@@ -112,7 +112,7 @@ func (g *Gateway) registerGitHubTools(srv *server.MCPServer) {
 		g.githubGetFileContent,
 	)
 
-	addTool(srv, "cb_github_list_commits", "List commits.",
+	g.addTool(srv, "cb_github_list_commits", "List commits.",
 		[]mcpgo.ToolOption{
 			owner, repo,
 			mcpgo.WithString("sha", mcpgo.Description("Branch/tag/SHA to start from.")),
@@ -123,7 +123,7 @@ func (g *Gateway) registerGitHubTools(srv *server.MCPServer) {
 		g.githubListCommits,
 	)
 
-	addTool(srv, "cb_github_get_commit", "Get a commit with patches.",
+	g.addTool(srv, "cb_github_get_commit", "Get a commit with patches.",
 		[]mcpgo.ToolOption{
 			owner, repo,
 			mcpgo.WithString("ref", mcpgo.Required(), mcpgo.Description("SHA/branch/tag.")),
@@ -131,7 +131,7 @@ func (g *Gateway) registerGitHubTools(srv *server.MCPServer) {
 		g.githubGetCommit,
 	)
 
-	addTool(srv, "cb_github_list_branches", "List branches.",
+	g.addTool(srv, "cb_github_list_branches", "List branches.",
 		[]mcpgo.ToolOption{
 			owner, repo,
 			mcpgo.WithBoolean("protected", mcpgo.Description("Only protected.")),
@@ -140,7 +140,7 @@ func (g *Gateway) registerGitHubTools(srv *server.MCPServer) {
 		g.githubListBranches,
 	)
 
-	addTool(srv, "cb_github_list_check_runs", "List CI check runs at ref.",
+	g.addTool(srv, "cb_github_list_check_runs", "List CI check runs at ref.",
 		[]mcpgo.ToolOption{
 			owner, repo,
 			mcpgo.WithString("ref", mcpgo.Required(), mcpgo.Description("SHA/branch/tag.")),
@@ -150,7 +150,7 @@ func (g *Gateway) registerGitHubTools(srv *server.MCPServer) {
 		g.githubListCheckRuns,
 	)
 
-	addTool(srv, "cb_github_list_workflow_runs", "List Actions workflow runs.",
+	g.addTool(srv, "cb_github_list_workflow_runs", "List Actions workflow runs.",
 		[]mcpgo.ToolOption{
 			owner, repo,
 			mcpgo.WithString("branch"),
