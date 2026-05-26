@@ -12,6 +12,26 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 10.42 (BETA)</title>
+      <sparkle:version>10.42</sparkle:version>
+      <sparkle:shortVersionString>10.42</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li><strong>Standard and Tiny popover layouts now ship full auto-swap controls.</strong> Standard's auto-swap card swaps the read-only threshold display for a live toggle + draggable slider with the same traffic-light current marker as Full. Tiny gains a compact auto-swap strip at the bottom — toggle + slider + status (on / off / paused) — so the smallest layout can still drive auto-swap without opening Settings.</li>
+          <li><strong>Settings → Update tab</strong> now hosts the legacy Diagnostics groups (iCloud sync wizard, schema verify, credential refresh, web-usage check, logs) at the bottom under an <em>Advanced</em> divider — moved from the retired Diagnostics tab so nothing was lost in the consolidation.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Tue, 26 May 2026 10:01:15 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v10.42/ClaudeBar.zip"
+        sparkle:version="10.42"
+        sparkle:shortVersionString="10.42"
+        sparkle:edSignature="MHaGoP05Uai9e4vTZiA9Qe+oVQ3k3MtcI7w7OhACVJ544Nrpcxmg1w5hMiOyWKRE312ewig1jWCL0AJcifDdBw=="
+        length="8528664"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 10.41 (BETA)</title>
       <sparkle:version>10.41</sparkle:version>
       <sparkle:shortVersionString>10.41</sparkle:shortVersionString>

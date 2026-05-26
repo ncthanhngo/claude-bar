@@ -13,9 +13,9 @@
     <key>CFBundleIdentifier</key>
     <string>dev.ncthanhngo.claude-bar</string>
     <key>CFBundleVersion</key>
-    <string>10.41</string>
+    <string>10.42</string>
     <key>CFBundleShortVersionString</key>
-    <string>10.41</string>
+    <string>10.42</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleSignature</key>
@@ -35,7 +35,7 @@
     <key>NSHumanReadableCopyright</key>
     <string>Copyright © 2026 Thanh Ngô. Licensed under MIT.</string>
     <key>CFBundleGetInfoString</key>
-    <string>Claude Bar 10.41 — menu-bar manager for multiple Claude Code accounts</string>
+    <string>Claude Bar 10.42 — menu-bar manager for multiple Claude Code accounts</string>
     <key>CBAuthorName</key>
     <string>Thanh Ngô</string>
     <key>CBAuthorEmail</key>
@@ -49,8 +49,8 @@
     <key>CBReleaseChannel</key>
     <string>Beta</string>
     <key>CBReleaseWhatsNew</key>
-    <string>New Settings → Update tab consolidates everything related to keeping the app current. The Auto-update toggle (moved from General → Updates) plus Check for updates… button + release notes + version info (moved from About) now all live in one focused panel, with the installed-build version, channel badge and build date right above the changelog.
-About tab trims down to a one-line breadcrumb pointing at the new Update tab, plus the static Author / Tech Stack / Welcome flow / Legal sections.</string>
+    <string>Standard and Tiny popover layouts now ship full auto-swap controls. Standard's auto-swap card swaps the read-only threshold display for a live toggle + draggable slider with the same traffic-light current marker as Full. Tiny gains a compact auto-swap strip at the bottom — toggle + slider + status (on / off / paused) — so the smallest layout can still drive auto-swap without opening Settings.
+Settings → Update tab now hosts the legacy Diagnostics groups (iCloud sync wizard, schema verify, credential refresh, web-usage check, logs) at the bottom under an "Advanced" divider — moved from the retired Diagnostics tab so nothing was lost in the consolidation.</string>
     <key>CBReleaseHotfixes</key>
     <string>None.</string>
     <key>CBReleaseKnownIssues</key>
