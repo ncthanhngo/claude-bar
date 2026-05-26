@@ -12,6 +12,27 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 11.8 (BETA)</title>
+      <sparkle:version>11.8</sparkle:version>
+      <sparkle:shortVersionString>11.8</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <p>Right-click menu everywhere + accurate web-usage percentages.</p>
+        <ul>
+          <li><strong>Right-click any account in the Standard or Tiny popover</strong> for the full action menu — Connect / Open / Refresh / Disconnect web usage, Rename, Switch, Force switch, Remove. Previously only reachable from the Full layout's row context menu and the ellipsis button.</li>
+          <li><strong>Web-linked accounts now report the same percentage shown on claude.ai.</strong> The scraper used to read a raw <code>aria-valuenow</code> value that did not match the displayed "X% used" text (we observed 14% for a bar the page rendered as 7%, and 52% for 59%); it now parses the visible percentage from the bar's labelling cell and only falls back to a normalised <code>aria-valuenow / aria-valuemax</code> reading if no text label is present.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Tue, 26 May 2026 21:29:56 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v11.8/ClaudeBar.zip"
+        sparkle:version="11.8"
+        sparkle:shortVersionString="11.8"
+        sparkle:edSignature="AA6Zv5q7jCVWHTKRBwy57HwxNWHkYSgIg+yVKPxo9I+2rCZ5c252OjAlxdrWVr3Dx1JOc1rjSXehSCkuafAuAA=="
+        length="7780296"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 11.7 (BETA)</title>
       <sparkle:version>11.7</sparkle:version>
       <sparkle:shortVersionString>11.7</sparkle:shortVersionString>
