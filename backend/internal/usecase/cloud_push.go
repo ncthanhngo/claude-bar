@@ -113,23 +113,32 @@ func (s *Service) buildLocalBundle(ctx context.Context, passphrase string) (*clo
 		Version:  3,
 		PushedAt: now,
 	}
-	// Metadata-only push. The bundle intentionally omits CredentialBlob,
-	// per-account MCPConnectors, and SharedMCPConnectors — those are
-	// service tokens the user explicitly opted out of syncing. What
-	// crosses iCloud is the account *roster* (email, nickname, org) so a
-	// new Mac can see "these are the accounts that exist" and prompt the
-	// user to run `claude /login` locally for each one. `passphrase` is
-	// still required because the bundle ciphertext stays AES-GCM-sealed —
-	// even an empty-credential bundle should not leak the email list to
-	// anyone who can read the iCloud Drive file.
-	_ = passphrase
+	// Account roster + MCP connector tokens are pushed; Claude Code OAuth
+	// credentials (CredentialBlob) are intentionally NOT pushed. The user
+	// opted out of credential sync, which is specifically the per-account
+	// Claude OAuth that authenticates `claude` CLI sessions. MCP connector
+	// secrets (Slack / ClickUp / Google / GitLab) are convenience tokens
+	// for third-party services — reconnecting them on every new Mac is
+	// painful enough that they are kept in the synced bundle.
+
+	sharedConnectors, err := s.bundleMCPConnectors(ctx, 0, reg.SharedMCPConnectors, passphrase)
+	if err != nil {
+		return nil, err
+	}
+	bundle.SharedMCPConnectors = sharedConnectors
+
 	for _, acc := range reg.Accounts {
+		connectors, err := s.bundleMCPConnectors(ctx, acc.Number, acc.MCPConnectors, passphrase)
+		if err != nil {
+			return nil, err
+		}
 		bundle.Accounts = append(bundle.Accounts, cloudsync.BundleAccount{
 			Number:           acc.Number,
 			Email:            acc.Email,
 			Nickname:         acc.Nickname,
 			OrganizationName: acc.OrganizationName,
 			OrganizationUUID: acc.OrganizationUUID,
+			MCPConnectors:    connectors,
 			UpdatedAt:        now.Format(time.RFC3339),
 			UpdatedAtTime:    now,
 			CreatedAt:        acc.CreatedAt,
@@ -165,12 +174,27 @@ func (s *Service) readAccountBlobForPush(ctx context.Context, reg *domain.Regist
 	return string(bak), nil
 }
 
-// mergeRemoteIntoBundle keeps remote-only records and records with a strictly
-// newer UpdatedAtTime than the local bundle entry. Local always wins on ties
-// so a re-push without local changes is idempotent.
+// mergeRemoteIntoBundle merges the remote bundle into the local one before
+// push so simultaneous edits from multiple Macs don't clobber each other.
 //
-// MCP payloads remain in their stored form (already double-encrypted on the
-// remote side) — we do not need to re-encrypt them.
+// Merge strategy is designed to be additive — losing a token is more painful
+// than carrying a stale one for a few minutes until the user notices:
+//
+//   * Account roster: remote-only accounts are preserved. For accounts that
+//     exist on both sides, the row with the newer UpdatedAtTime wins for the
+//     scalar metadata (nickname / org). Local wins on tie so a no-op push is
+//     idempotent.
+//   * Per-account MCP connectors: UNION by service. If Mac A connected Slack
+//     on account#1 and Mac B connected ClickUp on the same account, both
+//     tokens survive — the older row no longer wholesale-overwrites the
+//     newer one. On per-service collisions the newer ConnectedAt wins.
+//   * Shared MCP connectors: same UNION-by-service merge. The pre-merge
+//     behaviour ("take remote only if local is empty") silently dropped
+//     remote connectors any time the local Mac had ever connected one,
+//     which made shared connector setup on multiple Macs unreliable.
+//
+// MCP payloads stay in their stored (already double-encrypted) form — we do
+// not need to re-encrypt them when shuffling rows around.
 func mergeRemoteIntoBundle(local *cloudsync.CloudBundle, remoteCiphertext []byte, passphrase string) {
 	if len(remoteCiphertext) == 0 {
 		return
@@ -194,17 +218,51 @@ func mergeRemoteIntoBundle(local *cloudsync.CloudBundle, remoteCiphertext []byte
 			local.Accounts = append(local.Accounts, ra)
 			continue
 		}
-		// Same identity in both. Newer UpdatedAtTime wins. Local wins on tie.
-		if ra.UpdatedAtTime.After(local.Accounts[idx].UpdatedAtTime) {
-			local.Accounts[idx] = ra
+		la := local.Accounts[idx]
+		var merged cloudsync.BundleAccount
+		if ra.UpdatedAtTime.After(la.UpdatedAtTime) {
+			merged = ra
+		} else {
+			merged = la
 		}
+		// Connector union is independent of which side won the metadata
+		// race — losing a freshly-connected token is the worst possible
+		// merge outcome here.
+		merged.MCPConnectors = unionConnectors(la.MCPConnectors, ra.MCPConnectors)
+		local.Accounts[idx] = merged
 	}
 
-	// Shared MCP: prefer local. If local has zero connectors and remote has some,
-	// preserve remote (another device may have just connected one).
-	if len(local.SharedMCPConnectors) == 0 && len(remote.SharedMCPConnectors) > 0 {
-		local.SharedMCPConnectors = remote.SharedMCPConnectors
+	local.SharedMCPConnectors = unionConnectors(local.SharedMCPConnectors, remote.SharedMCPConnectors)
+}
+
+// unionConnectors keeps the freshest connector per service across two
+// bundle rows. Ordering follows domain.AllMCPServices so the result has a
+// stable, type-defined sequence rather than map-iteration roulette.
+func unionConnectors(a, b []cloudsync.BundleMCPConnector) []cloudsync.BundleMCPConnector {
+	if len(a) == 0 && len(b) == 0 {
+		return nil
 	}
+	bySvc := make(map[domain.MCPService]cloudsync.BundleMCPConnector, len(a)+len(b))
+	for _, c := range a {
+		bySvc[c.Service] = c
+	}
+	for _, c := range b {
+		existing, ok := bySvc[c.Service]
+		if !ok {
+			bySvc[c.Service] = c
+			continue
+		}
+		if c.ConnectedAt.After(existing.ConnectedAt) {
+			bySvc[c.Service] = c
+		}
+	}
+	out := make([]cloudsync.BundleMCPConnector, 0, len(bySvc))
+	for _, svc := range domain.AllMCPServices {
+		if c, ok := bySvc[svc]; ok {
+			out = append(out, c)
+		}
+	}
+	return out
 }
 
 // accountKey identifies an account across devices. Org UUID + email is the

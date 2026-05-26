@@ -277,14 +277,20 @@ func (s *Service) applyBundle(ctx context.Context, bundle *cloudsync.CloudBundle
 	if err != nil {
 		return fmt.Errorf("load registry: %w", err)
 	}
-	// Metadata-only restore. Cross-version safety: if an older Mac on the
-	// same iCloud bundle still pushes CredentialBlob / MCPConnectors /
-	// SharedMCPConnectors, we deliberately drop them on this side — the
-	// user opted out of credential sync, and silently writing tokens
-	// pushed from a peer that still does sync them would defeat the
-	// switch. Only the account roster (email, nickname, org, createdAt)
-	// is reconstructed locally.
-	_ = passphrase
+	// Restore account roster + MCP connector tokens. Claude Code OAuth
+	// CredentialBlob is intentionally NOT restored — the user opted out
+	// of credential sync, so even if an older Mac on the same iCloud
+	// bundle still pushes credentials, we drop them on this side. MCP
+	// connector restore stays so Slack / ClickUp / Google / GitLab don't
+	// have to be re-paired on every new Mac.
+	restoreMCP := bundle.Version >= 2
+	if restoreMCP {
+		shared, err := s.restoreMCPConnectors(ctx, 0, bundle.SharedMCPConnectors, passphrase)
+		if err != nil {
+			return err
+		}
+		reg.SharedMCPConnectors = shared
+	}
 
 	for _, ba := range bundle.Accounts {
 		if selectedIdentities != nil && !selectedIdentities[bundleIdentityKey(ba)] {
@@ -301,6 +307,13 @@ func (s *Service) applyBundle(ctx context.Context, bundle *cloudsync.CloudBundle
 		acc.Nickname = ba.Nickname
 		acc.OrganizationName = ba.OrganizationName
 		acc.OrganizationUUID = ba.OrganizationUUID
+		if restoreMCP {
+			connectors, err := s.restoreMCPConnectors(ctx, accountNum, ba.MCPConnectors, passphrase)
+			if err != nil {
+				return err
+			}
+			acc.MCPConnectors = connectors
+		}
 		if acc.CreatedAt.IsZero() {
 			if !ba.CreatedAt.IsZero() {
 				acc.CreatedAt = ba.CreatedAt.UTC()
