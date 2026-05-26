@@ -22,20 +22,18 @@ struct MediumPopoverView: View {
     @ObservedObject private var settings = AppSettings.shared
 
     private static let popoverWidth: CGFloat = 300
-    // Empirically-measured row height for one MediumAccountRow: avatar
-    // 28 + name line ~16 + 2 stacked usage rows (5h + 7d) ~36 + 12pt
-    // vertical padding ≈ 78pt. The old 66 underestimated this since
-    // the rewrite that replaced twin 5pt bars with full labelled "X%"
-    // rows — popovers with 3 accounts ended up scrolling because the
-    // computed height was too small.
-    private static let rowHeight: CGFloat = 78
-    // The non-scrolling shell — header + accounts section title +
-    // auto-swap card + token card + paddings. Re-measured against the
-    // current rendered layout: header 36, accounts header 24, two
-    // section titles 22 × 2, auto-swap card 132, token card 82,
-    // outer paddings 18 = ~336pt. Used to cap the popover frame so
-    // overflow ONLY hits the account list, never the bottom cards.
-    private static let shellHeight: CGFloat = 336
+    // Row content measures: VStack with name line (~16) + two stacked
+    // usage rows (~14 each + 4 spacing) ≈ 48; outer padding 6×2 = 12.
+    // Total ≈ 60. We keep 62 for a small safety buffer; the old 78pt
+    // budget left a visible 16pt gap below the last visible row.
+    private static let rowHeight: CGFloat = 62
+    // Shell = header (36) + divider (1) + accounts header (22) +
+    // divider (1) + auto-swap section title (22) + MediumAutoSwapCard
+    // (~134) + Day/Week/Month strip (~46) + outer padding (8) = ~270.
+    // Was 336 — over-budget by ~65pt because the old layout had a
+    // full Token-usage card with section title + chrome; this release
+    // collapses it to the same Day/Week/Month strip Tiny uses.
+    private static let shellHeight: CGFloat = 270
     /// The most accounts shown at full row height. Anything past this
     /// scrolls inside the account list — the auto-swap + token cards
     /// below stay anchored regardless. Matches the user's request:
@@ -118,19 +116,23 @@ struct MediumPopoverView: View {
         }
     }
 
-    /// Always-visible footer with the Auto-swap and Token-usage cards.
-    /// Lives outside any ScrollView so users can drag the threshold
-    /// slider and read token totals even when the account list above is
-    /// scrolling. Padding mirrors the previous mainBody so spacing
-    /// across both halves looks unified.
+    /// Always-visible footer. Auto-swap card on top (slider + KPI),
+    /// then a divider, then the Tiny-style Day / Week / Month token
+    /// strip — the previous boxed token card was nearly as tall as the
+    /// auto-swap controls and added 80+pt of redundant chrome with
+    /// "Today" / "7 days" / "Month" labels duplicating their own
+    /// section title. The strip carries those labels inline so the
+    /// title row goes away entirely.
     private var bottomFixedSection: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            sectionTitle("Auto-swap").padding(.top, 6)
+        VStack(alignment: .leading, spacing: 4) {
+            sectionTitle("Auto-swap").padding(.top, 4)
             MediumAutoSwapCard()
-            sectionTitle("Token usage").padding(.top, 6)
-            MediumTokenUsageCard()
+            Divider().opacity(0.4).padding(.top, 4)
+            MediumTokenStrip()
+                .padding(.horizontal, 14)
+                .padding(.vertical, 4)
         }
-        .padding(.bottom, 8)
+        .padding(.bottom, 6)
     }
 
     private var accountsHeader: some View {
@@ -347,77 +349,67 @@ private struct MediumAutoSwapCard: View {
     }
 }
 
-// MARK: - Token usage card
+// MARK: - Token usage strip
 
-/// Today total · cost on the header line, then a 2-column KPI for 7d /
-/// month. Pulls from `store.tokenStats` which the Standard chart also
-/// uses, so the numbers stay in lock-step.
-private struct MediumTokenUsageCard: View {
+/// Compact three-column Day / Week / Month token-usage strip — same
+/// design Tiny uses so the two layouts read identically when the user
+/// switches between them. Replaces the older boxed `MediumTokenUsageCard`
+/// (Today + cost + 7d + Month grid) which doubled the height for what is
+/// effectively three KPI numbers. Cost column was dropped — users who
+/// need cost open the Full layout's token chart with its rate-table.
+private struct MediumTokenStrip: View {
     @EnvironmentObject var store: AppStore
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 6) {
-                Text("Today")
-                    .font(.system(size: 10))
-                    .foregroundColor(.secondary)
-                Text(headlineText)
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundColor(.primary)
-                    .lineLimit(1)
-                Spacer()
-            }
-            HStack(spacing: 10) {
-                kpi("7 days", value: weekText)
-                Divider().frame(height: 26)
-                kpi("Month", value: monthText)
-            }
+        HStack(spacing: 0) {
+            column("Day", value: dayText)
+            Divider().frame(height: 24).opacity(0.4)
+            column("Week", value: weekText)
+            Divider().frame(height: 24).opacity(0.4)
+            column("Month", value: monthText)
         }
-        .padding(10)
-        .frame(maxWidth: .infinity)
-        .background(Color.primary.opacity(0.03))
-        .clipShape(RoundedRectangle(cornerRadius: 7))
-        .padding(.horizontal, 6)
     }
 
-    private func kpi(_ label: String, value: String) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(label).font(.system(size: 9)).foregroundColor(.secondary)
+    private func column(_ label: String, value: String) -> some View {
+        VStack(spacing: 2) {
+            Text(label)
+                .font(.system(size: 9, weight: .medium))
+                .foregroundColor(.secondary)
+                .textCase(.uppercase)
+                .tracking(0.4)
             Text(value)
-                .font(.system(size: 12, weight: .semibold))
+                .font(.system(size: 13, weight: .semibold))
+                .monospacedDigit()
                 .foregroundColor(.primary)
                 .lineLimit(1)
-                .monospacedDigit()
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity)
     }
 
-    private var headlineText: String {
+    private var dayText: String {
         guard let s = store.tokenStats else { return "—" }
-        let tokens = Self.compactTokens(s.today.totalTokens)
-        let cost = String(format: "$%.2f", s.today.estimatedCostUsd)
-        return "\(tokens) · \(cost)"
+        return compactTokens(s.today.totalTokens)
     }
 
     private var weekText: String {
         guard let s = store.tokenStats else { return "—" }
-        return Self.compactTokens(s.thisWeek.totalTokens)
+        return compactTokens(s.thisWeek.totalTokens)
     }
 
     private var monthText: String {
         guard let s = store.tokenStats else { return "—" }
-        return Self.compactTokens(s.thisMonth.totalTokens)
+        return compactTokens(s.thisMonth.totalTokens)
     }
 
-    /// 14_300_000 → "14.3M". The mock uses this same compact form so the
-    /// popover stays readable at 293pt width even when totals balloon.
-    static func compactTokens(_ n: Int64) -> String {
+    /// 14_300_000 → "14.3M". Same helper Tiny uses; kept local here so
+    /// the two layouts don't share an arbitrary cross-file dependency.
+    private func compactTokens(_ n: Int64) -> String {
         let v = Double(n)
         switch v {
-        case ..<1_000:          return "\(n)"
-        case ..<1_000_000:      return String(format: "%.1fK", v / 1_000)
-        case ..<1_000_000_000:  return String(format: "%.1fM", v / 1_000_000)
-        default:                return String(format: "%.2fB", v / 1_000_000_000)
+        case ..<1_000:         return "\(n)"
+        case ..<1_000_000:     return String(format: "%.1fK", v / 1_000)
+        case ..<1_000_000_000: return String(format: "%.1fM", v / 1_000_000)
+        default:               return String(format: "%.2fB", v / 1_000_000_000)
         }
     }
 }
