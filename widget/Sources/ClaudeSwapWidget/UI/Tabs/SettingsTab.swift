@@ -210,7 +210,6 @@ struct SettingsTab: View {
         case .general:     GeneralTab()
         case .accounts:    AccountsTab()
         case .ide:         IDEIntegrationTab()
-        case .briefing:    BriefingTab()
         case .mcp:         MCPTab()
         case .iCloudSync:  DiagnosticsTab(mode: .iCloud)
         case .diagnostics: DiagnosticsTab(mode: .diagnostics)
@@ -222,7 +221,7 @@ struct SettingsTab: View {
 }
 
 enum SettingsSubTab: String, CaseIterable, Identifiable {
-    case general, accounts, ide, briefing, mcp, iCloudSync, diagnostics, privacy, update, about
+    case general, accounts, ide, mcp, iCloudSync, diagnostics, privacy, update, about
 
     var id: String { rawValue }
 
@@ -230,7 +229,7 @@ enum SettingsSubTab: String, CaseIterable, Identifiable {
     static let appGroup: [SettingsSubTab] = [.general, .accounts]
     /// Opt-in workflows that wire Claude Bar into the rest of the user's
     /// toolchain — each has enough surface area to deserve its own tab.
-    static let featuresGroup: [SettingsSubTab] = [.ide, .briefing, .mcp]
+    static let featuresGroup: [SettingsSubTab] = [.ide, .mcp]
     /// Anything that backs up, restores, or inspects state.
     static let dataGroup: [SettingsSubTab] = [.iCloudSync, .diagnostics]
     /// Read-mostly screens.
@@ -241,7 +240,6 @@ enum SettingsSubTab: String, CaseIterable, Identifiable {
         case .general:     return "General"
         case .accounts:    return "Accounts"
         case .ide:         return "IDE Integration"
-        case .briefing:    return "Briefing"
         case .mcp:         return "Local MCP"
         case .iCloudSync:  return "iCloud Sync"
         case .diagnostics: return "Diagnostics"
@@ -256,7 +254,6 @@ enum SettingsSubTab: String, CaseIterable, Identifiable {
         case .general:     return "gearshape.fill"
         case .accounts:    return "person.2.fill"
         case .ide:         return "macwindow.on.rectangle"
-        case .briefing:    return "sun.haze.fill"
         case .mcp:         return "puzzlepiece.extension.fill"
         case .iCloudSync:  return "icloud.fill"
         case .diagnostics: return "stethoscope"
@@ -274,7 +271,6 @@ enum SettingsSubTab: String, CaseIterable, Identifiable {
         case .general:     return .gray
         case .accounts:    return .blue
         case .ide:         return .purple
-        case .briefing:    return .orange
         case .mcp:         return .teal
         case .iCloudSync:  return .cyan
         case .diagnostics: return .red

@@ -71,8 +71,6 @@ struct DiagnosticsTab: View {
                     iCloudGroup
                     bundleFileGroup
                 case .diagnostics:
-                    CommandCenterDiagnosticsCard()
-                    SchedulerSettingsCard()
                     verifyGroup
                     credentialRefreshGroup
                     webUsageGroup

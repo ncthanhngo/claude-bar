@@ -29,9 +29,7 @@ struct ClaudeSwapWidgetApp: App {
     @StateObject private var webFallback = WebFallbackCoordinator()
     @StateObject private var cloudSync = CloudSyncCoordinator(client: CswClient())
     @StateObject private var localMCP = LocalMCPCoordinator(client: CswClient())
-    @StateObject private var briefingCoord = BriefingCoordinator(client: CswClient())
     @StateObject private var chatStore = ChatStore()
-    @StateObject private var newsCoord = NewsFeedCoordinator()
     @StateObject private var prefsCloudSync = PreferencesCloudSync.shared
     @StateObject private var updateController = UpdateController()
     @StateObject private var gateCoord = GateCoordinator()
@@ -57,18 +55,6 @@ struct ClaudeSwapWidgetApp: App {
         let settingsRef = AppSettings.shared
         AppDelegate.onLaunchCompleted = {
             Task { @MainActor in
-                // Hotkey registration MUST run at launch, not from the
-                // popover's `.task` — that closure only fires the first time
-                // the popover opens, which creates a chicken-and-egg: ⌥Z is
-                // meant to OPEN the popover, so without launch-time
-                // registration it never works on a cold-launched session.
-                // ⌥X resolves the briefing coordinator dynamically via
-                // BriefingCoordinator.shared (set when the view first
-                // start()s) so it always targets the SwiftUI-owned
-                // instance — capturing the @StateObject in App.init()
-                // returns a transient instance the view tree never sees.
-                Self.registerBriefingHotkeys(settings: settingsRef)
-
                 // Give store.start() (kicked off from the popover's .task)
                 // a moment to fetch the snapshot. If the popover never opens,
                 // snapshot stays nil — but `accounts.isEmpty` is still
@@ -82,30 +68,7 @@ struct ClaudeSwapWidgetApp: App {
                 )
             }
         }
-    }
-
-    /// Wire the two global Carbon hotkeys: ⌥Z toggles the menu-bar popover,
-    /// ⌥X toggles the Daily Briefing window. Called from
-    /// `AppDelegate.applicationDidFinishLaunching` so it runs once at
-    /// launch — independent of whether the popover has ever rendered.
-    @MainActor
-    static func registerBriefingHotkeys(settings: AppSettings) {
-        HotkeyRegistry.shared.register(
-            name: BriefingHotkeySlot.openApp,
-            keyCode: UInt32(settings.briefingHotkeyOpenAppKeyCode),
-            modifiers: UInt32(settings.briefingHotkeyOpenAppModifiers)
-        ) {
-            MenuBarPopoverToggle.toggle()
-        }
-        HotkeyRegistry.shared.register(
-            name: BriefingHotkeySlot.openBriefing,
-            keyCode: UInt32(settings.briefingHotkeyOpenBriefingKeyCode),
-            modifiers: UInt32(settings.briefingHotkeyOpenBriefingModifiers)
-        ) {
-            // Resolve at call-time so the live SwiftUI-owned instance is hit,
-            // not whatever transient instance existed at registration.
-            BriefingCoordinator.shared?.toggle()
-        }
+        _ = settingsRef
     }
 
     /// Keep the configured reload shortcut in sync with each VSCode-family
@@ -158,21 +121,9 @@ struct ClaudeSwapWidgetApp: App {
                 .environmentObject(verifyCoordinator)
                 .environmentObject(webFallback)
                 .environmentObject(cloudSync)
-                .environmentObject(briefingCoord)
                 .environmentObject(localMCP)
                 .environmentObject(updateController)
                 .environmentObject(gateCoord)
-                // Destructive write-gate modal. `isPresented` binding is
-                // settable both ways — the previous `set: { _ in }` no-op
-                // left SwiftUI thinking a sheet was "in-flight" forever,
-                // which kept the popover modal-locked and broke the MCP
-                // tab's Connect sheet auto-dismiss.
-                .sheet(isPresented: Binding(
-                    get: { gateCoord.pending?.risk == .destructive },
-                    set: { isOpen in if !isOpen { gateCoord.cancel() } }
-                )) {
-                    ConfirmGateModal(gate: gateCoord)
-                }
                 .task {
                     gateCoord.start()
                     loginCoordinator.attach(store: store)
@@ -180,15 +131,7 @@ struct ClaudeSwapWidgetApp: App {
                     webFallback.attach(store: store)
                     store.cloudSync = cloudSync
                     store.start()
-                    briefingCoord.start()
                     chatStore.bind(to: store)
-                    newsCoord.start()
-                    BriefingWindowController.shared.attach(
-                        coordinator: briefingCoord,
-                        store: store,
-                        chatStore: chatStore,
-                        newsCoord: newsCoord
-                    )
                     // Wire environment for the standalone Settings window so
                     // its SwiftUI content sees the same coordinators the old
                     // in-popover SettingsTab received via the MenuBarExtra
@@ -198,7 +141,6 @@ struct ClaudeSwapWidgetApp: App {
                     let verifyBind = verifyCoordinator
                     let webBind = webFallback
                     let cloudBind = cloudSync
-                    let briefBind = briefingCoord
                     let mcpBind = localMCP
                     let updateBind = updateController
                     let gateBind = gateCoord
@@ -210,7 +152,6 @@ struct ClaudeSwapWidgetApp: App {
                                 .environmentObject(verifyBind)
                                 .environmentObject(webBind)
                                 .environmentObject(cloudBind)
-                                .environmentObject(briefBind)
                                 .environmentObject(mcpBind)
                                 .environmentObject(updateBind)
                                 .environmentObject(gateBind)
