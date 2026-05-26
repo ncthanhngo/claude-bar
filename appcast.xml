@@ -12,6 +12,27 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 11.1 (BETA)</title>
+      <sparkle:version>11.1</sparkle:version>
+      <sparkle:shortVersionString>11.1</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li><strong>iCloud Sync now keeps Claude Code OAuth credentials local.</strong> Account roster, MCP connector tokens (Slack / ClickUp / Google / GitLab), and claude.ai web cookies still roam between Macs — but each new Mac runs its own <code>claude /login</code> per account. A stolen iCloud bundle can never authenticate as you.</li>
+          <li><strong>Multi-Mac merge is additive.</strong> Connecting Slack on Mac A and ClickUp on Mac B no longer drops one of the tokens when their pushes interleave; both connectors survive. Shared connectors merge the same way.</li>
+          <li><strong>Removed the Daily Briefing feature entirely.</strong> Settings → Briefing tab, the standalone Briefing window, Daily Plan / Command modes, the news-feed scheduler, and the Carbon ⌥X hotkey are gone. Daily window is chat-only now.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Tue, 26 May 2026 17:31:11 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v11.1/ClaudeBar.zip"
+        sparkle:version="11.1"
+        sparkle:shortVersionString="11.1"
+        sparkle:edSignature="8BSJOrTyHXqjqDTCG1uzdNPvjCPeeUMP85/vPhzWFOYGlvWXwpNd37gCBW06V4xM5BrAu3LClE3TOTJFA2WvBQ=="
+        length="7871945"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 11</title>
       <sparkle:version>11</sparkle:version>
       <sparkle:shortVersionString>11</sparkle:shortVersionString>
