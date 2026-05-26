@@ -3,6 +3,8 @@ package usecase
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
 	"sort"
 	"time"
 
@@ -251,9 +253,26 @@ func (s *Service) ListMCPTools(ctx context.Context, service domain.MCPService) (
 // and caches the result. Building the gateway + serialising tools/list
 // is cheap (~tens of ms) but doing it on every Settings open would be
 // wasteful — schemas don't change between Sparkle builds.
+//
+// The measurement gateway is wired with stub stores for GitLab and
+// Bitwarden so those tools register and contribute their schema bytes
+// to the catalog. Production `mcp serve` wires the real instances
+// (`gw.GitLabInstances`, `gw.BWSession`) from cmd_mcp.go; the early
+// `if g.GitLabInstances == nil { return }` guard inside
+// `registerGitLabTools` would otherwise skip the whole connector when
+// measuring, leaving the widget's tool-cost column showing 0 across
+// every GitLab row.
 func (s *Service) mcpToolCosts() map[string]int {
 	s.mcpToolCostsOnce.Do(func() {
 		gw := mcp.New(s.Registry, s.MCPSecrets, "internal")
+		// Throw-away store paths under the OS temp dir — measurement
+		// only reads `List` (which returns an empty slice on a missing
+		// file) and never writes. The constructor is non-nil-safe so
+		// `registerGitLabTools` walks past its nil-check.
+		gw.GitLabInstances = mcp.NewGitLabInstanceStore(
+			filepath.Join(os.TempDir(), "claude-bar-measure-gitlab.json"),
+		)
+		gw.BWSession = mcp.NewBitwardenSession(time.Minute)
 		s.mcpToolCostsCache = gw.MeasureToolCosts()
 	})
 	return s.mcpToolCostsCache
