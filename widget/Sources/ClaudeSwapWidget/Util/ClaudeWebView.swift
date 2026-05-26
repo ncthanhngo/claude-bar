@@ -198,26 +198,30 @@ final class ClaudeWebUsageFetcher: NSObject, WKNavigationDelegate {
         }
     }
 
+    // Anchored on each progressbar (not a parent container that may wrap
+    // multiple windows). Two failure modes the previous container-first
+    // walk caused:
+    //   1. The weekly section now ships per-model bars ("Weekly · Opus")
+    //      alongside the all-models bar — a label regex of /weekly/i matched
+    //      whichever per-model wrapper sorted shortest first, so accounts
+    //      with Opus pinned at 100 % rendered 7d as 100 % even when the
+    //      all-models limit had headroom (issue #6, Tk Dev 3).
+    //   2. When 5h + 7d both lived inside one compact wrapper, the first
+    //      `[role=progressbar]` lookup returned the same node for both
+    //      windows, so the two bars rendered identical numbers (issue #6,
+    //      Tk Dev 1).
+    // Walk up from each progressbar, classify its own smallest labelling
+    // ancestor, and explicitly drop per-model weekly blocks.
     private static let scrapeScript = """
     (() => {
       const visibleText = (node) => (node?.innerText || node?.textContent || "").trim();
-      const elements = Array.from(document.querySelectorAll("section, article, [role=region], div"));
 
-      function numberFrom(root) {
-        const progress = root.querySelector("[role=progressbar][aria-valuenow]");
-        const aria = progress?.getAttribute("aria-valuenow");
-        if (aria && Number.isFinite(Number(aria))) return Number(aria);
-        const match = visibleText(root).match(/(\\d+(?:\\.\\d+)?)\\s*%/);
-        return match ? Number(match[1]) : null;
-      }
-
-      function resetFrom(root) {
+      function findResetMillis(root) {
         const time = root.querySelector("time[datetime]");
         if (time) {
           const exact = Date.parse(time.getAttribute("datetime"));
           if (Number.isFinite(exact)) return exact;
         }
-
         const lines = visibleText(root)
           .split(/\\n+/)
           .map((line) => line.trim())
@@ -238,29 +242,58 @@ final class ClaudeWebUsageFetcher: NSObject, WKNavigationDelegate {
         return Number.isFinite(exact) ? exact : null;
       }
 
-      function compactCandidates(label) {
-        return elements
-          .filter((node) => label.test(visibleText(node)))
-          .filter((node) => visibleText(node).length < 1400)
-          .sort((a, b) => visibleText(a).length - visibleText(b).length);
+      // Walk up from a progressbar to the nearest ancestor whose visible
+      // text reads as one self-contained label cell (has a window label and
+      // a reset clause but isn't the whole page). Returns { node, text }.
+      function labellingAncestor(progress) {
+        let node = progress.parentElement;
+        let best = null;
+        for (let depth = 0; depth < 8 && node; depth++, node = node.parentElement) {
+          const text = visibleText(node);
+          if (!text || text.length > 900) break;
+          const hasLabel = /current\\s+session|5\\s*-?\\s*hour|weekly|all\\s+models|7\\s*-?\\s*day/i.test(text);
+          const hasReset = /reset/i.test(text);
+          if (hasLabel && hasReset) {
+            best = { node, text };
+            break;
+          }
+          if (hasLabel) best = { node, text };
+        }
+        return best;
       }
 
-      function windowFor(label) {
-        for (const root of compactCandidates(label)) {
-          const utilizationPct = numberFrom(root);
-          const resetsAtMillis = resetFrom(root);
-          if (utilizationPct != null && resetsAtMillis != null) {
-            return { utilizationPct, resetsAtMillis };
-          }
+      // Classify a label cell as the 5h ("current session") window, the
+      // all-models 7d window, or neither. Per-model weekly bars are dropped
+      // — they routinely pin at 100 % even when the headline weekly limit
+      // has room and are not what the widget displays.
+      function classify(text) {
+        const t = text.toLowerCase();
+        const isWeekly  = /weekly|7\\s*-?\\s*day/.test(t);
+        const isSession = /current\\s+session|5\\s*-?\\s*hour/.test(t);
+        const hasModelQualifier = /\\b(opus|sonnet|haiku)\\b/.test(t);
+        if (isSession && !isWeekly) return "fiveHour";
+        if (isWeekly && (t.includes("all models") || !hasModelQualifier)) {
+          return "sevenDay";
         }
         return null;
       }
 
-      return JSON.stringify({
-        fiveHour: windowFor(/current\\s+session|5\\s*-?\\s*hour/i),
-        sevenDay: windowFor(/weekly|all\\s+models|7\\s*-?\\s*day/i),
-        fetchedAtMillis: Date.now()
-      });
+      const out = { fiveHour: null, sevenDay: null, fetchedAtMillis: Date.now() };
+      const progressbars = Array.from(document.querySelectorAll("[role=progressbar][aria-valuenow]"));
+      for (const progress of progressbars) {
+        const aria = progress.getAttribute("aria-valuenow");
+        const utilizationPct = aria != null && Number.isFinite(Number(aria)) ? Number(aria) : null;
+        if (utilizationPct == null) continue;
+        const labelled = labellingAncestor(progress);
+        if (!labelled) continue;
+        const kind = classify(labelled.text);
+        if (!kind || out[kind]) continue;
+        const resetsAtMillis = findResetMillis(labelled.node);
+        if (resetsAtMillis == null) continue;
+        out[kind] = { utilizationPct, resetsAtMillis };
+      }
+
+      return JSON.stringify(out);
     })();
     """
 }
