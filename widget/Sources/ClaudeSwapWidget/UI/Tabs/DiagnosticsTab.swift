@@ -48,18 +48,23 @@ struct DiagnosticsTab: View {
     @State private var forceRefreshCooldownActive = false
     private static let forceRefreshCooldownSec: Int = 10
 
+    /// Renders the legacy Diagnostics groups inline — no outer `ScrollView`
+    /// or `SettingsPage` wrapper. Removed in v10.42 when the Diagnostics
+    /// sidebar slot was retired and this content moved to the bottom of
+    /// the new Update tab. Embedding bare groups lets the parent's
+    /// `SettingsPage` provide a single, top-level scroll surface instead
+    /// of stacking nested ScrollViews (which mis-size inner content under
+    /// macOS SwiftUI).
     var body: some View {
-        ScrollView {
-            SettingsPage {
-                iCloudGroup
-                bundleFileGroup
-                CommandCenterDiagnosticsCard()
-                SchedulerSettingsCard()
-                verifyGroup
-                credentialRefreshGroup
-                webUsageGroup
-                logsGroup
-            }
+        VStack(alignment: .leading, spacing: 14) {
+            iCloudGroup
+            bundleFileGroup
+            CommandCenterDiagnosticsCard()
+            SchedulerSettingsCard()
+            verifyGroup
+            credentialRefreshGroup
+            webUsageGroup
+            logsGroup
         }
         .onChange(of: showRestoreBackupSheet) { _, newValue in
             if newValue {

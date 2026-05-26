@@ -19,13 +19,33 @@ struct UpdateTab: View {
     @EnvironmentObject private var updateController: UpdateController
 
     var body: some View {
-        ScrollView {
-            SettingsPage {
-                autoUpdateGroup
-                currentBuildGroup
-                releaseNotesGroup
-                manualCheckGroup
-            }
+        SettingsPage {
+            autoUpdateGroup
+            currentBuildGroup
+            releaseNotesGroup
+            manualCheckGroup
+            // Legacy Diagnostics groups (iCloud sync wizard, schema /
+            // verify / refresh, logs, web-usage diagnostics) appended
+            // here as the catch-all "advanced" surface. The Diagnostics
+            // sidebar slot was retired; users who need this content
+            // scroll to the bottom of Update.
+            advancedHeader
+            DiagnosticsTab()
+        }
+    }
+
+    /// Visual separator so the user reads "I'm leaving the update
+    /// section now, this is the catch-all advanced stuff" rather than
+    /// mistaking the iCloud / verify groups for part of the release flow.
+    private var advancedHeader: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Divider()
+            Text("Advanced — moved from the old Diagnostics tab")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundColor(.secondary)
+                .textCase(.uppercase)
+                .tracking(0.4)
+                .padding(.top, 6)
         }
     }
 
