@@ -12,6 +12,27 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 11.10 (BETA)</title>
+      <sparkle:version>11.10</sparkle:version>
+      <sparkle:shortVersionString>11.10</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <p>Hotfix — back off the v11.9 web-poll cadence.</p>
+        <ul>
+          <li><strong>Web-linked refresh cadence backed off from 60s / 30s to 120s / 60s.</strong> The 60s cycle was too tight for multi-account setups — each web scrape costs 3–8s (hidden WKWebView reload + React SPA hydrate) plus a keychain/iCloud cookie restore+save, so at 60s × N accounts the main actor saturated and the popover stopped updating.</li>
+          <li>Still ~33% faster than the OAuth default (180s / 120s) for web-linked accounts; OAuth <code>/usage</code> cadence and its independent gating are unchanged.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Tue, 26 May 2026 22:00:26 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v11.10/ClaudeBar.zip"
+        sparkle:version="11.10"
+        sparkle:shortVersionString="11.10"
+        sparkle:edSignature="Ip4zL+MYGfOo0URaOO2eWEtE36TxPbh0Vi8DxCkon8KF+m1qUOl1o38jpqxpRW5+ZDlYwwU3Sco8Y8ZGUqY9AA=="
+        length="7780755"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 11.9 (BETA)</title>
       <sparkle:version>11.9</sparkle:version>
       <sparkle:shortVersionString>11.9</sparkle:shortVersionString>
