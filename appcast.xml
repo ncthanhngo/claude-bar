@@ -12,6 +12,26 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 11.12 (BETA)</title>
+      <sparkle:version>11.12</sparkle:version>
+      <sparkle:shortVersionString>11.12</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <p>UI hotfix.</p>
+        <ul>
+          <li><strong>Fixed the stale "Couldn't fetch usage" warning</strong> persisting on web-linked rows whose scrape was actually succeeding. A single transient OAuth probe failure used to leave the orange warning chip on the row forever — even after the next web scrape returned valid 5h/7d values. The error field now clears whenever fresh usage data lands.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Wed, 27 May 2026 00:47:12 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v11.12/ClaudeBar.zip"
+        sparkle:version="11.12"
+        sparkle:shortVersionString="11.12"
+        sparkle:edSignature="3keCOXl26Fg7/vmRhwURh4YUsiIux1duuL6ilsxnxMs+xlu6POUrR0U2zM7599FQZ02brZlXC2M2QYQDUBlQBQ=="
+        length="7792299"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 11.11 (BETA)</title>
       <sparkle:version>11.11</sparkle:version>
       <sparkle:shortVersionString>11.11</sparkle:shortVersionString>
