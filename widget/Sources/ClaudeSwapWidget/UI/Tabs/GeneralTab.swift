@@ -39,13 +39,31 @@ struct GeneralTab: View {
                         // "popover is shown" flag is still mid-transition
                         // and the click would silently no-op.
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
-                            MenuBarPopoverToggle.openIfClosed()
+                            MenuBarPopoverToggle.openIfClosedAbove()
                         }
                     }
                     Text(settings.popoverLayout.detail)
                         .font(.caption)
                         .foregroundColor(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
+
+                    // Full-layout-only toggle. Hidden on Standard / Tiny
+                    // because those layouts don't render the token chart
+                    // at all — showing the switch there would mislead.
+                    if settings.popoverLayout == .full {
+                        Divider()
+                        Toggle("Show token usage chart in Full layout",
+                               isOn: $settings.showTokenUsageInFullPopover)
+                            .onChange(of: settings.showTokenUsageInFullPopover) { _, _ in
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
+                                    MenuBarPopoverToggle.openIfClosedAbove()
+                                }
+                            }
+                        Text("Off by default — the chart adds ~220pt of height. Turn on to see daily/weekly/monthly token totals at a glance.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
                 }
 
                 // Adaptive-refresh is power-user-only — most people never

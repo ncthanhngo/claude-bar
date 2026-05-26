@@ -32,6 +32,10 @@ struct WidgetTabbedPopover: View {
     /// pushed the popover taller than it needed to be even with one
     /// account.
     private static let shellHeight: CGFloat = 402
+    /// Height saved when the Token-usage section is hidden — title 22 +
+    /// chart + KPI cards ~196 = 218pt. The popover frame subtracts this
+    /// when `settings.showTokenUsageInFullPopover` is false.
+    private static let tokenUsageSectionHeight: CGFloat = 218
     /// One AccountRowView at its minimum — avatar + name + email + 5h bar
     /// + 7d bar, no extra badges. Rows with the "Needs login" credential
     /// chip or a usage-error badge are taller; `estimatedRowHeight(for:)`
@@ -76,7 +80,8 @@ struct WidgetTabbedPopover: View {
     }
 
     private var popoverHeight: CGFloat {
-        Self.shellHeight + visibleAccountsHeight
+        let base = Self.shellHeight + visibleAccountsHeight
+        return settings.showTokenUsageInFullPopover ? base : base - Self.tokenUsageSectionHeight
     }
 
     /// Height the account list actually consumes — capped at three
@@ -152,8 +157,10 @@ struct WidgetTabbedPopover: View {
         VStack(alignment: .leading, spacing: 4) {
             sectionTitle("Auto-swap").padding(.top, 6)
             AutoSwapSection()
-            sectionTitle("Token usage").padding(.top, 6)
-            TokenStatsSection()
+            if settings.showTokenUsageInFullPopover {
+                sectionTitle("Token usage").padding(.top, 6)
+                TokenStatsSection()
+            }
         }
         .padding(.bottom, 8)
     }

@@ -47,6 +47,11 @@ final class AppSettings: ObservableObject {
     /// custom RawRepresentable bridge.
     @AppStorage("popoverLayout") var popoverLayout: PopoverLayout = .standard
 
+    /// Whether the Full popover shows the "Token usage" chart + KPI cards
+    /// at the bottom. Off by default — the section adds ~220pt of height
+    /// that most users don't need glance-able. Toggled from General → UI.
+    @AppStorage("showTokenUsageInFullPopover") var showTokenUsageInFullPopover: Bool = false
+
     /// Active body of the Daily window. Only the chat mode survives; kept
     /// as an enum-backed AppStorage so a future feature can re-introduce
     /// alternative modes without a settings migration.
