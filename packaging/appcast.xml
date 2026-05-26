@@ -12,6 +12,26 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 10.49 (BETA)</title>
+      <sparkle:version>10.49</sparkle:version>
+      <sparkle:shortVersionString>10.49</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li><strong>Slimmed the Medium popover.</strong> The boxed "Token usage" card was replaced by the Tiny-style Day / Week / Month strip, and the row + shell heights were retuned to remove ~65pt of dead chrome. Both layouts now read identically when switching between them.</li>
+          <li><strong>MCP tool-cost catalog now includes GitLab.</strong> Measurement previously ran with a nil GitLab instance store, so every GitLab tool row showed 0; the gateway is now wired with throw-away stub stores so the connector's tools contribute their measured schema-byte cost to the catalog.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Tue, 26 May 2026 13:11:15 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v10.49/ClaudeBar.zip"
+        sparkle:version="10.49"
+        sparkle:shortVersionString="10.49"
+        sparkle:edSignature="7hiQFDPrjmKWRDiKgDa5pGL2wlhh9FziVZFAv5EGvzjDwJwedLEjB6X6B4xsTCYxzkuWjYk10bryZFPm2HgACA=="
+        length="8601703"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 10.48 (BETA)</title>
       <sparkle:version>10.48</sparkle:version>
       <sparkle:shortVersionString>10.48</sparkle:shortVersionString>

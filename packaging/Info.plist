@@ -13,9 +13,9 @@
     <key>CFBundleIdentifier</key>
     <string>dev.ncthanhngo.claude-bar</string>
     <key>CFBundleVersion</key>
-    <string>10.48</string>
+    <string>10.49</string>
     <key>CFBundleShortVersionString</key>
-    <string>10.48</string>
+    <string>10.49</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleSignature</key>
@@ -35,7 +35,7 @@
     <key>NSHumanReadableCopyright</key>
     <string>Copyright © 2026 Thanh Ngô. Licensed under MIT.</string>
     <key>CFBundleGetInfoString</key>
-    <string>Claude Bar 10.48 — menu-bar manager for multiple Claude Code accounts</string>
+    <string>Claude Bar 10.49 — menu-bar manager for multiple Claude Code accounts</string>
     <key>CBAuthorName</key>
     <string>Thanh Ngô</string>
     <key>CBAuthorEmail</key>
@@ -45,16 +45,14 @@
     <key>CBLicense</key>
     <string>MIT</string>
     <key>CBBuildDate</key>
-    <string>2026-05-25</string>
+    <string>2026-05-26</string>
     <key>CBReleaseChannel</key>
     <string>Beta</string>
     <key>CBReleaseWhatsNew</key>
-    <string>Adding a GitLab self-host instance now gives proper feedback. The form shows "Adding…" with a spinner during the round-trip, then either an inline green "Successfully added 'Name'" confirmation that auto-closes after 1.2 seconds, or an inline red error so you can fix the field and retry without closing the window.
-Settings → MCP connectors list now reflects GitLab as connected once an instance is added. Previously the row stayed stuck at "not connected" forever because GitLab instance secrets live in a separate per-instance Keychain slot the row didn't read; the backend now mirrors the connection state into the shared connector flag the row does read.
-Removing the last GitLab instance flips the connector back to "not connected" automatically.</string>
+    <string>Medium popover slimmed down. The boxed "Token usage" card with its duplicated section title was replaced by the same compact Day / Week / Month strip that Tiny uses, and the row + shell heights were retuned to remove ~65pt of dead chrome. Both layouts now read identically when switching between them.
+Settings → MCP tool-cost catalog now includes GitLab connector rows. Measurement previously skipped GitLab because its instance store was nil during catalog scanning; the gateway is now wired with throw-away stub stores so every connector's tools show up with their measured schema-byte cost.</string>
     <key>CBReleaseHotfixes</key>
-    <string>Fixed GitLab add-instance form closing silently with no success or error feedback.
-Fixed Settings → MCP connector row showing GitLab as "not connected" after a successful instance add.</string>
+    <string>Fixed MCP tool-cost table showing 0 across every GitLab row.</string>
     <key>CBReleaseKnownIssues</key>
     <string>None.</string>
     <key>CFBundleDevelopmentRegion</key>
