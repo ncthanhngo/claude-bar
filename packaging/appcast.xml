@@ -12,6 +12,28 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 11.2 (BETA)</title>
+      <sparkle:version>11.2</sparkle:version>
+      <sparkle:shortVersionString>11.2</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <p>Fixes <a href="https://github.com/ncthanhngo/claude-bar/issues/2">#2</a> — toggling MCP connectors in Settings used to silently no-op.</p>
+        <ul>
+          <li><strong>Fixed the MCP connector toggle in Settings → Local MCP.</strong> Turning a connector OFF now actually disables its tools. Verified end-to-end across all five connectors (Slack, ClickUp, Google, GitHub, GitLab): OFF drops the service's tools from <code>tools/list</code> on the next message; ON restores them.</li>
+          <li><strong>Shared connector toggle is now authoritative.</strong> A stale per-account <code>Enabled=true</code> flag left over from an older iCloud restore can no longer keep a service in <code>tools/list</code> after the shared toggle is flipped off.</li>
+          <li><strong>Registry auto-prunes stale per-account Enabled flags</strong> at load time so debug dumps and cloud bundle pushes reflect the same state the UI shows.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Tue, 26 May 2026 18:34:28 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v11.2/ClaudeBar.zip"
+        sparkle:version="11.2"
+        sparkle:shortVersionString="11.2"
+        sparkle:edSignature="2t9iD6nL6zv6WkUAro7c6SSd/mfExzK8w3MartrKbS9iLFdHL/oKmG9RTql2OBkPBhfqoIKFcDKIDW33rNWpCA=="
+        length="7872595"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 11.1 (BETA)</title>
       <sparkle:version>11.1</sparkle:version>
       <sparkle:shortVersionString>11.1</sparkle:shortVersionString>

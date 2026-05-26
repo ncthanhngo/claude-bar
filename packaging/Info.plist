@@ -13,9 +13,9 @@
     <key>CFBundleIdentifier</key>
     <string>dev.ncthanhngo.claude-bar</string>
     <key>CFBundleVersion</key>
-    <string>11.1</string>
+    <string>11.2</string>
     <key>CFBundleShortVersionString</key>
-    <string>11.1</string>
+    <string>11.2</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleSignature</key>
@@ -35,7 +35,7 @@
     <key>NSHumanReadableCopyright</key>
     <string>Copyright © 2026 Thanh Ngô. Licensed under MIT.</string>
     <key>CFBundleGetInfoString</key>
-    <string>Claude Bar 11.1 — menu-bar manager for multiple Claude Code accounts</string>
+    <string>Claude Bar 11.2 — menu-bar manager for multiple Claude Code accounts</string>
     <key>CBAuthorName</key>
     <string>Thanh Ngô</string>
     <key>CBAuthorEmail</key>
@@ -49,14 +49,13 @@
     <key>CBReleaseChannel</key>
     <string>Beta</string>
     <key>CBReleaseWhatsNew</key>
-    <string>iCloud Sync now keeps Claude Code OAuth credentials local. Account roster, MCP connector tokens (Slack / ClickUp / Google / GitLab), and claude.ai web cookies still roam between Macs, but each new Mac runs its own `claude /login` per account — so a stolen iCloud bundle can never authenticate as you.
-Multi-Mac merge is additive. Connecting Slack on Mac A and ClickUp on Mac B no longer drops one of the tokens when their pushes interleave; both connectors survive. Shared connectors merge the same way.
-Removed the Daily Briefing feature entirely. Settings → Briefing tab, the standalone Briefing window, Daily Plan / Command modes, the news-feed scheduler, and the Carbon ⌥X hotkey are gone. Daily window is chat-only now.</string>
+    <string>Fixed the MCP connector toggle in Settings → Local MCP — turning a connector OFF now actually disables its tools. Verified end-to-end across all five connectors (Slack, ClickUp, Google, GitHub, GitLab): OFF drops the service's tools from tools/list immediately on the next message; ON restores them.
+Shared connector toggle is now authoritative. A stale per-account Enabled flag left over from an older iCloud restore can no longer keep a service in tools/list after the shared toggle is flipped off.
+Registry auto-prunes stale per-account Enabled flags at load time so debug dumps and cloud bundle pushes reflect the same state the UI shows.</string>
     <key>CBReleaseHotfixes</key>
-    <string>None.</string>
+    <string>Fixed: toggling MCP connectors silently no-ops (issue #2). Root cause was the Swift CLI client sending bool flags as `--enabled false` (space-separated), which Go's flag parser treats as `--enabled=true` with `false` dropped as an ignored positional. Every OFF toggle therefore persisted the opposite value. Both connector and per-tool toggles fixed.</string>
     <key>CBReleaseKnownIssues</key>
-    <string>Existing iCloud bundles written by older Macs may still carry Claude OAuth blobs. The next push from this Mac overwrites the bundle with the new metadata-only shape — give it one auto-sync cycle (~6h) or click Sync now to flush immediately.
-Account removal is not propagated yet. If you remove an account on Mac A while Mac B still has it, Mac B's next push will resurrect the account in the bundle. Use the Disconnect button on each Mac if you want it gone everywhere.</string>
+    <string>None.</string>
     <key>CFBundleDevelopmentRegion</key>
     <string>en</string>
     <key>CFBundleLocalizations</key>
