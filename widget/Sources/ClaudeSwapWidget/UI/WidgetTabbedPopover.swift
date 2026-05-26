@@ -32,11 +32,16 @@ struct WidgetTabbedPopover: View {
     /// pushed the popover taller than it needed to be even with one
     /// account.
     private static let shellHeight: CGFloat = 402
-    /// One AccountRowView (Full's verbose row with avatar, email, full
-    /// 5h/7d bars, reset countdowns). Measured at ~100pt in practice;
-    /// the previous 95pt undersized the row by enough that 3 accounts
-    /// already overflowed.
-    private static let rowHeight: CGFloat = 100
+    /// One AccountRowView at its minimum — avatar + name + email + 5h bar
+    /// + 7d bar, no extra badges. Rows with the "Needs login" credential
+    /// chip or a usage-error badge are taller; `estimatedRowHeight(for:)`
+    /// adds those on top of this base so the popover frame can fit the
+    /// actual content instead of clipping the last row.
+    private static let baseRowHeight: CGFloat = 100
+    /// Extra height each badge in the row's usage block consumes — the
+    /// "Needs login" credential chip and the usage-error chip both render
+    /// as a single ~14pt HStack stacked into the usage VStack (spacing 3).
+    private static let badgeRowExtra: CGFloat = 17
 
     var body: some View {
         ZStack {
@@ -77,11 +82,30 @@ struct WidgetTabbedPopover: View {
     /// Height the account list actually consumes — capped at three
     /// rows. Beyond that, the inner ScrollView scrolls; the popover
     /// frame stops growing. Same shape Standard's popover uses.
+    ///
+    /// Sums per-row heights instead of `count × baseRowHeight` so accounts
+    /// with the "Needs login" credential chip or a usage-error badge don't
+    /// overflow the bounded ScrollView and clip the last row.
     private var visibleAccountsHeight: CGFloat {
-        let count = store.snapshot?.accounts.count ?? 0
-        if count == 0 { return 0 }
-        let visible = min(count, Self.accountsRowsBeforeScroll)
-        return CGFloat(visible) * Self.rowHeight + CGFloat(max(0, visible - 1)) * 3 + 8
+        let accounts = store.snapshot?.accounts ?? []
+        if accounts.isEmpty { return 0 }
+        let sorted = accounts.sorted { $0.isActive && !$1.isActive }
+        let visible = sorted.prefix(Self.accountsRowsBeforeScroll)
+        let totalRows = visible.reduce(0 as CGFloat) { sum, acc in
+            sum + Self.estimatedRowHeight(for: acc)
+        }
+        let spacing = CGFloat(max(0, visible.count - 1)) * 3
+        return totalRows + spacing + 8
+    }
+
+    /// Estimate one row's rendered height. Base covers the standard
+    /// content (avatar/title, email, 5h bar, 7d bar). Each in-row badge —
+    /// "Needs login" chip or usage-error chip — adds `badgeRowExtra`.
+    private static func estimatedRowHeight(for view: AccountViewDTO) -> CGFloat {
+        var h = baseRowHeight
+        if view.credentialState == "needs_login" { h += badgeRowExtra }
+        if view.error != nil { h += badgeRowExtra }
+        return h
     }
 
     @ViewBuilder
