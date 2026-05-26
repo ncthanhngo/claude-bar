@@ -13,9 +13,9 @@
     <key>CFBundleIdentifier</key>
     <string>dev.ncthanhngo.claude-bar</string>
     <key>CFBundleVersion</key>
-    <string>10.38</string>
+    <string>10.39</string>
     <key>CFBundleShortVersionString</key>
-    <string>10.38</string>
+    <string>10.39</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleSignature</key>
@@ -35,7 +35,7 @@
     <key>NSHumanReadableCopyright</key>
     <string>Copyright © 2026 Thanh Ngô. Licensed under MIT.</string>
     <key>CFBundleGetInfoString</key>
-    <string>Claude Bar 10.38 — menu-bar manager for multiple Claude Code accounts</string>
+    <string>Claude Bar 10.39 — menu-bar manager for multiple Claude Code accounts</string>
     <key>CBAuthorName</key>
     <string>Thanh Ngô</string>
     <key>CBAuthorEmail</key>
@@ -49,8 +49,9 @@
     <key>CBReleaseChannel</key>
     <string>Beta</string>
     <key>CBReleaseWhatsNew</key>
-    <string>Popover layout picker now offers three sizes — Full, Standard, Tiny — selectable from Settings → General → Popover layout. Full keeps the original dashboard (status, usage bars, auto-swap slider, token chart). Standard is a 2/3-scaled compact version with twin 5h/7d bars and small auto-swap and token KPI cards. Tiny is the smallest layout: header plus account list only, each row showing avatar + name + tiny colour-coded 5h/7d % chips. Toggling takes effect immediately, no restart.
-Users on the previous "Minimum" layout are migrated automatically to Standard so nothing changes underfoot.</string>
+    <string>Standard popover now shows each account's 5h and 7d usage as a labelled bar with a readable percentage in monospaced digits, tinted with the same green/amber/red traffic-light palette as the bar fill. The old pair of 5pt-tall bars side by side was a width-only encoding nobody could read at a glance.
+Tiny popover's 5h/7d chips bumped to 13pt semibold (vs the old 10pt) with bolder borders so the percentages are legible even with the popover off to one side of the screen.
+Wasted shell padding trimmed in both Standard and Tiny — about 70pt less vertical empty space in Standard, no more bottom strip below the last row in Tiny.</string>
     <key>CBReleaseHotfixes</key>
     <string>None.</string>
     <key>CBReleaseKnownIssues</key>

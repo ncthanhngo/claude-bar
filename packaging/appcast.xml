@@ -12,6 +12,27 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 10.39 (BETA)</title>
+      <sparkle:version>10.39</sparkle:version>
+      <sparkle:shortVersionString>10.39</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li><strong>Standard popover</strong> — each account now shows 5h and 7d usage as a labelled bar with a readable percentage in monospaced digits, tinted with the same green / amber / red traffic-light palette. The old pair of 5pt-tall bars was a width-only encoding nobody could read at a glance.</li>
+          <li><strong>Tiny popover</strong> — 5h / 7d chips bumped to 13pt semibold (vs old 10pt) with bolder borders, legible even with the popover off to one side of the screen.</li>
+          <li><strong>Trimmed wasted shell padding</strong> in both Standard and Tiny — about 70pt less vertical empty space in Standard, no more bottom strip below the last row in Tiny.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Tue, 26 May 2026 08:22:07 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v10.39/ClaudeBar.zip"
+        sparkle:version="10.39"
+        sparkle:shortVersionString="10.39"
+        sparkle:edSignature="40JV17Tb3HO0zfLJF6QkjqqyUI3T/HAyzmzTGwuCtrzp6RfjAnkEbKLSrtC0V44ZZuhloT24jFy5oIOGFAinAQ=="
+        length="8518719"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 10.38 (BETA)</title>
       <sparkle:version>10.38</sparkle:version>
       <sparkle:shortVersionString>10.38</sparkle:shortVersionString>
