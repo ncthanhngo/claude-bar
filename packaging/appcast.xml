@@ -12,6 +12,26 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 10.41 (BETA)</title>
+      <sparkle:version>10.41</sparkle:version>
+      <sparkle:shortVersionString>10.41</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li><strong>New Settings → Update tab</strong> consolidates everything related to keeping the app current. The <strong>Auto-update</strong> toggle (moved from General → Updates) plus <strong>Check for updates…</strong> button + release notes + version info (moved from About) now all live in one focused panel, with the installed-build version, channel badge and build date right above the changelog.</li>
+          <li><strong>About</strong> tab trims down to a one-line breadcrumb pointing at the new Update tab, plus the static Author / Tech Stack / Welcome flow / Legal sections.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Tue, 26 May 2026 09:43:31 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v10.41/ClaudeBar.zip"
+        sparkle:version="10.41"
+        sparkle:shortVersionString="10.41"
+        sparkle:edSignature="Z3KXGa5PgzfQqhQPl7qJ2Aa2fBFggHSGsVzUuxkve+uRPw1/n2N/75rj79oS12XhHLSHJjcHebOYqPQ6U79rBw=="
+        length="8293465"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 10.40 (BETA)</title>
       <sparkle:version>10.40</sparkle:version>
       <sparkle:shortVersionString>10.40</sparkle:shortVersionString>
