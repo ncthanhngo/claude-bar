@@ -41,14 +41,17 @@ final class AppStore: ObservableObject {
     /// Web-scrape cadence floor (active 5h < threshold). Hardcoded — the
     /// scrape goes through the user's own claude.ai cookie session via
     /// WKWebView, not Anthropic's OAuth `/usage` endpoint, so it doesn't
-    /// share the 429 budget. 60s is the smallest interval that comfortably
-    /// fits one hidden WKWebView reload + SPA hydrate (≤ ~8s) without
-    /// pollers stacking up.
-    private static let webRefreshIntervalSec = 60
+    /// share the 429 budget. v11.9 set this to 60s but multi-account users
+    /// reported the popover hanging: each scrape costs 3–8s (hidden
+    /// WKWebView reload + React SPA hydrate) plus a keychain/iCloud cookie
+    /// restore+save, so at 60s × N accounts the main actor saturates and
+    /// UI updates stall. 120s leaves headroom for 2–3 web-linked accounts
+    /// while still being ~33% faster than the OAuth default (180s).
+    private static let webRefreshIntervalSec = 120
     /// Web-scrape cadence ceiling (active 5h ≥ adaptiveHighThresholdPct).
-    /// Halved from `webRefreshIntervalSec` so the active bar updates fast
-    /// enough to drive auto-swap decisions near the threshold.
-    private static let webRefreshIntervalHighSec = 30
+    /// Halved from `webRefreshIntervalSec`. Same backoff reasoning as
+    /// above — 30s was too tight for multi-account web scrapes.
+    private static let webRefreshIntervalHighSec = 60
 
     private var refreshTask: Task<Void, Never>?
 
