@@ -13,9 +13,9 @@
     <key>CFBundleIdentifier</key>
     <string>dev.ncthanhngo.claude-bar</string>
     <key>CFBundleVersion</key>
-    <string>10.47</string>
+    <string>10.48</string>
     <key>CFBundleShortVersionString</key>
-    <string>10.47</string>
+    <string>10.48</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleSignature</key>
@@ -35,7 +35,7 @@
     <key>NSHumanReadableCopyright</key>
     <string>Copyright © 2026 Thanh Ngô. Licensed under MIT.</string>
     <key>CFBundleGetInfoString</key>
-    <string>Claude Bar 10.47 — menu-bar manager for multiple Claude Code accounts</string>
+    <string>Claude Bar 10.48 — menu-bar manager for multiple Claude Code accounts</string>
     <key>CBAuthorName</key>
     <string>Thanh Ngô</string>
     <key>CBAuthorEmail</key>
@@ -49,11 +49,12 @@
     <key>CBReleaseChannel</key>
     <string>Beta</string>
     <key>CBReleaseWhatsNew</key>
-    <string>Tiny popover height now hugs its content. The visible whitespace strip that used to sit between the last account row and the Day / Week / Month token strip is gone — the account list is now wrapped in a bounded ScrollView whose height is computed exactly from row count × row height + spacing, instead of consuming every remaining pixel via maxHeight: .infinity. rowHeight was also re-measured (38pt vs the previous 46pt over-budget) and inner paddings on the token strip and auto-swap bar were tightened by a couple of points.
-Tiny popover scroll cap is now 4 rows. Past 4 accounts the list scrolls inside its bounded frame; the token strip and auto-swap controls stay anchored at the bottom.
-Empty-account state in Tiny now uses a fixed 90pt slot instead of letting the popover collapse arbitrarily.</string>
+    <string>Adding a GitLab self-host instance now gives proper feedback. The form shows "Adding…" with a spinner during the round-trip, then either an inline green "Successfully added 'Name'" confirmation that auto-closes after 1.2 seconds, or an inline red error so you can fix the field and retry without closing the window.
+Settings → MCP connectors list now reflects GitLab as connected once an instance is added. Previously the row stayed stuck at "not connected" forever because GitLab instance secrets live in a separate per-instance Keychain slot the row didn't read; the backend now mirrors the connection state into the shared connector flag the row does read.
+Removing the last GitLab instance flips the connector back to "not connected" automatically.</string>
     <key>CBReleaseHotfixes</key>
-    <string>Fixed Tiny popover showing ~30-50pt of empty space below the last account row.</string>
+    <string>Fixed GitLab add-instance form closing silently with no success or error feedback.
+Fixed Settings → MCP connector row showing GitLab as "not connected" after a successful instance add.</string>
     <key>CBReleaseKnownIssues</key>
     <string>None.</string>
     <key>CFBundleDevelopmentRegion</key>
