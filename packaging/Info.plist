@@ -13,9 +13,9 @@
     <key>CFBundleIdentifier</key>
     <string>dev.ncthanhngo.claude-bar</string>
     <key>CFBundleVersion</key>
-    <string>10.45</string>
+    <string>10.46</string>
     <key>CFBundleShortVersionString</key>
-    <string>10.45</string>
+    <string>10.46</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleSignature</key>
@@ -35,7 +35,7 @@
     <key>NSHumanReadableCopyright</key>
     <string>Copyright © 2026 Thanh Ngô. Licensed under MIT.</string>
     <key>CFBundleGetInfoString</key>
-    <string>Claude Bar 10.45 — menu-bar manager for multiple Claude Code accounts</string>
+    <string>Claude Bar 10.46 — menu-bar manager for multiple Claude Code accounts</string>
     <key>CBAuthorName</key>
     <string>Thanh Ngô</string>
     <key>CBAuthorEmail</key>
@@ -49,16 +49,16 @@
     <key>CBReleaseChannel</key>
     <string>Beta</string>
     <key>CBReleaseWhatsNew</key>
-    <string>Settings → MCP redesigned in Apple style. Connector rows become rounded cards with an SF Symbol, name, and small tinted status pill on top; Tools / Prompt are subtle chevron links instead of bright pills; the tool list drops the zebra stripes for native macOS Settings sectioning — small grey category captions, rounded cards, hairline dividers, and a summary chip "N of M tools enabled · X tokens / message" at the top of the expanded list. Priority badges (Essential, Advanced) are low-saturation tinted capsules.
-Standard popover only scrolls the account list now. Auto-swap and Token-usage cards are pinned to the bottom of the popover regardless of how many accounts you have. Up to three accounts no scroll at all; four or more scroll inside the account list only.
-Tiny popover's threshold slider no longer twitches as the digits cross 9→10 or 99→100 — the "current" and "trigger" values render into fixed-width slots so the row stays still during drag.
-Tiny popover width restored to 290pt — the 227pt squeeze in v10.44 broke the 5h/7d chip text onto multiple lines.
-Menu-bar popover now floats above the Settings window so picking a layout in Settings → General actually shows the live preview instead of hiding it behind the panel.</string>
+    <string>Full popover layout restructured to match Standard. Auto-swap slider and the token-usage chart are pinned to the bottom regardless of account count; up to three accounts the popover doesn't scroll at all, four or more accounts only scroll the account list. Frame shrank from 440×760 down to 400×716, and a hairline border was added so the popover edge stays crisp on bright wallpapers.
+Tiny popover gained a three-column Day / Week / Month token-usage strip in the previously-empty space below the account list. Uses the same `tokenStats` source as Full's chart so the numbers stay in lock-step.
+Tiny popover threshold slider no longer snaps back when you grab the knob. Both the parent and knob drag gestures now report the cursor position in the same named track coordinate space — the knob's local x ≈ 0 no longer collapses threshold to the left edge.
+Tiny popover account chips now align cleanly down the right edge regardless of digit count. The "5h" / "7d" label slot and the value slot are pinned to fixed widths so "0%" rows no longer slide left relative to "10%" rows.
+Settings window gets the pointing-hand cursor on every Button, Toggle, Picker, Stepper, and Link via a single AppKit cursor tracker installed on the Settings NSWindow — no per-Button decoration needed.</string>
     <key>CBReleaseHotfixes</key>
-    <string>Fixed Tiny popover threshold slider jittering on digit-count boundaries during drag.
-Fixed Tiny popover layout collapsing 5h/7d chip values onto multiple lines at 227pt width.
-Fixed Standard popover scrolling the entire body (including Auto-swap + Token cards) when more than 3 accounts existed — those bottom cards are now pinned and only the account list scrolls.
-Fixed live popover preview being hidden behind the Settings window when picking a layout.</string>
+    <string>Fixed Full popover overflowing into a scroll when more than one account existed.
+Fixed Tiny popover threshold slider snapping back to the left when grabbing the knob.
+Fixed Tiny popover account chips zig-zagging because chip width varied with value digit count.
+Fixed missing pointing-hand cursor on Settings buttons / toggles.</string>
     <key>CBReleaseKnownIssues</key>
     <string>None.</string>
     <key>CFBundleDevelopmentRegion</key>
