@@ -65,7 +65,7 @@ func main() {
 	case "ssh":
 		err = runSSH(ctx, args)
 	case "gitlab":
-		err = runGitLab(ctx, args)
+		err = runGitLab(ctx, svc, args)
 	case "bw":
 		err = runBW(ctx, args)
 	case "audit":

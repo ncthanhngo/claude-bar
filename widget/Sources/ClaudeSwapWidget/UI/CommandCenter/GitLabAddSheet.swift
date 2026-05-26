@@ -4,18 +4,31 @@ import SwiftUI
 /// is stored in Keychain under `claude-bar-mcp:shared:gitlab:<id>`; the
 /// metadata lives in the on-disk gitlab-instances.json registry.
 struct GitLabAddSheet: View {
-    let onSubmit: (_ name: String, _ baseURL: String, _ note: String, _ pat: String) -> Void
-    /// Optional explicit cancel handler. When nil, falls back to the SwiftUI
-    /// environment `dismiss` action (works inside `.sheet`); when supplied,
-    /// the host owns dismissal (used by the MCP-tab floating window where
-    /// `@Environment(\.dismiss)` is a no-op).
-    var onCancel: (() -> Void)? = nil
+    /// Async submit hook. Throwing means the add failed; the sheet
+    /// renders the localized error inline and stays open. Returning
+    /// normally means success: the sheet shows a brief "Successfully
+    /// added" confirmation, then calls `onDismiss` so the host can
+    /// close the window. The async style matches `ConnectTokenSheet`
+    /// so both flows feel the same to the user — no silent close.
+    let onSubmit: (_ name: String, _ baseURL: String, _ note: String, _ pat: String) async throws -> Void
+    /// Optional dismiss handler. When nil, falls back to the SwiftUI
+    /// environment `dismiss` action (works inside `.sheet`); when
+    /// supplied, the host owns dismissal (used by the MCP-tab floating
+    /// window where `@Environment(\.dismiss)` is a no-op).
+    var onDismiss: (() -> Void)? = nil
 
     @Environment(\.dismiss) private var dismiss
     @State private var name = ""
     @State private var baseURL = ""
     @State private var note = ""
     @State private var pat = ""
+    @State private var isSubmitting = false
+    @State private var errorMessage: String?
+    @State private var successMessage: String?
+
+    private func dismissSheet() {
+        if let onDismiss { onDismiss() } else { dismiss() }
+    }
 
     private var canSubmit: Bool {
         !name.trimmingCharacters(in: .whitespaces).isEmpty &&
@@ -53,21 +66,31 @@ struct GitLabAddSheet: View {
                 .foregroundColor(.secondary)
                 .padding(.leading, labelWidth + 12)
 
+            if let errorMessage {
+                Label(errorMessage, systemImage: "xmark.octagon.fill")
+                    .font(.caption)
+                    .foregroundColor(.red)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            if let successMessage {
+                Label(successMessage, systemImage: "checkmark.circle.fill")
+                    .font(.caption)
+                    .foregroundColor(.green)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
             HStack {
+                if isSubmitting {
+                    ProgressView().controlSize(.small)
+                    Text("Adding…").font(.caption).foregroundColor(.secondary)
+                }
                 Spacer()
-                Button("Cancel") {
-                    if let onCancel { onCancel() } else { dismiss() }
-                }
-                .keyboardShortcut(.cancelAction)
-                Button("Add") {
-                    onSubmit(name, baseURL, note, pat)
-                    // Host closes the window in the MCP-tab path (onCancel
-                    // set); the Diagnostics-card path dismisses via the
-                    // sheet's environment action.
-                    if onCancel == nil { dismiss() }
-                }
-                .keyboardShortcut(.defaultAction)
-                .disabled(!canSubmit)
+                Button("Cancel") { dismissSheet() }
+                    .keyboardShortcut(.cancelAction)
+                    .disabled(isSubmitting || successMessage != nil)
+                Button("Add") { submit() }
+                    .keyboardShortcut(.defaultAction)
+                    .disabled(!canSubmit || isSubmitting || successMessage != nil)
             }
             .padding(.top, 4)
         }
@@ -76,6 +99,32 @@ struct GitLabAddSheet: View {
     }
 
     private let labelWidth: CGFloat = 110
+
+    /// Async submit handler — fires the host's `onSubmit`, shows the
+    /// outcome inline, and auto-dismisses 1.2s after success so the
+    /// confirmation has time to register. Errors keep the sheet open
+    /// so the user can edit the form (typically a malformed base URL
+    /// or a bad PAT scope).
+    private func submit() {
+        let trimmedName = name.trimmingCharacters(in: .whitespaces)
+        let trimmedURL = baseURL.trimmingCharacters(in: .whitespaces)
+        let trimmedPAT = pat.trimmingCharacters(in: .whitespaces)
+        guard !trimmedName.isEmpty, trimmedURL.hasPrefix("https://"), !trimmedPAT.isEmpty else { return }
+        errorMessage = nil
+        isSubmitting = true
+        Task {
+            do {
+                try await onSubmit(trimmedName, trimmedURL, note, trimmedPAT)
+                isSubmitting = false
+                successMessage = "Successfully added \"\(trimmedName)\". Closing…"
+                try? await Task.sleep(nanoseconds: 1_200_000_000)
+                dismissSheet()
+            } catch {
+                isSubmitting = false
+                errorMessage = "Add GitLab instance failed: \(error.localizedDescription)"
+            }
+        }
+    }
 
     @ViewBuilder
     private func field<Content: View>(
