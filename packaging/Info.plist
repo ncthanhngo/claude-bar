@@ -13,9 +13,9 @@
     <key>CFBundleIdentifier</key>
     <string>dev.ncthanhngo.claude-bar</string>
     <key>CFBundleVersion</key>
-    <string>11.9</string>
+    <string>11.10</string>
     <key>CFBundleShortVersionString</key>
-    <string>11.9</string>
+    <string>11.10</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleSignature</key>
@@ -35,7 +35,7 @@
     <key>NSHumanReadableCopyright</key>
     <string>Copyright © 2026 Thanh Ngô. Licensed under MIT.</string>
     <key>CFBundleGetInfoString</key>
-    <string>Claude Bar 11.9 — menu-bar manager for multiple Claude Code accounts</string>
+    <string>Claude Bar 11.10 — menu-bar manager for multiple Claude Code accounts</string>
     <key>CBAuthorName</key>
     <string>Thanh Ngô</string>
     <key>CBAuthorEmail</key>
@@ -49,12 +49,12 @@
     <key>CBReleaseChannel</key>
     <string>Beta</string>
     <key>CBReleaseWhatsNew</key>
-    <string>Web-linked accounts now refresh every 60 seconds (every 30 seconds when active 5h ≥ 80%), instead of waiting 3 minutes per cycle. The web scrape goes through your own claude.ai cookie session via WKWebView so it doesn't share Anthropic's `/usage` rate-limit budget — usage bars and auto-swap react ~3× faster for web-linked accounts.
-The slower OAuth `/usage` cadence (180s / 120s, user-configurable) is preserved for terminal-only accounts and is also gated separately so the faster outer loop doesn't burn the rate-limited endpoint.</string>
+    <string>Web-linked refresh cadence backed off from the v11.9 60s / 30s to 120s / 60s. Still ~33% faster than the OAuth default (180s / 120s), but leaves headroom for the 3–8s WKWebView scrape plus keychain/iCloud cookie sync that runs per account each cycle — at 60s × multiple accounts the main actor saturated and the popover stopped updating.
+OAuth `/usage` cadence (180s / 120s, user-configurable) is still preserved for terminal-only accounts and remains independently gated, so the outer loop doesn't burn the rate-limited endpoint.</string>
     <key>CBReleaseHotfixes</key>
-    <string>None</string>
+    <string>Fixed the popover hanging on "loading…" usage bars for users with multiple web-linked accounts, introduced in v11.9 when the web cadence dropped to 60s / 30s.</string>
     <key>CBReleaseKnownIssues</key>
-    <string>The faster 60s / 30s web-poll loads a hidden WKWebView reload of claude.ai/settings/usage per cycle and waits for the React SPA to hydrate (typically 1–3s, up to ~8s). Expect modestly higher CPU and battery use on machines with several web-linked accounts; the previous 180s cycle is still in effect if no account is web-linked.
+    <string>Each web-poll cycle still loads a hidden WKWebView reload of claude.ai/settings/usage per linked account and waits for the React SPA to hydrate (typically 1–3s, up to ~8s). At the v11.10 120s / 60s cadence this fits comfortably for 2–3 accounts; users with many more web-linked accounts may want to disable web-link on the less-used ones.
 The menu-bar popover still dismisses when the Rename window opens (macOS menu-bar app behaviour, not preventable without giving up the dropdown style). The rename itself goes through on Save; reopen the menu to see the new name.
 Existing v11.x Google tokens are still missing the `spreadsheets` scope shipped in 11.3. The cb_gsheets_* tools return Google "insufficient permission" until you Disconnect + Reconnect the Google connector — that mints a fresh token with the new scope set. Drive / Calendar / Gmail tools keep working on the old scope until you do.</string>
     <key>CFBundleDevelopmentRegion</key>
