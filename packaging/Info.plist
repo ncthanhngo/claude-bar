@@ -13,9 +13,9 @@
     <key>CFBundleIdentifier</key>
     <string>dev.ncthanhngo.claude-bar</string>
     <key>CFBundleVersion</key>
-    <string>10.37</string>
+    <string>10.38</string>
     <key>CFBundleShortVersionString</key>
-    <string>10.37</string>
+    <string>10.38</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleSignature</key>
@@ -35,7 +35,7 @@
     <key>NSHumanReadableCopyright</key>
     <string>Copyright © 2026 Thanh Ngô. Licensed under MIT.</string>
     <key>CFBundleGetInfoString</key>
-    <string>Claude Bar 10.37 — menu-bar manager for multiple Claude Code accounts</string>
+    <string>Claude Bar 10.38 — menu-bar manager for multiple Claude Code accounts</string>
     <key>CBAuthorName</key>
     <string>Thanh Ngô</string>
     <key>CBAuthorEmail</key>
@@ -49,8 +49,8 @@
     <key>CBReleaseChannel</key>
     <string>Beta</string>
     <key>CBReleaseWhatsNew</key>
-    <string>New "Auto-update Claude Bar" toggle in Settings → General → Updates. When on, Claude Bar polls the appcast daily, silently downloads any new EdDSA-signed build, and installs it on the next idle moment — no prompt, no manual relaunch. Default ON; turn off to keep manual control via About → Check for updates….
-New popover layout picker in Settings → General → Popover layout. Switch between Standard (full status, accounts with usage bars, auto-swap slider, token chart) and Minimum (header + account list only, click-to-swap). Toggling takes effect immediately, no restart.</string>
+    <string>Popover layout picker now offers three sizes — Full, Standard, Tiny — selectable from Settings → General → Popover layout. Full keeps the original dashboard (status, usage bars, auto-swap slider, token chart). Standard is a 2/3-scaled compact version with twin 5h/7d bars and small auto-swap and token KPI cards. Tiny is the smallest layout: header plus account list only, each row showing avatar + name + tiny colour-coded 5h/7d % chips. Toggling takes effect immediately, no restart.
+Users on the previous "Minimum" layout are migrated automatically to Standard so nothing changes underfoot.</string>
     <key>CBReleaseHotfixes</key>
     <string>None.</string>
     <key>CBReleaseKnownIssues</key>
