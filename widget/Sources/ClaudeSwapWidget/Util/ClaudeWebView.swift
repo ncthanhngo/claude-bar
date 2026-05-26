@@ -83,19 +83,32 @@ final class ClaudeWebUsageFetcher: NSObject, WKNavigationDelegate {
     func fetchUsage() async throws -> UsageDTO {
         try await reloadUsagePage()
         // claude.ai is a React SPA — `didFinish` fires when HTML+JS is loaded
-        // but the usage numbers arrive via a follow-up XHR. Polling the scrape
-        // until the progressbars render keeps us from extracting an empty DOM
-        // (which would surface as "usageUnavailable" and force OAuth fallback
-        // every poll even when the linked profile is healthy).
+        // but the usage numbers arrive via a follow-up XHR. The weekly-limit
+        // block hydrates several seconds AFTER the 5h block in steady state,
+        // so returning the first payload that has either window typically
+        // captures 5h with `sevenDay: nil`. Per-account merging upstream
+        // recovers the previous 7d, but only until that window's resetsAt
+        // expires — then the 7d bar flickers on/off until the SPA finally
+        // re-renders it. Wait for BOTH windows (up to ~8s) before returning;
+        // if only 5h hydrated after the cap, accept the partial result so
+        // accounts where claude.ai genuinely doesn't surface 7d (free tier
+        // edge cases, scraper miss) still get something.
         let decoder = JSONDecoder()
         var lastError: Error = ClaudeWebUsageError.usageUnavailable
-        for attempt in 0..<8 {
+        var lastPayload: WebUsagePayload?
+        let maxAttempts = 16            // 16 * 0.5s = 8s ceiling
+        let bailIfEmptyAfter = 4        // give up early if SPA never paints
+        for attempt in 0..<maxAttempts {
             let result = try await webView.evaluateJavaScript(Self.scrapeScript)
             if let raw = result as? String,
                let data = raw.data(using: .utf8) {
                 do {
                     let payload = try decoder.decode(WebUsagePayload.self, from: data)
                     if payload.fiveHour != nil || payload.sevenDay != nil {
+                        lastPayload = payload
+                    }
+                    // Both windows present — done, no need to wait further.
+                    if payload.fiveHour != nil && payload.sevenDay != nil {
                         return payload.usage
                     }
                     lastError = ClaudeWebUsageError.usageUnavailable
@@ -103,9 +116,20 @@ final class ClaudeWebUsageFetcher: NSObject, WKNavigationDelegate {
                     lastError = error
                 }
             }
-            if attempt < 7 {
+            // Still nothing after ~2s? The SPA either never loaded usage at
+            // all (signed-out / wrong session) or is too slow to chase. Let
+            // upstream fall back to OAuth instead of burning 8s every poll.
+            if attempt >= bailIfEmptyAfter - 1 && lastPayload == nil {
+                throw lastError
+            }
+            if attempt < maxAttempts - 1 {
                 try await Task.sleep(nanoseconds: 500_000_000) // 0.5s
             }
+        }
+        // Hit the 8s ceiling without ever seeing both windows. Return the
+        // best partial we collected so 5h doesn't go missing too.
+        if let last = lastPayload {
+            return last.usage
         }
         throw lastError
     }
