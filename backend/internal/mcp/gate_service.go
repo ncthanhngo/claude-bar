@@ -71,8 +71,9 @@ var ErrGateNoEmitter = errors.New("gate: no emitter configured")
 // GateService coordinates write-tool approval. It is NOT registered as an MCP
 // tool — LLMs cannot call into it. Widget responds via an internal IPC path.
 //
-// AwaitApproval blocks on a per-nonce channel; Respond unblocks it. 30-second
-// hard timeout returns DecisionTimeout.
+// AwaitApproval blocks on a per-nonce channel; Respond unblocks it. 60-second
+// hard timeout returns DecisionTimeout — keep in lock-step with the widget's
+// `GateCoordinator.approvalTimeoutSeconds`.
 type GateService struct {
 	Emitter GatePromptEmitter
 	Timeout time.Duration
@@ -81,12 +82,18 @@ type GateService struct {
 	pending map[string]chan Decision
 }
 
-// NewGateService builds a service with the given emitter and a 30s default
+// DefaultGateTimeout is the hard upper bound on user-approval latency.
+// Widened from 30s to 60s in v11.4 so the user notification fired by the
+// widget has time to land + the user has time to pull focus over and read
+// the args before the backend self-cancels.
+const DefaultGateTimeout = 60 * time.Second
+
+// NewGateService builds a service with the given emitter and a 60s default
 // timeout.
 func NewGateService(em GatePromptEmitter) *GateService {
 	return &GateService{
 		Emitter: em,
-		Timeout: 30 * time.Second,
+		Timeout: DefaultGateTimeout,
 		pending: make(map[string]chan Decision),
 	}
 }
@@ -120,7 +127,7 @@ func (s *GateService) AwaitApproval(ctx context.Context, p GatePrompt) (Decision
 
 	timeout := s.Timeout
 	if timeout <= 0 {
-		timeout = 30 * time.Second
+		timeout = DefaultGateTimeout
 	}
 	timer := time.NewTimer(timeout)
 	defer timer.Stop()

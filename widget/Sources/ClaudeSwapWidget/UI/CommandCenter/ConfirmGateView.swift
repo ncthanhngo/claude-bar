@@ -65,7 +65,8 @@ struct ConfirmGateView: View {
 
     private var countdownBar: some View {
         GeometryReader { geo in
-            let pct = max(0, min(1, Double(gate.secondsRemaining) / 30.0))
+            let total = Double(GateCoordinator.approvalTimeoutSeconds)
+            let pct = max(0, min(1, Double(gate.secondsRemaining) / total))
             ZStack(alignment: .leading) {
                 RoundedRectangle(cornerRadius: 2)
                     .fill(Color.secondary.opacity(0.18))

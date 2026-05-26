@@ -52,9 +52,17 @@ struct ClaudeSwapWidgetApp: App {
         let storeRef = _store.wrappedValue
         let loginRef = _loginCoordinator.wrappedValue
         let cloudRef = _cloudSync.wrappedValue
+        let gateRef = _gateCoord.wrappedValue
         let settingsRef = AppSettings.shared
         AppDelegate.onLaunchCompleted = {
             Task { @MainActor in
+                // Start the gate IPC proxy unconditionally at launch so MCP
+                // write-tool prompts (Slack post, Sheets write, etc.) can
+                // surface even when the user has never opened the popover.
+                // Without this, MenuBarExtra's `.task` modifier defers the
+                // start until first popover render, and every MCP write
+                // call before that times out with `user_cancelled` (#11).
+                gateRef.start()
                 // Give store.start() (kicked off from the popover's .task)
                 // a moment to fetch the snapshot. If the popover never opens,
                 // snapshot stays nil — but `accounts.isEmpty` is still
