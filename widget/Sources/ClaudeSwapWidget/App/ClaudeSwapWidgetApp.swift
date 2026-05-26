@@ -132,6 +132,23 @@ struct ClaudeSwapWidgetApp: App {
                 .environmentObject(localMCP)
                 .environmentObject(updateController)
                 .environmentObject(gateCoord)
+                // Write-gate sheet for Low / Medium / ReadSensitive prompts.
+                // Without this, those prompts only render via the
+                // ConfirmGateOverlay inside the popover — invisible when the
+                // popover is closed, so MCP write calls (Slack post, ClickUp
+                // comment, etc.) time out after 30s without the user ever
+                // seeing the prompt. The `isPresented` binding must accept
+                // writes too — a no-op setter would leave SwiftUI thinking
+                // the sheet is in-flight forever.
+                .sheet(isPresented: Binding(
+                    get: { gateCoord.pending.map { $0.risk != .destructive } ?? false },
+                    set: { isOpen in if !isOpen { gateCoord.cancel() } }
+                )) {
+                    ConfirmGateView(gate: gateCoord)
+                        .frame(width: 460)
+                        .padding(20)
+                        .background(Color(NSColor.windowBackgroundColor))
+                }
                 .task {
                     gateCoord.start()
                     loginCoordinator.attach(store: store)
