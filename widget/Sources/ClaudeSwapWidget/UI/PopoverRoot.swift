@@ -14,8 +14,9 @@ struct PopoverRoot: View {
 
     var body: some View {
         switch settings.popoverLayout {
-        case .standard: WidgetTabbedPopover()
-        case .minimum:  MinimumPopoverView()
+        case .full:     WidgetTabbedPopover()
+        case .standard: MediumPopoverView()
+        case .tiny:     TinyPopoverView()
         }
     }
 }

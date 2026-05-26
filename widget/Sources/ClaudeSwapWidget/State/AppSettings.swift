@@ -184,33 +184,62 @@ final class AppSettings: ObservableObject {
     }
 }
 
-/// Visual density of the menu-bar popover.
+/// Visual density of the menu-bar popover, from largest to smallest.
 ///
-/// **Standard** — the full surface: status header, accounts with usage bars,
-/// auto-swap slider, and the token-usage chart. Intended for people who
-/// drive auto-swap and watch quota burn live.
+/// **Full** — the full dashboard: status header, accounts with usage bars,
+/// auto-swap slider, token-usage chart. For people who drive auto-swap and
+/// watch quota burn live.
 ///
-/// **Minimum** — header bar + accounts list only. No auto-swap section, no
-/// token chart, no usage bars. For users who just need to click-to-switch
-/// account and don't care about the dashboard. Popover stays short and
-/// opens instantly.
+/// **Standard** — 2/3-scaled compact dashboard: account rows with twin
+/// 5h/7d bars, plus small auto-swap and token KPI cards. No slider, no
+/// chart. The default for new installs.
+///
+/// **Tiny** — header + account list only. Each row: avatar + name +
+/// ACTIVE dot + tiny 5h/7d percentage chips. The smallest popover the
+/// app ships.
+///
+/// ## Migration
+/// Raw values renamed in v10.38 to disambiguate the user-visible labels
+/// from their internal meaning. The old enum was `(standard, medium,
+/// tiny)`; "standard" meant the full dashboard back then. Custom
+/// `init?(rawValue:)` maps the historical strings forward so nobody gets
+/// bumped to a different layout on update:
+///   • `"standard"`           (old: full dashboard) → `.full`
+///   • `"medium"`, `"minimum"` (old: compact)       → `.standard`
+///   • `"standard_v2"`        (new write)           → `.standard`
+///   • `"full"`, `"tiny"`     (already canonical)   → as-is
+///
+/// `.standard` writes the new rawValue `"standard_v2"` so it can never
+/// collide with the old `"standard"` meaning.
 enum PopoverLayout: String, CaseIterable, Identifiable {
-    case standard
-    case minimum
+    case full
+    case standard = "standard_v2"
+    case tiny
 
     var id: String { rawValue }
 
+    init?(rawValue: String) {
+        switch rawValue {
+        case "full", "standard":                   self = .full
+        case "standard_v2", "medium", "minimum":   self = .standard
+        case "tiny":                               self = .tiny
+        default:                                   return nil
+        }
+    }
+
     var label: String {
         switch self {
+        case .full:     return "Full"
         case .standard: return "Standard"
-        case .minimum:  return "Minimum"
+        case .tiny:     return "Tiny"
         }
     }
 
     var detail: String {
         switch self {
-        case .standard: return "Status header + accounts with usage bars + auto-swap + token chart."
-        case .minimum:  return "Header + accounts list only. Tap to switch."
+        case .full:     return "Status header + accounts with usage bars + auto-swap slider + token chart."
+        case .standard: return "Compact accounts with 5h/7d bars + small auto-swap and token KPI cards."
+        case .tiny:     return "Header + account list with tiny 5h/7d % chips. Tap to switch."
         }
     }
 }
