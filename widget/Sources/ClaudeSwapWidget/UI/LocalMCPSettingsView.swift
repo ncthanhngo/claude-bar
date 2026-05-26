@@ -8,6 +8,7 @@ struct LocalMCPSettingsView: View {
     @State private var pendingDisconnect: PendingDisconnect?
     @State private var connectorPrompts: MCPConnectorPrompts = .empty
     @State private var expandedConnectorPrompt: String?  // "service-key" of expanded row
+    @State private var expandedConnectorTools: String?   // "service-key" of expanded tools list
     // SwiftUI .sheet() attached to the MenuBarExtra(.window) popover dismisses
     // the popover the instant a text field inside it becomes first responder
     // (same trap DiagnosticsTab / RenameAccountSheet / CloudPassphrasePrompt
@@ -334,6 +335,7 @@ struct LocalMCPSettingsView: View {
                           ? "Tắt \(connector.labelTitle) — tools của connector này sẽ bị gỡ khỏi tools/list (tiết kiệm ~vài ngàn tokens/message). Token vẫn giữ trong Keychain. Các phiên Claude Code đang chạy sẽ tự restart để áp dụng."
                           : "Bật lại \(connector.labelTitle). Các phiên Claude Code đang chạy sẽ tự restart để load thêm tools.")
                 }
+                toolsDisclosureButton(account: account, service: connector.service)
                 promptDisclosureButton(account: account, service: connector.service)
                 if connector.enabled && connector.hasSecret {
                     Button("Disconnect") {
@@ -361,7 +363,130 @@ struct LocalMCPSettingsView: View {
                     .padding(.top, 6)
                     .padding(.bottom, 4)
             }
+            if expandedConnectorTools == promptKey(account: account, service: connector.service) {
+                connectorToolsList(service: connector.service)
+                    .padding(.leading, 26)
+                    .padding(.top, 6)
+                    .padding(.bottom, 4)
+            }
         }
+    }
+
+    /// Disclosure pill for per-tool toggles. Opening it triggers a
+    /// `loadTools(service:)` fetch on the coordinator; the rendered list
+    /// shows up as soon as the @Published cache populates.
+    @ViewBuilder private func toolsDisclosureButton(account: Int, service: String) -> some View {
+        let key = promptKey(account: account, service: service)
+        let isOpen = expandedConnectorTools == key
+        let count = coordinator.toolsByService[service]?.count ?? 0
+        let disabledCount = coordinator.toolsByService[service]?.filter { !$0.enabled }.count ?? 0
+        Button {
+            if isOpen {
+                expandedConnectorTools = nil
+            } else {
+                expandedConnectorTools = key
+                Task { await coordinator.loadTools(service: service) }
+            }
+        } label: {
+            HStack(spacing: 4) {
+                Image(systemName: isOpen ? "chevron.down" : "chevron.right")
+                    .font(.system(size: 9, weight: .semibold))
+                Text(disabledCount > 0 && count > 0
+                     ? "Tools (\(count - disabledCount)/\(count))"
+                     : "Tools")
+                    .font(.system(size: 11, weight: .semibold))
+            }
+            .foregroundColor(.white)
+            .padding(.horizontal, 9)
+            .padding(.vertical, 4)
+            .background(Capsule().fill(Color.purple))
+            .overlay(Capsule().stroke(Color.white.opacity(0.25), lineWidth: 0.5))
+            .shadow(color: Color.black.opacity(0.12), radius: 1, y: 1)
+        }
+        .buttonStyle(.plain)
+        .help("Bật / tắt từng tool của connector. Tools tắt sẽ không xuất hiện trong tools/list, tiết kiệm context tokens và ngăn Claude gọi.")
+    }
+
+    /// The expanded body — grouped by Category, sorted by Priority within
+    /// each group. Each row carries label + description + a Toggle that
+    /// calls `setToolEnabled` (which also restarts running Claude sessions).
+    @ViewBuilder private func connectorToolsList(service: String) -> some View {
+        let tools = coordinator.toolsByService[service] ?? []
+        if tools.isEmpty {
+            HStack {
+                ProgressView().controlSize(.mini)
+                Text("Loading…").font(.caption).foregroundColor(.secondary)
+            }
+        } else {
+            let buckets = groupTools(tools)
+            VStack(alignment: .leading, spacing: 10) {
+                ForEach(buckets, id: \.0) { (category, items) in
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(category.uppercased())
+                            .font(.system(size: 9, weight: .heavy))
+                            .tracking(0.6)
+                            .foregroundColor(.secondary)
+                        ForEach(items) { tool in
+                            toolRow(service: service, tool: tool)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// Groups by Category preserving the order tools appear in the
+    /// service's catalog (already priority-sorted backend-side). Returns
+    /// `[(category, tools)]` so SwiftUI's ForEach can render predictably.
+    private func groupTools(_ tools: [MCPToolSummaryDTO]) -> [(String, [MCPToolSummaryDTO])] {
+        var order: [String] = []
+        var bucket: [String: [MCPToolSummaryDTO]] = [:]
+        for t in tools {
+            if bucket[t.category] == nil { order.append(t.category) }
+            bucket[t.category, default: []].append(t)
+        }
+        return order.map { ($0, bucket[$0] ?? []) }
+    }
+
+    @ViewBuilder private func toolRow(service: String, tool: MCPToolSummaryDTO) -> some View {
+        HStack(alignment: .top, spacing: 8) {
+            VStack(alignment: .leading, spacing: 1) {
+                HStack(spacing: 6) {
+                    Text(tool.label)
+                        .font(.system(size: 11, weight: .medium))
+                    if tool.priority == 0 {
+                        Text("ESSENTIAL")
+                            .font(.system(size: 8, weight: .bold))
+                            .tracking(0.4)
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 4).padding(.vertical, 1)
+                            .background(Capsule().fill(Color.green))
+                    } else if tool.priority == 2 {
+                        Text("ADVANCED")
+                            .font(.system(size: 8, weight: .bold))
+                            .tracking(0.4)
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 4).padding(.vertical, 1)
+                            .background(Capsule().fill(Color.gray))
+                    }
+                }
+                Text(tool.description)
+                    .font(.system(size: 10))
+                    .foregroundColor(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 6)
+            Toggle("", isOn: Binding(
+                get: { tool.enabled },
+                set: { newValue in
+                    Task { await coordinator.setToolEnabled(toolID: tool.id, enabled: newValue, service: service) }
+                }
+            ))
+            .toggleStyle(.switch)
+            .controlSize(.mini)
+            .labelsHidden()
+        }
+        .padding(.vertical, 3)
     }
 
     private func promptKey(account: Int, service: String) -> String {

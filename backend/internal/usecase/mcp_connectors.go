@@ -3,9 +3,11 @@ package usecase
 import (
 	"context"
 	"fmt"
+	"sort"
 	"time"
 
 	"github.com/soi/claude-swap-widget/backend/internal/domain"
+	"github.com/soi/claude-swap-widget/backend/internal/mcp"
 )
 
 // MCPConnectorSummary is a UI-safe per-service status row.
@@ -189,6 +191,88 @@ func (s *Service) DisconnectMCPConnector(ctx context.Context, accountNum int, sv
 		if len(acc.MCPConnectors) == 0 {
 			acc.MCPConnectors = nil
 		}
+	}
+	return s.Registry.Save(ctx, reg)
+}
+
+// MCPToolSummary mirrors mcp.ToolMeta plus the per-build enabled state
+// pulled from the registry. The widget renders one toggle per row using
+// `Enabled`; flipping it calls SetMCPToolEnabled which round-trips the
+// change to disk and restarts running claude sessions so tools/list
+// re-issues with the new set.
+type MCPToolSummary struct {
+	ID          string `json:"id"`
+	Service     string `json:"service"`
+	Label       string `json:"label"`
+	Description string `json:"description"`
+	Category    string `json:"category"`
+	Priority    int    `json:"priority"`
+	Enabled     bool   `json:"enabled"`
+}
+
+// ListMCPTools returns the curated catalog for one service merged with
+// the current per-tool disable flags from the registry. Sort order is
+// stable across calls so the widget can render without re-sorting.
+func (s *Service) ListMCPTools(ctx context.Context, service domain.MCPService) ([]MCPToolSummary, error) {
+	reg, err := s.Registry.Load(ctx)
+	if err != nil {
+		return nil, err
+	}
+	disabled := map[string]bool{}
+	for _, id := range reg.DisabledMCPTools {
+		disabled[id] = true
+	}
+	catalog := mcp.ToolsForService(service)
+	out := make([]MCPToolSummary, 0, len(catalog))
+	for _, t := range catalog {
+		out = append(out, MCPToolSummary{
+			ID:          t.ID,
+			Service:     string(t.Service),
+			Label:       t.Label,
+			Description: t.Description,
+			Category:    t.Category,
+			Priority:    int(t.Priority),
+			Enabled:     !disabled[t.ID],
+		})
+	}
+	return out, nil
+}
+
+// SetMCPToolEnabled adds or removes one tool ID from the registry-wide
+// `DisabledMCPTools` slice. The slice stays sorted + de-duplicated so
+// JSON encoding is stable across writes and a grep on the registry file
+// reads cleanly. Unknown tool IDs are accepted (no catalog cross-check)
+// because the catalog can lag a Sparkle update — we'd rather silently
+// honour a stored disable than reject the write.
+func (s *Service) SetMCPToolEnabled(ctx context.Context, toolID string, enabled bool) error {
+	if err := s.Lock.Acquire(ctx); err != nil {
+		return err
+	}
+	defer s.Lock.Release()
+
+	reg, err := s.Registry.Load(ctx)
+	if err != nil {
+		return err
+	}
+	// Recompute the slice — small set, simpler than splicing.
+	present := map[string]bool{}
+	for _, id := range reg.DisabledMCPTools {
+		present[id] = true
+	}
+	if enabled {
+		delete(present, toolID)
+	} else {
+		present[toolID] = true
+	}
+	out := make([]string, 0, len(present))
+	for id := range present {
+		out = append(out, id)
+	}
+	sort.Strings(out)
+	if len(out) == 0 {
+		reg.DisabledMCPTools = nil
+	} else {
+		reg.DisabledMCPTools = out
 	}
 	return s.Registry.Save(ctx, reg)
 }

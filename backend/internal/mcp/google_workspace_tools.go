@@ -23,7 +23,7 @@ const (
 )
 
 func (g *Gateway) registerGCalTools(srv *server.MCPServer) {
-	addTool(srv, "cb_gcal_list_events",
+	g.addTool(srv, "cb_gcal_list_events",
 		"List Google Calendar events visible to the active Claude Bar Google token. Read-only.",
 		[]mcpgo.ToolOption{
 			mcpgo.WithString("calendar_id", mcpgo.Description("Calendar ID. Default: primary.")),
@@ -35,7 +35,7 @@ func (g *Gateway) registerGCalTools(srv *server.MCPServer) {
 		g.gcalListEvents,
 	)
 
-	addTool(srv, "cb_gcal_get_event",
+	g.addTool(srv, "cb_gcal_get_event",
 		"Get one Google Calendar event by calendar ID and event ID. Read-only.",
 		[]mcpgo.ToolOption{
 			mcpgo.WithString("calendar_id", mcpgo.Description("Calendar ID. Default: primary.")),
@@ -44,13 +44,13 @@ func (g *Gateway) registerGCalTools(srv *server.MCPServer) {
 		g.gcalGetEvent,
 	)
 
-	addTool(srv, "cb_gcal_list_calendars",
+	g.addTool(srv, "cb_gcal_list_calendars",
 		"List calendars visible to the active Google token (lets the agent discover calendar IDs before calling list_events). Read-only.",
 		nil,
 		g.gcalListCalendars,
 	)
 
-	addTool(srv, "cb_gcal_get_free_busy",
+	g.addTool(srv, "cb_gcal_get_free_busy",
 		"Query free/busy windows for one or more calendars over a time range. Read-only.",
 		[]mcpgo.ToolOption{
 			mcpgo.WithString("calendars", mcpgo.Description("Comma-separated calendar IDs. Default: primary.")),
@@ -62,7 +62,7 @@ func (g *Gateway) registerGCalTools(srv *server.MCPServer) {
 }
 
 func (g *Gateway) registerGmailTools(srv *server.MCPServer) {
-	addTool(srv, "cb_gmail_search_messages",
+	g.addTool(srv, "cb_gmail_search_messages",
 		"Search Gmail messages visible to the active Claude Bar Google token. Read-only.",
 		[]mcpgo.ToolOption{
 			mcpgo.WithString("query", mcpgo.Description("Gmail search query, e.g. from:alice newer_than:7d.")),
@@ -71,7 +71,7 @@ func (g *Gateway) registerGmailTools(srv *server.MCPServer) {
 		g.gmailSearchMessages,
 	)
 
-	addTool(srv, "cb_gmail_get_message",
+	g.addTool(srv, "cb_gmail_get_message",
 		"Read one Gmail message by ID, returning headers, snippet, and plain text when available. Read-only.",
 		[]mcpgo.ToolOption{
 			mcpgo.WithString("message_id", mcpgo.Required(), mcpgo.Description("Gmail message ID.")),
@@ -79,13 +79,13 @@ func (g *Gateway) registerGmailTools(srv *server.MCPServer) {
 		g.gmailGetMessage,
 	)
 
-	addTool(srv, "cb_gmail_list_labels",
+	g.addTool(srv, "cb_gmail_list_labels",
 		"List Gmail labels (system + user) so the agent can filter by label ID. Read-only.",
 		nil,
 		g.gmailListLabels,
 	)
 
-	addTool(srv, "cb_gmail_get_thread",
+	g.addTool(srv, "cb_gmail_get_thread",
 		"Get a full Gmail conversation thread with every message expanded (headers + plain text). Read-only.",
 		[]mcpgo.ToolOption{
 			mcpgo.WithString("thread_id", mcpgo.Required(), mcpgo.Description("Gmail thread ID (every message in a thread shares it).")),

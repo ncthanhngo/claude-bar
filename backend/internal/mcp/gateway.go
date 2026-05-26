@@ -25,6 +25,14 @@ type Gateway struct {
 	UserAgent string
 	Version   string
 
+	// disabledTools is the per-build snapshot of tools the user has
+	// switched off in Settings → MCP. Populated once per spawn in
+	// BuildServer from Registry.DisabledMCPTools and then consulted by
+	// `addTool` to skip registration entirely. The set is a value (not a
+	// pointer) so the goroutine that read the registry can publish to
+	// other paths without races — BuildServer is single-threaded.
+	disabledTools map[string]bool
+
 	// Gate coordinates write-tool approval. nil means no widget is wired —
 	// every write blocks and returns user_cancelled (safe default for CLI
 	// invocations and tests).
@@ -77,6 +85,7 @@ func (g *Gateway) BuildServer() *server.MCPServer {
 		g.Version,
 		server.WithToolCapabilities(true),
 	)
+	g.disabledTools = g.loadDisabledTools()
 	enabled := g.enabledServices()
 	if enabled[domain.MCPServiceSlack] {
 		g.registerSlackTools(srv)
@@ -152,8 +161,34 @@ func (g *Gateway) ServeStdio(ctx context.Context) error {
 	return server.ServeStdio(g.BuildServer())
 }
 
-// addTool is a tiny shim so connector files can build tools concisely.
-func addTool(srv *server.MCPServer, name, description string, opts []mcpgo.ToolOption, handler server.ToolHandlerFunc) {
+// addTool is the tiny shim every connector file uses to register one
+// tool. It now consults `g.disabledTools` first so per-tool toggles set
+// in Settings → MCP take effect: a disabled tool is skipped entirely and
+// never appears in tools/list, dropping its ~hundreds of bytes from
+// Claude Code's system prompt as well as blocking calls.
+func (g *Gateway) addTool(srv *server.MCPServer, name, description string, opts []mcpgo.ToolOption, handler server.ToolHandlerFunc) {
+	if g.disabledTools[name] {
+		return
+	}
 	full := append([]mcpgo.ToolOption{mcpgo.WithDescription(description)}, opts...)
 	srv.AddTool(mcpgo.NewTool(name, full...), handler)
+}
+
+// loadDisabledTools reads the registry once per BuildServer call and
+// returns a lookup-friendly set. Falls back to an empty set on load
+// failure — a stale registry should never prevent Claude Code from
+// reaching its tools.
+func (g *Gateway) loadDisabledTools() map[string]bool {
+	out := map[string]bool{}
+	if g.Resolver == nil || g.Resolver.Registry == nil {
+		return out
+	}
+	reg, err := g.Resolver.Registry.Load(context.Background())
+	if err != nil || reg == nil {
+		return out
+	}
+	for _, id := range reg.DisabledMCPTools {
+		out[id] = true
+	}
+	return out
 }

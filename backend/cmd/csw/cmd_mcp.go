@@ -77,6 +77,8 @@ func runMCP(ctx context.Context, svc *usecase.Service, args []string) error {
 		return runMCPStatus(ctx, rest)
 	case "connectors":
 		return runMCPConnectors(ctx, svc, rest)
+	case "tools":
+		return runMCPTools(ctx, svc, rest)
 	default:
 		return fmt.Errorf("unknown mcp subcommand: %s", sub)
 	}
@@ -426,6 +428,57 @@ func runMCPConnectorsDisconnect(ctx context.Context, svc *usecase.Service, args 
 		return errors.New("--service is required")
 	}
 	return svc.DisconnectMCPConnector(ctx, targetAccount, domain.MCPService(*service))
+}
+
+func runMCPTools(ctx context.Context, svc *usecase.Service, args []string) error {
+	if len(args) == 0 {
+		return errors.New("usage: csw mcp tools <list|set-enabled>")
+	}
+	sub, rest := args[0], args[1:]
+	switch sub {
+	case "list":
+		return runMCPToolsList(ctx, svc, rest)
+	case "set-enabled":
+		return runMCPToolsSetEnabled(ctx, svc, rest)
+	default:
+		return fmt.Errorf("unknown tools subcommand: %s", sub)
+	}
+}
+
+func runMCPToolsList(ctx context.Context, svc *usecase.Service, args []string) error {
+	fs := flag.NewFlagSet("tools-list", flag.ExitOnError)
+	service := fs.String("service", "", "slack | clickup | gdrive | github | gitlab | bitwarden")
+	asJSON := fs.Bool("json", false, "machine-readable output")
+	_ = fs.Parse(args)
+	if *service == "" {
+		return errors.New("--service is required")
+	}
+	tools, err := svc.ListMCPTools(ctx, domain.MCPService(*service))
+	if err != nil {
+		return err
+	}
+	if *asJSON {
+		return json.NewEncoder(os.Stdout).Encode(tools)
+	}
+	for _, t := range tools {
+		mark := " "
+		if t.Enabled {
+			mark = "✓"
+		}
+		fmt.Printf("  %s [%s] %-36s %s\n", mark, t.Category, t.ID, t.Label)
+	}
+	return nil
+}
+
+func runMCPToolsSetEnabled(ctx context.Context, svc *usecase.Service, args []string) error {
+	fs := flag.NewFlagSet("tools-set-enabled", flag.ExitOnError)
+	tool := fs.String("tool", "", "tool ID, e.g. cb_github_get_pr")
+	enabled := fs.Bool("enabled", true, "true to enable, false to disable")
+	_ = fs.Parse(args)
+	if *tool == "" {
+		return errors.New("--tool is required")
+	}
+	return svc.SetMCPToolEnabled(ctx, *tool, *enabled)
 }
 
 func runMCPConnectorsSetEnabled(ctx context.Context, svc *usecase.Service, args []string) error {

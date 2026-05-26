@@ -305,6 +305,21 @@ struct MCPConnectorSummaryDTO: Codable, Hashable, Identifiable {
     }
 }
 
+/// Mirrors backend/internal/usecase/mcp_connectors.go MCPToolSummary.
+/// One toggleable tool with the metadata the widget needs to render a
+/// labelled, described, grouped, sorted row. `priority` is a low-int
+/// enum (0 = essential, 1 = common, 2 = advanced) used to bucket tools
+/// inside their connector's disclosure.
+struct MCPToolSummaryDTO: Codable, Hashable, Identifiable {
+    let id: String
+    let service: String
+    let label: String
+    let description: String
+    let category: String
+    let priority: Int
+    let enabled: Bool
+}
+
 /// Mirrors backend/internal/usecase/mcp_connectors.go MCPAccountSummary.
 struct MCPAccountSummaryDTO: Codable, Hashable, Identifiable {
     let accountNumber: Int

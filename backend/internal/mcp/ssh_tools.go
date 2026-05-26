@@ -51,13 +51,13 @@ func (g *Gateway) registerSSHTools(srv *server.MCPServer) {
 		g.SSHRunner = realSSHExec{}
 	}
 
-	addTool(srv, "cb_ssh_list_hosts",
+	g.addTool(srv, "cb_ssh_list_hosts",
 		"List SSH hosts tracked by Claude Bar (name + connection metadata). Read-only.",
 		nil,
 		g.sshListHosts,
 	)
 
-	addTool(srv, "cb_ssh_exec",
+	g.addTool(srv, "cb_ssh_exec",
 		"Run a command on a tracked SSH host. Gated; risk is classified server-side.",
 		[]mcpgo.ToolOption{
 			mcpgo.WithString("host", mcpgo.Required(), mcpgo.Description("Tracked host name (matches ~/.ssh/config Host stanza).")),
@@ -67,7 +67,7 @@ func (g *Gateway) registerSSHTools(srv *server.MCPServer) {
 		g.sshExec,
 	)
 
-	addTool(srv, "cb_ssh_tail",
+	g.addTool(srv, "cb_ssh_tail",
 		"Tail a remote file with an optional bounded follow window. Read-only.",
 		[]mcpgo.ToolOption{
 			mcpgo.WithString("host", mcpgo.Required(), mcpgo.Description("Tracked host name.")),
@@ -78,7 +78,7 @@ func (g *Gateway) registerSSHTools(srv *server.MCPServer) {
 		g.sshTail,
 	)
 
-	addTool(srv, "cb_ssh_read_file",
+	g.addTool(srv, "cb_ssh_read_file",
 		"Read the head of a remote file up to a byte cap. Safer than exec(\"cat\") because the byte limit is enforced server-side. Read-only.",
 		[]mcpgo.ToolOption{
 			mcpgo.WithString("host", mcpgo.Required(), mcpgo.Description("Tracked host name.")),

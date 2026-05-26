@@ -20,7 +20,7 @@ import (
 // All gate-protected. No destructive writes (delete is intentionally out of
 // scope for v1 per phase-08 plan).
 func (g *Gateway) registerClickUpWriteTools(srv *server.MCPServer) {
-	addTool(srv, "cb_clickup_create_task",
+	g.addTool(srv, "cb_clickup_create_task",
 		"Create a ClickUp task in a list. Gated.",
 		[]mcpgo.ToolOption{
 			mcpgo.WithString("list_id", mcpgo.Required(), mcpgo.Description("List ID to create the task in.")),
@@ -32,7 +32,7 @@ func (g *Gateway) registerClickUpWriteTools(srv *server.MCPServer) {
 		g.clickupCreateTask,
 	)
 
-	addTool(srv, "cb_clickup_update_task_status",
+	g.addTool(srv, "cb_clickup_update_task_status",
 		"Update a ClickUp task's status. Gated (Medium risk for completed/archived).",
 		[]mcpgo.ToolOption{
 			mcpgo.WithString("task_id", mcpgo.Required(), mcpgo.Description("Task ID.")),
@@ -41,7 +41,7 @@ func (g *Gateway) registerClickUpWriteTools(srv *server.MCPServer) {
 		g.clickupUpdateTaskStatus,
 	)
 
-	addTool(srv, "cb_clickup_add_comment",
+	g.addTool(srv, "cb_clickup_add_comment",
 		"Add a comment to a ClickUp task. Gated.",
 		[]mcpgo.ToolOption{
 			mcpgo.WithString("task_id", mcpgo.Required(), mcpgo.Description("Task ID.")),
@@ -50,7 +50,7 @@ func (g *Gateway) registerClickUpWriteTools(srv *server.MCPServer) {
 		g.clickupAddComment,
 	)
 
-	addTool(srv, "cb_clickup_assign",
+	g.addTool(srv, "cb_clickup_assign",
 		"Add or remove assignees on a ClickUp task. Gated.",
 		[]mcpgo.ToolOption{
 			mcpgo.WithString("task_id", mcpgo.Required(), mcpgo.Description("Task ID.")),
@@ -60,7 +60,7 @@ func (g *Gateway) registerClickUpWriteTools(srv *server.MCPServer) {
 		g.clickupAssign,
 	)
 
-	addTool(srv, "cb_clickup_update_task",
+	g.addTool(srv, "cb_clickup_update_task",
 		"Edit a ClickUp task's name, description, priority, or due date. Gated.",
 		[]mcpgo.ToolOption{
 			mcpgo.WithString("task_id", mcpgo.Required(), mcpgo.Description("Task ID.")),

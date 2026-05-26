@@ -29,7 +29,7 @@ func (g *Gateway) registerGitLabTools(srv *server.MCPServer) {
 		return // GitLab not wired
 	}
 
-	addTool(srv, "cb_gitlab_list_mrs",
+	g.addTool(srv, "cb_gitlab_list_mrs",
 		"List merge requests on a self-hosted GitLab project. Read-only.",
 		[]mcpgo.ToolOption{
 			mcpgo.WithString("instance", mcpgo.Description("Instance id or name; omit when only one is configured.")),
@@ -40,7 +40,7 @@ func (g *Gateway) registerGitLabTools(srv *server.MCPServer) {
 		g.gitlabListMRs,
 	)
 
-	addTool(srv, "cb_gitlab_get_mr",
+	g.addTool(srv, "cb_gitlab_get_mr",
 		"Get a single GitLab merge request.",
 		[]mcpgo.ToolOption{
 			mcpgo.WithString("instance", mcpgo.Description("Instance id or name.")),
@@ -50,7 +50,7 @@ func (g *Gateway) registerGitLabTools(srv *server.MCPServer) {
 		g.gitlabGetMR,
 	)
 
-	addTool(srv, "cb_gitlab_list_issues",
+	g.addTool(srv, "cb_gitlab_list_issues",
 		"List issues on a GitLab project. Read-only.",
 		[]mcpgo.ToolOption{
 			mcpgo.WithString("instance", mcpgo.Description("Instance id or name.")),
@@ -61,7 +61,7 @@ func (g *Gateway) registerGitLabTools(srv *server.MCPServer) {
 		g.gitlabListIssues,
 	)
 
-	addTool(srv, "cb_gitlab_comment_mr",
+	g.addTool(srv, "cb_gitlab_comment_mr",
 		"Add a comment on a GitLab merge request. Gated.",
 		[]mcpgo.ToolOption{
 			mcpgo.WithString("instance", mcpgo.Description("Instance id or name.")),
@@ -72,7 +72,7 @@ func (g *Gateway) registerGitLabTools(srv *server.MCPServer) {
 		g.gitlabCommentMR,
 	)
 
-	addTool(srv, "cb_gitlab_approve_mr",
+	g.addTool(srv, "cb_gitlab_approve_mr",
 		"Approve a GitLab merge request. Gated.",
 		[]mcpgo.ToolOption{
 			mcpgo.WithString("instance", mcpgo.Description("Instance id or name.")),
@@ -82,7 +82,7 @@ func (g *Gateway) registerGitLabTools(srv *server.MCPServer) {
 		g.gitlabApproveMR,
 	)
 
-	addTool(srv, "cb_gitlab_merge_mr",
+	g.addTool(srv, "cb_gitlab_merge_mr",
 		"Merge a GitLab merge request. Destructive — surfaces modal gate.",
 		[]mcpgo.ToolOption{
 			mcpgo.WithString("instance", mcpgo.Description("Instance id or name.")),
@@ -93,7 +93,7 @@ func (g *Gateway) registerGitLabTools(srv *server.MCPServer) {
 		g.gitlabMergeMR,
 	)
 
-	addTool(srv, "cb_gitlab_close_issue",
+	g.addTool(srv, "cb_gitlab_close_issue",
 		"Close a GitLab issue. Destructive — surfaces modal gate.",
 		[]mcpgo.ToolOption{
 			mcpgo.WithString("instance", mcpgo.Description("Instance id or name.")),
@@ -105,7 +105,7 @@ func (g *Gateway) registerGitLabTools(srv *server.MCPServer) {
 
 	// --- expanded reads (parity with GitHub) ---
 
-	addTool(srv, "cb_gitlab_get_mr_diff",
+	g.addTool(srv, "cb_gitlab_get_mr_diff",
 		"Get the diff (raw patches per file) for a GitLab merge request. Read-only.",
 		[]mcpgo.ToolOption{
 			mcpgo.WithString("instance", mcpgo.Description("Instance id or name.")),
@@ -115,7 +115,7 @@ func (g *Gateway) registerGitLabTools(srv *server.MCPServer) {
 		g.gitlabGetMRDiff,
 	)
 
-	addTool(srv, "cb_gitlab_list_mr_notes",
+	g.addTool(srv, "cb_gitlab_list_mr_notes",
 		"List discussion comments (notes) on a merge request. Read-only.",
 		[]mcpgo.ToolOption{
 			mcpgo.WithString("instance", mcpgo.Description("Instance id or name.")),
@@ -126,7 +126,7 @@ func (g *Gateway) registerGitLabTools(srv *server.MCPServer) {
 		g.gitlabListMRNotes,
 	)
 
-	addTool(srv, "cb_gitlab_list_mr_changes",
+	g.addTool(srv, "cb_gitlab_list_mr_changes",
 		"List files changed in a merge request with patch hunks. Read-only.",
 		[]mcpgo.ToolOption{
 			mcpgo.WithString("instance", mcpgo.Description("Instance id or name.")),
@@ -136,7 +136,7 @@ func (g *Gateway) registerGitLabTools(srv *server.MCPServer) {
 		g.gitlabListMRChanges,
 	)
 
-	addTool(srv, "cb_gitlab_get_issue",
+	g.addTool(srv, "cb_gitlab_get_issue",
 		"Get one GitLab issue by IID. Read-only.",
 		[]mcpgo.ToolOption{
 			mcpgo.WithString("instance", mcpgo.Description("Instance id or name.")),
@@ -146,7 +146,7 @@ func (g *Gateway) registerGitLabTools(srv *server.MCPServer) {
 		g.gitlabGetIssue,
 	)
 
-	addTool(srv, "cb_gitlab_list_issue_notes",
+	g.addTool(srv, "cb_gitlab_list_issue_notes",
 		"List discussion comments (notes) on an issue. Read-only.",
 		[]mcpgo.ToolOption{
 			mcpgo.WithString("instance", mcpgo.Description("Instance id or name.")),
@@ -157,7 +157,7 @@ func (g *Gateway) registerGitLabTools(srv *server.MCPServer) {
 		g.gitlabListIssueNotes,
 	)
 
-	addTool(srv, "cb_gitlab_get_file",
+	g.addTool(srv, "cb_gitlab_get_file",
 		"Read a file from a GitLab repository at a given ref. Read-only.",
 		[]mcpgo.ToolOption{
 			mcpgo.WithString("instance", mcpgo.Description("Instance id or name.")),
@@ -168,7 +168,7 @@ func (g *Gateway) registerGitLabTools(srv *server.MCPServer) {
 		g.gitlabGetFile,
 	)
 
-	addTool(srv, "cb_gitlab_list_branches",
+	g.addTool(srv, "cb_gitlab_list_branches",
 		"List branches in a GitLab project. Read-only.",
 		[]mcpgo.ToolOption{
 			mcpgo.WithString("instance", mcpgo.Description("Instance id or name.")),
@@ -179,7 +179,7 @@ func (g *Gateway) registerGitLabTools(srv *server.MCPServer) {
 		g.gitlabListBranches,
 	)
 
-	addTool(srv, "cb_gitlab_list_commits",
+	g.addTool(srv, "cb_gitlab_list_commits",
 		"List commits on a branch or path. Read-only.",
 		[]mcpgo.ToolOption{
 			mcpgo.WithString("instance", mcpgo.Description("Instance id or name.")),
@@ -191,7 +191,7 @@ func (g *Gateway) registerGitLabTools(srv *server.MCPServer) {
 		g.gitlabListCommits,
 	)
 
-	addTool(srv, "cb_gitlab_list_pipelines",
+	g.addTool(srv, "cb_gitlab_list_pipelines",
 		"List CI pipelines for a project, optionally filtered by ref / status. Read-only.",
 		[]mcpgo.ToolOption{
 			mcpgo.WithString("instance", mcpgo.Description("Instance id or name.")),
@@ -205,7 +205,7 @@ func (g *Gateway) registerGitLabTools(srv *server.MCPServer) {
 
 	// --- expanded writes ---
 
-	addTool(srv, "cb_gitlab_create_issue",
+	g.addTool(srv, "cb_gitlab_create_issue",
 		"Open a new GitLab issue. Gated.",
 		[]mcpgo.ToolOption{
 			mcpgo.WithString("instance", mcpgo.Description("Instance id or name.")),
@@ -218,7 +218,7 @@ func (g *Gateway) registerGitLabTools(srv *server.MCPServer) {
 		g.gitlabCreateIssue,
 	)
 
-	addTool(srv, "cb_gitlab_create_mr",
+	g.addTool(srv, "cb_gitlab_create_mr",
 		"Open a new merge request. Gated.",
 		[]mcpgo.ToolOption{
 			mcpgo.WithString("instance", mcpgo.Description("Instance id or name.")),
@@ -233,7 +233,7 @@ func (g *Gateway) registerGitLabTools(srv *server.MCPServer) {
 		g.gitlabCreateMR,
 	)
 
-	addTool(srv, "cb_gitlab_update_issue",
+	g.addTool(srv, "cb_gitlab_update_issue",
 		"Edit a GitLab issue's title, description, labels, or assignees. Gated. Use cb_gitlab_close_issue for state changes.",
 		[]mcpgo.ToolOption{
 			mcpgo.WithString("instance", mcpgo.Description("Instance id or name.")),

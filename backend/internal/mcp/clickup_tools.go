@@ -19,13 +19,13 @@ import (
 var clickupAPIBase = "https://api.clickup.com/api/v2"
 
 func (g *Gateway) registerClickUpTools(srv *server.MCPServer) {
-	addTool(srv, "cb_clickup_list_workspaces",
+	g.addTool(srv, "cb_clickup_list_workspaces",
 		"List ClickUp workspaces (teams) the personal API token has access to. Read-only.",
 		nil,
 		g.clickupListWorkspaces,
 	)
 
-	addTool(srv, "cb_clickup_list_spaces",
+	g.addTool(srv, "cb_clickup_list_spaces",
 		"List ClickUp spaces in a workspace/team. Read-only.",
 		[]mcpgo.ToolOption{
 			mcpgo.WithString("workspace_id", mcpgo.Required(), mcpgo.Description("ClickUp workspace/team ID.")),
@@ -34,7 +34,7 @@ func (g *Gateway) registerClickUpTools(srv *server.MCPServer) {
 		g.clickupListSpaces,
 	)
 
-	addTool(srv, "cb_clickup_list_folders",
+	g.addTool(srv, "cb_clickup_list_folders",
 		"List ClickUp folders in a space. Read-only.",
 		[]mcpgo.ToolOption{
 			mcpgo.WithString("space_id", mcpgo.Required(), mcpgo.Description("ClickUp space ID.")),
@@ -43,7 +43,7 @@ func (g *Gateway) registerClickUpTools(srv *server.MCPServer) {
 		g.clickupListFolders,
 	)
 
-	addTool(srv, "cb_clickup_list_lists",
+	g.addTool(srv, "cb_clickup_list_lists",
 		"List ClickUp lists in a folder or folderless space. Read-only.",
 		[]mcpgo.ToolOption{
 			mcpgo.WithString("folder_id", mcpgo.Description("ClickUp folder ID. Use either folder_id or space_id.")),
@@ -53,7 +53,7 @@ func (g *Gateway) registerClickUpTools(srv *server.MCPServer) {
 		g.clickupListLists,
 	)
 
-	addTool(srv, "cb_clickup_list_tasks",
+	g.addTool(srv, "cb_clickup_list_tasks",
 		"List ClickUp tasks for a list, optionally filtered by status and assignee. Read-only.",
 		[]mcpgo.ToolOption{
 			mcpgo.WithString("list_id", mcpgo.Required(), mcpgo.Description("ClickUp list ID.")),
@@ -63,7 +63,7 @@ func (g *Gateway) registerClickUpTools(srv *server.MCPServer) {
 		g.clickupListTasks,
 	)
 
-	addTool(srv, "cb_clickup_get_task",
+	g.addTool(srv, "cb_clickup_get_task",
 		"Get a single ClickUp task by ID. Read-only.",
 		[]mcpgo.ToolOption{
 			mcpgo.WithString("task_id", mcpgo.Required(), mcpgo.Description("ClickUp task ID.")),
@@ -71,7 +71,7 @@ func (g *Gateway) registerClickUpTools(srv *server.MCPServer) {
 		g.clickupGetTask,
 	)
 
-	addTool(srv, "cb_clickup_list_comments",
+	g.addTool(srv, "cb_clickup_list_comments",
 		"List comments on a ClickUp task. Returns the comment body, author, and timestamps. Read-only.",
 		[]mcpgo.ToolOption{
 			mcpgo.WithString("task_id", mcpgo.Required(), mcpgo.Description("ClickUp task ID.")),
@@ -80,7 +80,7 @@ func (g *Gateway) registerClickUpTools(srv *server.MCPServer) {
 		g.clickupListComments,
 	)
 
-	addTool(srv, "cb_clickup_list_members",
+	g.addTool(srv, "cb_clickup_list_members",
 		"List members of a ClickUp workspace so the agent can resolve assignee IDs to names. Read-only.",
 		[]mcpgo.ToolOption{
 			mcpgo.WithString("workspace_id", mcpgo.Required(), mcpgo.Description("ClickUp workspace/team ID.")),
@@ -88,7 +88,7 @@ func (g *Gateway) registerClickUpTools(srv *server.MCPServer) {
 		g.clickupListMembers,
 	)
 
-	addTool(srv, "cb_clickup_search_tasks",
+	g.addTool(srv, "cb_clickup_search_tasks",
 		"Search tasks across an entire workspace with optional filters. Read-only.",
 		[]mcpgo.ToolOption{
 			mcpgo.WithString("workspace_id", mcpgo.Required(), mcpgo.Description("ClickUp workspace/team ID.")),

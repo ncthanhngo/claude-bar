@@ -25,7 +25,7 @@ func (g *Gateway) registerGitHubWriteTools(srv *server.MCPServer) {
 	repo := mcpgo.WithString("repo", mcpgo.Required())
 	num := mcpgo.WithNumber("number", mcpgo.Required())
 
-	addTool(srv, "cb_github_post_review", "Post PR review.",
+	g.addTool(srv, "cb_github_post_review", "Post PR review.",
 		[]mcpgo.ToolOption{
 			owner, repo, num,
 			mcpgo.WithString("event", mcpgo.Required(), mcpgo.Description("APPROVE|REQUEST_CHANGES|COMMENT.")),
@@ -34,7 +34,7 @@ func (g *Gateway) registerGitHubWriteTools(srv *server.MCPServer) {
 		g.githubPostReview,
 	)
 
-	addTool(srv, "cb_github_comment_issue", "Comment on issue/PR.",
+	g.addTool(srv, "cb_github_comment_issue", "Comment on issue/PR.",
 		[]mcpgo.ToolOption{
 			owner, repo, num,
 			mcpgo.WithString("body", mcpgo.Required()),
@@ -42,7 +42,7 @@ func (g *Gateway) registerGitHubWriteTools(srv *server.MCPServer) {
 		g.githubCommentIssue,
 	)
 
-	addTool(srv, "cb_github_merge_pr", "Merge a PR.",
+	g.addTool(srv, "cb_github_merge_pr", "Merge a PR.",
 		[]mcpgo.ToolOption{
 			owner, repo, num,
 			mcpgo.WithString("method", mcpgo.Description("merge|squash|rebase.")),
@@ -51,7 +51,7 @@ func (g *Gateway) registerGitHubWriteTools(srv *server.MCPServer) {
 		g.githubMergePR,
 	)
 
-	addTool(srv, "cb_github_close_issue", "Close an issue.",
+	g.addTool(srv, "cb_github_close_issue", "Close an issue.",
 		[]mcpgo.ToolOption{
 			owner, repo, num,
 			mcpgo.WithString("reason", mcpgo.Description("completed|not_planned|reopened.")),
@@ -59,7 +59,7 @@ func (g *Gateway) registerGitHubWriteTools(srv *server.MCPServer) {
 		g.githubCloseIssue,
 	)
 
-	addTool(srv, "cb_github_create_issue", "Open an issue.",
+	g.addTool(srv, "cb_github_create_issue", "Open an issue.",
 		[]mcpgo.ToolOption{
 			owner, repo,
 			mcpgo.WithString("title", mcpgo.Required()),
@@ -70,7 +70,7 @@ func (g *Gateway) registerGitHubWriteTools(srv *server.MCPServer) {
 		g.githubCreateIssue,
 	)
 
-	addTool(srv, "cb_github_create_pr", "Open a PR.",
+	g.addTool(srv, "cb_github_create_pr", "Open a PR.",
 		[]mcpgo.ToolOption{
 			owner, repo,
 			mcpgo.WithString("title", mcpgo.Required()),
@@ -83,7 +83,7 @@ func (g *Gateway) registerGitHubWriteTools(srv *server.MCPServer) {
 		g.githubCreatePR,
 	)
 
-	addTool(srv, "cb_github_update_issue", "Edit issue (title/body/labels/assignees/milestone). Use close_issue for state.",
+	g.addTool(srv, "cb_github_update_issue", "Edit issue (title/body/labels/assignees/milestone). Use close_issue for state.",
 		[]mcpgo.ToolOption{
 			owner, repo, num,
 			mcpgo.WithString("title"),
@@ -95,7 +95,7 @@ func (g *Gateway) registerGitHubWriteTools(srv *server.MCPServer) {
 		g.githubUpdateIssue,
 	)
 
-	addTool(srv, "cb_github_request_reviewers", "Request PR reviewers.",
+	g.addTool(srv, "cb_github_request_reviewers", "Request PR reviewers.",
 		[]mcpgo.ToolOption{
 			owner, repo, num,
 			mcpgo.WithString("reviewers", mcpgo.Description("CSV logins.")),
@@ -104,7 +104,7 @@ func (g *Gateway) registerGitHubWriteTools(srv *server.MCPServer) {
 		g.githubRequestReviewers,
 	)
 
-	addTool(srv, "cb_github_add_labels", "Add labels (existing preserved).",
+	g.addTool(srv, "cb_github_add_labels", "Add labels (existing preserved).",
 		[]mcpgo.ToolOption{
 			owner, repo, num,
 			mcpgo.WithString("labels", mcpgo.Required(), mcpgo.Description("CSV.")),
@@ -112,7 +112,7 @@ func (g *Gateway) registerGitHubWriteTools(srv *server.MCPServer) {
 		g.githubAddLabels,
 	)
 
-	addTool(srv, "cb_github_remove_label", "Remove one label.",
+	g.addTool(srv, "cb_github_remove_label", "Remove one label.",
 		[]mcpgo.ToolOption{
 			owner, repo, num,
 			mcpgo.WithString("label", mcpgo.Required()),

@@ -41,7 +41,13 @@ type Registry struct {
 	Sequence            []int             `json:"sequence"`
 	Accounts            map[int]*Account  `json:"accounts"`
 	SharedMCPConnectors AccountConnectors `json:"sharedMcpConnectors,omitempty"`
-	LastUpdated         time.Time         `json:"lastUpdated"`
+	// DisabledMCPTools is the registry-wide list of tool IDs the MCP
+	// gateway should skip when registering its toolset. Disabling a tool
+	// here removes it from tools/list (saves Claude Code's context tokens
+	// AND prevents Claude from calling it) without touching the
+	// connector's Keychain payload. Sorted lowercase for stable JSON.
+	DisabledMCPTools []string `json:"disabledMcpTools,omitempty"`
+	LastUpdated      time.Time `json:"lastUpdated"`
 }
 
 // NewRegistry returns an empty registry at the current schema version.

@@ -77,7 +77,7 @@ func ParseCapture(input string) CaptureParsed {
 // with Origin=OriginCapture; the gate may auto-confirm when the user has
 // trust-capture enabled (enforced server-side per Red-Team Finding 13).
 func (g *Gateway) registerClickUpCaptureTool(srv *server.MCPServer) {
-	addTool(srv, "cb_clickup_capture",
+	g.addTool(srv, "cb_clickup_capture",
 		"Create a ClickUp task from a capture-box input (tokens: #list, @assignee, !priority, due <word>). Gated.",
 		[]mcpgo.ToolOption{
 			mcpgo.WithString("input", mcpgo.Required(), mcpgo.Description("Raw capture-box text.")),

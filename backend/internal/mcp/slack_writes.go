@@ -16,7 +16,7 @@ import (
 // Each call routes through Gateway.Gate.AwaitApproval before hitting
 // Slack's chat.postMessage endpoint.
 func (g *Gateway) registerSlackWriteTools(srv *server.MCPServer) {
-	addTool(srv, "cb_slack_post_message",
+	g.addTool(srv, "cb_slack_post_message",
 		"Post a new message to a Slack channel or DM. Gated.",
 		[]mcpgo.ToolOption{
 			mcpgo.WithString("channel", mcpgo.Required(), mcpgo.Description("Channel ID or DM ID (e.g. C0123ABCD or D0123ABCD).")),
@@ -25,7 +25,7 @@ func (g *Gateway) registerSlackWriteTools(srv *server.MCPServer) {
 		g.slackPostMessage,
 	)
 
-	addTool(srv, "cb_slack_reply_thread",
+	g.addTool(srv, "cb_slack_reply_thread",
 		"Reply inside an existing Slack thread. Gated.",
 		[]mcpgo.ToolOption{
 			mcpgo.WithString("channel", mcpgo.Required(), mcpgo.Description("Channel ID hosting the thread.")),

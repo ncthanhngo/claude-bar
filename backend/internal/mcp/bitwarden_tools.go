@@ -25,7 +25,7 @@ func (g *Gateway) registerBitwardenTools(srv *server.MCPServer) {
 		g.BWRunner = bwcli.ExecRunner{}
 	}
 
-	addTool(srv, "cb_bw_search_items",
+	g.addTool(srv, "cb_bw_search_items",
 		"Search the Bitwarden vault by query string. Returns summaries (no secret material). Per-call approve gate.",
 		[]mcpgo.ToolOption{
 			mcpgo.WithString("query", mcpgo.Required(), mcpgo.Description("Search query (item name, folder, URI fragment).")),
@@ -33,7 +33,7 @@ func (g *Gateway) registerBitwardenTools(srv *server.MCPServer) {
 		g.bwSearchItems,
 	)
 
-	addTool(srv, "cb_bw_get_item",
+	g.addTool(srv, "cb_bw_get_item",
 		"Get one Bitwarden item by id. Pass reveal=true to include password/totp/notes/hidden fields; both reveal=false and reveal=true pass the approve gate.",
 		[]mcpgo.ToolOption{
 			mcpgo.WithString("id", mcpgo.Required(), mcpgo.Description("Bitwarden item ID.")),
@@ -42,7 +42,7 @@ func (g *Gateway) registerBitwardenTools(srv *server.MCPServer) {
 		g.bwGetItem,
 	)
 
-	addTool(srv, "cb_bw_list_folders",
+	g.addTool(srv, "cb_bw_list_folders",
 		"List Bitwarden vault folders (id + name). Lets the agent discover folder IDs before constraining a search. Per-call approve gate.",
 		nil,
 		g.bwListFolders,

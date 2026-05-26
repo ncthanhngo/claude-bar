@@ -12,6 +12,11 @@ final class LocalMCPCoordinator: ObservableObject {
 
     @Published private(set) var installStatus: MCPInstallStatusDTO?
     @Published private(set) var accounts: [MCPAccountSummaryDTO] = []
+    /// Per-service tool catalog + enabled state. Populated lazily when
+    /// the user expands a connector's disclosure in Settings → MCP, so
+    /// the popover open path doesn't pay the round-trip for tools nobody
+    /// is looking at.
+    @Published private(set) var toolsByService: [String: [MCPToolSummaryDTO]] = [:]
     @Published private(set) var isBusy = false
     @Published var lastError: String?
 
@@ -143,6 +148,38 @@ final class LocalMCPCoordinator: ObservableObject {
             // the new toolset — same machinery the swap flow uses, minus
             // the credential switch. cmux panes are skipped because the
             // cmux relauncher would race the resume; user keeps cmux state.
+            await restartClaudeForMCPReload()
+        } catch {
+            lastError = error.localizedDescription
+        }
+    }
+
+    /// Loads (or refreshes) the per-tool catalog for one service.
+    /// Caches in `toolsByService[service]` so successive disclosures
+    /// render instantly from the @Published copy without another
+    /// round-trip. Toggling a tool calls `setToolEnabled` which
+    /// invalidates this cache.
+    func loadTools(service: String) async {
+        do {
+            let list = try await client.mcpToolsList(service: service)
+            toolsByService[service] = list
+        } catch {
+            lastError = "Load tools (\(service)): \(error.localizedDescription)"
+        }
+    }
+
+    /// Flip one tool on or off. Mirrors `setEnabled(account:service:)`
+    /// for whole connectors — the same SIGINT-restart machinery applies
+    /// so Claude Code's `tools/list` reissues with the new shape on the
+    /// next prompt.
+    func setToolEnabled(toolID: String, enabled: Bool, service: String) async {
+        guard !isBusy else { return }
+        isBusy = true
+        lastError = nil
+        defer { isBusy = false }
+        do {
+            try await client.mcpToolsSetEnabled(toolID: toolID, enabled: enabled)
+            await loadTools(service: service)
             await restartClaudeForMCPReload()
         } catch {
             lastError = error.localizedDescription

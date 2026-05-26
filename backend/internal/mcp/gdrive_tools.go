@@ -18,7 +18,7 @@ import (
 const gdriveAPIBase = "https://www.googleapis.com/drive/v3"
 
 func (g *Gateway) registerGDriveTools(srv *server.MCPServer) {
-	addTool(srv, "cb_gdrive_search_files",
+	g.addTool(srv, "cb_gdrive_search_files",
 		"Search Google Drive files visible to the active Claude Bar account's Drive token. Read-only.",
 		[]mcpgo.ToolOption{
 			mcpgo.WithString("query", mcpgo.Required(), mcpgo.Description("Drive search query, e.g. \"name contains 'report'\" or \"mimeType='application/vnd.google-apps.document'\".")),
@@ -27,7 +27,7 @@ func (g *Gateway) registerGDriveTools(srv *server.MCPServer) {
 		g.gdriveSearchFiles,
 	)
 
-	addTool(srv, "cb_gdrive_get_file_metadata",
+	g.addTool(srv, "cb_gdrive_get_file_metadata",
 		"Get metadata for a Google Drive file by ID. Read-only.",
 		[]mcpgo.ToolOption{
 			mcpgo.WithString("file_id", mcpgo.Required(), mcpgo.Description("Google Drive file ID.")),
@@ -35,7 +35,7 @@ func (g *Gateway) registerGDriveTools(srv *server.MCPServer) {
 		g.gdriveGetFileMetadata,
 	)
 
-	addTool(srv, "cb_gdrive_get_doc_text",
+	g.addTool(srv, "cb_gdrive_get_doc_text",
 		"Export a Google Doc as plain text. Only works for Google Docs (mimeType application/vnd.google-apps.document).",
 		[]mcpgo.ToolOption{
 			mcpgo.WithString("file_id", mcpgo.Required(), mcpgo.Description("Google Doc file ID.")),
@@ -43,7 +43,7 @@ func (g *Gateway) registerGDriveTools(srv *server.MCPServer) {
 		g.gdriveGetDocText,
 	)
 
-	addTool(srv, "cb_gdrive_list_folder",
+	g.addTool(srv, "cb_gdrive_list_folder",
 		"List the children of a Google Drive folder by folder ID. Read-only.",
 		[]mcpgo.ToolOption{
 			mcpgo.WithString("folder_id", mcpgo.Required(), mcpgo.Description("Drive folder ID. Use 'root' for My Drive root.")),
@@ -53,7 +53,7 @@ func (g *Gateway) registerGDriveTools(srv *server.MCPServer) {
 		g.gdriveListFolder,
 	)
 
-	addTool(srv, "cb_gdrive_download_file",
+	g.addTool(srv, "cb_gdrive_download_file",
 		"Download a Google Drive file's bytes as text (for binary files like PDFs, the bytes are returned as-is — the agent should size-check first via get_file_metadata). Read-only. For Google Docs use get_doc_text instead.",
 		[]mcpgo.ToolOption{
 			mcpgo.WithString("file_id", mcpgo.Required(), mcpgo.Description("Drive file ID (non-Google-Doc).")),
