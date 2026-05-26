@@ -110,7 +110,16 @@ struct AccountViewDTO: Codable, Hashable, Identifiable {
             account: account,
             isActive: isActive,
             usage: usage.merging(over: self.usage),
-            error: error,
+            // Clear any stale usage-fetch error when a fresh usage object
+            // arrives. Without this a single transient OAuth failure (or
+            // an OAuth probe for a web-linked account that briefly
+            // returned an error before the web scrape took over) leaves
+            // `error` set forever, surfacing as a permanent "Couldn't
+            // fetch usage" badge in the row even after the scrape
+            // succeeded. `credentialError` is kept untouched — it
+            // describes a separate "needs_login" state that fresh usage
+            // doesn't resolve.
+            error: nil,
             credentialState: credentialState,
             credentialError: credentialError,
             subscriptionType: subscriptionType
