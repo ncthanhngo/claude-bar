@@ -12,6 +12,26 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 10.37 (BETA)</title>
+      <sparkle:version>10.37</sparkle:version>
+      <sparkle:shortVersionString>10.37</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li><strong>New "Auto-update Claude Bar" toggle</strong> in Settings → General → Updates. When on, Claude Bar polls the appcast daily, silently downloads any new EdDSA-signed build, and installs it on the next idle moment — no prompt, no manual relaunch. Default ON; turn off to keep manual control via About → Check for updates….</li>
+          <li><strong>New "Popover layout" picker</strong> in Settings → General. Switch between <strong>Standard</strong> (full status, accounts with usage bars, auto-swap slider, token chart) and <strong>Minimum</strong> (header + account list only, click-to-swap). Toggling takes effect immediately, no restart.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Tue, 26 May 2026 07:52:40 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v10.37/ClaudeBar.zip"
+        sparkle:version="10.37"
+        sparkle:shortVersionString="10.37"
+        sparkle:edSignature="l/kM1RBgvEYPDsSUwJwXBC44fi3GwErHqQihK6Cu4dO8D4kyNiRBP73LHxInC7glrBsrO/NBWsc69TYUFf5UAw=="
+        length="8451471"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 10.36 (BETA)</title>
       <sparkle:version>10.36</sparkle:version>
       <sparkle:shortVersionString>10.36</sparkle:shortVersionString>
