@@ -31,6 +31,25 @@ final class AppStore: ObservableObject {
     /// (probe OAuth whenever web data is missing).
     var isWebLinked: ((AccountDTO) -> Bool)?
 
+    /// Last time `refreshNow` actually issued an OAuth usage fallback list
+    /// call. Used to gate Anthropic's rate-limited `/usage` endpoint to its
+    /// own cadence (`refreshIntervalSec` / `refreshIntervalHighSec`) while
+    /// the outer loop polls web-scraped accounts every 60/30s. Nil before
+    /// the first call so the very first refresh always hits OAuth.
+    private var lastOAuthFallbackAt: Date?
+
+    /// Web-scrape cadence floor (active 5h < threshold). Hardcoded — the
+    /// scrape goes through the user's own claude.ai cookie session via
+    /// WKWebView, not Anthropic's OAuth `/usage` endpoint, so it doesn't
+    /// share the 429 budget. 60s is the smallest interval that comfortably
+    /// fits one hidden WKWebView reload + SPA hydrate (≤ ~8s) without
+    /// pollers stacking up.
+    private static let webRefreshIntervalSec = 60
+    /// Web-scrape cadence ceiling (active 5h ≥ adaptiveHighThresholdPct).
+    /// Halved from `webRefreshIntervalSec` so the active bar updates fast
+    /// enough to drive auto-swap decisions near the threshold.
+    private static let webRefreshIntervalHighSec = 30
+
     private var refreshTask: Task<Void, Never>?
 
     init() {
@@ -148,13 +167,39 @@ final class AppStore: ObservableObject {
 
     /// Computes the next sleep duration based on the most recent active 5h%.
     /// Falls back to the low interval when no usage is available yet.
+    ///
+    /// When any account is web-linked, drops to the web-scrape cadence
+    /// (60s / 30s) instead of the OAuth cadence (180s / 120s by default).
+    /// The OAuth `/usage` call inside `refreshNow` is still gated by
+    /// `lastOAuthFallbackAt` so Anthropic's rate-limited endpoint keeps
+    /// its own slower cadence even on the faster outer loop.
     func nextRefreshIntervalSec() -> Int {
+        let cutoff = settings.adaptiveHighThresholdPct
+        let pct = snapshot?.active?.usage?.fiveHour?.percentInt
+        let isHigh = (pct ?? 0) >= cutoff
+        if anyAccountWebLinked() {
+            return isHigh ? Self.webRefreshIntervalHighSec : Self.webRefreshIntervalSec
+        }
+        let low = max(30, settings.refreshIntervalSec)
+        let high = max(30, settings.refreshIntervalHighSec)
+        return isHigh ? high : low
+    }
+
+    /// OAuth `/usage` cadence — kept at the user-configurable 180s / 120s
+    /// defaults regardless of the outer loop's web-driven cadence. Used by
+    /// `refreshNow` to skip the OAuth fallback call on web-poll cycles.
+    private func nextOAuthIntervalSec() -> Int {
         let low = max(30, settings.refreshIntervalSec)
         let high = max(30, settings.refreshIntervalHighSec)
         let cutoff = settings.adaptiveHighThresholdPct
         let pct = snapshot?.active?.usage?.fiveHour?.percentInt
         if let pct, pct >= cutoff { return high }
         return low
+    }
+
+    private func anyAccountWebLinked() -> Bool {
+        guard let check = isWebLinked, let accs = snapshot?.accounts else { return false }
+        return accs.contains { check($0.account) }
     }
 
     func stop() {
@@ -186,22 +231,34 @@ final class AppStore: ObservableObject {
             // because those accounts have no future web hydration to wait
             // for.
             let linkedCheck = isWebLinked
-            let fallbackNumbers = metadata.accounts
-                .filter { view in
-                    let usage = webUsages[view.id]
-                    if linkedCheck?(view.account) == true {
-                        // Web-linked: probe OAuth only when web returned no
-                        // usage object at all this cycle.
-                        return usage == nil
+            // Gate OAuth fallback to its own cadence so the faster web-poll
+            // outer loop (60/30s) doesn't burn Anthropic's rate-limited
+            // `/usage` budget. First refresh always runs OAuth so terminal
+            // accounts hydrate immediately on launch.
+            let oauthDue: Bool = {
+                guard let last = lastOAuthFallbackAt else { return true }
+                let interval = Double(nextOAuthIntervalSec())
+                return Date().timeIntervalSince(last) >= interval
+            }()
+            let fallbackNumbers: [Int] = oauthDue
+                ? metadata.accounts
+                    .filter { view in
+                        let usage = webUsages[view.id]
+                        if linkedCheck?(view.account) == true {
+                            // Web-linked: probe OAuth only when web returned no
+                            // usage object at all this cycle.
+                            return usage == nil
+                        }
+                        // Not web-linked: probe OAuth when web missing OR partial.
+                        guard let usage else { return true }
+                        return usage.fiveHour == nil || usage.sevenDay == nil
                     }
-                    // Not web-linked: probe OAuth when web missing OR partial.
-                    guard let usage else { return true }
-                    return usage.fiveHour == nil || usage.sevenDay == nil
-                }
-                .map(\.id)
+                    .map(\.id)
+                : []
             let fallback = fallbackNumbers.isEmpty
                 ? metadata
                 : try await client.list(usageAccounts: fallbackNumbers)
+            if !fallbackNumbers.isEmpty { lastOAuthFallbackAt = Date() }
             let list = metadata
                 .mergingUsageRows(fallback)
                 .replacingUsage(webUsages)
