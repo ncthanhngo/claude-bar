@@ -1,56 +1,118 @@
 import AppKit
 import SwiftUI
 
-/// Account rename prompt. Built on `NSAlert` instead of a SwiftUI `.sheet`
-/// because the menu-bar popover (`MenuBarExtra .window`) dismisses itself the
-/// moment a SwiftUI sheet attached to its hosting panel takes focus on Save —
-/// the click registers, the sheet starts dismissing, the popover then collapses
-/// and the in-flight `Task { await store.rename(...) }` races with the view
-/// tear-down. Users see "popover closed, nothing renamed" and have to retry.
+/// Account rename UI hosted in a floating NSWindow.
 ///
-/// `NSAlert.runModal()` runs in its own modal window (same pattern as the
-/// "Claude is busy" warning in AccountRowView). The popover stays open across
-/// the modal, Save returns synchronously with the new name, and the rename
-/// `Task` is dispatched from the calling coordinator method after the modal
-/// closes — no view-tree race.
+/// Earlier versions used `NSAlert.runModal()` (commit 40d80e2) because a
+/// SwiftUI `.sheet` attached to the menu-bar popover dismissed mid-flow.
+/// NSAlert improved that, but the SwiftUI `Menu` (the ellipsis on each
+/// account row) → action handler → `runModal()` chain still races with the
+/// MenuBarExtra popover dismissing on focus loss: the first Save click
+/// closed both popovers without firing the rename. Repeating worked.
+///
+/// `FloatingWindow` (same pattern as the Add-account wizard) decouples the
+/// rename form from the popover entirely. The form owns its own `@State`
+/// for the text field, the save closure captures a strong reference to the
+/// `AppStore`, and the rename `Task` is dispatched from the form's button
+/// action — independent of whether the popover is still alive.
 @MainActor
-enum AccountRenamePrompt {
-    /// Show the rename modal for `account` and call `apply(newName)` when the
-    /// user commits. Empty string means "clear nickname" (revert to email).
-    /// No-op when the user cancels.
-    static func run(for account: AccountViewDTO, apply: (String) -> Void) {
-        let alert = NSAlert()
-        alert.messageText = "Rename profile"
-        alert.informativeText = account.account.email
-        alert.alertStyle = .informational
+final class RenameAccountCoordinator {
+    static let shared = RenameAccountCoordinator()
 
-        let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 260, height: 24))
-        field.placeholderString = "Profile name"
-        field.stringValue = account.account.nickname ?? ""
-        field.cell?.usesSingleLineMode = true
-        field.cell?.wraps = false
-        field.cell?.isScrollable = true
-        alert.accessoryView = field
+    private let window = FloatingWindow<AnyView>()
 
-        alert.addButton(withTitle: "Save")           // .alertFirstButtonReturn
-        alert.addButton(withTitle: "Cancel")         // .alertSecondButtonReturn
-        let clearButton = alert.addButton(withTitle: "Clear")  // .alertThirdButtonReturn
-        clearButton.isEnabled = !(account.account.nickname ?? "").isEmpty
+    private init() {}
 
-        // Focus the text field so the user can type immediately and press
-        // Return to commit (Return triggers the default Save button).
-        alert.window.initialFirstResponder = field
-
-        let response = PopoverModal.runAlert(alert)
-        switch response {
-        case .alertFirstButtonReturn:
-            let trimmed = field.stringValue.trimmingCharacters(in: .whitespaces)
-            guard !trimmed.isEmpty else { return }
-            apply(trimmed)
-        case .alertThirdButtonReturn:
-            apply("")
-        default:
-            return
+    /// Presents the rename form for `account`. `onCommit` fires with the
+    /// new nickname (empty string clears it back to the email). The window
+    /// is closed before `onCommit` runs so the caller can dispatch its
+    /// rename `Task` without racing the window-close animation.
+    func present(for account: AccountViewDTO, onCommit: @escaping (String) -> Void) {
+        let close: () -> Void = { [window] in window.close() }
+        window.show(title: "Rename profile", size: NSSize(width: 360, height: 190)) {
+            AnyView(
+                RenameAccountForm(
+                    initialName: account.account.nickname ?? "",
+                    email: account.account.email,
+                    onCancel: close,
+                    onClear: {
+                        close()
+                        onCommit("")
+                    },
+                    onSave: { newName in
+                        close()
+                        onCommit(newName)
+                    }
+                )
+            )
         }
+    }
+}
+
+private struct RenameAccountForm: View {
+    let initialName: String
+    let email: String
+    let onCancel: () -> Void
+    let onClear: () -> Void
+    let onSave: (String) -> Void
+
+    @State private var name: String
+    @FocusState private var isFocused: Bool
+
+    init(
+        initialName: String,
+        email: String,
+        onCancel: @escaping () -> Void,
+        onClear: @escaping () -> Void,
+        onSave: @escaping (String) -> Void
+    ) {
+        self.initialName = initialName
+        self.email = email
+        self.onCancel = onCancel
+        self.onClear = onClear
+        self.onSave = onSave
+        self._name = State(initialValue: initialName)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Rename profile")
+                    .font(.system(size: 14, weight: .semibold))
+                Text(email)
+                    .font(.system(size: 11))
+                    .foregroundColor(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+            TextField("Profile name", text: $name)
+                .textFieldStyle(.roundedBorder)
+                .focused($isFocused)
+                .onSubmit(commit)
+            Spacer(minLength: 0)
+            HStack {
+                Button("Clear", action: onClear)
+                    .disabled(initialName.isEmpty)
+                Spacer()
+                Button("Cancel", action: onCancel)
+                    .keyboardShortcut(.cancelAction)
+                Button("Save", action: commit)
+                    .keyboardShortcut(.defaultAction)
+                    .disabled(trimmed.isEmpty)
+            }
+        }
+        .padding(20)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .onAppear { isFocused = true }
+    }
+
+    private var trimmed: String {
+        name.trimmingCharacters(in: .whitespaces)
+    }
+
+    private func commit() {
+        let value = trimmed
+        guard !value.isEmpty else { return }
+        onSave(value)
     }
 }

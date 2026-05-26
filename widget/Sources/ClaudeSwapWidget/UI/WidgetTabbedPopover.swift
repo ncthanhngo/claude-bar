@@ -135,8 +135,10 @@ struct WidgetTabbedPopover: View {
     }
 
     private func promptRename(for acc: AccountViewDTO) {
-        AccountRenamePrompt.run(for: acc) { newName in
-            Task { await store.rename(acc.account.number, to: newName) }
+        let num = acc.account.number
+        let storeRef = store
+        RenameAccountCoordinator.shared.present(for: acc) { newName in
+            Task { await storeRef.rename(num, to: newName) }
         }
     }
 
