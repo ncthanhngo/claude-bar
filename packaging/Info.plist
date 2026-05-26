@@ -13,9 +13,9 @@
     <key>CFBundleIdentifier</key>
     <string>dev.ncthanhngo.claude-bar</string>
     <key>CFBundleVersion</key>
-    <string>11</string>
+    <string>11.1</string>
     <key>CFBundleShortVersionString</key>
-    <string>11</string>
+    <string>11.1</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleSignature</key>
@@ -35,7 +35,7 @@
     <key>NSHumanReadableCopyright</key>
     <string>Copyright © 2026 Thanh Ngô. Licensed under MIT.</string>
     <key>CFBundleGetInfoString</key>
-    <string>Claude Bar 11 — menu-bar manager for multiple Claude Code accounts</string>
+    <string>Claude Bar 11.1 — menu-bar manager for multiple Claude Code accounts</string>
     <key>CBAuthorName</key>
     <string>Thanh Ngô</string>
     <key>CBAuthorEmail</key>
@@ -47,18 +47,16 @@
     <key>CBBuildDate</key>
     <string>2026-05-26</string>
     <key>CBReleaseChannel</key>
-    <string>Stable</string>
+    <string>Beta</string>
     <key>CBReleaseWhatsNew</key>
-    <string>Settings window redesigned. Sidebar now groups tabs under App, Features, Data &amp; Sync, and System — Accounts, IDE Integration, iCloud Sync, and Diagnostics are first-class tabs instead of being buried inside General or Update.
-Sidebar search (⌘F). Type to filter tabs by name; Enter picks the first match, Esc clears. Each tab also gets its own tinted icon so the sidebar is scannable at a glance.
-About panel got a proper hero — app icon, version, channel badge, and a direct "Check for updates…" button without leaving the page.
-Empty-state hero on the Accounts tab when you haven't enrolled anything yet, so the first-launch path leads with a single big CTA instead of an empty list.
-Settings remembers the last tab you were viewing between opens.</string>
+    <string>iCloud Sync now keeps Claude Code OAuth credentials local. Account roster, MCP connector tokens (Slack / ClickUp / Google / GitLab), and claude.ai web cookies still roam between Macs, but each new Mac runs its own `claude /login` per account — so a stolen iCloud bundle can never authenticate as you.
+Multi-Mac merge is additive. Connecting Slack on Mac A and ClickUp on Mac B no longer drops one of the tokens when their pushes interleave; both connectors survive. Shared connectors merge the same way.
+Removed the Daily Briefing feature entirely. Settings → Briefing tab, the standalone Briefing window, Daily Plan / Command modes, the news-feed scheduler, and the Carbon ⌥X hotkey are gone. Daily window is chat-only now.</string>
     <key>CBReleaseHotfixes</key>
-    <string>Fixed the 7-day usage bar flickering on and off for web-linked accounts. The claude.ai scraper now waits for both the 5h and 7d blocks to hydrate before returning, instead of grabbing the first one and dropping the other.
-Fixed the brief layout shift when opening Settings → Local MCP the first time after launch — the MCP coordinator is now pre-warmed at startup.</string>
-    <key>CBReleaseKnownIssues</key>
     <string>None.</string>
+    <key>CBReleaseKnownIssues</key>
+    <string>Existing iCloud bundles written by older Macs may still carry Claude OAuth blobs. The next push from this Mac overwrites the bundle with the new metadata-only shape — give it one auto-sync cycle (~6h) or click Sync now to flush immediately.
+Account removal is not propagated yet. If you remove an account on Mac A while Mac B still has it, Mac B's next push will resurrect the account in the bundle. Use the Disconnect button on each Mac if you want it gone everywhere.</string>
     <key>CFBundleDevelopmentRegion</key>
     <string>en</string>
     <key>CFBundleLocalizations</key>
