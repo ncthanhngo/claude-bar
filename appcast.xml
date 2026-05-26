@@ -12,6 +12,27 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 10.48 (BETA)</title>
+      <sparkle:version>10.48</sparkle:version>
+      <sparkle:shortVersionString>10.48</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li><strong>Adding a GitLab self-host instance now gives proper feedback.</strong> The form shows "Adding…" with a spinner during the round-trip, then either an inline green "Successfully added 'Name'" confirmation that auto-closes after 1.2 seconds, or an inline red error so you can fix the field and retry without closing the window.</li>
+          <li><strong>Settings → MCP connectors list now reflects GitLab as connected</strong> once an instance is added. Previously the row stayed stuck at "not connected" forever because GitLab instance secrets live in a separate per-instance Keychain slot the row didn't read; the backend now mirrors the connection state into the shared connector flag the row does read.</li>
+          <li><strong>Removing the last GitLab instance</strong> flips the connector back to "not connected" automatically.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Tue, 26 May 2026 12:36:43 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v10.48/ClaudeBar.zip"
+        sparkle:version="10.48"
+        sparkle:shortVersionString="10.48"
+        sparkle:edSignature="732dpkOxpwGr2g3HNuGjYgm5DqvM29ZAEhSme+ymy918RyrwsXbCdxUaTG9Ly5mSu8A2cE4vwoCqi28RLznHCA=="
+        length="8604313"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 10.47 (BETA)</title>
       <sparkle:version>10.47</sparkle:version>
       <sparkle:shortVersionString>10.47</sparkle:shortVersionString>
