@@ -13,9 +13,9 @@
     <key>CFBundleIdentifier</key>
     <string>dev.ncthanhngo.claude-bar</string>
     <key>CFBundleVersion</key>
-    <string>11.11</string>
+    <string>11.12</string>
     <key>CFBundleShortVersionString</key>
-    <string>11.11</string>
+    <string>11.12</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleSignature</key>
@@ -35,7 +35,7 @@
     <key>NSHumanReadableCopyright</key>
     <string>Copyright © 2026 Thanh Ngô. Licensed under MIT.</string>
     <key>CFBundleGetInfoString</key>
-    <string>Claude Bar 11.11 — menu-bar manager for multiple Claude Code accounts</string>
+    <string>Claude Bar 11.12 — menu-bar manager for multiple Claude Code accounts</string>
     <key>CBAuthorName</key>
     <string>Thanh Ngô</string>
     <key>CBAuthorEmail</key>
@@ -45,20 +45,13 @@
     <key>CBLicense</key>
     <string>MIT</string>
     <key>CBBuildDate</key>
-    <string>2026-05-26</string>
+    <string>2026-05-27</string>
     <key>CBReleaseChannel</key>
     <string>Beta</string>
     <key>CBReleaseWhatsNew</key>
-    <string>Web-linked accounts now actually update again — claude.ai's settings/usage DOM had changed so the scraper's "find the labelling cell" walk broke on every progressbar, then a hung WKWebView reload would block the entire refresh cycle for minutes. The walk now skips empty wrappers instead of aborting, accepts "All models" as the weekly 7d bar without needing the outer "Weekly" heading, falls back to a sensible future reset when the date string is unparseable, and a hard 12-second timeout cancels any scrape that's still pending.
-Refresh calls now coalesce — manual "Refresh web usage" clicks, the timer loop, post-swap re-refreshes, and the launch refresh can no longer stack on top of each other and saturate the main actor.
-Optional Token-usage chart on the Full popover. Settings → General → Popover layout now has a "Show token usage chart in Full layout" toggle (default off). When off, the bottom token chart + KPI cards collapse and the popover shrinks by ~220pt; turn on if you want daily / weekly / monthly token totals at a glance.
-Settings window dropped from the `popUpMenu + 1` level to normal — Chrome and other apps can now cover Settings the way you'd expect from a standard panel. The menu-bar popover briefly lifts above Settings only while you preview a layout change.</string>
+    <string>The "Couldn't fetch usage" badge no longer sticks around on web-linked accounts after a transient OAuth probe failure — once a fresh usage scrape lands, the badge clears automatically. Previously a single bad OAuth cycle could leave the orange warning chip on a perfectly healthy row indefinitely.</string>
     <key>CBReleaseHotfixes</key>
-    <string>Fixed web-linked accounts stuck on stale percentages — the scrape aborted at the progressbar's empty parent before reaching the labelling row.
-Fixed the 7d "All models" bar showing as unavailable on Max (20x) plans because the classify regex required the word "Weekly" inside the bar's label cell (it actually lives in the heading section above).
-Fixed the popover hanging open / refusing to load when a WKWebView reload stalled (DNS / redirect loop) — overlapping refresh calls used to pile up on the main actor.
-Fixed an OAuth fallback error on one terminal account (Dev 2, Dev 3) aborting the entire refresh cycle and freezing every account at "Loading…".
-Fixed Settings always floating above other apps' windows.</string>
+    <string>Fixed the stale "Couldn't fetch usage" warning persisting on a row whose web scrape was actually succeeding.</string>
     <key>CBReleaseKnownIssues</key>
     <string>Each web-poll cycle still loads a hidden WKWebView reload of claude.ai/settings/usage per linked account and waits for the React SPA to hydrate (typically 1–3s, hard-capped at 12s). At the 120s / 60s cadence this fits comfortably for 2–3 accounts; users with many more web-linked accounts may want to disable web-link on the less-used ones.
 The reset-clause regex doesn't yet parse every locale's date format (e.g., "Resets Fri 7:00 PM"). When parsing fails the widget falls back to a future placeholder (now + 5h for the session bar, now + 7d for the weekly bar) so the percentage still displays — the countdown will be approximate until the next successful parse.
