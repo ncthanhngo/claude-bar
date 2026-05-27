@@ -13,9 +13,9 @@
     <key>CFBundleIdentifier</key>
     <string>dev.ncthanhngo.claude-bar</string>
     <key>CFBundleVersion</key>
-    <string>11.17</string>
+    <string>11.18</string>
     <key>CFBundleShortVersionString</key>
-    <string>11.17</string>
+    <string>11.18</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleSignature</key>
@@ -35,7 +35,7 @@
     <key>NSHumanReadableCopyright</key>
     <string>Copyright © 2026 Thanh Ngô. Licensed under MIT.</string>
     <key>CFBundleGetInfoString</key>
-    <string>Claude Bar 11.17 — menu-bar manager for multiple Claude Code accounts</string>
+    <string>Claude Bar 11.18 — menu-bar manager for multiple Claude Code accounts</string>
     <key>CBAuthorName</key>
     <string>Thanh Ngô</string>
     <key>CBAuthorEmail</key>
@@ -49,10 +49,9 @@
     <key>CBReleaseChannel</key>
     <string>Beta</string>
     <key>CBReleaseWhatsNew</key>
-    <string>Hotfix for v11.16. The deactivate-dismissal fix that shipped yesterday used hidesOnDeactivate = true on the popover NSWindow — AppKit hid the window the first time the user clicked into another app, but SwiftUI MenuBarExtra's internal "popover is shown" flag stayed true, so the next menu-bar click no-op'd and the popover never reopened. Users had to quit Claude Bar to recover.
-The dismissal-on-app-switch behaviour is preserved: a NotificationCenter observer on NSApplication.didResignActiveNotification now routes the close through MenuBarPopoverToggle.closeIfOpen() — the same performClick path SwiftUI uses internally, so the toggle state stays in sync and the next click re-renders the popover normally. Settings / Daily / Briefing inside Claude Bar still layer correctly since they don't deactivate the app.</string>
+    <string>Sparkle-update launches no longer trigger the macOS Keychain "Allow access?" password dialog. The iCloud-sync toggle reset that fires after every update used to live inside the menu-bar popover's lazy .task — so on a background Sparkle install + a user who hadn't yet opened the popover, the backup-token refresh kicked off automatically while iCloudSyncEnabled still held the previous version's `true` value. The new code signature then hit the saved passphrase Keychain item's ACL and macOS surfaced its password prompt. The reset now runs in App.init() right after the settings migration, so the toggle is forced to false BEFORE any later startup code touches the Keychain.</string>
     <key>CBReleaseHotfixes</key>
-    <string>Fixed the menu-bar popover refusing to reopen after the first app-switch on v11.16. Anyone who installed v11.16 and clicked into Chrome / Slack / Terminal would see the popover dismiss correctly the first time, then fail to reopen forever — the only recovery was to quit and relaunch Claude Bar. v11.17 ships the corrected dismissal path that keeps SwiftUI's toggle state in sync.</string>
+    <string>Fixed the macOS Keychain "Allow access?" prompt appearing on launch after every Sparkle auto-update for users who never enabled iCloud sync (or who toggled it off and expected it to stay off across updates).</string>
     <key>CBReleaseKnownIssues</key>
     <string>Each web-poll cycle still loads a hidden WKWebView reload of claude.ai/settings/usage per linked account and waits for the React SPA to hydrate (typically 1–3s, hard-capped at 12s). At the 120s / 60s cadence this fits comfortably for 2–3 accounts; users with many more web-linked accounts may want to disable web-link on the less-used ones.
 The reset-clause regex doesn't yet parse every locale's date format (e.g., "Resets Fri 7:00 PM"). When parsing fails the widget falls back to a future placeholder (now + 5h for the session bar, now + 7d for the weekly bar) so the percentage still displays — the countdown will be approximate until the next successful parse.

@@ -12,6 +12,26 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 11.18 (BETA)</title>
+      <sparkle:version>11.18</sparkle:version>
+      <sparkle:shortVersionString>11.18</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <p>Hotfix — Keychain prompt no longer fires after Sparkle auto-update.</p>
+        <ul>
+          <li><strong>No more macOS Keychain "Allow access?" prompt on launch after a Sparkle auto-update.</strong> The iCloud-sync toggle reset used to live inside the popover's lazy <code>.task</code>, so a background update + a user who hadn't yet opened the popover let the backup-token refresh run while <code>iCloudSyncEnabled</code> still held the previous version's <code>true</code> value. The new code signature hit the saved passphrase Keychain item's ACL and macOS surfaced its password prompt. Reset now runs in <code>App.init()</code> right after the settings migration, before anything touches the Keychain.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Wed, 27 May 2026 18:23:15 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v11.18/ClaudeBar.zip"
+        sparkle:version="11.18"
+        sparkle:shortVersionString="11.18"
+        sparkle:edSignature="+WEs3MP115XxJfWm/tqdYIK+eZEL98/qCIRRf0NX/XytWg9kWWstIdQXkaAf+yJgzGF7xn2tf0P3nNSQjuoUCw=="
+        length="7956614"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 11.17 (BETA)</title>
       <sparkle:version>11.17</sparkle:version>
       <sparkle:shortVersionString>11.17</sparkle:shortVersionString>
