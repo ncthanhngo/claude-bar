@@ -19,6 +19,7 @@ struct AboutTab: View {
         ScrollView {
             SettingsPage {
                 hero
+                releaseNotesGroup
                 SettingsGroup("Author") {
                     infoRow(label: "Name", value: aboutInfo.authorName)
                     HStack(alignment: .top) {
@@ -88,6 +89,50 @@ struct AboutTab: View {
                 }
             }
         }
+    }
+
+    // MARK: - Release notes
+
+    /// "What's new in this version" group rendered under the hero. Splits each
+    /// stored key on newlines so the maintainer can list multiple bullets in
+    /// one Info.plist string without an extra schema. Empty / missing values
+    /// render the section as a single "None" bullet — keeps dev builds
+    /// without populated keys looking intentional rather than broken.
+    @ViewBuilder
+    private var releaseNotesGroup: some View {
+        SettingsGroup("What's new in this version") {
+            notesSection(title: "What's new", key: "CBReleaseWhatsNew")
+            notesSection(title: "Hotfixes", key: "CBReleaseHotfixes")
+            notesSection(title: "Known issues", key: "CBReleaseKnownIssues")
+        }
+    }
+
+    @ViewBuilder
+    private func notesSection(title: String, key: String) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title)
+                .font(.caption.weight(.semibold))
+                .foregroundColor(.primary)
+            ForEach(Array(bullets(for: key).enumerated()), id: \.offset) { _, line in
+                HStack(alignment: .top, spacing: 6) {
+                    Text("•").foregroundColor(.secondary)
+                    Text(line)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.bottom, 2)
+    }
+
+    private func bullets(for key: String) -> [String] {
+        let raw = (Bundle.main.infoDictionary?[key] as? String) ?? ""
+        let lines = raw.split(separator: "\n", omittingEmptySubsequences: true)
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+        return lines.isEmpty ? ["None"] : lines
     }
 
     // MARK: - Hero

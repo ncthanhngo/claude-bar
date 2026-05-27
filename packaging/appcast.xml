@@ -12,6 +12,26 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 11.13 (BETA)</title>
+      <sparkle:version>11.13</sparkle:version>
+      <sparkle:shortVersionString>11.13</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <p>MCP write-approval surfacing fix.</p>
+        <ul>
+          <li><strong>MCP write-tool approval prompts now reliably surface</strong> even when Focus / Do Not Disturb is on or another Claude Bar panel is open. The gate banner uses <code>.timeSensitive</code> interruption so DND no longer suppresses it within the 60-second approval window, and the auto-opened popover lifts above any Settings / Daily window that might otherwise have hidden the approve / cancel buttons. Previously gated calls (Slack post, Sheets write, GitHub PR comment, etc.) could time out invisibly — Claude Code would report <code>user_cancelled: gate timed out</code> with no on-screen indication.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Wed, 27 May 2026 16:12:11 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v11.13/ClaudeBar.zip"
+        sparkle:version="11.13"
+        sparkle:shortVersionString="11.13"
+        sparkle:edSignature="nG9zoU5Jihag/x+j7ge0qP6H3yTCp8q4Rtu38nudEubGmCbacFTREh8tPUUD2hfyMhf5wbtxUJNs4aTMjy8KBg=="
+        length="7942472"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 11.12 (BETA)</title>
       <sparkle:version>11.12</sparkle:version>
       <sparkle:shortVersionString>11.12</sparkle:shortVersionString>

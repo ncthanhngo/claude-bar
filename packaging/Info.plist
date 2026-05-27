@@ -13,9 +13,9 @@
     <key>CFBundleIdentifier</key>
     <string>dev.ncthanhngo.claude-bar</string>
     <key>CFBundleVersion</key>
-    <string>11.12</string>
+    <string>11.13</string>
     <key>CFBundleShortVersionString</key>
-    <string>11.12</string>
+    <string>11.13</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleSignature</key>
@@ -35,7 +35,7 @@
     <key>NSHumanReadableCopyright</key>
     <string>Copyright © 2026 Thanh Ngô. Licensed under MIT.</string>
     <key>CFBundleGetInfoString</key>
-    <string>Claude Bar 11.12 — menu-bar manager for multiple Claude Code accounts</string>
+    <string>Claude Bar 11.13 — menu-bar manager for multiple Claude Code accounts</string>
     <key>CBAuthorName</key>
     <string>Thanh Ngô</string>
     <key>CBAuthorEmail</key>
@@ -49,9 +49,10 @@
     <key>CBReleaseChannel</key>
     <string>Beta</string>
     <key>CBReleaseWhatsNew</key>
-    <string>The "Couldn't fetch usage" badge no longer sticks around on web-linked accounts after a transient OAuth probe failure — once a fresh usage scrape lands, the badge clears automatically. Previously a single bad OAuth cycle could leave the orange warning chip on a perfectly healthy row indefinitely.</string>
+    <string>MCP write-tool approval prompts (Slack post, Google Sheets write, GitHub PR comment, and the other gated tools) now reliably surface even when you're focused on Claude Code. The banner notification uses .timeSensitive interruption so Focus / Do Not Disturb modes no longer suppress it inside the 60-second approval window, and the auto-opened popover lifts above any Settings or Daily panel that might otherwise have hidden it.</string>
     <key>CBReleaseHotfixes</key>
-    <string>Fixed the stale "Couldn't fetch usage" warning persisting on a row whose web scrape was actually succeeding.</string>
+    <string>Fixed MCP gate prompts silently timing out after 60s when DND / Focus modes suppressed the banner — Claude Code would receive "user_cancelled: gate timed out" with no on-screen indication anything happened.
+Fixed the gate popover auto-opening behind Settings / Daily windows when those panels were already on screen, so the approve / cancel buttons sat invisibly underneath them until the 60s window expired.</string>
     <key>CBReleaseKnownIssues</key>
     <string>Each web-poll cycle still loads a hidden WKWebView reload of claude.ai/settings/usage per linked account and waits for the React SPA to hydrate (typically 1–3s, hard-capped at 12s). At the 120s / 60s cadence this fits comfortably for 2–3 accounts; users with many more web-linked accounts may want to disable web-link on the less-used ones.
 The reset-clause regex doesn't yet parse every locale's date format (e.g., "Resets Fri 7:00 PM"). When parsing fails the widget falls back to a future placeholder (now + 5h for the session bar, now + 7d for the weekly bar) so the percentage still displays — the countdown will be approximate until the next successful parse.
