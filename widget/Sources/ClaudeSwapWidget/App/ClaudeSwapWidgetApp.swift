@@ -44,6 +44,17 @@ struct ClaudeSwapWidgetApp: App {
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
         ClaudeWatchInstaller.install()
         migrateSettingsIfNeeded()
+        // Reset the iCloud-sync toggle to false on every Sparkle update
+        // BEFORE any later startup code touches the cloud-sync passphrase
+        // Keychain item. Previously this lived inside the popover's .task,
+        // which only fires when the user opens the popover for the first
+        // time — so a Sparkle background update + a user who hadn't yet
+        // opened the popover would let `backupTokenRefreshIfNeeded` (kicked
+        // off from `store.start()`) call `loadPassphrase()` while the
+        // stale `iCloudSyncEnabled = true` value from the previous version
+        // was still live. The new code signature then hit the Keychain
+        // ACL, triggering the macOS "Allow access?" password dialog.
+        resetICloudSyncToggleOnVersionChange()
         syncReloadShortcutIfNeeded()
 
         // Capture refs to the @StateObject coordinators in a closure that
@@ -166,7 +177,6 @@ struct ClaudeSwapWidgetApp: App {
                         )
                     }
                     prefsCloudSync.start()
-                    resetICloudSyncToggleOnVersionChange()
                     await cloudSync.refreshStatus()
                     await cloudSync.checkOnboarding(snapshot: store.snapshot)
                     presentOnboardingIfNeeded()
