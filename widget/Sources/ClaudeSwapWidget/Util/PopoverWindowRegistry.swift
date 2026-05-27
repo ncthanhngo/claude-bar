@@ -61,6 +61,13 @@ struct PopoverWindowCapture: NSViewRepresentable {
         if w.level == .normal {
             w.level = .floating
         }
+        // Hide the popover the moment the user clicks into another app —
+        // .floating alone would keep us pinned over Chrome / Terminal /
+        // Slack and steal pointer focus from whatever they actually want
+        // to interact with. Matches Terminal.app and Cloudflare WARP's
+        // menu-bar popovers, which dismiss on app deactivation. Next
+        // menu-bar click re-renders the popover normally.
+        w.hidesOnDeactivate = true
     }
 
     /// If the popover NSWindow opened on a different screen than the one
