@@ -10,7 +10,29 @@ import AppKit
 final class PopoverWindowRegistry {
     static let shared = PopoverWindowRegistry()
     weak var window: NSWindow?
+    private var deactivateObserver: NSObjectProtocol?
     private init() {}
+
+    /// Dismiss the menu-bar popover the moment another application
+    /// becomes active — matches Terminal.app and Cloudflare WARP.
+    /// `hidesOnDeactivate = true` on the popover NSWindow was tempting
+    /// but breaks SwiftUI MenuBarExtra: AppKit orderOut's the window
+    /// while SwiftUI's internal "popover is shown" flag stays true, so
+    /// the next menu-bar click no-ops and the popover never reopens.
+    /// Routing the dismissal through `closeIfOpen` uses the same
+    /// performClick path SwiftUI uses, so the toggle state stays in
+    /// sync. Safe to call from `PopoverWindowCapture.capture` every
+    /// SwiftUI body update — re-installs only when the observer is nil.
+    func installDeactivateDismissalIfNeeded() {
+        guard deactivateObserver == nil else { return }
+        deactivateObserver = NotificationCenter.default.addObserver(
+            forName: NSApplication.didResignActiveNotification,
+            object: nil,
+            queue: .main
+        ) { _ in
+            Task { @MainActor in MenuBarPopoverToggle.closeIfOpen() }
+        }
+    }
 }
 
 /// Drop-in `.background(PopoverWindowCapture())` on the popover root view —
@@ -61,13 +83,12 @@ struct PopoverWindowCapture: NSViewRepresentable {
         if w.level == .normal {
             w.level = .floating
         }
-        // Hide the popover the moment the user clicks into another app —
-        // .floating alone would keep us pinned over Chrome / Terminal /
-        // Slack and steal pointer focus from whatever they actually want
-        // to interact with. Matches Terminal.app and Cloudflare WARP's
-        // menu-bar popovers, which dismiss on app deactivation. Next
-        // menu-bar click re-renders the popover normally.
-        w.hidesOnDeactivate = true
+        // .floating alone keeps the popover pinned over Chrome / Terminal /
+        // Slack when the user clicks into them. Wire the registry's
+        // NSApplication.didResignActiveNotification observer (no-op if
+        // already installed) so the popover dismisses via the same
+        // performClick path SwiftUI uses — keeping toggle state in sync.
+        PopoverWindowRegistry.shared.installDeactivateDismissalIfNeeded()
     }
 
     /// If the popover NSWindow opened on a different screen than the one
