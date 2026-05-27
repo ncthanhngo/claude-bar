@@ -211,6 +211,7 @@ struct SessionReportDTO: Codable, Hashable {
     let total: Int
     let busyOrWaiting: Int
     let interactiveOnly: Int
+    let blockingCount: Int?
     let safeToSwap: Bool
 }
 

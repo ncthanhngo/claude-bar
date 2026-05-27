@@ -70,8 +70,14 @@ func (i *SessionInspector) Report(ctx context.Context) (*domain.SessionReport, e
 		if s.IsInteractive() {
 			r.InteractiveOnly++
 		}
+		if s.BlocksSwap() {
+			r.BlockingCount++
+		}
 	}
-	r.SafeToSwap = r.BusyOrWaiting == 0
+	// Any live interactive or bg claude session blocks swap — even if status is
+	// idle. PID-status files can lag real process state, and swapping while
+	// claude is open forces user to restart mid-session.
+	r.SafeToSwap = r.BlockingCount == 0
 	return r, nil
 }
 

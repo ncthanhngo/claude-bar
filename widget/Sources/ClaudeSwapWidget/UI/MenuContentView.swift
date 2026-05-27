@@ -157,7 +157,7 @@ struct AutoSwapSection: View {
                   ? "checkmark.shield.fill"
                   : "exclamationmark.shield.fill")
                 .font(.system(size: 10))
-            Text(sess.safeToSwap ? "Safe" : "claude busy")
+            Text(sess.safeToSwap ? "Safe" : "claude running")
                 .font(.system(size: 10, weight: .medium))
         }
         .padding(.horizontal, 7)
