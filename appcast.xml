@@ -12,6 +12,27 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 11.15 (BETA)</title>
+      <sparkle:version>11.15</sparkle:version>
+      <sparkle:shortVersionString>11.15</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <p>One-click Google OAuth reconnect — closes #16.</p>
+        <ul>
+          <li><strong>One-click Google OAuth reconnect.</strong> The Google Drive connector now exposes a dedicated <code>Connect OAuth…</code> / <code>Reconnect OAuth…</code> button that wipes the cached grant in Keychain and immediately re-runs the Connect Google flow, minting a fresh token with every scope the current build registers (<code>drive</code>, <code>drive.file</code>, <code>spreadsheets</code>, <code>calendar.readonly</code>, <code>gmail.readonly</code>). The v11.14 workaround of "Disconnect, then Connect" is no longer needed.</li>
+          <li><strong>Fixed <code>cb_gsheets_*</code> tools returning <code>ACCESS_TOKEN_SCOPE_INSUFFICIENT</code></strong> for anyone who installed before v11.14. Their OAuth grant predates the <code>spreadsheets</code> + <code>drive.file</code> scopes; one tap of <code>Reconnect OAuth…</code> fixes it.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Wed, 27 May 2026 17:36:27 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v11.15/ClaudeBar.zip"
+        sparkle:version="11.15"
+        sparkle:shortVersionString="11.15"
+        sparkle:edSignature="2BeuEGWkTpiinbUihYoQvUVI+NSdhjanVL4pYojxabbbgcQFD3X9eJjnfIERPVRBpPMDeDdmNOY8l6Ix9znrBA=="
+        length="7953333"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 11.14 (BETA)</title>
       <sparkle:version>11.14</sparkle:version>
       <sparkle:shortVersionString>11.14</sparkle:shortVersionString>
