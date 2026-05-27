@@ -19,61 +19,106 @@ type ProxyReader struct {
 }
 
 // Run streams prompts from the UDS to stdout and forwards stdin lines to the
-// UDS. Returns when either side EOFs or ctx is cancelled. Reconnects with
-// expontential backoff if the server isn't up yet.
+// UDS. Returns when stdin closes, stdout fails, or ctx is cancelled.
+// Reconnects with exponential backoff when the MCP server socket is not up yet
+// or when the MCP subprocess restarts.
 func (p ProxyReader) Run(ctx context.Context, stdin io.Reader, stdout io.Writer) error {
-	conn, err := dialWithRetry(ctx, p.SocketPath, 30*time.Second)
-	if err != nil {
-		return err
-	}
-	defer conn.Close()
+	runCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
 
-	errCh := make(chan error, 2)
-
-	// UDS → stdout
+	stdinLines := make(chan []byte)
+	stdinErr := make(chan error, 1)
 	go func() {
-		r := bufio.NewScanner(conn)
-		r.Buffer(make([]byte, 4096), 64*1024)
-		for r.Scan() {
-			if _, err := stdout.Write(append(r.Bytes(), '\n')); err != nil {
-				errCh <- err
-				return
-			}
-		}
-		errCh <- r.Err()
-	}()
-
-	// stdin → UDS
-	go func() {
+		defer close(stdinLines)
 		r := bufio.NewScanner(stdin)
 		r.Buffer(make([]byte, 4096), 64*1024)
 		for r.Scan() {
-			line := append(r.Bytes(), '\n')
-			if _, err := conn.Write(line); err != nil {
-				errCh <- err
+			line := append([]byte(nil), r.Bytes()...)
+			select {
+			case stdinLines <- line:
+			case <-runCtx.Done():
 				return
 			}
 		}
-		errCh <- r.Err()
+		stdinErr <- r.Err()
+		cancel()
 	}()
 
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case err := <-errCh:
-		return err
+	for {
+		conn, err := dialWithRetry(runCtx, p.SocketPath, 0)
+		if err != nil {
+			select {
+			case stdinScanErr := <-stdinErr:
+				return stdinScanErr
+			default:
+			}
+			return err
+		}
+
+		connDone := make(chan proxyConnEvent, 1)
+		go func(conn net.Conn) {
+			r := bufio.NewScanner(conn)
+			r.Buffer(make([]byte, 4096), 64*1024)
+			for r.Scan() {
+				if _, err := stdout.Write(append(r.Bytes(), '\n')); err != nil {
+					connDone <- proxyConnEvent{err: err, stdout: true}
+					return
+				}
+			}
+			connDone <- proxyConnEvent{err: r.Err()}
+		}(conn)
+
+		reconnect := false
+		for !reconnect {
+			select {
+			case <-runCtx.Done():
+				_ = conn.Close()
+				select {
+				case stdinScanErr := <-stdinErr:
+					return stdinScanErr
+				default:
+				}
+				return ctx.Err()
+			case err := <-stdinErr:
+				_ = conn.Close()
+				return err
+			case line, ok := <-stdinLines:
+				if !ok {
+					_ = conn.Close()
+					return nil
+				}
+				if err := writeLine(conn, line); err != nil {
+					_ = conn.Close()
+					reconnect = true
+				}
+			case ev := <-connDone:
+				_ = conn.Close()
+				if ev.stdout && ev.err != nil {
+					return ev.err
+				}
+				reconnect = true
+			}
+		}
 	}
 }
 
+type proxyConnEvent struct {
+	err    error
+	stdout bool
+}
+
 func dialWithRetry(ctx context.Context, path string, timeout time.Duration) (net.Conn, error) {
-	deadline := time.Now().Add(timeout)
+	var deadline time.Time
+	if timeout > 0 {
+		deadline = time.Now().Add(timeout)
+	}
 	backoff := 100 * time.Millisecond
 	for {
 		conn, err := net.Dial("unix", path)
 		if err == nil {
 			return conn, nil
 		}
-		if time.Now().After(deadline) {
+		if !deadline.IsZero() && time.Now().After(deadline) {
 			return nil, fmt.Errorf("gate uds dial: %w", err)
 		}
 		select {
@@ -85,6 +130,13 @@ func dialWithRetry(ctx context.Context, path string, timeout time.Duration) (net
 			backoff *= 2
 		}
 	}
+}
+
+func writeLine(conn net.Conn, line []byte) error {
+	_ = conn.SetWriteDeadline(time.Now().Add(2 * time.Second))
+	defer conn.SetWriteDeadline(time.Time{})
+	_, err := conn.Write(append(append([]byte(nil), line...), '\n'))
+	return err
 }
 
 // SendDecision is a one-shot helper: connects, sends a single respond

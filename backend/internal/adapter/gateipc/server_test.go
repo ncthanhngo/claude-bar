@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"path/filepath"
@@ -142,4 +143,52 @@ func TestServerSecondSubscriberReplacesFirst(t *testing.T) {
 		}
 	}
 	t.Fatal("second subscriber never received prompt")
+}
+
+func TestProxyWaitsForSocketCreatedAfterStart(t *testing.T) {
+	sock := shortSock(t)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	stdinR, stdinW := io.Pipe()
+	defer stdinW.Close()
+	defer stdinR.Close()
+	stdoutR, stdoutW := io.Pipe()
+	defer stdoutR.Close()
+	defer stdoutW.Close()
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- (ProxyReader{SocketPath: sock}).Run(ctx, stdinR, stdoutW)
+	}()
+
+	time.Sleep(150 * time.Millisecond)
+	gate := mcp.NewGateService(nil)
+	srv := NewServer(sock, gate)
+	if err := srv.Start(ctx); err != nil {
+		t.Fatalf("start delayed server: %v", err)
+	}
+
+	lineCh := make(chan string, 1)
+	go func() {
+		line, _ := bufio.NewReader(stdoutR).ReadString('\n')
+		lineCh <- line
+	}()
+
+	select {
+	case line := <-lineCh:
+		var hello Envelope
+		if err := json.Unmarshal([]byte(line), &hello); err != nil {
+			t.Fatalf("decode hello: %v", err)
+		}
+		if hello.Kind != EnvelopeHello {
+			t.Fatalf("expected hello, got %v", hello.Kind)
+		}
+	case err := <-errCh:
+		t.Fatalf("proxy exited before delayed server: %v", err)
+	case <-time.After(3 * time.Second):
+		t.Fatal("proxy did not connect after delayed socket creation")
+	}
+
+	cancel()
 }
