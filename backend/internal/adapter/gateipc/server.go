@@ -23,19 +23,20 @@ import (
 type EnvelopeKind string
 
 const (
-	EnvelopePrompt   EnvelopeKind = "prompt"
-	EnvelopeRespond  EnvelopeKind = "respond"
-	EnvelopeHello    EnvelopeKind = "hello"
-	EnvelopeBye      EnvelopeKind = "bye"
+	EnvelopePrompt  EnvelopeKind = "prompt"
+	EnvelopeRespond EnvelopeKind = "respond"
+	EnvelopeHello   EnvelopeKind = "hello"
+	EnvelopeReady   EnvelopeKind = "ready"
+	EnvelopeBye     EnvelopeKind = "bye"
 )
 
 // Envelope is the single message shape sent in either direction.
 type Envelope struct {
-	Kind     EnvelopeKind     `json:"kind"`
-	Prompt   *mcp.GatePrompt  `json:"prompt,omitempty"`
-	Nonce    string           `json:"nonce,omitempty"`
-	Decision string           `json:"decision,omitempty"` // "approved" | "cancelled"
-	Reason   string           `json:"reason,omitempty"`
+	Kind     EnvelopeKind    `json:"kind"`
+	Prompt   *mcp.GatePrompt `json:"prompt,omitempty"`
+	Nonce    string          `json:"nonce,omitempty"`
+	Decision string          `json:"decision,omitempty"` // "approved" | "cancelled"
+	Reason   string          `json:"reason,omitempty"`
 }
 
 // Server accepts a single widget subscriber at a time. When the widget
@@ -44,11 +45,12 @@ type Server struct {
 	path string
 	gate *mcp.GateService
 
-	mu         sync.Mutex
-	listener   net.Listener
-	current    net.Conn // active subscriber (nil if none)
-	queue      []mcp.GatePrompt
-	maxQueue   int
+	mu       sync.Mutex
+	listener net.Listener
+	current  net.Conn // active subscriber (nil if none)
+	ready    bool
+	queue    []mcp.GatePrompt
+	maxQueue int
 }
 
 // NewServer wires a UDS server on path and bridges to gate.
@@ -80,6 +82,7 @@ func (s *Server) Start(ctx context.Context) error {
 		if s.current != nil {
 			_ = s.current.Close()
 			s.current = nil
+			s.ready = false
 		}
 		s.mu.Unlock()
 		_ = os.Remove(s.path)
@@ -111,30 +114,28 @@ func (s *Server) handleSubscriber(ctx context.Context, conn net.Conn) {
 		_ = s.current.Close()
 	}
 	s.current = conn
-	queued := append([]mcp.GatePrompt(nil), s.queue...)
-	s.queue = s.queue[:0]
+	s.ready = false
 	s.mu.Unlock()
 
-	// Greet + flush queue.
+	// Greet first. The widget must answer with `ready` before queued prompts
+	// flush, so the backend only treats a subscriber as usable after both
+	// sides have completed the handshake.
 	enc := json.NewEncoder(conn)
 	if err := enc.Encode(Envelope{Kind: EnvelopeHello}); err != nil {
 		s.dropSubscriber(conn)
 		return
 	}
-	for _, p := range queued {
-		pcopy := p
-		if err := enc.Encode(Envelope{Kind: EnvelopePrompt, Prompt: &pcopy}); err != nil {
-			s.dropSubscriber(conn)
-			return
-		}
-	}
 
-	// Read decisions until conn closes.
+	// Read readiness + decisions until conn closes.
 	scanner := bufio.NewScanner(conn)
 	scanner.Buffer(make([]byte, 4096), 64*1024)
 	for scanner.Scan() {
 		var env Envelope
 		if err := json.Unmarshal(scanner.Bytes(), &env); err != nil {
+			continue
+		}
+		if env.Kind == EnvelopeReady {
+			s.markSubscriberReady(conn)
 			continue
 		}
 		if env.Kind != EnvelopeRespond || env.Nonce == "" {
@@ -158,21 +159,40 @@ func (s *Server) dropSubscriber(conn net.Conn) {
 	s.mu.Lock()
 	if s.current == conn {
 		s.current = nil
+		s.ready = false
 	}
 	s.mu.Unlock()
 	_ = conn.Close()
 }
 
-// emit sends a prompt to the subscriber if one is connected, otherwise queues.
+func (s *Server) markSubscriberReady(conn net.Conn) {
+	s.mu.Lock()
+	if s.current != conn {
+		s.mu.Unlock()
+		return
+	}
+	s.ready = true
+	queued := append([]mcp.GatePrompt(nil), s.queue...)
+	s.queue = s.queue[:0]
+	s.mu.Unlock()
+
+	for i, p := range queued {
+		pcopy := p
+		if err := writeEnvelope(conn, Envelope{Kind: EnvelopePrompt, Prompt: &pcopy}); err != nil {
+			s.dropSubscriber(conn)
+			s.requeue(queued[i:]...)
+			return
+		}
+	}
+}
+
+// emit sends a prompt to the subscriber if one is connected and ready,
+// otherwise queues it until the widget finishes its ready handshake.
 func (s *Server) emit(p mcp.GatePrompt) error {
 	s.mu.Lock()
 	conn := s.current
-	if conn == nil {
-		// Cap queue: drop oldest when full.
-		if len(s.queue) >= s.maxQueue {
-			s.queue = s.queue[1:]
-		}
-		s.queue = append(s.queue, p)
+	if conn == nil || !s.ready {
+		s.queueLocked(p)
 		s.mu.Unlock()
 		return nil
 	}
@@ -181,14 +201,25 @@ func (s *Server) emit(p mcp.GatePrompt) error {
 	if err := writeEnvelope(conn, Envelope{Kind: EnvelopePrompt, Prompt: &p}); err != nil {
 		s.dropSubscriber(conn)
 		// Stash for next subscriber.
-		s.mu.Lock()
-		if len(s.queue) < s.maxQueue {
-			s.queue = append(s.queue, p)
-		}
-		s.mu.Unlock()
+		s.requeue(p)
 		return nil
 	}
 	return nil
+}
+
+func (s *Server) requeue(prompts ...mcp.GatePrompt) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, p := range prompts {
+		s.queueLocked(p)
+	}
+}
+
+func (s *Server) queueLocked(p mcp.GatePrompt) {
+	if len(s.queue) >= s.maxQueue {
+		s.queue = s.queue[1:]
+	}
+	s.queue = append(s.queue, p)
 }
 
 func writeEnvelope(conn net.Conn, env Envelope) error {

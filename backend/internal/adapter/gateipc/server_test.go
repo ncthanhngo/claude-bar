@@ -42,6 +42,15 @@ func dial(t *testing.T, path string) net.Conn {
 	}
 }
 
+func writeReady(t *testing.T, conn net.Conn) {
+	t.Helper()
+	ready := Envelope{Kind: EnvelopeReady}
+	b, _ := json.Marshal(ready)
+	if _, err := conn.Write(append(b, '\n')); err != nil {
+		t.Fatalf("write ready: %v", err)
+	}
+}
+
 func TestServerFlushesQueueAndForwardsDecision(t *testing.T) {
 	sock := shortSock(t)
 	gate := mcp.NewGateService(nil)
@@ -61,29 +70,39 @@ func TestServerFlushesQueueAndForwardsDecision(t *testing.T) {
 		done <- d
 	}()
 
-	// Subscriber connects, reads hello + prompt.
+	// Subscriber connects and reads hello. Prompt must wait until the widget
+	// sends ready so the server has a two-party handshake.
 	conn := dial(t, sock)
 	defer conn.Close()
-	r := bufio.NewScanner(conn)
+	r := bufio.NewReader(conn)
 
 	// hello
-	if !r.Scan() {
-		t.Fatalf("missing hello: %v", r.Err())
+	helloLine, err := r.ReadString('\n')
+	if err != nil {
+		t.Fatalf("missing hello: %v", err)
 	}
 	var hello Envelope
-	if err := json.Unmarshal(r.Bytes(), &hello); err != nil {
+	if err := json.Unmarshal([]byte(helloLine), &hello); err != nil {
 		t.Fatalf("decode hello: %v", err)
 	}
 	if hello.Kind != EnvelopeHello {
 		t.Fatalf("expected hello, got %v", hello.Kind)
 	}
 
+	_ = conn.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
+	if line, err := r.ReadString('\n'); err == nil {
+		t.Fatalf("prompt flushed before ready: %s", line)
+	}
+	_ = conn.SetReadDeadline(time.Time{})
+	writeReady(t, conn)
+
 	// prompt
-	if !r.Scan() {
-		t.Fatalf("missing prompt: %v", r.Err())
+	promptLine, err := r.ReadString('\n')
+	if err != nil {
+		t.Fatalf("missing prompt: %v", err)
 	}
 	var prompt Envelope
-	if err := json.Unmarshal(r.Bytes(), &prompt); err != nil {
+	if err := json.Unmarshal([]byte(promptLine), &prompt); err != nil {
 		t.Fatalf("decode prompt: %v", err)
 	}
 	if prompt.Kind != EnvelopePrompt || prompt.Prompt == nil {
@@ -130,6 +149,7 @@ func TestServerSecondSubscriberReplacesFirst(t *testing.T) {
 	if line, err := bufio.NewReader(b).ReadString('\n'); err != nil || line == "" {
 		t.Fatalf("second subscriber should get hello: %v %q", err, line)
 	}
+	writeReady(t, b)
 
 	// Emit a prompt; should arrive on b, not a.
 	go func() { _, _ = gate.AwaitApproval(ctx, mcp.GatePrompt{Tool: "x"}) }()

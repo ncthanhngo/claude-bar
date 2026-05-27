@@ -42,6 +42,12 @@ struct GateDecisionEnvelope: Encodable {
     let decision: String // "approved" | "cancelled" | "timeout"
 }
 
+/// Handshake payload sent after the widget has decoded backend hello and is
+/// ready to render gate prompts.
+struct GateReadyEnvelope: Encodable {
+    let kind: String // always "ready"
+}
+
 /// Server-side envelope (read direction). The proxy passes through both
 /// `hello` (one-shot greeting) and `prompt` lines.
 struct GateInboundEnvelope: Decodable {

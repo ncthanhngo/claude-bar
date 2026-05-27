@@ -54,6 +54,8 @@ final class GateStreamReader: @unchecked Sendable {
             )
         }
         let splitter = StreamLineSplitter()
+        let inputPipe = stdin
+        let writeQueue = queue
         stdout.fileHandleForReading.readabilityHandler = { handle in
             let data = handle.availableData
             if data.isEmpty { return }
@@ -64,6 +66,7 @@ final class GateStreamReader: @unchecked Sendable {
                     switch env.kind {
                     case "hello":
                         DiagnosticsLogger.shared.log(.info, subsystem: "gate", "ipc hello — proxy connected")
+                        Self.writeReady(stdin: inputPipe, queue: writeQueue)
                         yield(.hello)
                     case "prompt":
                         if let p = env.prompt {
@@ -104,8 +107,16 @@ final class GateStreamReader: @unchecked Sendable {
     /// writes are serialised on an internal queue.
     func respond(nonce: String, decision: GateDecision) {
         let env = GateDecisionEnvelope(kind: "respond", nonce: nonce, decision: decision.rawValue)
-        queue.async { [stdin] in
-            guard let data = try? JSONEncoder().encode(env) else { return }
+        Self.writeEnvelope(env, stdin: stdin, queue: queue)
+    }
+
+    private static func writeReady(stdin: Pipe, queue: DispatchQueue) {
+        writeEnvelope(GateReadyEnvelope(kind: "ready"), stdin: stdin, queue: queue)
+    }
+
+    private static func writeEnvelope<T: Encodable>(_ env: T, stdin: Pipe, queue: DispatchQueue) {
+        guard let data = try? JSONEncoder().encode(env) else { return }
+        queue.async {
             var line = data
             line.append(0x0A) // newline terminator
             try? stdin.fileHandleForWriting.write(contentsOf: line)
