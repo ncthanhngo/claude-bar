@@ -98,11 +98,12 @@ final class GateCoordinator: ObservableObject {
     /// Bring the user's attention to the new prompt. The overlay only lives
     /// inside the menu-bar popover, so when the user is focused on Claude
     /// Code the prompt would otherwise silently time out (issue #11). Two
-    /// independent channels: (a) auto-open the popover so the confirm UI is
-    /// reachable with one keystroke, (b) fire a banner notification that
-    /// surfaces even if focus is elsewhere or the popover gets dismissed.
+    /// independent channels: (a) auto-open the popover ABOVE other Claude Bar
+    /// windows (Settings, Daily) so the confirm UI is reachable with one
+    /// keystroke even when those panels are open, (b) fire a time-sensitive
+    /// banner notification that punches through Focus / DND modes.
     private func surfacePrompt(_ p: GatePromptDTO) {
-        MenuBarPopoverToggle.openIfClosed()
+        MenuBarPopoverToggle.openIfClosedAbove()
         postNotification(for: p)
     }
 
@@ -111,6 +112,11 @@ final class GateCoordinator: ObservableObject {
         content.title = "Approval needed: \(p.tool)"
         content.body = p.summary.isEmpty ? AnyCodable.render(p.args) : p.summary
         content.sound = .default
+        // Punch through Focus / Do Not Disturb — an MCP write tool is
+        // blocking the LLM with a 60s deadline; missing the banner means
+        // the call fails. The system still respects per-app overrides if
+        // the user has explicitly muted Claude Bar.
+        content.interruptionLevel = .timeSensitive
         // Same identifier per prompt so a fast retry replaces the prior
         // banner rather than stacking duplicates.
         let req = UNNotificationRequest(identifier: "csw.gate.\(p.nonce)", content: content, trigger: nil)
