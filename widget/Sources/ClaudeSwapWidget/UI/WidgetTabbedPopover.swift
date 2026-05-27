@@ -162,6 +162,11 @@ struct WidgetTabbedPopover: View {
                 TokenStatsSection()
             }
         }
+        // Match the 14pt inset accountsHeader uses so the threshold
+        // slider, KPI cards, and chart line up with the section labels
+        // above instead of running edge-to-edge against the popover
+        // hairline border.
+        .padding(.horizontal, 14)
         .padding(.bottom, 8)
     }
 

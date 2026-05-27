@@ -55,27 +55,27 @@ struct ThresholdSliderView: View {
     private func track(_ geo: GeometryProxy) -> some View {
         Capsule()
             .fill(Color.primary.opacity(0.10))
-            .frame(height: 8)
+            .frame(height: 7)
             .position(x: geo.size.width / 2, y: geo.size.height / 2)
     }
 
     private func fill(_ geo: GeometryProxy) -> some View {
         Capsule()
             .fill(thresholdColor)
-            .frame(width: geo.size.width * fraction(threshold), height: 8)
+            .frame(width: geo.size.width * fraction(threshold), height: 7)
             .position(x: geo.size.width * fraction(threshold) / 2,
                       y: geo.size.height / 2)
     }
 
     @ViewBuilder
     private func currentMarker(_ geo: GeometryProxy, pct: Int) -> some View {
-        // Orange + 4× thicker than the old 2pt hairline. The marker now
-        // reads as "you are HERE" instead of a stray gridline next to the
-        // threshold knob. Orange contrasts the accent-blue fill so the
-        // user sees current vs trigger at a glance.
+        // "You are HERE" tick — black for a strong contrast against the
+        // accent-blue fill and the lighter primary track. Slightly thinner
+        // than the original 8pt to feel like a precision marker rather
+        // than a separate widget competing with the threshold knob.
         RoundedRectangle(cornerRadius: 2)
-            .fill(Color.orange)
-            .frame(width: 8, height: 20)
+            .fill(Color.black)
+            .frame(width: 7, height: 20)
             .position(x: geo.size.width * fraction(pct), y: geo.size.height / 2)
     }
 
