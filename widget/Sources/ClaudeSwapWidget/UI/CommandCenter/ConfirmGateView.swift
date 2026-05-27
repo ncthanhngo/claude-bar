@@ -27,12 +27,22 @@ struct ConfirmGateView: View {
             }
             .padding(12)
             .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(background(prompt.risk).opacity(0.18))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 12)
-                            .stroke(background(prompt.risk).opacity(0.55), lineWidth: 1)
-                    )
+                // Solid material so the popover's threshold slider, KPI
+                // cards, and chart underneath don't bleed through and
+                // collide visually with the gate copy. The earlier
+                // .opacity(0.18) tint alone wasn't enough — token-chart
+                // labels and slider thumbs showed through, making the
+                // overlay text look like it overlapped other widgets.
+                ZStack {
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(.regularMaterial)
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(background(prompt.risk).opacity(0.12))
+                }
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(background(prompt.risk).opacity(0.55), lineWidth: 1)
+                )
             )
             .padding(.horizontal, 12)
             .padding(.bottom, 8)
@@ -61,6 +71,9 @@ struct ConfirmGateView: View {
             .font(.system(size: 11, design: .monospaced))
             .foregroundColor(.secondary)
             .lineLimit(2)
+            .truncationMode(.middle)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .fixedSize(horizontal: false, vertical: true)
     }
 
     private var countdownBar: some View {
