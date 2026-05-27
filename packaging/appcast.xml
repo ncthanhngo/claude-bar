@@ -12,6 +12,28 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 11.19 (BETA)</title>
+      <sparkle:version>11.19</sparkle:version>
+      <sparkle:shortVersionString>11.19</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li>Auto-swap now blocks on any live interactive or background <code>claude</code> session, not just busy/waiting ones — idle-but-open claude no longer gets swapped underneath you mid-session.</li>
+          <li>Threshold trigger arms a 60-second grace window and fires a notification ("Auto-swap in 60s — will switch when no claude session is running"); the actual swap only fires after the deadline AND when the safety gate still holds.</li>
+          <li>Pending swap auto-cancels if the active percent drops back below threshold during the grace window (manual swap, 5-hour window reset).</li>
+          <li>Menu-bar safety badge relabeled from "claude busy" to "claude running" to match the new semantics.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Wed, 27 May 2026 21:49:42 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v11.19/ClaudeBar.zip"
+        sparkle:version="11.19"
+        sparkle:shortVersionString="11.19"
+        sparkle:edSignature="cpF3+CzijNUF1TC+kHzLpjv8jrai9SQd1Sh2HRgmEzEH42nOwNs6S9Rishp2TZM86VKrhnNdg9vbxexcJJYTCA=="
+        length="7814679"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 11.18 (BETA)</title>
       <sparkle:version>11.18</sparkle:version>
       <sparkle:shortVersionString>11.18</sparkle:shortVersionString>
