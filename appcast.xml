@@ -12,6 +12,26 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 11.21 (BETA)</title>
+      <sparkle:version>11.21</sparkle:version>
+      <sparkle:shortVersionString>11.21</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li>Fixed <code>cb_slack_post_message</code> timing out when the backend socket was present but the Claude Bar approval UI had not completed its readiness handshake.</li>
+          <li>The gate IPC now uses a two-party <code>hello</code> / <code>ready</code> handshake before queued write prompts flush, while preserving the v11.20 proxy reconnect hardening.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Wed, 27 May 2026 23:36:40 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v11.21/ClaudeBar.zip"
+        sparkle:version="11.21"
+        sparkle:shortVersionString="11.21"
+        sparkle:edSignature="oxCiaZ+FLrLnc8trgWsaegWtjTBy9Y5+OfctfXDj7r0SnlQO8HSLtmtsSy/D4G49V7VLURM63FdWKX7m7ZpVBA=="
+        length="7819032"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 11.20 (BETA)</title>
       <sparkle:version>11.20</sparkle:version>
       <sparkle:shortVersionString>11.20</sparkle:shortVersionString>
