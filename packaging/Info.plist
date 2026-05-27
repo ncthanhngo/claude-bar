@@ -13,9 +13,9 @@
     <key>CFBundleIdentifier</key>
     <string>dev.ncthanhngo.claude-bar</string>
     <key>CFBundleVersion</key>
-    <string>11.19</string>
+    <string>11.20</string>
     <key>CFBundleShortVersionString</key>
-    <string>11.19</string>
+    <string>11.20</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleSignature</key>
@@ -35,7 +35,7 @@
     <key>NSHumanReadableCopyright</key>
     <string>Copyright © 2026 Thanh Ngô. Licensed under MIT.</string>
     <key>CFBundleGetInfoString</key>
-    <string>Claude Bar 11.19 — menu-bar manager for multiple Claude Code accounts</string>
+    <string>Claude Bar 11.20 — menu-bar manager for multiple Claude Code accounts</string>
     <key>CBAuthorName</key>
     <string>Thanh Ngô</string>
     <key>CBAuthorEmail</key>
@@ -49,11 +49,9 @@
     <key>CBReleaseChannel</key>
     <string>Beta</string>
     <key>CBReleaseWhatsNew</key>
-    <string>Auto-swap now treats any live claude session — including idle interactive shells and backgrounded `claude -p` script runs — as a hard block. The previous "busy/waiting" check only paused swaps mid-generation, so an idle-but-open claude window would still get its account binding flipped underneath it and force a restart on next prompt. The new safety gate counts every session with Kind=interactive or Kind=bg; daemons and MCP/SDK workers are still ignored so persistent background services don't deadlock the swap loop.
-When the active account first crosses the threshold, the state machine now arms a 60-second grace deadline instead of attempting an immediate swap. A notification fires once at arming: "Auto-swap in 60s — will switch to &lt;account&gt; if no claude session is running." After the deadline the swap fires only if the safety gate still holds; if a session reappeared, the pending swap waits indefinitely until claude exits. The grace window also auto-cancels if the active percent drops back below threshold (e.g. user manually swaps, or the 5-hour rolling window resets), so we never swap when the trigger has already gone away.
-Menu-bar safety badge label updated from "claude busy" to "claude running" to match the new semantics — the badge now reflects whether any claude is alive, not just whether one is mid-generation.</string>
+    <string>MCP stdio proxy now survives gateway socket drops. The bridge between Claude Code's MCP client and Claude Bar's local MCP gateway used to bind stdin directly to a single Unix-domain-socket connection — when the gateway socket churned (backend restart, slow first-boot startup, OS scheduling hiccup), the proxy died mid-request and clients silently lost their in-flight write. The most visible symptom was cb_slack_post_message failing intermittently. Stdin is now drained into a buffered channel decoupled from the active connection, and the writer loop redials with exponential backoff and replays the pending line so requests ride out transient socket drops.</string>
     <key>CBReleaseHotfixes</key>
-    <string>None</string>
+    <string>Fixed cb_slack_post_message (and any other MCP tool call routed through the gateway proxy) failing silently when the backend socket was momentarily unavailable.</string>
     <key>CBReleaseKnownIssues</key>
     <string>Each web-poll cycle still loads a hidden WKWebView reload of claude.ai/settings/usage per linked account and waits for the React SPA to hydrate (typically 1–3s, hard-capped at 12s). At the 120s / 60s cadence this fits comfortably for 2–3 accounts; users with many more web-linked accounts may want to disable web-link on the less-used ones.
 The reset-clause regex doesn't yet parse every locale's date format (e.g., "Resets Fri 7:00 PM"). When parsing fails the widget falls back to a future placeholder (now + 5h for the session bar, now + 7d for the weekly bar) so the percentage still displays — the countdown will be approximate until the next successful parse.
