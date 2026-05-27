@@ -13,9 +13,9 @@
     <key>CFBundleIdentifier</key>
     <string>dev.ncthanhngo.claude-bar</string>
     <key>CFBundleVersion</key>
-    <string>11.13</string>
+    <string>11.14</string>
     <key>CFBundleShortVersionString</key>
-    <string>11.13</string>
+    <string>11.14</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleSignature</key>
@@ -35,7 +35,7 @@
     <key>NSHumanReadableCopyright</key>
     <string>Copyright © 2026 Thanh Ngô. Licensed under MIT.</string>
     <key>CFBundleGetInfoString</key>
-    <string>Claude Bar 11.13 — menu-bar manager for multiple Claude Code accounts</string>
+    <string>Claude Bar 11.14 — menu-bar manager for multiple Claude Code accounts</string>
     <key>CBAuthorName</key>
     <string>Thanh Ngô</string>
     <key>CBAuthorEmail</key>
@@ -49,10 +49,12 @@
     <key>CBReleaseChannel</key>
     <string>Beta</string>
     <key>CBReleaseWhatsNew</key>
-    <string>MCP write-tool approval prompts (Slack post, Google Sheets write, GitHub PR comment, and the other gated tools) now reliably surface even when you're focused on Claude Code. The banner notification uses .timeSensitive interruption so Focus / Do Not Disturb modes no longer suppress it inside the 60-second approval window, and the auto-opened popover lifts above any Settings or Daily panel that might otherwise have hidden it.</string>
+    <string>MCP write-tool approval prompts now reliably surface within seconds of the LLM call. Slack post, Google Sheets write, GitHub PR comment, ClickUp updates, and every other gated MCP tool open the gate popover above any Settings / Daily panel and fire a banner notification — instead of silently timing out as they had since v11.4. Two distinct bugs were stacked behind the v11.13 surfacing fix and only this release unblocks the whole flow.
+Added cb_gdrive_share_file: grant reader / commenter / writer access to one Drive file from Claude Code through the gated MCP write path. Note that existing v11.x Google connectors need a Disconnect + Reconnect (Settings → MCP) to mint a fresh token with the new drive.file scope before the tool can run; Drive list / read tools keep working on the old scope until you do.
+Structured gate-IPC logging — claude-bar.log now reports every hello / prompt / decode-failure / notification.add result with the nonce prefix, so future IPC schema drift or permission regressions surface immediately instead of dropping prompts silently.</string>
     <key>CBReleaseHotfixes</key>
-    <string>Fixed MCP gate prompts silently timing out after 60s when DND / Focus modes suppressed the banner — Claude Code would receive "user_cancelled: gate timed out" with no on-screen indication anything happened.
-Fixed the gate popover auto-opening behind Settings / Daily windows when those panels were already on screen, so the approve / cancel buttons sat invisibly underneath them until the 60s window expired.</string>
+    <string>Fixed the GateCoordinator being garbage-collected before MCP write-tool prompts arrived — the App-level @StateObject was never registered by SwiftUI for a MenuBarExtra app until the popover first opened, so the gate proxy spawned from applicationDidFinishLaunching was feeding events into an instance that ARC released as soon as the launch closure was nilled. Pinned via a singleton so the coordinator survives the full app lifetime.
+Fixed the gate IPC envelope decoder rejecting every prompt — Go encodes time.Time CreatedAt as RFC3339Nano, but the widget's default JSONDecoder strategy expected a Double, and the error was swallowed by `try?`. Custom strategy now accepts both fractional and plain ISO8601 InternetDateTime forms. Only the `hello` envelope (no date field) had been getting through, which is why isConnected flipped true while no prompt ever rendered.</string>
     <key>CBReleaseKnownIssues</key>
     <string>Each web-poll cycle still loads a hidden WKWebView reload of claude.ai/settings/usage per linked account and waits for the React SPA to hydrate (typically 1–3s, hard-capped at 12s). At the 120s / 60s cadence this fits comfortably for 2–3 accounts; users with many more web-linked accounts may want to disable web-link on the less-used ones.
 The reset-clause regex doesn't yet parse every locale's date format (e.g., "Resets Fri 7:00 PM"). When parsing fails the widget falls back to a future placeholder (now + 5h for the session bar, now + 7d for the weekly bar) so the percentage still displays — the countdown will be approximate until the next successful parse.

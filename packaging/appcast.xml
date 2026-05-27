@@ -12,6 +12,28 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 11.14 (BETA)</title>
+      <sparkle:version>11.14</sparkle:version>
+      <sparkle:shortVersionString>11.14</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <p>Reliable MCP write-tool gate surfacing + new Drive share tool.</p>
+        <ul>
+          <li><strong>MCP write-tool approval prompts now reliably surface</strong> within seconds of the LLM call — Slack post, Google Sheets write, GitHub PR comment, ClickUp updates, and every other gated MCP tool open the gate popover above any Settings / Daily panel and fire a banner notification. Previously gated calls had been silently timing out since the gate IPC was introduced in v11.4 because of two stacked bugs (GateCoordinator getting ARC-released before prompts arrived, and the JSON envelope's RFC3339 timestamp failing to decode); both are fixed here.</li>
+          <li><strong>Added <code>cb_gdrive_share_file</code></strong> — grant reader / commenter / writer access to one Drive file via the gated MCP write path. Existing v11.x Google connectors need a Disconnect + Reconnect (Settings → MCP) to mint a fresh token with the new <code>drive.file</code> scope before this tool can run; Drive list / read tools keep working on the old scope until you do.</li>
+          <li><strong>Structured gate-IPC logging</strong> — <code>~/Library/Logs/ClaudeBar/claude-bar.log</code> now reports every hello / prompt / decode-failure / notification result with the nonce prefix, so future IPC schema drift or permission regressions surface immediately instead of dropping prompts silently.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Wed, 27 May 2026 17:10:25 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v11.14/ClaudeBar.zip"
+        sparkle:version="11.14"
+        sparkle:shortVersionString="11.14"
+        sparkle:edSignature="Q88kUxm2F/IbxJrZtxMLOANdwY4/W51vLDgt7SuYMxMurlzUpNuG6u1xbD26CeB3stm/tJ2vq4tpZYiIPNiwBQ=="
+        length="7951106"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 11.13 (BETA)</title>
       <sparkle:version>11.13</sparkle:version>
       <sparkle:shortVersionString>11.13</sparkle:shortVersionString>
