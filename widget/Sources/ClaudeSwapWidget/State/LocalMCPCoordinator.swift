@@ -38,6 +38,7 @@ final class LocalMCPCoordinator: ObservableObject {
     struct GDriveSheetTarget: Identifiable {
         let id = UUID()
         let accountNumber: Int
+        let resetBeforeConnect: Bool
     }
 
     struct GitLabSheetTarget: Identifiable {
@@ -117,12 +118,15 @@ final class LocalMCPCoordinator: ObservableObject {
     }
 
     @discardableResult
-    func connectGoogle(account: Int, clientID: String, clientSecret: String, displayName: String?) async -> Bool {
+    func connectGoogle(account: Int, clientID: String, clientSecret: String, displayName: String?, resetBeforeConnect: Bool = false) async -> Bool {
         guard !isBusy else { return false }
         isBusy = true
         lastError = nil
         defer { isBusy = false }
         do {
+            if resetBeforeConnect {
+                try await client.mcpConnectorForget(account: account, service: "gdrive")
+            }
             try await client.mcpConnectorConnectGoogle(
                 account: account, clientID: clientID, clientSecret: clientSecret, displayName: displayName
             )

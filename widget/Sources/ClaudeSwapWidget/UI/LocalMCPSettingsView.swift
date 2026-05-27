@@ -380,18 +380,25 @@ struct LocalMCPSettingsView: View {
                 promptDisclosureButton(account: account, service: connector.service)
                 Spacer()
                 if connector.enabled && connector.hasSecret {
-                    Button("Replace…") {
+                    Button(connector.service == "gdrive" ? "Reconnect OAuth…" : "Replace…") {
                         // Bypass reconnect, go straight to the sheet so
                         // the user can paste a fresh token over the
                         // existing one. ConnectMCPConnector overwrites
                         // unconditionally, so this is the right path
                         // when rotating a still-valid token without
                         // touching Disconnect first.
-                        presentConnect(account: account, service: connector.service, label: connector.labelTitle)
+                        presentConnect(
+                            account: account,
+                            service: connector.service,
+                            label: connector.labelTitle,
+                            resetBeforeConnect: connector.service == "gdrive"
+                        )
                     }
                     .buttonStyle(.borderless)
                     .font(.system(size: 12))
-                    .help("Nhập token mới đè lên cái đang dùng — không cần Disconnect trước. Hữu ích khi rotate token định kỳ hoặc token bị compromise.")
+                    .help(connector.service == "gdrive"
+                          ? "Xoá grant Google cũ rồi chạy OAuth lại để lấy scope mới như Sheets và Drive sharing."
+                          : "Nhập token mới đè lên cái đang dùng — không cần Disconnect trước. Hữu ích khi rotate token định kỳ hoặc token bị compromise.")
                     Button("Disconnect") {
                         pendingDisconnect = .init(
                             accountNumber: account,
@@ -416,8 +423,13 @@ struct LocalMCPSettingsView: View {
                     .controlSize(.small)
                     .help("Dùng lại token đã lưu — verify với \(connector.labelTitle), nếu vẫn hợp lệ thì bật lại ngay. Nếu token hết hạn, mở ô nhập token mới.")
                 } else {
-                    Button("Connect…") {
-                        presentConnect(account: account, service: connector.service, label: connector.labelTitle)
+                    Button(connector.service == "gdrive" ? "Connect OAuth…" : "Connect…") {
+                        presentConnect(
+                            account: account,
+                            service: connector.service,
+                            label: connector.labelTitle,
+                            resetBeforeConnect: connector.service == "gdrive"
+                        )
                     }
                     .buttonStyle(.borderedProminent)
                     .controlSize(.small)
@@ -853,8 +865,8 @@ struct LocalMCPSettingsView: View {
         let window = gdriveWindow
         let coord = coordinator
         let title = target.accountNumber == 0
-            ? "Connect Google for all accounts"
-            : "Connect Google"
+            ? (target.resetBeforeConnect ? "Reconnect Google OAuth for all accounts" : "Connect Google for all accounts")
+            : (target.resetBeforeConnect ? "Reconnect Google OAuth" : "Connect Google")
         gdriveWindow.show(title: title, size: NSSize(width: 520, height: 460)) {
             AnyView(
                 ConnectGoogleSheet(target: target, onDismiss: {
@@ -867,10 +879,10 @@ struct LocalMCPSettingsView: View {
         }
     }
 
-    private func presentConnect(account: Int, service: String, label: String) {
+    private func presentConnect(account: Int, service: String, label: String, resetBeforeConnect: Bool = false) {
         switch service {
         case "gdrive":
-            coordinator.gdriveSheet = .init(accountNumber: account)
+            coordinator.gdriveSheet = .init(accountNumber: account, resetBeforeConnect: resetBeforeConnect)
         case "gitlab":
             // GitLab is multi-instance + needs a base URL, so it has its own
             // sheet rather than the generic single-token paste flow.
@@ -889,6 +901,10 @@ struct LocalMCPSettingsView: View {
     private func reconnectOrPrompt(account: Int, service: String, label: String) async {
         if service == "gitlab" {
             presentConnect(account: account, service: service, label: label)
+            return
+        }
+        if service == "gdrive" {
+            presentConnect(account: account, service: service, label: label, resetBeforeConnect: true)
             return
         }
         let ok = await coordinator.reconnect(account: account, service: service)
@@ -1083,16 +1099,29 @@ private struct ConnectGoogleSheet: View {
         coordinator.installStatus?.hasDefaultGDriveClient == true
     }
 
+    private var sheetTitle: String {
+        if target.accountNumber == 0 {
+            return target.resetBeforeConnect ? "Reconnect Google OAuth for all accounts" : "Connect Google for all accounts"
+        }
+        return target.resetBeforeConnect ? "Reconnect Google OAuth" : "Connect Google"
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text(target.accountNumber == 0 ? "Connect Google for all accounts" : "Connect Google")
+            Text(sheetTitle)
                 .font(.headline)
             Text(hasDefault
-                 ? "Clicking Connect opens your browser for Google consent. We request read-only Drive, Calendar, and Gmail scopes. OAuth tokens stay in your Keychain. Leave Client ID empty to use the app default, or import/paste your Desktop OAuth client JSON."
-                 : "Paste your Google OAuth Desktop client ID and client secret, or import the downloaded JSON file. We request read-only Drive, Calendar, and Gmail scopes. Enable Drive, Calendar, and Gmail APIs in the same Google Cloud project.")
+                 ? "Clicking Connect opens your browser for Google consent. We request Drive read, Drive file, Calendar read, Gmail read, and Sheets scopes. OAuth tokens stay in your Keychain. Leave Client ID empty to use the app default, or import/paste your Desktop OAuth client JSON."
+                 : "Paste your Google OAuth Desktop client ID and client secret, or import the downloaded JSON file. We request Drive read, Drive file, Calendar read, Gmail read, and Sheets scopes. Enable Drive, Calendar, Gmail, and Sheets APIs in the same Google Cloud project.")
                 .font(.caption)
                 .foregroundColor(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
+            if target.resetBeforeConnect {
+                Label("This will remove the saved Google connector first, then run OAuth again so Google grants the latest scopes.", systemImage: "arrow.triangle.2.circlepath")
+                    .font(.caption)
+                    .foregroundColor(.orange)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
             Button {
                 importGoogleOAuthJSON()
             } label: {
@@ -1137,7 +1166,7 @@ private struct ConnectGoogleSheet: View {
                 Spacer()
                 Button("Cancel") { dismiss() }
                     .disabled(isSubmitting || successMessage != nil)
-                Button("Open browser to connect") { submit() }
+                Button(target.resetBeforeConnect ? "Reconnect with OAuth" : "Open browser to connect") { submit() }
                     .keyboardShortcut(.defaultAction)
                     .disabled(isSubmitting || successMessage != nil || (!hasDefault && clientID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty))
             }
@@ -1166,7 +1195,8 @@ private struct ConnectGoogleSheet: View {
                 account: target.accountNumber,
                 clientID: cid,
                 clientSecret: secret,
-                displayName: displayName.isEmpty ? nil : displayName
+                displayName: displayName.isEmpty ? nil : displayName,
+                resetBeforeConnect: target.resetBeforeConnect
             )
             if ok {
                 await pushCloudIfConfigured()
