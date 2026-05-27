@@ -33,18 +33,47 @@ final class GateStreamReader: @unchecked Sendable {
         task.standardError = stderr
 
         let decoder = JSONDecoder()
+        // Go's encoding/json emits time.Time as RFC3339Nano
+        // (e.g. "2026-05-27T16:00:00.123456789Z"). Swift's default
+        // .deferredToDate strategy expects Double seconds since 2001 and
+        // throws on a string, which silently drops every gate prompt
+        // envelope (only `hello` decodes — no date field). Use a custom
+        // strategy that accepts RFC3339 with or without fractional seconds.
+        decoder.dateDecodingStrategy = .custom { dec in
+            let container = try dec.singleValueContainer()
+            let s = try container.decode(String.self)
+            let withFrac = ISO8601DateFormatter()
+            withFrac.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            if let d = withFrac.date(from: s) { return d }
+            let plain = ISO8601DateFormatter()
+            plain.formatOptions = [.withInternetDateTime]
+            if let d = plain.date(from: s) { return d }
+            throw DecodingError.dataCorruptedError(
+                in: container,
+                debugDescription: "Unrecognized RFC3339 date: \(s)"
+            )
+        }
         let splitter = StreamLineSplitter()
         stdout.fileHandleForReading.readabilityHandler = { handle in
             let data = handle.availableData
             if data.isEmpty { return }
             splitter.feed(data) { line in
                 guard let raw = line.data(using: .utf8) else { return }
-                guard let env = try? decoder.decode(GateInboundEnvelope.self, from: raw) else { return }
-                switch env.kind {
-                case "hello": yield(.hello)
-                case "prompt":
-                    if let p = env.prompt { yield(.prompt(p)) }
-                default: break
+                do {
+                    let env = try decoder.decode(GateInboundEnvelope.self, from: raw)
+                    switch env.kind {
+                    case "hello":
+                        DiagnosticsLogger.shared.log(.info, subsystem: "gate", "ipc hello — proxy connected")
+                        yield(.hello)
+                    case "prompt":
+                        if let p = env.prompt {
+                            DiagnosticsLogger.shared.log(.info, subsystem: "gate", "prompt \(p.tool) nonce=\(p.nonce.prefix(8))…")
+                            yield(.prompt(p))
+                        }
+                    default: break
+                    }
+                } catch {
+                    DiagnosticsLogger.shared.log(.warning, subsystem: "gate", "envelope decode failed: \(error.localizedDescription) — line: \(line.prefix(200))")
                 }
             }
         }
