@@ -12,6 +12,29 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 11.16 (BETA)</title>
+      <sparkle:version>11.16</sparkle:version>
+      <sparkle:shortVersionString>11.16</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <p>Full popover polish + popover dismissal fixes.</p>
+        <ul>
+          <li><strong>Full popover layout polish.</strong> Threshold slider track + accent fill thinned by 1pt, the "you are HERE" tick recoloured from orange to black and narrowed by 1pt, and the Auto-swap + Token-usage section now lines up with the 14pt horizontal inset of the accounts header above.</li>
+          <li><strong>Menu-bar popover dismisses on app deactivation.</strong> Click into Chrome / Slack / Finder / Terminal and the popover hides automatically — matches Terminal.app and Cloudflare WARP. Settings / Daily / Briefing inside Claude Bar continue to layer correctly.</li>
+          <li><strong>Rename sheet no longer collapses the popover.</strong> SwiftUI's MenuBarExtra dismisses the popover the instant another window becomes key; we now re-open it on the next runloop tick so the account row stays visible behind the Rename dialog.</li>
+          <li><strong>MCP Confirm overlay renders as a solid card.</strong> Background is now <code>.regularMaterial</code> with a slim risk-tint border, and long Slack / ClickUp arg payloads truncate from the middle instead of pushing the layout out of the popover frame. Previously the popover's slider / KPI cards / chart labels bled through the overlay and collided visually with the gate copy.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Wed, 27 May 2026 17:53:43 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v11.16/ClaudeBar.zip"
+        sparkle:version="11.16"
+        sparkle:shortVersionString="11.16"
+        sparkle:edSignature="e3Cg+V1+ezepsEdbPzuxqiDIupw8f0jNIcrpAL2yfSpKWcBdwyP3HhJFOU8BMYg3tNplPyAAX5JnABPqrNCeBA=="
+        length="7955826"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 11.15 (BETA)</title>
       <sparkle:version>11.15</sparkle:version>
       <sparkle:shortVersionString>11.15</sparkle:shortVersionString>

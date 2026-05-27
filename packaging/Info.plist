@@ -13,9 +13,9 @@
     <key>CFBundleIdentifier</key>
     <string>dev.ncthanhngo.claude-bar</string>
     <key>CFBundleVersion</key>
-    <string>11.15</string>
+    <string>11.16</string>
     <key>CFBundleShortVersionString</key>
-    <string>11.15</string>
+    <string>11.16</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleSignature</key>
@@ -35,7 +35,7 @@
     <key>NSHumanReadableCopyright</key>
     <string>Copyright © 2026 Thanh Ngô. Licensed under MIT.</string>
     <key>CFBundleGetInfoString</key>
-    <string>Claude Bar 11.15 — menu-bar manager for multiple Claude Code accounts</string>
+    <string>Claude Bar 11.16 — menu-bar manager for multiple Claude Code accounts</string>
     <key>CBAuthorName</key>
     <string>Thanh Ngô</string>
     <key>CBAuthorEmail</key>
@@ -49,10 +49,11 @@
     <key>CBReleaseChannel</key>
     <string>Beta</string>
     <key>CBReleaseWhatsNew</key>
-    <string>One-click "Connect OAuth…" / "Reconnect OAuth…" button for the Google Drive connector. Tapping it wipes the cached OAuth grant from Keychain then immediately re-runs the standard Connect Google flow, minting a fresh token that includes every scope the current build registers — drive, drive.file (file sharing), spreadsheets (Sheets write), calendar.readonly, gmail.readonly. The old workaround of tapping Disconnect-then-Connect is no longer needed; the destructive copy in the help tooltip explains the trade-off in plain Vietnamese. Closes #16: "MCP tạo Google sheet ko tạo được sheet".
-Slack / ClickUp / GitHub / GitLab connectors keep the original Replace… affordance — they paste a single token with no OAuth round-trip, so the wipe-then-reauth flow would just add friction there.</string>
+    <string>Full popover layout polish — threshold slider track + accent fill thinned by 1pt, the "you are HERE" tick recoloured from orange to black and narrowed by 1pt so it reads as a precision marker instead of competing with the threshold knob, and the bottom Auto-swap + Token-usage section now matches the 14pt horizontal inset of the accounts header above so its widgets line up flush with the section labels.
+Menu-bar popover now dismisses the moment another application becomes active — matches Terminal.app and Cloudflare WARP. Previously the popover sat at .floating level above every other app's windows and stole pointer focus when the user clicked into Chrome / Slack / Finder; AppKit now hides the popover automatically on app deactivation, and the next menu-bar click re-renders it normally. Settings / Daily / Briefing inside Claude Bar continue to layer correctly since they don't deactivate the app.</string>
     <key>CBReleaseHotfixes</key>
-    <string>Fixed cb_gsheets_* tools returning Google ACCESS_TOKEN_SCOPE_INSUFFICIENT for users who installed before v11.14 — the OAuth grant they're holding predates the spreadsheets and drive.file scopes the new tools need. The new Reconnect OAuth button is now the documented one-step fix; v11.14's "Disconnect, then Connect" guidance is obsolete.</string>
+    <string>Fixed the menu-bar popover collapsing when the Rename sheet opens — SwiftUI's MenuBarExtra dismisses its popover the instant any other window in the app becomes key, and we now re-open it on the next runloop tick so the account row stays visible behind the Rename dialog instead of leaving the user staring at a single floating sheet.
+Fixed the MCP write-tool Confirm overlay rendering as a translucent chip — the popover's threshold slider thumb, KPI cards, and chart labels behind it used to bleed through and collide visually with the gate prompt copy. Background is now a solid .regularMaterial card with a slim risk-tint border, and long Slack / ClickUp arg payloads truncate from the middle instead of pushing the layout out of the popover frame.</string>
     <key>CBReleaseKnownIssues</key>
     <string>Each web-poll cycle still loads a hidden WKWebView reload of claude.ai/settings/usage per linked account and waits for the React SPA to hydrate (typically 1–3s, hard-capped at 12s). At the 120s / 60s cadence this fits comfortably for 2–3 accounts; users with many more web-linked accounts may want to disable web-link on the less-used ones.
 The reset-clause regex doesn't yet parse every locale's date format (e.g., "Resets Fri 7:00 PM"). When parsing fails the widget falls back to a future placeholder (now + 5h for the session bar, now + 7d for the weekly bar) so the percentage still displays — the countdown will be approximate until the next successful parse.
