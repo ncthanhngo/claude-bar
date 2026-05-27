@@ -12,6 +12,27 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 11.17 (BETA)</title>
+      <sparkle:version>11.17</sparkle:version>
+      <sparkle:shortVersionString>11.17</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <p>Hotfix for v11.16 popover regression.</p>
+        <ul>
+          <li><strong>Hotfix for v11.16.</strong> Yesterday's deactivate-dismissal fix used <code>hidesOnDeactivate = true</code> on the popover NSWindow. AppKit hid the window the first time the user clicked into another app, but SwiftUI MenuBarExtra's internal "popover is shown" flag stayed true — so the next menu-bar click no-op'd and the popover never reopened. Only recovery was to quit and relaunch Claude Bar.</li>
+          <li><strong>Same dismissal behaviour, fixed plumbing.</strong> A <code>NotificationCenter</code> observer on <code>NSApplication.didResignActiveNotification</code> now routes the close through <code>MenuBarPopoverToggle.closeIfOpen()</code> — the same <code>performClick</code> path SwiftUI uses internally, so the toggle state stays in sync. Click into another app → popover dismisses; click the menu-bar icon → popover re-renders normally.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Wed, 27 May 2026 18:14:59 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v11.17/ClaudeBar.zip"
+        sparkle:version="11.17"
+        sparkle:shortVersionString="11.17"
+        sparkle:edSignature="W2siafTp7dqI0DBaLp7kYxe9BxB5Z9A6rbSbytwH2w4uWvjcvewMJIMv+jRb3YUWjqPAPy0yKDkrNoOtPsaSDA=="
+        length="7957213"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 11.16 (BETA)</title>
       <sparkle:version>11.16</sparkle:version>
       <sparkle:shortVersionString>11.16</sparkle:shortVersionString>
