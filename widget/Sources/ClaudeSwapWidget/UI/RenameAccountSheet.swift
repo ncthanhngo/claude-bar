@@ -46,6 +46,18 @@ final class RenameAccountCoordinator {
                 )
             )
         }
+        // SwiftUI MenuBarExtra dismisses its popover whenever any other
+        // window in the app becomes key — including the Rename sheet we
+        // just showed. There is no documented hook to override that
+        // dismissal (NSPopover.behavior isn't reachable through the
+        // MenuBarExtra abstraction). Re-open the popover on the next
+        // runloop tick so the user sees both at once: the Rename window
+        // at popUpMenu+2 on top, the menu-bar popover at .floating
+        // behind it. Without this, every Rename click yanked the user
+        // out of the account list they were just looking at.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+            MenuBarPopoverToggle.openIfClosed()
+        }
     }
 }
 
