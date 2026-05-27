@@ -12,6 +12,26 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 11.20 (BETA)</title>
+      <sparkle:version>11.20</sparkle:version>
+      <sparkle:shortVersionString>11.20</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li>Fixed <code>cb_slack_post_message</code> (and any other MCP tool call routed through the local gateway proxy) failing silently when the backend socket churned mid-request.</li>
+          <li>The stdio proxy now buffers stdin into a channel decoupled from the active Unix-domain-socket connection, redials with exponential backoff, and replays the pending line so MCP requests ride out backend restarts and slow first-boot startup.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Wed, 27 May 2026 23:17:12 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v11.20/ClaudeBar.zip"
+        sparkle:version="11.20"
+        sparkle:shortVersionString="11.20"
+        sparkle:edSignature="ZKru0zuX4ux37YtqCC3tX/Yq2J8E36X3ofcJyNi2gm7dHRt6GjiKfkaLEanVu2CYhYb/PFDyoOBHetK5/qb8Bg=="
+        length="7814330"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 11.19 (BETA)</title>
       <sparkle:version>11.19</sparkle:version>
       <sparkle:shortVersionString>11.19</sparkle:shortVersionString>
