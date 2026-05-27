@@ -32,7 +32,7 @@ struct ClaudeSwapWidgetApp: App {
     @StateObject private var chatStore = ChatStore()
     @StateObject private var prefsCloudSync = PreferencesCloudSync.shared
     @StateObject private var updateController = UpdateController()
-    @StateObject private var gateCoord = GateCoordinator()
+    @StateObject private var gateCoord = GateCoordinator.shared
     @ObservedObject private var settings = AppSettings.shared
 
     init() {

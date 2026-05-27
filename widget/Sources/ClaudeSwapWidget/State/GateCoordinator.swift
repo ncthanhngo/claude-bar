@@ -8,6 +8,21 @@ import UserNotifications
 /// resolve.
 @MainActor
 final class GateCoordinator: ObservableObject {
+    /// Single canonical instance. The App-level @StateObject's InitialValue
+    /// closure runs once at `App.init()` time, but SwiftUI's storage for
+    /// that instance is only registered after the first body evaluation —
+    /// which for a MenuBarExtra app happens only when the user opens the
+    /// popover. If the gate proxy is started from
+    /// `applicationDidFinishLaunching` (so MCP write tools work BEFORE the
+    /// popover ever opens), the captured ref is the only strong holder of
+    /// the coordinator; once `AppDelegate.onLaunchCompleted` is nilled
+    /// after firing, ARC releases the coordinator and every subsequent
+    /// gate prompt arrives at `[weak self] = nil` and is silently dropped.
+    /// A static pin avoids that whole class of races: every prompt and
+    /// every popover render see the same instance for the full app
+    /// lifetime, no matter the order of bootstrap steps.
+    static let shared = GateCoordinator()
+
     /// Approval window matches the backend `GateService.Timeout` — keep them
     /// in lock-step. 60s gives the user time to spot the system notification,
     /// pull focus over to the popover, and read the args before deciding.
@@ -34,7 +49,16 @@ final class GateCoordinator: ObservableObject {
         guard reader == nil else { return }
         let r = GateStreamReader(
             yield: { [weak self] ev in
-                Task { @MainActor [weak self] in self?.handle(ev) }
+                let evDesc: String
+                switch ev {
+                case .hello: evDesc = "hello"
+                case .prompt(let p): evDesc = "prompt(\(p.nonce.prefix(8))…)"
+                }
+                DiagnosticsLogger.shared.log(.info, subsystem: "gate", "yield received \(evDesc) selfNotNil=\(self != nil)")
+                Task { @MainActor [weak self] in
+                    DiagnosticsLogger.shared.log(.info, subsystem: "gate", "Task @MainActor entering handle(\(evDesc)) selfNotNil=\(self != nil)")
+                    self?.handle(ev)
+                }
             },
             onTermination: { [weak self] code, stderr in
                 Task { @MainActor [weak self] in
@@ -84,10 +108,10 @@ final class GateCoordinator: ObservableObject {
     private func handle(_ ev: GateStreamReader.Event) {
         switch ev {
         case .hello:
+            DiagnosticsLogger.shared.log(.info, subsystem: "gate", "handle .hello on MainActor")
             isConnected = true
         case .prompt(let p):
-            // If another prompt was pending (shouldn't happen — backend is
-            // synchronous, one outstanding at a time), auto-cancel the old.
+            DiagnosticsLogger.shared.log(.info, subsystem: "gate", "handle .prompt nonce=\(p.nonce.prefix(8))… pendingNotNil=\(pending != nil)")
             if pending != nil { cancel() }
             pending = p
             startCountdown()
@@ -103,8 +127,13 @@ final class GateCoordinator: ObservableObject {
     /// keystroke even when those panels are open, (b) fire a time-sensitive
     /// banner notification that punches through Focus / DND modes.
     private func surfacePrompt(_ p: GatePromptDTO) {
+        DiagnosticsLogger.shared.log(.info, subsystem: "gate", "surfacePrompt fired — opening popover above + scheduling notification")
         MenuBarPopoverToggle.openIfClosedAbove()
         postNotification(for: p)
+        Task { @MainActor in
+            let s = await UNUserNotificationCenter.current().notificationSettings()
+            DiagnosticsLogger.shared.log(.info, subsystem: "gate", "notification authStatus=\(s.authorizationStatus.rawValue) timeSensitive=\(s.timeSensitiveSetting.rawValue) alert=\(s.alertSetting.rawValue)")
+        }
     }
 
     private func postNotification(for p: GatePromptDTO) {
@@ -120,7 +149,14 @@ final class GateCoordinator: ObservableObject {
         // Same identifier per prompt so a fast retry replaces the prior
         // banner rather than stacking duplicates.
         let req = UNNotificationRequest(identifier: "csw.gate.\(p.nonce)", content: content, trigger: nil)
-        Task { try? await UNUserNotificationCenter.current().add(req) }
+        Task {
+            do {
+                try await UNUserNotificationCenter.current().add(req)
+                DiagnosticsLogger.shared.log(.info, subsystem: "gate", "notification.add ok nonce=\(p.nonce.prefix(8))…")
+            } catch {
+                DiagnosticsLogger.shared.log(.warning, subsystem: "gate", "notification.add failed: \(error.localizedDescription)")
+            }
+        }
     }
 
     private func startCountdown() {
