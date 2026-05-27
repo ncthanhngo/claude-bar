@@ -21,13 +21,16 @@ const (
 	gdriveTokenURL = "https://oauth2.googleapis.com/token"
 	// Existing Google connectors only need read scopes; cb_gsheets_*
 	// (added for the markdown-table → Google Sheet use case) needs
-	// write access to spreadsheets. Bundling all four in one scope set
+	// write access to spreadsheets. Sharing a newly-created sheet needs
+	// Drive permissions.create; `drive.file` is the narrow scope that lets
+	// us manage files this app creates without requesting full Drive.
+	// Bundling all five in one scope set
 	// means there is still exactly one OAuth flow per Google account —
 	// the user re-runs Connect once to upgrade an existing v11 token,
 	// then every Google tool works against the upgraded grant. The
 	// `spreadsheets` scope is the narrowest one that allows both
 	// creating new sheets and writing cells into existing ones.
-	gdriveScope = "https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/calendar.events.readonly https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/spreadsheets"
+	gdriveScope = "https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/calendar.events.readonly https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/spreadsheets"
 )
 
 // tokenURLForTest is overridden by tests pointing at httptest. Production
@@ -80,29 +83,29 @@ func GDriveStartOAuth(ctx context.Context, clientID, clientSecret string, openBr
 		WriteTimeout:   30 * time.Second,
 		MaxHeaderBytes: 4096,
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/callback" {
-			http.NotFound(w, r)
-			return
-		}
-		if got := r.URL.Query().Get("state"); got != state {
-			http.Error(w, "state mismatch", http.StatusBadRequest)
-			errCh <- fmt.Errorf("oauth state mismatch")
-			return
-		}
-		if errStr := r.URL.Query().Get("error"); errStr != "" {
-			http.Error(w, errStr, http.StatusBadRequest)
-			errCh <- fmt.Errorf("oauth: %s", errStr)
-			return
-		}
-		code := r.URL.Query().Get("code")
-		if code == "" {
-			http.Error(w, "missing code", http.StatusBadRequest)
-			errCh <- fmt.Errorf("oauth: missing code")
-			return
-		}
-		fmt.Fprintln(w, "Google Drive connected. You may close this tab.")
-		codeCh <- code
-	}),
+			if r.URL.Path != "/callback" {
+				http.NotFound(w, r)
+				return
+			}
+			if got := r.URL.Query().Get("state"); got != state {
+				http.Error(w, "state mismatch", http.StatusBadRequest)
+				errCh <- fmt.Errorf("oauth state mismatch")
+				return
+			}
+			if errStr := r.URL.Query().Get("error"); errStr != "" {
+				http.Error(w, errStr, http.StatusBadRequest)
+				errCh <- fmt.Errorf("oauth: %s", errStr)
+				return
+			}
+			code := r.URL.Query().Get("code")
+			if code == "" {
+				http.Error(w, "missing code", http.StatusBadRequest)
+				errCh <- fmt.Errorf("oauth: missing code")
+				return
+			}
+			fmt.Fprintln(w, "Google Drive connected. You may close this tab.")
+			codeCh <- code
+		}),
 	}
 	go func() { _ = srv.Serve(listener) }()
 	defer srv.Shutdown(context.Background())

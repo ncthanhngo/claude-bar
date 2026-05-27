@@ -133,8 +133,10 @@ flapping right after a swap while the new account's first request is in flight.
 
 Optional feature. When the user installs the gateway, Claude Code calls
 `csw mcp serve` (the same packaged `csw` binary) over stdio. The gateway
-exposes nine read-only tools (`cb_slack_*`, `cb_clickup_*`, `cb_gdrive_*`)
-and resolves the **active Claude Bar account per tool call** — switching
+exposes `cb_*` tools across Slack, ClickUp, Google Workspace, GitHub,
+GitLab, Bitwarden, and SSH. High-impact write surfaces, including Drive
+sharing, are gated through the local approval flow. The gateway
+resolves the **active Claude Bar account per tool call** — switching
 accounts in the menu bar swaps which token the next call uses, with no
 Claude Code restart required.
 

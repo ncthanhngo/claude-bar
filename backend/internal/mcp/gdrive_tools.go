@@ -15,7 +15,7 @@ import (
 	"github.com/soi/claude-swap-widget/backend/internal/domain"
 )
 
-const gdriveAPIBase = "https://www.googleapis.com/drive/v3"
+var gdriveAPIBase = "https://www.googleapis.com/drive/v3"
 
 func (g *Gateway) registerGDriveTools(srv *server.MCPServer) {
 	g.addTool(srv, "cb_gdrive_search_files",
@@ -60,6 +60,8 @@ func (g *Gateway) registerGDriveTools(srv *server.MCPServer) {
 		},
 		g.gdriveDownloadFile,
 	)
+
+	g.registerGDrivePermissionTools(srv)
 }
 
 func (g *Gateway) gdriveDo(ctx context.Context, accessToken, method, path string, params url.Values) (*http.Response, error) {

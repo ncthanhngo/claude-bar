@@ -101,8 +101,9 @@ func (g *Gateway) BuildServer() *server.MCPServer {
 		// One Google OAuth grant covers Drive + Calendar + Gmail +
 		// Sheets, so all four tool groups share a single Enabled
 		// flag and Connect flow. Existing v11.x users will see the
-		// new cb_gsheets_* tools fail with a scope error until they
-		// re-Connect to mint a token with `spreadsheets`.
+		// new cb_gsheets_* and cb_gdrive_share_file tools fail with a
+		// scope error until they re-Connect to mint a token with
+		// `spreadsheets` and `drive.file`.
 		g.registerGDriveTools(srv)
 		g.registerGCalTools(srv)
 		g.registerGmailTools(srv)

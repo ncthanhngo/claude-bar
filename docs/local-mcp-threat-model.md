@@ -138,10 +138,14 @@ relative to remote API latency.
 ### Google Workspace — OAuth loopback + PKCE
 
 - Required scopes: `https://www.googleapis.com/auth/drive.readonly`,
+  `https://www.googleapis.com/auth/drive.file`,
   `https://www.googleapis.com/auth/calendar.events.readonly`,
-  `https://www.googleapis.com/auth/gmail.readonly`.
-- No `drive.file`, no `drive` (full), no Calendar write scope, no Gmail modify/send scope.
-- Google Cloud project must enable Drive API, Calendar API, and Gmail API.
+  `https://www.googleapis.com/auth/gmail.readonly`,
+  `https://www.googleapis.com/auth/spreadsheets`.
+- No `drive` (full), no Calendar write scope, no Gmail modify/send scope.
+- `drive.file` is used only for app-created/opened files such as sheets created
+  by `cb_gsheets_create_spreadsheet`, including `permissions.create` sharing.
+- Google Cloud project must enable Drive API, Calendar API, Gmail API, and Sheets API.
 - Refresh token stored; access token refreshed on-demand inside the gateway.
 
 ## 11. Disconnect / revoke behavior

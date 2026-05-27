@@ -326,7 +326,7 @@ func runMCPConnectorsConnect(ctx context.Context, svc *usecase.Service, args []s
 			AccountNumber: targetAccount, Service: svcID, Payload: payload,
 			DisplayName: pickDisplayName(*displayName, vr.DisplayName),
 			Account:     vr.Account,
-			Scopes:      []string{"drive.readonly", "calendar.events.readonly", "gmail.readonly", "spreadsheets"},
+			Scopes:      []string{"drive.readonly", "drive.file", "calendar.events.readonly", "gmail.readonly", "spreadsheets"},
 			Verified:    true,
 		})
 	case domain.MCPServiceGitHub:
@@ -531,9 +531,10 @@ func runMCPConnectorsSetEnabled(ctx context.Context, svc *usecase.Service, args 
 // Swift caller can fall through to the paste-token / OAuth sheet.
 //
 // Exit codes:
-//   0 — verified and re-enabled
-//   2 — credential present but invalid (caller should prompt for new)
-//   1 — anything else (no saved credential, missing flags, IO error)
+//
+//	0 — verified and re-enabled
+//	2 — credential present but invalid (caller should prompt for new)
+//	1 — anything else (no saved credential, missing flags, IO error)
 func runMCPConnectorsReconnect(ctx context.Context, svc *usecase.Service, args []string) error {
 	fs := flag.NewFlagSet("connectors-reconnect", flag.ExitOnError)
 	account := fs.Int("account", -1, "account number")

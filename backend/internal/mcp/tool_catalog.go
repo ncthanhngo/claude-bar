@@ -69,6 +69,7 @@ var AllTools = []ToolMeta{
 	{ID: "cb_gdrive_get_doc_text", Service: domain.MCPServiceGDrive, Label: "Read Doc text", Description: "Plain-text content of a Google Doc.", Category: "Drive", Priority: ToolPriorityEssential},
 	{ID: "cb_gdrive_download_file", Service: domain.MCPServiceGDrive, Label: "Download file", Description: "Fetch the raw bytes of a Drive file.", Category: "Drive", Priority: ToolPriorityCommon},
 	{ID: "cb_gdrive_list_folder", Service: domain.MCPServiceGDrive, Label: "List folder", Description: "Direct children of one folder.", Category: "Drive", Priority: ToolPriorityCommon},
+	{ID: "cb_gdrive_share_file", Service: domain.MCPServiceGDrive, Label: "Share file", Description: "Grant reader/commenter/writer access to one Drive file. Gated.", Category: "Drive", Priority: ToolPriorityAdvanced},
 
 	// ────────────────────────────── Google Calendar
 	{ID: "cb_gcal_list_calendars", Service: domain.MCPServiceGDrive, Label: "List calendars", Description: "Calendars the user has access to.", Category: "Calendar", Priority: ToolPriorityCommon},
