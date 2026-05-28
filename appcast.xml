@@ -12,6 +12,29 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 11.25 (BETA)</title>
+      <sparkle:version>11.25</sparkle:version>
+      <sparkle:shortVersionString>11.25</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li><strong>Running <code>claude</code> sessions now auto-reload when MCP config changes</strong> — toggling a connector, adding a new one, or reinstalling all kick a graceful reload of every open session. No more <code>/exit</code> + re-launch.</li>
+          <li>Conversation is preserved across the reload via <code>--resume &lt;sid&gt;</code>. Uses the <code>claude-watch</code> wrapper Claude Bar already auto-installs in your shell rc — terminal flashes a brief <em>↻ Reloading claude (MCP config changed)…</em> banner and you keep typing where you left off.</li>
+          <li><strong>Install / Reinstall / Connect-token / Connect-Google now also trigger the reload</strong> — previously these paths added a connector that the running session would never see until manual restart.</li>
+          <li><em>Known edge case:</em> the reload kills any in-flight Claude response and any text you'd typed but not yet sent. Wait for idle before toggling MCP if you're mid-stream.</li>
+          <li>Closes <a href="https://github.com/ncthanhngo/claude-bar/issues/19">#19</a>.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Thu, 28 May 2026 11:08:59 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v11.25/ClaudeBar.zip"
+        sparkle:version="11.25"
+        sparkle:shortVersionString="11.25"
+        sparkle:edSignature="ashYy7a1GfB4CaDsXsP/pyjLC4dNL+4zy1fKDvl7eW+j/5I0Px4wo8yLKjN/uBnD2OZ9b43B0ccy9bVnQJPjCw=="
+        length="7987968"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 11.24 (BETA)</title>
       <sparkle:version>11.24</sparkle:version>
       <sparkle:shortVersionString>11.24</sparkle:shortVersionString>
