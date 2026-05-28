@@ -12,6 +12,29 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 11.26 (BETA)</title>
+      <sparkle:version>11.26</sparkle:version>
+      <sparkle:shortVersionString>11.26</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li><strong>Hotfix:</strong> gated MCP write tools (Slack post, ClickUp comment, GitHub create issue…) called from <strong>inside a subagent or skill</strong> now surface their approval prompt. Previously every subagent gate call timed out with <code>user_cancelled: gate timed out</code> after 60s; direct calls from the main session worked fine.</li>
+          <li><strong>Root cause:</strong> each <code>claude</code> session spawns its own <code>csw mcp serve</code> process, and Claude Code spins up extra ones for subagents. All instances raced to bind a fixed UDS path; only the winner could deliver prompts to the widget.</li>
+          <li><strong>Fix:</strong> flipped the gate IPC direction. The widget proxy now listens on the UDS; every MCP server dials in as a client. Widget multiplexes N MCP-server clients onto a single stdio bridge and routes decisions back via the originating connection. Wire protocol unchanged.</li>
+          <li><em>Upgrade note:</em> after updating, <code>/exit</code> any running <code>claude</code> sessions and relaunch — the old <code>csw mcp serve</code> binary still in memory uses the old IPC direction and will fight the new widget proxy until restarted.</li>
+          <li>Closes <a href="https://github.com/ncthanhngo/claude-bar/issues/21">#21</a>.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Thu, 28 May 2026 17:38:24 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v11.26/ClaudeBar.zip"
+        sparkle:version="11.26"
+        sparkle:shortVersionString="11.26"
+        sparkle:edSignature="/Lhx2dLKlnRMjbgJB+p4GGPTMeYplJhvSaCHBui85BaehoEeF6SnBQnn4HhM8fcPr10OnQdWH6URsFUux4vTDw=="
+        length="7988797"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 11.25 (BETA)</title>
       <sparkle:version>11.25</sparkle:version>
       <sparkle:shortVersionString>11.25</sparkle:shortVersionString>

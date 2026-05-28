@@ -13,9 +13,9 @@
     <key>CFBundleIdentifier</key>
     <string>dev.ncthanhngo.claude-bar</string>
     <key>CFBundleVersion</key>
-    <string>11.25</string>
+    <string>11.26</string>
     <key>CFBundleShortVersionString</key>
-    <string>11.25</string>
+    <string>11.26</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleSignature</key>
@@ -35,7 +35,7 @@
     <key>NSHumanReadableCopyright</key>
     <string>Copyright © 2026 Thanh Ngô. Licensed under MIT.</string>
     <key>CFBundleGetInfoString</key>
-    <string>Claude Bar 11.25 — menu-bar manager for multiple Claude Code accounts</string>
+    <string>Claude Bar 11.26 — menu-bar manager for multiple Claude Code accounts</string>
     <key>CBAuthorName</key>
     <string>Thanh Ngô</string>
     <key>CBAuthorEmail</key>
@@ -49,11 +49,9 @@
     <key>CBReleaseChannel</key>
     <string>Beta</string>
     <key>CBReleaseWhatsNew</key>
-    <string>Running `claude` sessions now auto-reload when you toggle/install MCP connectors — no more /exit and re-launch.
-Install / Reinstall / Connect-token flows also trigger the reload; previously they added connectors the running session never saw.
-Conversation is preserved across the reload via `--resume` (requires the claude-watch alias Claude Bar auto-installs).</string>
+    <string>None — hotfix release.</string>
     <key>CBReleaseHotfixes</key>
-    <string>None — feature release.</string>
+    <string>Fixed: gated MCP write prompts (Slack post, etc.) called inside a subagent / skill now surface — previously timed out with `user_cancelled` after 60s.</string>
     <key>CBReleaseKnownIssues</key>
     <string>MCP hot-reload kills any in-flight Claude response and unsaved typed input — wait for idle before toggling MCP.
 Web-poll cycle loads a WKWebView per linked account; disable web-link on less-used accounts if you have many.
