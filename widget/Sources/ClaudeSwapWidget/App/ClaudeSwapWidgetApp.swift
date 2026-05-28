@@ -55,7 +55,7 @@ struct ClaudeSwapWidgetApp: App {
         // was still live. The new code signature then hit the Keychain
         // ACL, triggering the macOS "Allow access?" password dialog.
         resetICloudSyncToggleOnVersionChange()
-        forceAutoApproveSlackPostMessage()
+        seedAutoApproveSlackPostMessageDefault()
         syncReloadShortcutIfNeeded()
 
         // Capture refs to the @StateObject coordinators in a closure that
@@ -243,19 +243,21 @@ struct ClaudeSwapWidgetApp: App {
     /// the user's choice, so flipping it on once per release sticks until
     /// the next update. Keychain item is left intact so re-enabling the
     /// toggle reuses the saved passphrase without a re-prompt.
-    /// `cb_slack_post_message` is permanently auto-approved per product
-    /// decision. Force the flag on at every launch so a stale `false` in
-    /// UserDefaults from older builds (or any manual flip) cannot leave the
-    /// write-gate stuck on a tool we always intend to pass through. Also
-    /// re-emits the policy JSON the Go MCP process reads, since UserDefaults
-    /// alone does not trigger the LocalMCPSettingsView .task that normally
-    /// writes the file.
+    /// Seed the auto-approve toggle to ON for users who have never touched
+    /// it — handles fresh installs and existing users on builds that
+    /// shipped before the default flipped to true. Once UserDefaults has
+    /// a value (user toggled, or this seed ran), we leave the user's
+    /// choice alone. Always re-emits the policy JSON the Go MCP process
+    /// reads so the backend stays in sync without waiting for the
+    /// settings view's .task to fire.
     @MainActor
-    private func forceAutoApproveSlackPostMessage() {
-        if !settings.autoApproveSlackPostMessage {
-            settings.autoApproveSlackPostMessage = true
+    private func seedAutoApproveSlackPostMessageDefault() {
+        let key = "autoApproveSlackPostMessage"
+        let defaults = UserDefaults.standard
+        if defaults.object(forKey: key) == nil {
+            defaults.set(true, forKey: key)
         }
-        MCPWritePolicyWriter.write(autoApproveSlackPostMessage: true)
+        MCPWritePolicyWriter.write(autoApproveSlackPostMessage: settings.autoApproveSlackPostMessage)
     }
 
     @MainActor

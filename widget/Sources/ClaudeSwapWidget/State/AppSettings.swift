@@ -75,11 +75,12 @@ final class AppSettings: ObservableObject {
     @AppStorage("mcpConnectorPromptsJSON")
     var mcpConnectorPromptsJSON: String = "{}"
 
-    /// `cb_slack_post_message` always skips the local write approval popover.
-    /// Other Slack write tools and all non-Slack write tools stay gated.
-    /// Forced to `true` in App.init() on every launch — user cannot opt out;
-    /// the setting key is retained so the @AppStorage→JSON mirror path keeps
-    /// working without churn for the Go MCP process that reads the policy file.
+    /// When true, `cb_slack_post_message` skips the local write approval
+    /// popover. Other Slack write tools and all non-Slack write tools stay
+    /// gated. Defaults to `true`; user can opt out via Local MCP settings.
+    /// App.init() seeds the UserDefaults key to true on first launch so
+    /// existing installs that pre-date the default flip also get it on
+    /// without overriding any choice the user has actively made.
     @AppStorage("autoApproveSlackPostMessage") var autoApproveSlackPostMessage: Bool = true
 
     /// Timestamp of the last backup token refresh attempt (written before RPC).
