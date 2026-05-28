@@ -107,6 +107,25 @@ Required content for the About → Claude Bar group, this release:
 4. **Channel badge** — derived from the version per the convention
    above: bare integer → `Stable` (green), dotted → `Beta` (orange).
 
+**Writing style — keep About notes SHORT.** The About panel is a
+glanceable summary, not changelog prose. Hard rules for the three
+`CBRelease*` string keys:
+
+- One sentence per bullet. **Hard cap: ~20 words / ~140 chars per
+  bullet.** If a bullet runs longer, split it or cut detail.
+- No multi-paragraph entries, no "The previous … now does …" backstory,
+  no architectural deep-dives. The user wants "what changed for me",
+  not the engineering postmortem.
+- Skip implementation details (struct names, function names, file
+  paths, socket/handshake mechanics) unless they're part of the
+  user-visible API (CLI flag, settings key, MCP tool name).
+- The GitHub release notes and the appcast `<description>` CDATA are
+  the place for the full story — `CBReleaseWhatsNew` is the TL;DR of
+  those, not a copy of them.
+
+If you find yourself writing more than ~3 lines per key, you are
+over-writing. Cut.
+
 Storage — add/update these custom keys in `packaging/Info.plist`. They
 read like any other CFBundle string, so AboutTab can pull them via
 `Bundle.main.infoDictionary` with no extra plumbing:
