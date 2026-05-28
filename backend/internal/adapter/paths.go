@@ -124,6 +124,12 @@ func MCPConnectorPromptsFile() string {
 	return filepath.Join(WidgetDataDir(), "mcp-connector-prompts.json")
 }
 
+// MCPWritePolicyFile holds local write-gate policy toggles controlled by the
+// widget UI. Missing or invalid file means every write tool remains gated.
+func MCPWritePolicyFile() string {
+	return filepath.Join(WidgetDataDir(), "mcp-write-policy.json")
+}
+
 // EnsureChatAccountDir creates the per-account chat + attachments dirs with
 // safe perms (0700). Idempotent — used by storage.Open on first launch and
 // silently OK if the dirs already exist.

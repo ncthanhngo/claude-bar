@@ -38,12 +38,17 @@ struct LocalMCPSettingsView: View {
         SettingsPage {
             privacyNotice
             connectorsSection
+            writeApprovalSection
             chatToolModeSection
             gatewaySection
         }
         .task {
             await coordinator.refresh()
             connectorPrompts = MCPConnectorPrompts.decode(from: settings.mcpConnectorPromptsJSON)
+            MCPWritePolicyWriter.write(autoApproveSlackPostMessage: settings.autoApproveSlackPostMessage)
+        }
+        .onChange(of: settings.autoApproveSlackPostMessage) { _, newValue in
+            MCPWritePolicyWriter.write(autoApproveSlackPostMessage: newValue)
         }
         .onChange(of: coordinator.connectSheet?.id) { _, _ in
             if let target = coordinator.connectSheet {
@@ -147,6 +152,21 @@ struct LocalMCPSettingsView: View {
                     chatToolModeRow(mode)
                 }
             }
+        }
+    }
+
+    private var writeApprovalSection: some View {
+        SettingsGroup(
+            "Write approvals",
+            subtitle: "Write tools normally require a local approval prompt before they touch external services."
+        ) {
+            Toggle(isOn: $settings.autoApproveSlackPostMessage) {
+                SettingsToggleLabel(
+                    title: "Auto-approve Slack post message",
+                    detail: "Skips the popover for cb_slack_post_message only. Slack thread replies, ClickUp, Google, GitHub, GitLab, and SSH writes still require approval."
+                )
+            }
+            .toggleStyle(.switch)
         }
     }
 

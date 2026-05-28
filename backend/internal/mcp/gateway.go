@@ -43,6 +43,10 @@ type Gateway struct {
 	// disabled (tests, dry-run); writers tolerate nil.
 	Audit *AuditWriter
 
+	// AutoApprove returns true when a specific write tool should skip the
+	// local approval prompt. nil means every write still goes through Gate.
+	AutoApprove func(tool string) bool
+
 	// SSHStore is the registry of tracked SSH hosts. nil disables SSH tools.
 	SSHStore SSHHostStore
 

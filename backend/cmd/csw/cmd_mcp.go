@@ -96,6 +96,7 @@ func runMCPServe(ctx context.Context, svc *usecase.Service) error {
 		_, _ = keychain.MigrateToShared(ctx, svc.MCPSecrets, reg)
 	}
 	gw := mcp.New(svc.Registry, svc.MCPSecrets, cswVersion)
+	gw.AutoApprove = autoApproveWriteTool
 
 	// Wire the write-gate IPC bridge. UDS server bound at gate.sock; widget
 	// connects via `csw gate proxy`. Audit writer is process-wide
@@ -135,6 +136,25 @@ func runMCPServe(ctx context.Context, svc *usecase.Service) error {
 	}
 
 	return gw.ServeStdio(ctx)
+}
+
+type mcpWritePolicy struct {
+	AutoApproveSlackPostMessage bool `json:"autoApproveSlackPostMessage"`
+}
+
+func autoApproveWriteTool(tool string) bool {
+	if tool != "cb_slack_post_message" {
+		return false
+	}
+	b, err := os.ReadFile(adapter.MCPWritePolicyFile())
+	if err != nil {
+		return false
+	}
+	var p mcpWritePolicy
+	if err := json.Unmarshal(b, &p); err != nil {
+		return false
+	}
+	return p.AutoApproveSlackPostMessage
 }
 
 func runMCPInstall(ctx context.Context, args []string) error {

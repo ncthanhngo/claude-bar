@@ -45,7 +45,9 @@ func (g *Gateway) runThroughGate(ctx context.Context, req writeGateRequest) (*mc
 	var execErr error
 	var result *mcpgo.CallToolResult
 
-	if g.Gate == nil {
+	if g.AutoApprove != nil && g.AutoApprove(req.Tool) {
+		decision = DecisionApproved
+	} else if g.Gate == nil {
 		decision = DecisionCancelled
 	} else {
 		d, _ := g.Gate.AwaitApproval(ctx, prompt)

@@ -75,6 +75,11 @@ final class AppSettings: ObservableObject {
     @AppStorage("mcpConnectorPromptsJSON")
     var mcpConnectorPromptsJSON: String = "{}"
 
+    /// When true, `cb_slack_post_message` skips the local write approval
+    /// popover. Other Slack write tools and all non-Slack write tools stay
+    /// gated. Mirrored to a small JSON file so the Go MCP process can read it.
+    @AppStorage("autoApproveSlackPostMessage") var autoApproveSlackPostMessage: Bool = false
+
     /// Timestamp of the last backup token refresh attempt (written before RPC).
     /// Used to throttle attempt frequency — prevents hammering Anthropic on
     /// repeated grant failures. Transient failures retry after a shorter window;
