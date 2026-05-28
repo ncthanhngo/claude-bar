@@ -12,6 +12,27 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 11.22 (BETA)</title>
+      <sparkle:version>11.22</sparkle:version>
+      <sparkle:shortVersionString>11.22</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li>Maintenance republish to reconcile the signed <code>.app</code> source with the previously shipped v11.21 artifact — no functional code change vs v11.21.</li>
+          <li>Retains the v11.21 fix: MCP write-tool approval gate uses a two-party handshake. The gateway sends <code>hello</code>, the widget replies <code>ready</code> only after its approval UI bridge has decoded the stream, and queued prompts flush after the readiness signal. Closes the <code>cb_slack_post_message</code> failure mode where the MCP server queued a write prompt before the widget could display it.</li>
+          <li>Retains the v11.20 stdio-proxy hardening (decoupled stdin buffering + exponential-backoff redial across socket drops).</li>
+        </ul>
+      ]]></description>
+      <pubDate>Thu, 28 May 2026 08:15:10 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v11.22/ClaudeBar.zip"
+        sparkle:version="11.22"
+        sparkle:shortVersionString="11.22"
+        sparkle:edSignature="fKZJpaJjknBFHr2RuXEt18C0JKYSkIUOHitu8lxE4QKKUFBCObTfDf5wv2PiI+1hXwhgrMz4pJGgu6ig4EfZAg=="
+        length="7826963"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 11.21 (BETA)</title>
       <sparkle:version>11.21</sparkle:version>
       <sparkle:shortVersionString>11.21</sparkle:shortVersionString>
