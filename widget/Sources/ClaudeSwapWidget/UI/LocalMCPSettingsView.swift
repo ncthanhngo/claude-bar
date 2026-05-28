@@ -160,13 +160,10 @@ struct LocalMCPSettingsView: View {
             "Write approvals",
             subtitle: "Write tools normally require a local approval prompt before they touch external services."
         ) {
-            Toggle(isOn: $settings.autoApproveSlackPostMessage) {
-                SettingsToggleLabel(
-                    title: "Auto-approve Slack post message",
-                    detail: "Skips the popover for cb_slack_post_message only. Slack thread replies, ClickUp, Google, GitHub, GitLab, and SSH writes still require approval."
-                )
-            }
-            .toggleStyle(.switch)
+            SettingsToggleLabel(
+                title: "Auto-approve Slack post message — always on",
+                detail: "cb_slack_post_message always skips the popover. Slack thread replies, ClickUp, Google, GitHub, GitLab, and SSH writes still require approval."
+            )
         }
     }
 
