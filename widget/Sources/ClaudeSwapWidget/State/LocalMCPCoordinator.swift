@@ -69,6 +69,7 @@ final class LocalMCPCoordinator: ObservableObject {
         do {
             try await client.mcpInstall()
             installStatus = try await client.mcpStatus()
+            await restartClaudeForMCPReload()
         } catch {
             lastError = error.localizedDescription
         }
@@ -82,6 +83,7 @@ final class LocalMCPCoordinator: ObservableObject {
         do {
             try await client.mcpUninstall()
             installStatus = try await client.mcpStatus()
+            await restartClaudeForMCPReload()
         } catch {
             lastError = error.localizedDescription
         }
@@ -95,6 +97,7 @@ final class LocalMCPCoordinator: ObservableObject {
         do {
             try await client.mcpInstall(force: true)
             installStatus = try await client.mcpStatus()
+            await restartClaudeForMCPReload()
         } catch {
             lastError = error.localizedDescription
         }
@@ -110,6 +113,7 @@ final class LocalMCPCoordinator: ObservableObject {
                 account: account, service: service, token: token, displayName: displayName
             )
             accounts = try await client.mcpConnectorsList()
+            await restartClaudeForMCPReload()
             return true
         } catch {
             lastError = error.localizedDescription
@@ -131,6 +135,7 @@ final class LocalMCPCoordinator: ObservableObject {
                 account: account, clientID: clientID, clientSecret: clientSecret, displayName: displayName
             )
             accounts = try await client.mcpConnectorsList()
+            await restartClaudeForMCPReload()
             return true
         } catch {
             lastError = error.localizedDescription
@@ -191,7 +196,16 @@ final class LocalMCPCoordinator: ObservableObject {
     }
 
     private func restartClaudeForMCPReload() async {
-        let killed = CLISessionKiller.killAll(skipCmuxTracked: true)
+        // Wrapped sessions (claude-watch) get SIGUSR1: the wrapper snapshots
+        // its child's sessionId, kills the child, and re-launches with
+        // `--resume <sid>` so the user keeps their conversation and never
+        // sees a shell prompt. cmux panes are already handled by their own
+        // relauncher. Unwrapped sessions fall through to the legacy
+        // SIGINT-then-SIGKILL path — they still need to die so the user's
+        // next `claude` launch picks up the new MCP config, even though
+        // there's nothing to auto-restart them.
+        CLISessionKiller.signalWrappers()
+        let killed = CLISessionKiller.killAll(skipCmuxTracked: true, skipWrapperTracked: true)
         guard !killed.isEmpty else { return }
         try? await Task.sleep(nanoseconds: 800_000_000)
         CLISessionKiller.forceKillSurvivors(killed)

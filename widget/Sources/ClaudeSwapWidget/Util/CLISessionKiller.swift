@@ -21,16 +21,45 @@ enum CLISessionKiller {
     /// `skipCmuxTracked` is true so the cmux pane relauncher can drive the
     /// restart with `--resume <sid>` and keep the conversation. Otherwise a
     /// double SIGINT here would race the resume command.
+    ///
+    /// Sessions running inside a claude-watch wrapper (tracked in
+    /// `~/.claude-bar/wrappers/<pid>.json`) are skipped when
+    /// `skipWrapperTracked` is true — `signalWrappers()` already handed the
+    /// wrapper a SIGUSR1, and the wrapper performs its own kill+resume so
+    /// double-killing here would race the wrapper's escalation timer.
     @discardableResult
-    static func killAll(skipCmuxTracked: Bool = false) -> [KillResult] {
+    static func killAll(skipCmuxTracked: Bool = false, skipWrapperTracked: Bool = false) -> [KillResult] {
         let cmuxPids: Set<Int> = skipCmuxTracked
             ? Set(CmuxHookSessionReader.readAllActive().compactMap(\.pid))
             : []
-        let sessions = readSessions().filter { !cmuxPids.contains($0.pid) }
+        let wrapperChildPids: Set<Int> = skipWrapperTracked
+            ? WrapperHookSessionReader.activeChildPids()
+            : []
+        let sessions = readSessions().filter {
+            !cmuxPids.contains($0.pid) && !wrapperChildPids.contains($0.pid)
+        }
         return sessions.map { s in
             let sent = kill(Int32(s.pid), SIGINT) == 0
             return KillResult(pid: s.pid, cwd: s.cwd, sent: sent)
         }
+    }
+
+    /// Send SIGUSR1 to every active claude-watch wrapper so each wrapper can
+    /// snapshot its child's sessionId, stop the child, and re-launch with
+    /// `--resume <sid>`. The wrapper preserves conversation across the
+    /// reload — unlike the SIGINT path in `killAll()` which leaves a
+    /// non-wrapped terminal sitting at a shell prompt.
+    ///
+    /// Always pair with `killAll(skipWrapperTracked: true)` so the wrapper's
+    /// own kill+resume isn't raced by a direct SIGINT here.
+    @discardableResult
+    static func signalWrappers() -> Int {
+        let wrappers = WrapperHookSessionReader.readAllActive()
+        var count = 0
+        for w in wrappers where kill(Int32(w.wrapperPid), SIGUSR1) == 0 {
+            count += 1
+        }
+        return count
     }
 
     /// Send SIGKILL to any sessions that are still alive (call after async wait).
