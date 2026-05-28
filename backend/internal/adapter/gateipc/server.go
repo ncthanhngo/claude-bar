@@ -1,8 +1,16 @@
-// Package gateipc bridges the MCP server's GateService to the widget over a
-// Unix domain socket. The MCP server (csw mcp serve) runs as a long-lived
-// subprocess of Claude Code; the widget connects via `csw gate proxy` and
-// receives newline-delimited JSON gate prompts, replying with decisions on
-// the same socket.
+// Package gateipc bridges every running MCP server's GateService to a single
+// widget over a Unix domain socket.
+//
+// Direction: widget LISTENS, MCP servers DIAL. This lets N concurrent
+// `csw mcp serve` processes — one per claude session, including subagents
+// spawned by Claude Code's Task tool — all reach the same widget. The
+// previous design had MCP servers race to bind a fixed path; only the
+// race winner could deliver gate prompts to the widget, all other
+// instances' prompts timed out with `user_cancelled: gate timed out`
+// (issue #21).
+//
+// Wire protocol is unchanged from the prior direction: hello → ready →
+// prompt / respond envelopes, newline-delimited JSON.
 package gateipc
 
 import (
@@ -35,32 +43,40 @@ type Envelope struct {
 	Kind     EnvelopeKind    `json:"kind"`
 	Prompt   *mcp.GatePrompt `json:"prompt,omitempty"`
 	Nonce    string          `json:"nonce,omitempty"`
-	Decision string          `json:"decision,omitempty"` // "approved" | "cancelled"
+	Decision string          `json:"decision,omitempty"` // "approved" | "cancelled" | "timeout"
 	Reason   string          `json:"reason,omitempty"`
 }
 
-// Server accepts a single widget subscriber at a time. When the widget
-// disconnects, prompts are queued until it reconnects (best-effort, capped).
+// Server is the widget-side UDS listener. It accepts an arbitrary number of
+// MCP-server clients and demultiplexes every inbound prompt to a single
+// onPrompt callback. The reverse direction — decisions from the user —
+// uses Respond(nonce, decision) which routes the response back to the
+// connection that originated that nonce.
 type Server struct {
-	path string
-	gate *mcp.GateService
+	path     string
+	onPrompt func(mcp.GatePrompt)
 
-	mu       sync.Mutex
-	listener net.Listener
-	current  net.Conn // active subscriber (nil if none)
-	ready    bool
-	queue    []mcp.GatePrompt
-	maxQueue int
+	mu          sync.Mutex
+	listener    net.Listener
+	conns       map[net.Conn]struct{}
+	nonceToConn map[string]net.Conn
+	closeOnce   sync.Once
 }
 
-// NewServer wires a UDS server on path and bridges to gate.
-func NewServer(path string, gate *mcp.GateService) *Server {
-	return &Server{path: path, gate: gate, maxQueue: 32}
+// NewServer binds nothing yet; call Start. onPrompt is invoked for every
+// inbound prompt from any client. Implementations forward the prompt to
+// the widget UI (typically by writing a JSON envelope to stdout).
+func NewServer(path string, onPrompt func(mcp.GatePrompt)) *Server {
+	return &Server{
+		path:        path,
+		onPrompt:    onPrompt,
+		conns:       make(map[net.Conn]struct{}),
+		nonceToConn: make(map[string]net.Conn),
+	}
 }
 
-// Start binds the socket, attaches itself as the gate's emitter, and serves
-// connections in the background until ctx is cancelled. The socket file is
-// removed on shutdown.
+// Start binds the UDS and accepts client connections until ctx is
+// cancelled. The socket file is removed on shutdown.
 func (s *Server) Start(ctx context.Context) error {
 	_ = os.Remove(s.path)
 	l, err := net.Listen("unix", s.path)
@@ -72,154 +88,121 @@ func (s *Server) Start(ctx context.Context) error {
 		return fmt.Errorf("gate uds perms: %w", err)
 	}
 	s.listener = l
-	s.gate.Emitter = serverEmitter{s: s}
 
 	go s.acceptLoop(ctx)
 	go func() {
 		<-ctx.Done()
-		_ = l.Close()
-		s.mu.Lock()
-		if s.current != nil {
-			_ = s.current.Close()
-			s.current = nil
-			s.ready = false
-		}
-		s.mu.Unlock()
-		_ = os.Remove(s.path)
+		s.shutdown()
 	}()
 	return nil
+}
+
+// Respond routes a decision envelope back to the MCP server that
+// originated the given nonce. Unknown nonces are dropped silently —
+// they can happen if the originating MCP server already disconnected
+// (process exit, timeout, or transport error).
+func (s *Server) Respond(nonce, decision string) {
+	s.mu.Lock()
+	conn := s.nonceToConn[nonce]
+	delete(s.nonceToConn, nonce)
+	s.mu.Unlock()
+	if conn == nil {
+		return
+	}
+	env := Envelope{Kind: EnvelopeRespond, Nonce: nonce, Decision: decision}
+	if err := writeEnvelope(conn, env); err != nil {
+		s.dropConn(conn)
+	}
+}
+
+// ActiveClientCount returns the number of MCP servers currently connected.
+// For diagnostics / tests.
+func (s *Server) ActiveClientCount() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return len(s.conns)
 }
 
 func (s *Server) acceptLoop(ctx context.Context) {
 	for {
 		conn, err := s.listener.Accept()
 		if err != nil {
-			if ctx.Err() != nil {
-				return
-			}
-			if errors.Is(err, net.ErrClosed) {
+			if ctx.Err() != nil || errors.Is(err, net.ErrClosed) {
 				return
 			}
 			time.Sleep(50 * time.Millisecond)
 			continue
 		}
-		go s.handleSubscriber(ctx, conn)
+		go s.handleClient(ctx, conn)
 	}
 }
 
-func (s *Server) handleSubscriber(ctx context.Context, conn net.Conn) {
-	// One subscriber at a time. Drop any prior subscriber.
+func (s *Server) handleClient(ctx context.Context, conn net.Conn) {
 	s.mu.Lock()
-	if s.current != nil {
-		_ = s.current.Close()
-	}
-	s.current = conn
-	s.ready = false
+	s.conns[conn] = struct{}{}
 	s.mu.Unlock()
 
-	// Greet first. The widget must answer with `ready` before queued prompts
-	// flush, so the backend only treats a subscriber as usable after both
-	// sides have completed the handshake.
-	enc := json.NewEncoder(conn)
-	if err := enc.Encode(Envelope{Kind: EnvelopeHello}); err != nil {
-		s.dropSubscriber(conn)
+	// Send hello. Client (csw mcp serve) replies with ready.
+	if err := writeEnvelope(conn, Envelope{Kind: EnvelopeHello}); err != nil {
+		s.dropConn(conn)
 		return
 	}
 
-	// Read readiness + decisions until conn closes.
 	scanner := bufio.NewScanner(conn)
 	scanner.Buffer(make([]byte, 4096), 64*1024)
 	for scanner.Scan() {
+		if ctx.Err() != nil {
+			break
+		}
 		var env Envelope
 		if err := json.Unmarshal(scanner.Bytes(), &env); err != nil {
 			continue
 		}
-		if env.Kind == EnvelopeReady {
-			s.markSubscriberReady(conn)
-			continue
+		switch env.Kind {
+		case EnvelopeReady:
+			// Ack only — no flushing needed since prompts are pushed
+			// by the MCP server, not queued by us.
+		case EnvelopePrompt:
+			if env.Prompt == nil || env.Prompt.Nonce == "" {
+				continue
+			}
+			s.mu.Lock()
+			s.nonceToConn[env.Prompt.Nonce] = conn
+			s.mu.Unlock()
+			if s.onPrompt != nil {
+				s.onPrompt(*env.Prompt)
+			}
 		}
-		if env.Kind != EnvelopeRespond || env.Nonce == "" {
-			continue
-		}
-		d := mcp.DecisionCancelled
-		switch env.Decision {
-		case "approved":
-			d = mcp.DecisionApproved
-		case "cancelled":
-			d = mcp.DecisionCancelled
-		case "timeout":
-			d = mcp.DecisionTimeout
-		}
-		s.gate.Respond(env.Nonce, d)
 	}
-	s.dropSubscriber(conn)
+	s.dropConn(conn)
 }
 
-func (s *Server) dropSubscriber(conn net.Conn) {
+func (s *Server) dropConn(conn net.Conn) {
 	s.mu.Lock()
-	if s.current == conn {
-		s.current = nil
-		s.ready = false
+	delete(s.conns, conn)
+	for nonce, c := range s.nonceToConn {
+		if c == conn {
+			delete(s.nonceToConn, nonce)
+		}
 	}
 	s.mu.Unlock()
 	_ = conn.Close()
 }
 
-func (s *Server) markSubscriberReady(conn net.Conn) {
-	s.mu.Lock()
-	if s.current != conn {
-		s.mu.Unlock()
-		return
-	}
-	s.ready = true
-	queued := append([]mcp.GatePrompt(nil), s.queue...)
-	s.queue = s.queue[:0]
-	s.mu.Unlock()
-
-	for i, p := range queued {
-		pcopy := p
-		if err := writeEnvelope(conn, Envelope{Kind: EnvelopePrompt, Prompt: &pcopy}); err != nil {
-			s.dropSubscriber(conn)
-			s.requeue(queued[i:]...)
-			return
+func (s *Server) shutdown() {
+	s.closeOnce.Do(func() {
+		if s.listener != nil {
+			_ = s.listener.Close()
 		}
-	}
-}
-
-// emit sends a prompt to the subscriber if one is connected and ready,
-// otherwise queues it until the widget finishes its ready handshake.
-func (s *Server) emit(p mcp.GatePrompt) error {
-	s.mu.Lock()
-	conn := s.current
-	if conn == nil || !s.ready {
-		s.queueLocked(p)
+		s.mu.Lock()
+		for c := range s.conns {
+			_ = c.Close()
+		}
+		s.conns = make(map[net.Conn]struct{})
+		s.nonceToConn = make(map[string]net.Conn)
 		s.mu.Unlock()
-		return nil
-	}
-	s.mu.Unlock()
-
-	if err := writeEnvelope(conn, Envelope{Kind: EnvelopePrompt, Prompt: &p}); err != nil {
-		s.dropSubscriber(conn)
-		// Stash for next subscriber.
-		s.requeue(p)
-		return nil
-	}
-	return nil
-}
-
-func (s *Server) requeue(prompts ...mcp.GatePrompt) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	for _, p := range prompts {
-		s.queueLocked(p)
-	}
-}
-
-func (s *Server) queueLocked(p mcp.GatePrompt) {
-	if len(s.queue) >= s.maxQueue {
-		s.queue = s.queue[1:]
-	}
-	s.queue = append(s.queue, p)
+		_ = os.Remove(s.path)
+	})
 }
 
 func writeEnvelope(conn net.Conn, env Envelope) error {
@@ -233,7 +216,3 @@ func writeEnvelope(conn net.Conn, env Envelope) error {
 	_, err = conn.Write(b)
 	return err
 }
-
-type serverEmitter struct{ s *Server }
-
-func (e serverEmitter) Emit(p mcp.GatePrompt) error { return e.s.emit(p) }

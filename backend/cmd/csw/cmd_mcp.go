@@ -98,17 +98,22 @@ func runMCPServe(ctx context.Context, svc *usecase.Service) error {
 	gw := mcp.New(svc.Registry, svc.MCPSecrets, cswVersion)
 	gw.AutoApprove = autoApproveWriteTool
 
-	// Wire the write-gate IPC bridge. UDS server bound at gate.sock; widget
-	// connects via `csw gate proxy`. Audit writer is process-wide
-	// append-only. Both nil-safe: writer/gate failures must not block MCP
-	// stdio (the LLM client times out cleanly via gate timeout).
+	// Wire the write-gate IPC bridge. The widget runs the UDS LISTENER
+	// (via `csw gate proxy`); every `csw mcp serve` — including those
+	// spawned for subagents by Claude Code's Task tool — dials in as a
+	// client. Previously the MCP server held the listener and a second
+	// instance would silently replace the first, leaving subagent prompts
+	// stranded (issue #21). Audit writer is process-wide append-only.
+	// Both nil-safe: writer/gate failures must not block MCP stdio (the
+	// LLM client times out cleanly via gate timeout).
 	if aw, _ := mcp.DefaultAuditWriter(); aw != nil {
 		gw.Audit = aw
 	}
 	gw.Gate = mcp.NewGateService(nil)
 	if err := adapter.EnsureDataDir(); err == nil {
-		ipcSrv := gateipc.NewServer(adapter.GateSocketFile(), gw.Gate)
-		_ = ipcSrv.Start(ctx) // emitter wires itself onto gw.Gate
+		dialer := gateipc.NewDialEmitter(adapter.GateSocketFile(), gw.Gate)
+		gw.Gate.Emitter = dialer
+		dialer.Start(ctx)
 	}
 
 	// SSH host store — Phase 3. File is created lazily on first Put.
