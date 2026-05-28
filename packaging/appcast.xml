@@ -12,6 +12,27 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 11.23 (BETA)</title>
+      <sparkle:version>11.23</sparkle:version>
+      <sparkle:shortVersionString>11.23</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li><code>cb_slack_post_message</code> is now always auto-approved — the on/off toggle has been removed from Local MCP settings.</li>
+          <li>Existing users with the toggle previously off are flipped on automatically on first launch after update; the Go MCP process re-reads the policy JSON immediately so the change applies without restart.</li>
+          <li>Other write tools (Slack thread replies, ClickUp, Google, GitHub, GitLab, SSH) continue to require local approval.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Thu, 28 May 2026 08:26:40 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v11.23/ClaudeBar.zip"
+        sparkle:version="11.23"
+        sparkle:shortVersionString="11.23"
+        sparkle:edSignature="ozaJxrOO7JvSAVmKW0MtgdTwMlK2DZogf0SCJM5EDlOSXq0JLbA/fEqb8IYmr9A3vF1k7EZkIrdHh74u3xQdBA=="
+        length="7825801"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 11.22 (BETA)</title>
       <sparkle:version>11.22</sparkle:version>
       <sparkle:shortVersionString>11.22</sparkle:shortVersionString>

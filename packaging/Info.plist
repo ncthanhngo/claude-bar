@@ -13,9 +13,9 @@
     <key>CFBundleIdentifier</key>
     <string>dev.ncthanhngo.claude-bar</string>
     <key>CFBundleVersion</key>
-    <string>11.22</string>
+    <string>11.23</string>
     <key>CFBundleShortVersionString</key>
-    <string>11.22</string>
+    <string>11.23</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleSignature</key>
@@ -35,7 +35,7 @@
     <key>NSHumanReadableCopyright</key>
     <string>Copyright © 2026 Thanh Ngô. Licensed under MIT.</string>
     <key>CFBundleGetInfoString</key>
-    <string>Claude Bar 11.22 — menu-bar manager for multiple Claude Code accounts</string>
+    <string>Claude Bar 11.23 — menu-bar manager for multiple Claude Code accounts</string>
     <key>CBAuthorName</key>
     <string>Thanh Ngô</string>
     <key>CBAuthorEmail</key>
@@ -49,10 +49,10 @@
     <key>CBReleaseChannel</key>
     <string>Beta</string>
     <key>CBReleaseWhatsNew</key>
-    <string>Maintenance republish to reconcile the signed `.app` source with the previously shipped v11.21 artifact. Same MCP write-tool approval gate handshake: the gateway sends hello, the Claude Bar widget replies ready only after its approval UI bridge has decoded the stream, and queued prompts flush after that readiness signal instead of assuming that a socket connection alone means the UI can render. This closes the cb_slack_post_message failure mode where the MCP server could queue a write prompt before the widget side was ready to display and answer it.
-The gate proxy retains the v11.20 hardening: stdin is decoupled from the active Unix-domain-socket connection, and the proxy redials with exponential backoff across backend restarts or slow first-boot startup.</string>
+    <string>cb_slack_post_message is now always auto-approved; the on/off toggle has been removed from Local MCP settings.
+Existing users with the toggle previously off are flipped on automatically on first launch after update.</string>
     <key>CBReleaseHotfixes</key>
-    <string>None — code is identical to v11.21; this build exists so the source tree, git tag, and signed artifact line up.</string>
+    <string>None</string>
     <key>CBReleaseKnownIssues</key>
     <string>Each web-poll cycle still loads a hidden WKWebView reload of claude.ai/settings/usage per linked account and waits for the React SPA to hydrate (typically 1–3s, hard-capped at 12s). At the 120s / 60s cadence this fits comfortably for 2–3 accounts; users with many more web-linked accounts may want to disable web-link on the less-used ones.
 The reset-clause regex doesn't yet parse every locale's date format (e.g., "Resets Fri 7:00 PM"). When parsing fails the widget falls back to a future placeholder (now + 5h for the session bar, now + 7d for the weekly bar) so the percentage still displays — the countdown will be approximate until the next successful parse.
