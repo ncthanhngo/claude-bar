@@ -13,9 +13,9 @@
     <key>CFBundleIdentifier</key>
     <string>dev.ncthanhngo.claude-bar</string>
     <key>CFBundleVersion</key>
-    <string>11.24</string>
+    <string>11.25</string>
     <key>CFBundleShortVersionString</key>
-    <string>11.24</string>
+    <string>11.25</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleSignature</key>
@@ -35,7 +35,7 @@
     <key>NSHumanReadableCopyright</key>
     <string>Copyright © 2026 Thanh Ngô. Licensed under MIT.</string>
     <key>CFBundleGetInfoString</key>
-    <string>Claude Bar 11.24 — menu-bar manager for multiple Claude Code accounts</string>
+    <string>Claude Bar 11.25 — menu-bar manager for multiple Claude Code accounts</string>
     <key>CBAuthorName</key>
     <string>Thanh Ngô</string>
     <key>CBAuthorEmail</key>
@@ -45,20 +45,20 @@
     <key>CBLicense</key>
     <string>MIT</string>
     <key>CBBuildDate</key>
-    <string>2026-05-27</string>
+    <string>2026-05-28</string>
     <key>CBReleaseChannel</key>
     <string>Beta</string>
     <key>CBReleaseWhatsNew</key>
-    <string>Restored the Auto-approve Slack post message toggle in Local MCP settings — default on, you can opt out.
-Low/Medium gated MCP write prompts now open as a sheet, so writes no longer time out silently when the popover is closed.
-New cb_gsheets_create_from_csv tool: create and populate a Google Sheet from CSV in one call. Re-Connect Google to pick up the new drive.file scope.</string>
+    <string>Running `claude` sessions now auto-reload when you toggle/install MCP connectors — no more /exit and re-launch.
+Install / Reinstall / Connect-token flows also trigger the reload; previously they added connectors the running session never saw.
+Conversation is preserved across the reload via `--resume` (requires the claude-watch alias Claude Bar auto-installs).</string>
     <key>CBReleaseHotfixes</key>
-    <string>Fixed MCP write tools (Slack post, ClickUp comment, etc.) timing out with 'user_cancelled' when the menu bar popover was closed at prompt time.</string>
+    <string>None — feature release.</string>
     <key>CBReleaseKnownIssues</key>
-    <string>Each web-poll cycle still loads a hidden WKWebView reload of claude.ai/settings/usage per linked account and waits for the React SPA to hydrate (typically 1–3s, hard-capped at 12s). At the 120s / 60s cadence this fits comfortably for 2–3 accounts; users with many more web-linked accounts may want to disable web-link on the less-used ones.
-The reset-clause regex doesn't yet parse every locale's date format (e.g., "Resets Fri 7:00 PM"). When parsing fails the widget falls back to a future placeholder (now + 5h for the session bar, now + 7d for the weekly bar) so the percentage still displays — the countdown will be approximate until the next successful parse.
-The menu-bar popover still dismisses when the Rename window opens (macOS menu-bar app behaviour, not preventable without giving up the dropdown style). The rename itself goes through on Save; reopen the menu to see the new name.
-Existing v11.x Google tokens are still missing the `spreadsheets` and `drive.file` scopes shipped for Sheets write + Drive sharing. The cb_gsheets_* and cb_gdrive_share_file tools return Google "insufficient permission" until you Disconnect + Reconnect the Google connector — that mints a fresh token with the new scope set. Drive / Calendar / Gmail read tools keep working on the old scope until you do.</string>
+    <string>MCP hot-reload kills any in-flight Claude response and unsaved typed input — wait for idle before toggling MCP.
+Web-poll cycle loads a WKWebView per linked account; disable web-link on less-used accounts if you have many.
+Old Google tokens lack `spreadsheets` / `drive.file` scopes — Disconnect + Reconnect Google to enable Sheets write and Drive sharing.
+Menu-bar popover dismisses when the Rename window opens (macOS menu-bar behaviour); reopen to see the new name.</string>
     <key>CFBundleDevelopmentRegion</key>
     <string>en</string>
     <key>CFBundleLocalizations</key>
