@@ -104,10 +104,13 @@ func (g *Gateway) BuildServer() *server.MCPServer {
 	if enabled[domain.MCPServiceGDrive] {
 		// One Google OAuth grant covers Drive + Calendar + Gmail +
 		// Sheets, so all four tool groups share a single Enabled
-		// flag and Connect flow. Existing v11.x users will see the
-		// new cb_gsheets_* and cb_gdrive_share_file tools fail with a
-		// scope error until they re-Connect to mint a token with
-		// `spreadsheets` and `drive.file`.
+		// flag and Connect flow. The grant currently bundles five
+		// scopes — drive.readonly + drive.file + calendar.events.readonly
+		// + gmail.readonly + spreadsheets. Existing users on a token
+		// minted before any given scope addition will see those tools
+		// fail with a scope error until they re-Connect:
+		//   - pre-v11.2: re-Connect to pick up `spreadsheets` (cb_gsheets_*)
+		//   - pre-this-version: re-Connect to pick up `drive.file` (cb_gdrive_share_file)
 		g.registerGDriveTools(srv)
 		g.registerGCalTools(srv)
 		g.registerGmailTools(srv)

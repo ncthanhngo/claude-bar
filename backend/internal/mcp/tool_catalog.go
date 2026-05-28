@@ -71,6 +71,12 @@ var AllTools = []ToolMeta{
 	{ID: "cb_gdrive_list_folder", Service: domain.MCPServiceGDrive, Label: "List folder", Description: "Direct children of one folder.", Category: "Drive", Priority: ToolPriorityCommon},
 	{ID: "cb_gdrive_share_file", Service: domain.MCPServiceGDrive, Label: "Share file", Description: "Grant reader/commenter/writer access to one Drive file. Gated.", Category: "Drive", Priority: ToolPriorityAdvanced},
 
+	// ────────────────────────────── Google Sheets
+	{ID: "cb_gsheets_create_spreadsheet", Service: domain.MCPServiceGDrive, Label: "Create spreadsheet", Description: "Make a new empty Google Sheet under the active account. Gated.", Category: "Writes", Priority: ToolPriorityCommon},
+	{ID: "cb_gsheets_create_from_csv", Service: domain.MCPServiceGDrive, Label: "Create sheet from CSV", Description: "Create a new Sheet and populate cells from CSV text in one call. Gated.", Category: "Writes", Priority: ToolPriorityCommon},
+	{ID: "cb_gsheets_update_values", Service: domain.MCPServiceGDrive, Label: "Update cells", Description: "Overwrite a rectangular range of cells in an existing Sheet. Gated.", Category: "Writes", Priority: ToolPriorityAdvanced},
+	{ID: "cb_gsheets_append_values", Service: domain.MCPServiceGDrive, Label: "Append rows", Description: "Append rows to the end of a Sheet table. Gated.", Category: "Writes", Priority: ToolPriorityAdvanced},
+
 	// ────────────────────────────── Google Calendar
 	{ID: "cb_gcal_list_calendars", Service: domain.MCPServiceGDrive, Label: "List calendars", Description: "Calendars the user has access to.", Category: "Calendar", Priority: ToolPriorityCommon},
 	{ID: "cb_gcal_list_events", Service: domain.MCPServiceGDrive, Label: "List events", Description: "Events in a time window.", Category: "Calendar", Priority: ToolPriorityEssential},

@@ -1,8 +1,10 @@
 package mcp
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -64,17 +66,31 @@ func (g *Gateway) registerGDriveTools(srv *server.MCPServer) {
 	g.registerGDrivePermissionTools(srv)
 }
 
-func (g *Gateway) gdriveDo(ctx context.Context, accessToken, method, path string, params url.Values) (*http.Response, error) {
+// gdriveDo issues a JSON request to the Drive v3 REST API. body is JSON-
+// marshalled when non-nil; nil body sends an empty request (the existing
+// read tools all use this path).
+func (g *Gateway) gdriveDo(ctx context.Context, accessToken, method, path string, params url.Values, body any) (*http.Response, error) {
 	u := gdriveAPIBase + path
 	if len(params) > 0 {
 		u += "?" + params.Encode()
 	}
-	req, err := http.NewRequestWithContext(ctx, method, u, nil)
+	var reqBody io.Reader
+	if body != nil {
+		buf, err := json.Marshal(body)
+		if err != nil {
+			return nil, fmt.Errorf("marshal: %w", err)
+		}
+		reqBody = bytes.NewReader(buf)
+	}
+	req, err := http.NewRequestWithContext(ctx, method, u, reqBody)
 	if err != nil {
 		return nil, err
 	}
 	req.Header.Set("Authorization", "Bearer "+accessToken)
 	req.Header.Set("Accept", "application/json")
+	if body != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
 	req.Header.Set("User-Agent", g.UserAgent)
 	return g.HTTP.Do(req)
 }
@@ -97,7 +113,7 @@ func (g *Gateway) gdriveSearchFiles(ctx context.Context, req mcpgo.CallToolReque
 	params.Set("pageSize", strconv.Itoa(clampInt(req.GetInt("page_size", 25), 1, 100)))
 	params.Set("fields", "files(id,name,mimeType,modifiedTime,owners(emailAddress),webViewLink)")
 
-	resp, err := g.gdriveDo(ctx, access, http.MethodGet, "/files", params)
+	resp, err := g.gdriveDo(ctx, access, http.MethodGet, "/files", params, nil)
 	if err != nil {
 		return toolErrorf("gdrive search: %v", err), nil
 	}
@@ -130,7 +146,7 @@ func (g *Gateway) gdriveGetFileMetadata(ctx context.Context, req mcpgo.CallToolR
 	}
 	params := url.Values{}
 	params.Set("fields", "id,name,mimeType,modifiedTime,size,owners(emailAddress),webViewLink,parents")
-	resp, err := g.gdriveDo(ctx, access, http.MethodGet, "/files/"+fileID, params)
+	resp, err := g.gdriveDo(ctx, access, http.MethodGet, "/files/"+fileID, params, nil)
 	if err != nil {
 		return toolErrorf("gdrive metadata: %v", err), nil
 	}
@@ -164,7 +180,7 @@ func (g *Gateway) gdriveListFolder(ctx context.Context, req mcpgo.CallToolReques
 	params.Set("pageSize", strconv.Itoa(clampInt(req.GetInt("page_size", 50), 1, 100)))
 	params.Set("fields", "files(id,name,mimeType,modifiedTime,size,webViewLink)")
 
-	resp, err := g.gdriveDo(ctx, access, http.MethodGet, "/files", params)
+	resp, err := g.gdriveDo(ctx, access, http.MethodGet, "/files", params, nil)
 	if err != nil {
 		return toolErrorf("gdrive list folder: %v", err), nil
 	}
@@ -197,7 +213,7 @@ func (g *Gateway) gdriveDownloadFile(ctx context.Context, req mcpgo.CallToolRequ
 	}
 	params := url.Values{}
 	params.Set("alt", "media")
-	resp, err := g.gdriveDo(ctx, access, http.MethodGet, "/files/"+fileID, params)
+	resp, err := g.gdriveDo(ctx, access, http.MethodGet, "/files/"+fileID, params, nil)
 	if err != nil {
 		return toolErrorf("gdrive download: %v", err), nil
 	}
@@ -224,7 +240,7 @@ func (g *Gateway) gdriveGetDocText(ctx context.Context, req mcpgo.CallToolReques
 	}
 	params := url.Values{}
 	params.Set("mimeType", "text/plain")
-	resp, err := g.gdriveDo(ctx, access, http.MethodGet, "/files/"+fileID+"/export", params)
+	resp, err := g.gdriveDo(ctx, access, http.MethodGet, "/files/"+fileID+"/export", params, nil)
 	if err != nil {
 		return toolErrorf("gdrive export: %v", err), nil
 	}
@@ -235,3 +251,4 @@ func (g *Gateway) gdriveGetDocText(ctx context.Context, req mcpgo.CallToolReques
 	}
 	return mcpgo.NewToolResultText(string(body)), nil
 }
+

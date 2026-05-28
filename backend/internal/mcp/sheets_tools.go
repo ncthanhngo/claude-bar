@@ -3,6 +3,7 @@ package mcp
 import (
 	"bytes"
 	"context"
+	"encoding/csv"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -59,6 +60,16 @@ func (g *Gateway) registerGSheetsTools(srv *server.MCPServer) {
 			mcpgo.WithArray("values", mcpgo.Required(), mcpgo.Description("2D array of row arrays — each inner array is one new row.")),
 		},
 		g.gsheetsAppend,
+	)
+
+	g.addTool(srv, "cb_gsheets_create_from_csv",
+		"Create a brand-new Google Sheet and populate it from a CSV payload in one call. Saves the agent from chaining create_spreadsheet + update_values. The CSV is parsed with Go's encoding/csv (RFC 4180 — quoted fields, embedded commas/newlines OK). Header row is treated identically to data rows; the agent can post-process via update_values if it wants to bold it. Returns the new spreadsheetId + URL.",
+		[]mcpgo.ToolOption{
+			mcpgo.WithString("title", mcpgo.Required(), mcpgo.Description("Spreadsheet title shown in Google Drive.")),
+			mcpgo.WithString("csv", mcpgo.Required(), mcpgo.Description("Raw CSV text. Each line is one row; commas separate cells; fields containing commas/newlines/quotes must be quoted per RFC 4180.")),
+			mcpgo.WithString("first_sheet_title", mcpgo.Description("Optional name for the initial sheet/tab. Defaults to 'Sheet1'.")),
+		},
+		g.gsheetsCreateFromCSV,
 	)
 }
 
@@ -124,6 +135,104 @@ func (g *Gateway) gsheetsCreate(ctx context.Context, req mcpgo.CallToolRequest) 
 		"spreadsheetUrl": raw.SpreadsheetURL,
 		"title":          raw.Properties.Title,
 		"sheets":         sheetNames,
+	})
+}
+
+// gsheetsCreateFromCSV is a thin convenience over create + update_values:
+// the agent supplies a single CSV string and we do the two API round-trips
+// internally. This shows up in workflows like "post this 15-row checklist
+// as a sheet and share it with X" where chaining tools at the agent layer
+// burns context for no gain.
+func (g *Gateway) gsheetsCreateFromCSV(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
+	cc, err := g.Resolver.Resolve(ctx, domain.MCPServiceGDrive)
+	if err != nil {
+		return toolErrorForResolve(err), nil
+	}
+	title, err := req.RequireString("title")
+	if err != nil {
+		return toolErrorf("title is required"), nil
+	}
+	csvText, err := req.RequireString("csv")
+	if err != nil {
+		return toolErrorf("csv is required"), nil
+	}
+	sheetTitle := strings.TrimSpace(req.GetString("first_sheet_title", ""))
+
+	values, err := parseCSVToValues(csvText)
+	if err != nil {
+		return toolErrorf("csv parse: %v", err), nil
+	}
+	if len(values) == 0 {
+		return toolErrorf("csv is empty"), nil
+	}
+
+	access, err := g.gdriveRefresh(ctx, cc)
+	if err != nil {
+		return toolErrorf("gsheets auth: %v", err), nil
+	}
+
+	// Step 1: create the spreadsheet.
+	createPayload := map[string]any{
+		"properties": map[string]any{"title": title},
+	}
+	if sheetTitle != "" {
+		createPayload["sheets"] = []map[string]any{
+			{"properties": map[string]any{"title": sheetTitle}},
+		}
+	}
+	createResp, err := g.sheetsDo(ctx, access, http.MethodPost, "", nil, createPayload)
+	if err != nil {
+		return toolErrorf("gsheets create: %v", err), nil
+	}
+	createBody, _ := io.ReadAll(createResp.Body)
+	createResp.Body.Close()
+	if createResp.StatusCode/100 != 2 {
+		return toolErrorf("gsheets http %d: %s", createResp.StatusCode, Redact(strings.TrimSpace(string(createBody)))), nil
+	}
+	var created struct {
+		SpreadsheetID  string `json:"spreadsheetId"`
+		SpreadsheetURL string `json:"spreadsheetUrl"`
+		Sheets         []struct {
+			Properties struct {
+				Title string `json:"title"`
+			} `json:"properties"`
+		} `json:"sheets"`
+	}
+	if err := json.Unmarshal(createBody, &created); err != nil {
+		return toolErrorf("gsheets decode: %v", err), nil
+	}
+	firstTab := "Sheet1"
+	if len(created.Sheets) > 0 && created.Sheets[0].Properties.Title != "" {
+		firstTab = created.Sheets[0].Properties.Title
+	}
+
+	updateRange := firstTab + "!A1"
+	params := url.Values{}
+	params.Set("valueInputOption", "USER_ENTERED")
+	updatePayload := map[string]any{
+		"range":          updateRange,
+		"majorDimension": "ROWS",
+		"values":         values,
+	}
+	updateResp, err := g.sheetsDo(ctx, access, http.MethodPut, "/"+created.SpreadsheetID+"/values/"+url.PathEscape(updateRange), params, updatePayload)
+	if err != nil {
+		// Sheet was created but population failed. Surface enough for the
+		// agent to follow up — the spreadsheet exists and is shareable
+		// even if empty.
+		return toolErrorf("gsheets populate (sheet created at %s): %v", created.SpreadsheetURL, err), nil
+	}
+	updateBody, _ := io.ReadAll(updateResp.Body)
+	updateResp.Body.Close()
+	if updateResp.StatusCode/100 != 2 {
+		return toolErrorf("gsheets populate http %d (sheet created at %s): %s", updateResp.StatusCode, created.SpreadsheetURL, Redact(strings.TrimSpace(string(updateBody)))), nil
+	}
+
+	return jsonResult(map[string]any{
+		"spreadsheetId":  created.SpreadsheetID,
+		"spreadsheetUrl": created.SpreadsheetURL,
+		"title":          title,
+		"sheet":          firstTab,
+		"rowCount":       len(values),
 	})
 }
 
@@ -243,6 +352,29 @@ func (g *Gateway) sheetsDo(ctx context.Context, accessToken, method, path string
 	}
 	req.Header.Set("User-Agent", g.UserAgent)
 	return g.HTTP.Do(req)
+}
+
+// parseCSVToValues parses a CSV payload (RFC 4180) into the 2D `[][]any`
+// shape Sheets expects. FieldsPerRecord=-1 disables csv.Reader's
+// "all rows must have the same column count" check — agents posting
+// ad-hoc CSVs frequently omit trailing commas, and a parse failure
+// there is much less useful than letting Sheets render the ragged data.
+func parseCSVToValues(csvText string) ([][]any, error) {
+	reader := csv.NewReader(strings.NewReader(csvText))
+	reader.FieldsPerRecord = -1
+	rows, err := reader.ReadAll()
+	if err != nil {
+		return nil, err
+	}
+	out := make([][]any, len(rows))
+	for i, r := range rows {
+		row := make([]any, len(r))
+		for j, cell := range r {
+			row[j] = cell
+		}
+		out[i] = row
+	}
+	return out, nil
 }
 
 // normalizeSheetValues coerces a JSON-decoded `values` argument into the
