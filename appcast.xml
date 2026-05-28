@@ -12,6 +12,29 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 11.24 (BETA)</title>
+      <sparkle:version>11.24</sparkle:version>
+      <sparkle:shortVersionString>11.24</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li><strong>Auto-approve Slack post message toggle is back</strong> in Local MCP settings — default on, you can opt out. Fresh installs and existing UserDefaults that never had the key set are seeded to on; manual offs persist across launches.</li>
+          <li><strong>Low / Medium / ReadSensitive MCP write prompts now surface via a sheet</strong> instead of only the popover chip. Previously, if the popover was closed when a <code>cb_slack_post_message</code> arrived, the prompt was invisible and the call timed out with <code>user_cancelled: gate timed out</code>. (PR #14)</li>
+          <li><strong>New <code>cb_gsheets_create_from_csv</code></strong> — create and populate a Google Sheet from CSV text in one call (RFC 4180 quoting + ragged rows). (PR #15)</li>
+          <li><strong>Google OAuth scope bumped to include <code>drive.file</code></strong> for per-file sharing. Existing tokens will see <code>cb_gsheets_*</code> and <code>cb_gdrive_share_file</code> fail with an insufficient-permission error until you Disconnect + Reconnect the Google connector once.</li>
+          <li>Full <code>cb_gsheets_*</code> + <code>cb_gdrive_share_file</code> set now listed in the Local MCP tool catalog.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Thu, 28 May 2026 08:41:51 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v11.24/ClaudeBar.zip"
+        sparkle:version="11.24"
+        sparkle:shortVersionString="11.24"
+        sparkle:edSignature="f35zFqORCOglZLr2j52tT9jlM3L6FuT1RzY3mZFVOpJ2BDAhqm8cjrmxvK6RE4xwucQbalx6CE6Jn614m97XAA=="
+        length="7836224"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 11.23 (BETA)</title>
       <sparkle:version>11.23</sparkle:version>
       <sparkle:shortVersionString>11.23</sparkle:shortVersionString>
