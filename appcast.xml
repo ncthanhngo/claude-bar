@@ -12,6 +12,28 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 11.28 (BETA)</title>
+      <sparkle:version>11.28</sparkle:version>
+      <sparkle:shortVersionString>11.28</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li><strong>Hotfix:</strong> menu-bar popover now reopens reliably after closing the Rename Account window. Previously the reopen fired on a fixed 50ms timer that raced SwiftUI's non-deterministic dismissal — when the Rename click came through the <code>…</code> overflow menu (which dispatches its action after its own close animation), the dismissal landed up to ~300ms later and the popover stayed permanently closed.</li>
+          <li><strong>Fix:</strong> reopen now retries across the 50–500ms window after dismissal. Each attempt is a no-op while the popover is still up; the first one after the dismissal wins.</li>
+          <li>The matching "popover dismisses after Rename" entry has been removed from Known Issues.</li>
+          <li>Closes <a href="https://github.com/ncthanhngo/claude-bar/issues/13">#13</a>.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Fri, 29 May 2026 11:53:29 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v11.28/ClaudeBar.zip"
+        sparkle:version="11.28"
+        sparkle:shortVersionString="11.28"
+        sparkle:edSignature="Tq+TCQuIZ+uKx4HI02/k1/3LbjwP2KlgMKUsK52AHH0pr7OHKP+3XSsI15tS8gYGKYjg1CV2+59RSUdt0NHSCw=="
+        length="7988705"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 11.27 (BETA)</title>
       <sparkle:version>11.27</sparkle:version>
       <sparkle:shortVersionString>11.27</sparkle:shortVersionString>
