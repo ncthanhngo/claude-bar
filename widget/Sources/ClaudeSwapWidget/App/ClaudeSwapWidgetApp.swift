@@ -168,7 +168,7 @@ struct ClaudeSwapWidgetApp: App {
                     loginCoordinator.attach(store: store)
                     verifyCoordinator.attach(store: store)
                     webFallback.attach(store: store)
-                    quickRelogin.attach(store: store, webFallback: webFallback)
+                    quickRelogin.attach(store: store, webFallback: webFallback, loginCoordinator: loginCoordinator)
                     store.cloudSync = cloudSync
                     store.start()
                     chatStore.bind(to: store)

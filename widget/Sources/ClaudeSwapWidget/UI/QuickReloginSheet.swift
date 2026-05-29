@@ -8,7 +8,6 @@ import WebKit
 /// hands back to the legacy [[LoginCoordinator]] flow.
 struct QuickReloginSheet: View {
     @EnvironmentObject var coordinator: QuickReloginCoordinator
-    @EnvironmentObject var loginCoordinator: LoginCoordinator
 
     let initialURL: URL
     let dataStore: WKWebsiteDataStore
@@ -136,8 +135,7 @@ struct QuickReloginSheet: View {
             }
             Spacer()
             Button("Use Terminal flow instead") {
-                coordinator.dismiss()
-                loginCoordinator.begin()
+                coordinator.switchToTerminalFlow()
             }
             .controlSize(.small)
             Button(closeButtonLabel) { coordinator.dismiss() }

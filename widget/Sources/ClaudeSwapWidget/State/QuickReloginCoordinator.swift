@@ -38,6 +38,7 @@ final class QuickReloginCoordinator: ObservableObject {
     private let window = FloatingWindow<AnyView>()
     private weak var store: AppStore?
     private weak var webFallback: WebFallbackCoordinator?
+    private weak var loginCoordinator: LoginCoordinator?
 
     // PKCE state lives for the duration of one re-login attempt.
     private var pkceVerifier: String?
@@ -53,9 +54,21 @@ final class QuickReloginCoordinator: ObservableObject {
     private let redirectURI = "https://console.anthropic.com/oauth/code/callback"
     private let scope = "org:create_api_key user:profile user:inference"
 
-    func attach(store: AppStore, webFallback: WebFallbackCoordinator) {
+    func attach(store: AppStore, webFallback: WebFallbackCoordinator, loginCoordinator: LoginCoordinator) {
         self.store = store
         self.webFallback = webFallback
+        self.loginCoordinator = loginCoordinator
+    }
+
+    /// Closes the WebView sheet and hands control to the Terminal-based
+    /// `claude /login` flow. Invoked from the sheet's "Use Terminal flow
+    /// instead" button — kept here rather than as an `@EnvironmentObject`
+    /// dependency in the sheet so `QuickReloginSheet` only requires the one
+    /// coordinator we explicitly inject when showing the floating window.
+    func switchToTerminalFlow() {
+        let login = loginCoordinator
+        dismiss()
+        login?.begin()
     }
 
     /// Open the floating window and start the OAuth dance for `account`.
@@ -82,9 +95,16 @@ final class QuickReloginCoordinator: ObservableObject {
             size: NSSize(width: 720, height: 720)
         ) {
             AnyView(
+                // Fallback to a NON-persistent store when the per-account
+                // identifier can't be resolved (rare — registry mid-write).
+                // Using `.default()` here would write claude.ai cookies into
+                // the system-wide shared store and leak the session across
+                // every Claude Bar account; non-persistent dies with the
+                // sheet at the cost of forcing the user to type credentials
+                // for this single attempt.
                 QuickReloginSheet(
                     initialURL: url,
-                    dataStore: self.dataStore ?? .default()
+                    dataStore: self.dataStore ?? .nonPersistent()
                 )
                 .environmentObject(self)
             )
@@ -108,6 +128,13 @@ final class QuickReloginCoordinator: ObservableObject {
     /// querystring, validates them, and drives the rest of the flow.
     func handleRedirect(_ url: URL) async {
         guard let expectedState = oauthState, let verifier = pkceVerifier else { return }
+        // Consume the PKCE pair immediately so a second navigation to the
+        // callback URL (back-button, redirect chain replay) cannot trigger
+        // a second exchange with the same code — the token endpoint would
+        // return 400 and the sheet would surface a `.failed` state for what
+        // is actually a succeeded flow.
+        pkceVerifier = nil
+        oauthState = nil
         guard let comps = URLComponents(url: url, resolvingAgainstBaseURL: false),
               let items = comps.queryItems else {
             step = .failed("Callback URL is missing query parameters.")
@@ -321,15 +348,6 @@ extension WebFallbackCoordinator {
     /// flow means a user already signed into claude.ai for usage scraping
     /// gets a one-click Authorize instead of being asked to log in twice.
     func dataStoreForReuse(account: AccountDTO) -> WKWebsiteDataStore? {
-        // Open the linked sheet in the background to force-create the store,
-        // then immediately dismiss — no UI side effect, but ensures the
-        // identifier is persisted into webUsageProfileIdentifiersJSON.
-        if isLinked(account) {
-            // Pull existing store via the linked code path. Sheet display
-            // isn't required because `linkedDataStore` is a private helper
-            // we expose via a re-entry point in WebFallbackCoordinator.
-            return linkedDataStorePublic(for: account, createIfNeeded: true)
-        }
-        return linkedDataStorePublic(for: account, createIfNeeded: true)
+        linkedDataStorePublic(for: account, createIfNeeded: true)
     }
 }
