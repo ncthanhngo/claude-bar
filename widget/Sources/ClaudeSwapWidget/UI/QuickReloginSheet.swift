@@ -63,7 +63,7 @@ struct QuickReloginSheet: View {
         case .loading:
             return "Opening claude.ai sign-in…"
         case .awaitingConsent:
-            return "Sign in to Anthropic and click Authorize."
+            return "Authorizing… sign in if Anthropic prompts you."
         case .exchanging:
             return "Exchanging authorization code for tokens…"
         case .ingesting:
@@ -100,6 +100,52 @@ struct QuickReloginSheet: View {
         )
         .overlay(alignment: .topTrailing) {
             consentBannerTrigger
+        }
+        .overlay {
+            successOverlay
+        }
+    }
+
+    /// Opaque success panel that covers the WebView the moment the OAuth
+    /// dance finishes. Without it the embedded "Authentication Code — paste
+    /// this into Claude Code" page stays visible behind a one-line banner,
+    /// reading as "you still have a step to do" when in fact re-login already
+    /// succeeded. The panel makes the success state unmistakable and then
+    /// auto-closes the window so the stale page never reappears.
+    @ViewBuilder
+    private var successOverlay: some View {
+        if case let .done(name, live) = coordinator.step {
+            VStack(spacing: 14) {
+                Image(systemName: "checkmark.seal.fill")
+                    .font(.system(size: 64))
+                    .foregroundColor(.green)
+                Text("Signed in successfully")
+                    .font(.system(size: 20, weight: .semibold))
+                Text(name)
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundColor(.secondary)
+                Text(live
+                    ? "Live slot updated — Claude Code is ready."
+                    : "Backup updated — switch to this account to use it.")
+                    .font(.system(size: 12))
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+                Button("Done") { coordinator.dismiss() }
+                    .controlSize(.large)
+                    .keyboardShortcut(.defaultAction)
+                    .padding(.top, 6)
+            }
+            .padding(40)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(Color(nsColor: .windowBackgroundColor))
+            .transition(.opacity)
+            .task {
+                // Linger long enough to read the result, then close so the
+                // user lands back on their accounts list rather than a dead
+                // OAuth page.
+                try? await Task.sleep(nanoseconds: 3_500_000_000)
+                coordinator.dismiss()
+            }
         }
     }
 
@@ -194,6 +240,7 @@ private struct OAuthAuthCodeWebView: NSViewRepresentable {
     final class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate {
         let parent: OAuthAuthCodeWebView
         private var lastDetected: String?
+        private var didAuthorize = false
         private var pollTask: Task<Void, Never>?
 
         init(parent: OAuthAuthCodeWebView) { self.parent = parent }
@@ -228,10 +275,33 @@ private struct OAuthAuthCodeWebView: NSViewRepresentable {
             pollTask = Task { @MainActor [weak self] in
                 guard let self else { return }
                 for _ in 0..<20 {
+                    // Click "Authorize" the moment the consent screen renders so
+                    // the user doesn't have to — when already signed into
+                    // claude.ai (cookies reused from the web-usage store) this
+                    // turns the whole flow into a single right-click → done. If
+                    // the page is still a sign-in form there is no Authorize
+                    // button, so nothing fires and the user signs in manually;
+                    // the next navigation re-arms this poll for the consent page.
+                    if !didAuthorize { attemptAutoAuthorize(webView) }
                     scanForCode(webView)
                     if lastDetected != nil { return }
                     try? await Task.sleep(nanoseconds: 250_000_000)
                 }
+            }
+        }
+
+        /// Injects a one-shot click on the consent screen's "Authorize" button.
+        /// Scoped to the `/oauth/authorize` page and an exact "Authorize" text
+        /// match (deny/cancel controls are explicitly skipped) so it can never
+        /// click the wrong control or fire on the sign-in form. The post-exchange
+        /// identity guard in [[QuickReloginCoordinator]] remains the backstop
+        /// against authorizing the wrong Anthropic account.
+        private func attemptAutoAuthorize(_ webView: WKWebView) {
+            webView.evaluateJavaScript(Self.authorizeScript) { [weak self] result, _ in
+                guard let self else { return }
+                guard (result as? String) == "clicked" else { return }
+                self.didAuthorize = true
+                DiagnosticsLogger.shared.log(.info, subsystem: "relogin", "auto-clicked Authorize")
             }
         }
 
@@ -270,6 +340,30 @@ private struct OAuthAuthCodeWebView: NSViewRepresentable {
           const body = (document.body && document.body.innerText) || '';
           const m = body.match(pat);
           return m ? m[0] : null;
+        })();
+        """
+
+        /// Finds and clicks the consent screen's primary "Authorize" button.
+        /// Only runs on the `/oauth/authorize` path; matches a clickable element
+        /// whose visible text is exactly "Authorize"/"Authorise" (deny/cancel
+        /// words are excluded). Returns "clicked" once it fires, else null so
+        /// the poller keeps trying until the consent button appears.
+        private static let authorizeScript = """
+        (function() {
+          if (!/\\/oauth\\/authorize/.test(location.pathname)) return null;
+          const wanted = ['authorize', 'authorise'];
+          const deny = ['cancel', 'deny', 'reject', 'go back', 'back', 'not now'];
+          const els = document.querySelectorAll('button, [role="button"], a[href], input[type="submit"]');
+          for (const el of els) {
+            if (el.disabled) continue;
+            const t = (el.innerText || el.value || el.textContent || '').trim().toLowerCase();
+            if (!t || deny.includes(t)) continue;
+            if (wanted.includes(t) || wanted.some(w => t.startsWith(w + ' '))) {
+              el.click();
+              return 'clicked';
+            }
+          }
+          return null;
         })();
         """
     }

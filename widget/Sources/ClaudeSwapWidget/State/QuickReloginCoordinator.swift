@@ -73,8 +73,10 @@ final class QuickReloginCoordinator: ObservableObject {
 
     /// Open the floating window and start the OAuth dance for `account`.
     /// Reuses the account's existing web-usage `WKWebsiteDataStore` so users
-    /// already signed into claude.ai get a single Authorize click instead of
-    /// re-entering their password.
+    /// already signed into claude.ai skip the password step — the sheet then
+    /// auto-clicks Authorize and exchanges the code, making re-login a single
+    /// right-click. Users not yet signed in just enter credentials once; the
+    /// Authorize click is still automated afterwards.
     func begin(for account: AccountDTO) {
         self.account = account
         self.step = .loading
@@ -137,6 +139,8 @@ final class QuickReloginCoordinator: ObservableObject {
         pkceVerifier = nil
         oauthState = nil
 
+        DiagnosticsLogger.shared.log(.info, subsystem: "relogin",
+            "captured auth code len=\(joined.count) hasHash=\(joined.contains("#")) prefix=\(joined.prefix(8))…")
         let parts = joined.split(separator: "#", maxSplits: 1).map(String.init)
         guard parts.count == 2 else {
             step = .failed("Auth code format unexpected (no `#` separator).")
@@ -151,7 +155,7 @@ final class QuickReloginCoordinator: ObservableObject {
 
         step = .exchanging
         do {
-            let payload = try await exchangeCode(code: code, verifier: verifier)
+            let payload = try await exchangeCode(code: code, state: receivedState, verifier: verifier)
             try await ingest(payload: payload)
         } catch {
             step = .failed(error.localizedDescription)
@@ -187,33 +191,41 @@ final class QuickReloginCoordinator: ObservableObject {
             step = .failed("Callback URL did not include an authorization code.")
             return
         }
-        guard receivedState == expectedState else {
+        guard let receivedState, receivedState == expectedState else {
             step = .failed("OAuth state mismatch — refusing to use this code.")
             return
         }
 
         step = .exchanging
         do {
-            let payload = try await exchangeCode(code: code, verifier: verifier)
+            let payload = try await exchangeCode(code: code, state: receivedState, verifier: verifier)
             try await ingest(payload: payload)
         } catch {
             step = .failed(error.localizedDescription)
         }
     }
 
-    private func exchangeCode(code: String, verifier: String) async throws -> ExchangedToken {
+    private func exchangeCode(code: String, state: String, verifier: String) async throws -> ExchangedToken {
         var req = URLRequest(url: tokenURL)
         req.httpMethod = "POST"
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
         req.setValue("claude-bar-relogin/0.1", forHTTPHeaderField: "User-Agent")
+        // Claude Code's token endpoint requires the `state` value back in the
+        // exchange body — it is the second half of the `code#state` string the
+        // Authorization Code page renders. Omitting it yields a 400
+        // "Invalid request format" even though the code + verifier are valid.
         let body: [String: Any] = [
             "grant_type": "authorization_code",
             "code": code,
+            "state": state,
             "code_verifier": verifier,
             "client_id": clientID,
             "redirect_uri": redirectURI,
         ]
         req.httpBody = try JSONSerialization.data(withJSONObject: body)
+
+        DiagnosticsLogger.shared.log(.info, subsystem: "relogin",
+            "exchange POST \(tokenURL.absoluteString) keys=\(body.keys.sorted().joined(separator: ",")) code=\(code.prefix(6))… state=\(state.prefix(6))… verifierLen=\(verifier.count)")
 
         let (data, resp) = try await URLSession.shared.data(for: req)
         guard let http = resp as? HTTPURLResponse else {
@@ -222,9 +234,12 @@ final class QuickReloginCoordinator: ObservableObject {
         }
         if http.statusCode >= 400 {
             let body = String(data: data, encoding: .utf8) ?? "<binary>"
+            DiagnosticsLogger.shared.log(.warning, subsystem: "relogin",
+                "exchange FAIL \(http.statusCode) — \(body.prefix(300))")
             throw NSError(domain: "QuickRelogin", code: http.statusCode,
                           userInfo: [NSLocalizedDescriptionKey: "Token endpoint \(http.statusCode): \(body.prefix(180))"])
         }
+        DiagnosticsLogger.shared.log(.info, subsystem: "relogin", "exchange OK \(http.statusCode)")
         struct Wire: Decodable {
             let access_token: String
             let refresh_token: String?
