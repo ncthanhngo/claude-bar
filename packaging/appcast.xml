@@ -12,6 +12,29 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 11.33 (BETA)</title>
+      <sparkle:version>11.33</sparkle:version>
+      <sparkle:shortVersionString>11.33</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li><strong>Hotfix:</strong> Quick re-login stalled on Anthropic's "Authentication Code" page (the one that says <em>Paste this into Claude Code</em>). Root cause: Claude Code CLI's OAuth client does not redirect to a machine-readable callback after the user clicks Authorize — Anthropic renders a manual-paste page instead. The Quick re-login WebView was waiting for a <code>console.anthropic.com/oauth/code/callback?code=...</code> URL that never fires.</li>
+          <li><strong>Fix:</strong> the WebView now scans the rendered DOM for the <code>&lt;code&gt;#&lt;state&gt;</code> string Anthropic displays, parses it, validates the state matches the PKCE state we generated, and exchanges the code at <code>platform.claude.com</code> automatically. No manual copy-paste, no Terminal hop.</li>
+          <li>DOM scan pattern is conservative — requires ≥32-char base64url before <code>#</code> and ≥16-char base64url after — so transient page strings containing <code>#</code> (anchor URLs, error-message hashes) don't false-positive.</li>
+          <li>Polls every 250ms for ~5s after each page-load completion to catch React/SPA hydration of the code element. Cancels in-flight polls on subsequent navigations so they don't stack.</li>
+          <li>The legacy redirect-callback path is retained as a safety net in case Anthropic ever migrates the CLI client to an auto-redirect flow — not exercised today.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Fri, 29 May 2026 18:08:52 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v11.33/ClaudeBar.zip"
+        sparkle:version="11.33"
+        sparkle:shortVersionString="11.33"
+        sparkle:edSignature="JcH2WLSUwtjc8WUQoFfVTJARJYA9d6lFMaAaLeLt6ejpNEciz8C/b6MZBIun5KIU4XO9jofiZeNbvp22qyixCw=="
+        length="8049049"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 11.32 (BETA)</title>
       <sparkle:version>11.32</sparkle:version>
       <sparkle:shortVersionString>11.32</sparkle:shortVersionString>
