@@ -13,9 +13,9 @@
     <key>CFBundleIdentifier</key>
     <string>dev.ncthanhngo.claude-bar</string>
     <key>CFBundleVersion</key>
-    <string>11.29</string>
+    <string>11.30</string>
     <key>CFBundleShortVersionString</key>
-    <string>11.29</string>
+    <string>11.30</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleSignature</key>
@@ -35,7 +35,7 @@
     <key>NSHumanReadableCopyright</key>
     <string>Copyright © 2026 Thanh Ngô. Licensed under MIT.</string>
     <key>CFBundleGetInfoString</key>
-    <string>Claude Bar 11.29 — menu-bar manager for multiple Claude Code accounts</string>
+    <string>Claude Bar 11.30 — menu-bar manager for multiple Claude Code accounts</string>
     <key>CBAuthorName</key>
     <string>Thanh Ngô</string>
     <key>CBAuthorEmail</key>
@@ -49,11 +49,13 @@
     <key>CBReleaseChannel</key>
     <string>Beta</string>
     <key>CBReleaseWhatsNew</key>
-    <string>Upgrades now install and relaunch immediately instead of stalling on a loading icon for 10–20 minutes.</string>
+    <string>Right-click an account → Quick re-login… signs in inside the app instead of bouncing through Terminal and the browser.
+Reuses your existing claude.ai web session so most accounts re-login in a single Authorize click.
+The classic Terminal-based add-account flow is unchanged and still available as a one-click fallback.</string>
     <key>CBReleaseHotfixes</key>
-    <string>Fixed: after clicking Upgrade, the app sat on a loading icon until the user clicked the menu bar to nudge it — Sparkle was waiting for us to quit. (#20)</string>
+    <string>None</string>
     <key>CBReleaseKnownIssues</key>
-    <string>During the upgrade restart the local MCP gateway is briefly down; in-flight MCP write tool calls fail until the new build is back up. Running `claude` sessions themselves are not killed.
+    <string>Quick re-login depends on Anthropic's authorize URL staying stable; if it ever fails, use the Terminal fallback button in the sheet.
 Auto-swap does not kill the running `claude` process; enable Auto-kill CLI sessions to restart it automatically via claude-watch.
 MCP hot-reload kills any in-flight Claude response and unsaved typed input — wait for idle before toggling MCP.</string>
     <key>CFBundleDevelopmentRegion</key>

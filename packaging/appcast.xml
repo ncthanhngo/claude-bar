@@ -12,6 +12,28 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 11.30 (BETA)</title>
+      <sparkle:version>11.30</sparkle:version>
+      <sparkle:shortVersionString>11.30</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li><strong>Quick re-login from the right-click menu.</strong> Right-click an account → <em>Quick re-login…</em> drives the Claude Code OAuth flow inside an embedded WKWebView instead of bouncing through Terminal and the system browser. PKCE S256, callback intercepted at <code>console.anthropic.com/oauth/code/callback</code>, tokens written via a new <code>csw ingest-oauth</code> stdin-piped command — access tokens never appear in argv or shell history.</li>
+          <li><strong>One-click Authorize for linked accounts.</strong> The new flow reuses each account's per-account <code>WKWebsiteDataStore</code> (the one the web-usage scraper already manages), so a user already signed in to claude.ai for usage scraping just clicks Authorize once.</li>
+          <li><strong>Identity guard.</strong> The access_token JWT's <code>email</code> claim is decoded and compared against the account's registered email before any Keychain write. Authorising the wrong Anthropic identity at the consent screen now surfaces a "signed in as X, expected Y" banner instead of silently overwriting another account's credentials. The backend re-enforces the same check via an <code>expectedEmail</code> field so the guard cannot be bypassed by direct callers.</li>
+          <li><strong>Terminal flow preserved as fallback.</strong> The classic <code>claude /login</code> path is unchanged. The new sheet exposes a <em>Use Terminal flow instead</em> button so a broken WebView OAuth (e.g. Anthropic alters the authorize URL) degrades to the documented recovery path without a restart.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Fri, 29 May 2026 13:32:16 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v11.30/ClaudeBar.zip"
+        sparkle:version="11.30"
+        sparkle:shortVersionString="11.30"
+        sparkle:edSignature="zYoEgCSK4/Tq6lJIANTHN7XbCxJmJpaaVmY6L7mMmj0n036ZRidv1q9pNmw3KsHSFSlyjBjGSuX4s+yF/snKBg=="
+        length="8039086"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 11.29 (BETA)</title>
       <sparkle:version>11.29</sparkle:version>
       <sparkle:shortVersionString>11.29</sparkle:shortVersionString>
