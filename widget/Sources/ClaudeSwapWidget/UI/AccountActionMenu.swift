@@ -13,6 +13,7 @@ struct AccountActionMenu: View {
 
     @EnvironmentObject var store: AppStore
     @EnvironmentObject var webFallback: WebFallbackCoordinator
+    @EnvironmentObject var quickRelogin: QuickReloginCoordinator
 
     var body: some View {
         if webFallback.isLinked(view.account) {
@@ -25,6 +26,7 @@ struct AccountActionMenu: View {
             Button("Connect web usage") { webFallback.open(for: view) }
         }
         Divider()
+        Button("Quick re-login…") { quickRelogin.begin(for: view.account) }
         Button("Rename…", action: onRename)
         if !view.isActive {
             Button("Switch to this account") { trySwap() }

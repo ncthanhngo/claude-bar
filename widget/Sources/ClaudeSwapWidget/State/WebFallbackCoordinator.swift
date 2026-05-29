@@ -170,6 +170,15 @@ final class WebFallbackCoordinator: ObservableObject {
         return usages
     }
 
+    /// Public wrapper so the Quick-relogin flow can reuse the same per-account
+    /// WKWebsiteDataStore the web-usage scraper already manages. Reusing the
+    /// store means a user who linked their claude.ai web profile gets a single
+    /// Authorize click during OAuth re-login instead of being asked to log in
+    /// twice. See [[QuickReloginCoordinator]].
+    func linkedDataStorePublic(for account: AccountDTO, createIfNeeded: Bool) -> WKWebsiteDataStore? {
+        linkedDataStore(for: account, createIfNeeded: createIfNeeded)
+    }
+
     private func linkedDataStore(for account: AccountDTO, createIfNeeded: Bool) -> WKWebsiteDataStore? {
         var identifiers = loadProfileIdentifiers()
         let rawID: String

@@ -106,6 +106,93 @@ actor CswClient {
         _ = try await runRaw(["snapshot-active", "--json"])
     }
 
+    /// Result of `csw ingest-oauth` — reports which slots were rewritten.
+    struct IngestOAuthDTO: Codable {
+        let account: AccountDTO
+        let wroteLive: Bool
+        let wroteBackup: Bool
+    }
+
+    /// Writes a fresh OAuth payload (from the in-app WebView re-login) into the
+    /// given account's slots. Stdin-piped so tokens never appear in argv. The
+    /// backend refuses the call if `expectedEmail` is set and disagrees with the
+    /// account's registered email — protects against signing in as the wrong
+    /// Anthropic account during the WebView consent step.
+    func ingestOAuth(
+        accountNum: Int,
+        accessToken: String,
+        refreshToken: String,
+        expiresAt: Int64,
+        scopes: [String],
+        subscriptionType: String?,
+        expectedEmail: String?
+    ) async throws -> IngestOAuthDTO {
+        var payload: [String: Any] = [
+            "accountNum": accountNum,
+            "accessToken": accessToken,
+            "refreshToken": refreshToken,
+            "expiresAt": expiresAt,
+            "scopes": scopes,
+        ]
+        if let sub = subscriptionType, !sub.isEmpty {
+            payload["subscriptionType"] = sub
+        }
+        if let email = expectedEmail, !email.isEmpty {
+            payload["expectedEmail"] = email
+        }
+        let data = try JSONSerialization.data(withJSONObject: payload)
+        let raw = String(data: data, encoding: .utf8) ?? "{}"
+        return try await runWithStdinDecoding(
+            ["ingest-oauth", "--json"],
+            stdin: raw,
+            decode: IngestOAuthDTO.self
+        )
+    }
+
+    private func runWithStdinDecoding<T: Decodable>(
+        _ args: [String],
+        stdin payload: String,
+        decode: T.Type
+    ) async throws -> T {
+        guard let bin = CswBinary.resolve() else { throw CswError.binaryNotFound }
+        let raw = try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Data, Error>) in
+            let task = Process()
+            task.executableURL = bin
+            task.arguments = args
+            let stdinPipe = Pipe()
+            let stdout = Pipe()
+            let stderr = Pipe()
+            task.standardInput = stdinPipe
+            task.standardOutput = stdout
+            task.standardError = stderr
+            task.terminationHandler = { proc in
+                let outData = (try? stdout.fileHandleForReading.readToEnd()) ?? Data()
+                let errData = (try? stderr.fileHandleForReading.readToEnd()) ?? Data()
+                if proc.terminationStatus == 0 {
+                    cont.resume(returning: outData)
+                } else {
+                    let msg = String(data: errData, encoding: .utf8) ?? ""
+                    cont.resume(throwing: CswError.nonZeroExit(code: proc.terminationStatus, stderr: msg))
+                }
+            }
+            do {
+                try task.run()
+                if let data = payload.data(using: .utf8) {
+                    stdinPipe.fileHandleForWriting.write(data)
+                }
+                stdinPipe.fileHandleForWriting.closeFile()
+            } catch {
+                cont.resume(throwing: error)
+            }
+        }
+        do {
+            return try decoder.decode(T.self, from: raw)
+        } catch {
+            let str = String(data: raw, encoding: .utf8) ?? "<binary>"
+            throw CswError.decodingFailed(underlying: error, raw: str)
+        }
+    }
+
     // MARK: - Cloud sync
 
     struct CloudStatusDTO: Codable {

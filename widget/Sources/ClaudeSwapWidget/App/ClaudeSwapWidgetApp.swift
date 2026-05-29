@@ -27,6 +27,7 @@ struct ClaudeSwapWidgetApp: App {
     @StateObject private var loginCoordinator = LoginCoordinator()
     @StateObject private var verifyCoordinator = VerifyCoordinator()
     @StateObject private var webFallback = WebFallbackCoordinator()
+    @StateObject private var quickRelogin = QuickReloginCoordinator()
     @StateObject private var cloudSync = CloudSyncCoordinator(client: CswClient())
     @StateObject private var localMCP = LocalMCPCoordinator(client: CswClient())
     @StateObject private var chatStore = ChatStore()
@@ -140,6 +141,7 @@ struct ClaudeSwapWidgetApp: App {
                 .environmentObject(loginCoordinator)
                 .environmentObject(verifyCoordinator)
                 .environmentObject(webFallback)
+                .environmentObject(quickRelogin)
                 .environmentObject(cloudSync)
                 .environmentObject(localMCP)
                 .environmentObject(updateController)
@@ -166,6 +168,7 @@ struct ClaudeSwapWidgetApp: App {
                     loginCoordinator.attach(store: store)
                     verifyCoordinator.attach(store: store)
                     webFallback.attach(store: store)
+                    quickRelogin.attach(store: store, webFallback: webFallback)
                     store.cloudSync = cloudSync
                     store.start()
                     chatStore.bind(to: store)
@@ -177,6 +180,7 @@ struct ClaudeSwapWidgetApp: App {
                     let loginBind = loginCoordinator
                     let verifyBind = verifyCoordinator
                     let webBind = webFallback
+                    let quickBind = quickRelogin
                     let cloudBind = cloudSync
                     let mcpBind = localMCP
                     let updateBind = updateController
@@ -188,6 +192,7 @@ struct ClaudeSwapWidgetApp: App {
                                 .environmentObject(loginBind)
                                 .environmentObject(verifyBind)
                                 .environmentObject(webBind)
+                                .environmentObject(quickBind)
                                 .environmentObject(cloudBind)
                                 .environmentObject(mcpBind)
                                 .environmentObject(updateBind)

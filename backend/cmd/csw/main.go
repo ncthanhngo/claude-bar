@@ -50,6 +50,8 @@ func main() {
 		err = runRepairKeychain(ctx, svc, args)
 	case "snapshot-active":
 		err = runSnapshotActive(ctx, svc, args)
+	case "ingest-oauth":
+		err = runIngestOAuth(ctx, svc, args)
 	case "cloud":
 		err = runCloud(ctx, svc, args)
 	case "mcp":
@@ -100,6 +102,8 @@ Commands:
   refresh-tokens          Refresh OAuth tokens for all inactive accounts
   repair-keychain         Rewrite live Claude Code Keychain item from active backup
   snapshot-active         Snapshot the active account's live creds into its backup slot
+  ingest-oauth            Write a fresh OAuth payload (from in-app WebView re-login) to an account's slots
+                          (stdin JSON: {accountNum, accessToken, refreshToken, expiresAt, scopes, subscriptionType, expectedEmail})
   cloud status            Show iCloud Drive bundle status
   cloud push              Encrypt and push accounts to iCloud Drive
   cloud pull              Restore accounts from iCloud Drive bundle
