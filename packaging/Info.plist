@@ -13,9 +13,9 @@
     <key>CFBundleIdentifier</key>
     <string>dev.ncthanhngo.claude-bar</string>
     <key>CFBundleVersion</key>
-    <string>11.28</string>
+    <string>11.29</string>
     <key>CFBundleShortVersionString</key>
-    <string>11.28</string>
+    <string>11.29</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleSignature</key>
@@ -35,7 +35,7 @@
     <key>NSHumanReadableCopyright</key>
     <string>Copyright © 2026 Thanh Ngô. Licensed under MIT.</string>
     <key>CFBundleGetInfoString</key>
-    <string>Claude Bar 11.28 — menu-bar manager for multiple Claude Code accounts</string>
+    <string>Claude Bar 11.29 — menu-bar manager for multiple Claude Code accounts</string>
     <key>CBAuthorName</key>
     <string>Thanh Ngô</string>
     <key>CBAuthorEmail</key>
@@ -49,13 +49,13 @@
     <key>CBReleaseChannel</key>
     <string>Beta</string>
     <key>CBReleaseWhatsNew</key>
-    <string>Menu-bar popover now reopens reliably after closing the Rename account window — no more empty menu bar after Rename.</string>
+    <string>Upgrades now install and relaunch immediately instead of stalling on a loading icon for 10–20 minutes.</string>
     <key>CBReleaseHotfixes</key>
-    <string>Fixed: popover stayed closed after Rename when the click came through the … overflow menu — reopen now retries across the dismissal window. (#13)</string>
+    <string>Fixed: after clicking Upgrade, the app sat on a loading icon until the user clicked the menu bar to nudge it — Sparkle was waiting for us to quit. (#20)</string>
     <key>CBReleaseKnownIssues</key>
-    <string>Auto-swap does not kill the running `claude` process; enable Auto-kill CLI sessions to restart it automatically via claude-watch.
-MCP hot-reload kills any in-flight Claude response and unsaved typed input — wait for idle before toggling MCP.
-Web-poll cycle loads a WKWebView per linked account; disable web-link on less-used accounts if you have many.</string>
+    <string>During the upgrade restart the local MCP gateway is briefly down; in-flight MCP write tool calls fail until the new build is back up. Running `claude` sessions themselves are not killed.
+Auto-swap does not kill the running `claude` process; enable Auto-kill CLI sessions to restart it automatically via claude-watch.
+MCP hot-reload kills any in-flight Claude response and unsaved typed input — wait for idle before toggling MCP.</string>
     <key>CFBundleDevelopmentRegion</key>
     <string>en</string>
     <key>CFBundleLocalizations</key>
