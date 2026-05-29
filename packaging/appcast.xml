@@ -12,6 +12,28 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 11.32 (BETA)</title>
+      <sparkle:version>11.32</sparkle:version>
+      <sparkle:shortVersionString>11.32</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li><strong>Hotfix:</strong> clicking <em>Use Terminal flow instead</em> inside the Quick re-login sheet crashed the popover with <code>No ObservableObject of type LoginCoordinator found</code>. The sheet declared an <code>@EnvironmentObject</code> dependency the floating window never populated. Re-routed the fallback through <code>QuickReloginCoordinator.switchToTerminalFlow()</code> so the sheet only depends on the one coordinator we explicitly inject.</li>
+          <li><strong>Fix:</strong> a transient WKWebView re-navigation to the callback URL (back-button replay, redirect chain) could POST an already-consumed authorization code — the token endpoint returns 400 and the sheet surfaced <code>.failed</code> for a flow that had actually succeeded. The PKCE verifier and state are now consumed atomically at the top of <code>handleRedirect</code> so a second invocation early-exits.</li>
+          <li><strong>Fix:</strong> when the per-account <code>WKWebsiteDataStore</code> was momentarily unresolvable (rare — registry mid-write), the WebView fell back to <code>WKWebsiteDataStore.default()</code> — the system-wide persistent store. claude.ai cookies could leak across every Claude Bar account on the Mac. The fallback is now <code>.nonPersistent()</code> so cookies die with the sheet.</li>
+          <li>No behaviour change for the normal happy path of the v11.30/v11.31 Quick re-login.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Fri, 29 May 2026 14:47:53 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v11.32/ClaudeBar.zip"
+        sparkle:version="11.32"
+        sparkle:shortVersionString="11.32"
+        sparkle:edSignature="ND7ERvCcohEgQGFOHUvY01glraxxQ0JlKEHsyEtFH9/0E4G5PJ/UyjSyU9d6sS+LmAEiq755kWHFZI4l+F1EDA=="
+        length="8039324"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 11.31 (BETA)</title>
       <sparkle:version>11.31</sparkle:version>
       <sparkle:shortVersionString>11.31</sparkle:shortVersionString>
