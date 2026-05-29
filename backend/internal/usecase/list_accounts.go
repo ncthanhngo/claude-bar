@@ -182,8 +182,15 @@ func (s *Service) inspectActiveCredential(ctx context.Context, v *AccountView) {
 				v.CredentialError = "live token rejected (401)"
 			}
 			// RateLimitedError, network error, or other transient → leave as-is.
+			return
 		}
-		// Success → token is healthy; leave CredentialState unchanged.
+		// Probe succeeded: the live token is definitively healthy. Emit a
+		// positive "ready" so a stale "needs_login" from an earlier poll does
+		// not stick. The widget merges snapshots with `credentialState ??
+		// previous.credentialState`, so without this explicit healthy signal a
+		// recovered active credential would remain flagged needs_login forever.
+		v.CredentialState = "ready"
+		v.CredentialError = ""
 	}
 	// Expired token → no action; leave CredentialState unchanged.
 }

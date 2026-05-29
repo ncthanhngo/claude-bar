@@ -78,6 +78,29 @@ final class CredentialRecoveryCoordinator: ObservableObject {
         statuses[accountNum]?.phase == .needsManualSignIn
     }
 
+    /// True while any headless recovery is actively running (single-flight is
+    /// shared across every account). Callers use this to avoid arming a second
+    /// recovery action while one is already underway.
+    var isBusy: Bool { recoveryInFlight }
+
+    /// Whether `accountNum` is eligible for a fresh headless recovery attempt:
+    /// not already recovering, not terminal (needs manual sign-in), past any
+    /// active cooldown, and under the retry cap. Used by the state machine to
+    /// decide whether to drive recovery for the ACTIVE account (the inactive
+    /// path embeds the same check in `recoverInactiveIfNeeded`).
+    func isEligible(_ accountNum: Int) -> Bool {
+        let status = statuses[accountNum] ?? RecoveryStatus()
+        switch status.phase {
+        case .needsManualSignIn, .recovering, .pending:
+            return false
+        case .cooldown:
+            if let until = status.cooldownUntil, Date() < until { return false }
+            return true
+        case .idle:
+            return status.attempts < Self.maxAttempts
+        }
+    }
+
     // MARK: - Recovery entry point
 
     /// Finds the first inactive account whose `credentialState == "needs_login"`
@@ -94,25 +117,30 @@ final class CredentialRecoveryCoordinator: ObservableObject {
     func recoverInactiveIfNeeded(_ snapshot: ListAccountsDTO) async {
         guard !recoveryInFlight else { return }
 
-        let now = Date()
         // Find the first eligible inactive account with needs_login.
         guard let target = snapshot.accounts.first(where: { view in
-            guard !view.isActive,
-                  view.credentialState == "needs_login" else { return false }
-            let status = statuses[view.account.number] ?? RecoveryStatus()
-            switch status.phase {
-            case .needsManualSignIn: return false   // terminal — user must act
-            case .recovering, .pending: return false // already in flight
-            case .cooldown:
-                // Respect the cooldown window.
-                if let until = status.cooldownUntil, now < until { return false }
-                return true
-            case .idle:
-                return status.attempts < Self.maxAttempts
-            }
+            view.credentialState == "needs_login"
+                && !view.isActive
+                && isEligible(view.account.number)
         }) else { return }
 
-        let accountNum = target.account.number
+        _ = await recover(accountNum: target.account.number)
+    }
+
+    /// Runs a single headless recovery attempt for `accountNum` and applies the
+    /// outcome (cooldown / retry-cap / terminal bookkeeping). Used for both the
+    /// inactive path (via `recoverInactiveIfNeeded`) and the active in-place
+    /// re-login path driven by the state machine.
+    ///
+    /// Single-flight: returns immediately if another recovery already holds the
+    /// lock — the caller's pending state is reset and re-evaluated next tick.
+    /// Callers should gate on `isEligible(accountNum)` first; this method does
+    /// not re-check eligibility so it can also be used right after a swap when
+    /// the target was selected from a fresh snapshot.
+    @discardableResult
+    func recover(accountNum: Int) async -> ReloginOutcome? {
+        guard !recoveryInFlight else { return nil }
+
         recoveryInFlight = true
         // Exception-safe: a future throwing/cancelled headlessRelogin must not
         // leave this stuck true, which would wedge all recovery permanently.
@@ -126,7 +154,7 @@ final class CredentialRecoveryCoordinator: ObservableObject {
             // No attempt actually ran — don't burn the retry budget. Revert to
             // idle so the next tick re-evaluates once wiring is present.
             setPhase(.idle, for: accountNum)
-            return
+            return nil
         }
         let outcome = await fn(accountNum)
 
@@ -134,9 +162,10 @@ final class CredentialRecoveryCoordinator: ObservableObject {
         // no real auth happened, so don't count it toward the retry cap.
         if case .failed("busy") = outcome {
             setPhase(.idle, for: accountNum)
-            return
+            return nil
         }
         applyOutcome(outcome, for: accountNum)
+        return outcome
     }
 
     // MARK: - Outcome application

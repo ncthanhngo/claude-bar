@@ -27,9 +27,55 @@ final class AutoSwapStateMachine: ObservableObject {
     var snapshotProvider: () -> ListAccountsDTO? = { nil }
     var onSwapPerformed: (() async -> Void)?
 
-    private let client: CswClient
-    private let settings: AppSettings
+    /// Drives credential recovery bookkeeping (cooldown, retry cap, single
+    /// flight, outcome handling). The state machine is the SOLE driver of
+    /// recovery — both the active branch here and the inactive sweep route
+    /// through this coordinator so there is never a second competing loop.
+    weak var recovery: CredentialRecoveryCoordinator?
+
+    /// Reports whether an interactive re-login sheet is currently on screen.
+    /// When true the credential branch stands down — the user is already
+    /// resolving the credential by hand and we must not swap or relogin under
+    /// them. Injected so the state machine has no direct WebKit dependency.
+    var isInteractiveReloginActive: () -> Bool = { false }
+
+    // Accessed by the credential-recovery extension (separate file), so these
+    // are module-internal rather than private.
+    let client: CswClient
+    let settings: AppSettings
     private var task: Task<Void, Never>?
+
+    // MARK: - Credential recovery state (Phase 3)
+
+    /// Pending credential-recovery action, kept SEPARATE from the quota `state`
+    /// enum on purpose: routing credential cooldown through `state` would let a
+    /// credential failure short-circuit the whole tick and freeze quota swap.
+    enum CredAction: Equatable {
+        case idle
+        /// A healthy target was found; swap to it once the grace expires.
+        case pendingSwap(target: Int, swapAt: Date)
+        /// No healthy target; re-login the active account in place after grace.
+        case pendingRelogin(swapAt: Date)
+    }
+    // Accessed by the credential-recovery extension (separate file).
+    var credAction: CredAction = .idle
+
+    /// Per-account count of consecutive definitive `needs_login` polls for the
+    /// ACTIVE slot. Debounces transient blips: recovery only fires once the
+    /// count crosses `credFailureThreshold`. Reset to 0 on any non-definitive
+    /// poll (healthy, transient error, or unknown).
+    var consecutiveCredFailures: [Int: Int] = [:]
+
+    /// Consecutive definitive failures required before acting. A single blip
+    /// must never trigger recovery; N in a row is the signal.
+    let credFailureThreshold = 2
+
+    /// Grace between the "swapping to recover" notification and the swap.
+    /// Shorter than the 60s quota grace (user-confirmed) — recovery is urgent;
+    /// the Cancel notification action (Phase 7) is the safety valve.
+    let credSwapDelaySec: TimeInterval = 3
+    /// Grace before a hidden in-place re-login when no swap target exists.
+    let credReloginDelaySec: TimeInterval = 7
 
     /// Grace window between the user-facing "auto-swap pending" notification
     /// and the actual swap attempt. Gives users a chance to interrupt or wrap
@@ -58,6 +104,14 @@ final class AutoSwapStateMachine: ObservableObject {
     }
 
     private func tick() async {
+        // Credential recovery runs FIRST and independently of quota auto-swap.
+        // If it performed a swap/relogin this tick, skip the quota pass so we
+        // don't double-act on a snapshot that is about to be refreshed.
+        if await handleCredentialRecovery() { return }
+        await handleQuotaSwap()
+    }
+
+    private func handleQuotaSwap() async {
         guard settings.autoSwapEnabled else { state = .idle; return }
         if case .cooldown(let until) = state, Date() < until { return }
 
@@ -155,7 +209,7 @@ final class AutoSwapStateMachine: ObservableObject {
         )
     }
 
-    private func postNotification(title: String, body: String, id: String) async {
+    func postNotification(title: String, body: String, id: String) async {
         let content = UNMutableNotificationContent()
         content.title = title
         content.body = body

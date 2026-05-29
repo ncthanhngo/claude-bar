@@ -181,6 +181,13 @@ struct ClaudeSwapWidgetApp: App {
                             ?? .failed("no coordinator")
                     }
                     store.recovery = recovery
+                    // Let the auto-swap loop drive credential recovery: it
+                    // reads recovery status to gate the active branch and
+                    // sweeps inactive accounts through the same coordinator.
+                    store.autoSwap.recovery = recovery
+                    store.autoSwap.isInteractiveReloginActive = { [weak quickRelogin] in
+                        quickRelogin?.isPresentingInteractive ?? false
+                    }
                     store.cloudSync = cloudSync
                     store.start()
                     chatStore.bind(to: store)

@@ -455,8 +455,10 @@ func TestInspectActive_ValidNonExpiredToken_UsageFetchSuccess(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	act := res.Accounts[0]
-	if act.CredentialState == "needs_login" {
-		t.Fatalf("healthy live token must not set needs_login, got %q / %q", act.CredentialState, act.CredentialError)
+	// A successful live probe must emit the positive "ready" signal so a stale
+	// needs_login cannot stick across snapshot merges on the widget side.
+	if act.CredentialState != "ready" {
+		t.Fatalf("healthy live token must set ready, got %q / %q", act.CredentialState, act.CredentialError)
 	}
 }
 

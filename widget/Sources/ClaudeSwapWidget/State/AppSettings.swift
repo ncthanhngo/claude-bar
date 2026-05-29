@@ -8,6 +8,14 @@ final class AppSettings: ObservableObject {
 
     @AppStorage("autoSwapEnabled") var autoSwapEnabled: Bool = false
     @AppStorage("thresholdPct") var thresholdPct: Int = 90
+
+    /// Auto-recover a dead active credential without user action: swap to a
+    /// healthy account (then silently repair the broken one) or, when no
+    /// target is available, run a hidden re-login. Defaults on — recovering a
+    /// broken login is the headline behaviour of this feature; the Settings
+    /// toggle (Phase 7) lets users opt out. Gated independently of
+    /// `autoSwapEnabled` so recovery and quota-swap can be toggled separately.
+    @AppStorage("autoRecoverEnabled") var autoRecoverEnabled: Bool = true
     /// Refresh interval used when active 5h utilisation is below
     /// `adaptiveHighThresholdPct`. Default 180s (3 min).
     @AppStorage("refreshIntervalSec") var refreshIntervalSec: Int = 180

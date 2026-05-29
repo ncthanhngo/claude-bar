@@ -52,6 +52,13 @@ final class QuickReloginCoordinator: ObservableObject {
     @Published var step: Step = .loading
     @Published private(set) var account: AccountDTO?
 
+    /// True while the interactive re-login window is on screen. Distinct from
+    /// `account` (which lingers after a sheet closes) so callers get an
+    /// accurate "is the user mid-sign-in?" signal — the auto-recovery state
+    /// machine reads this to avoid swapping/relogging while the user is
+    /// already resolving the credential by hand.
+    @Published private(set) var isPresentingInteractive = false
+
     private let window = FloatingWindow<AnyView>()
     private weak var store: AppStore?
     private weak var webFallback: WebFallbackCoordinator?
@@ -144,9 +151,11 @@ final class QuickReloginCoordinator: ObservableObject {
                 .environmentObject(self)
             )
         }
+        isPresentingInteractive = true
         window.onClose = { [weak self] in
             // User closed the window mid-flow — drop any in-flight state.
             self?.attempt = nil
+            self?.isPresentingInteractive = false
             self?.clearFlight()
         }
     }
@@ -154,6 +163,7 @@ final class QuickReloginCoordinator: ObservableObject {
     func dismiss() {
         window.close()
         attempt = nil
+        isPresentingInteractive = false
         clearFlight()
     }
 
