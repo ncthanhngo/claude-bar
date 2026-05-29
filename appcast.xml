@@ -12,6 +12,28 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 11.29 (BETA)</title>
+      <sparkle:version>11.29</sparkle:version>
+      <sparkle:shortVersionString>11.29</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li><strong>Hotfix:</strong> after clicking Upgrade, the app was sitting on a "loading" icon for 10–20 minutes until the user clicked the menu bar to nudge it. Sparkle's installer was waiting for the host PID to exit before swapping the bundle, but the in-popover update driver passed <code>delegate: nil</code> to <code>SPUUpdater</code> and never subscribed to the restart notification — so nothing in the app actually quit.</li>
+          <li><strong>Fix:</strong> the host now calls <code>NSApp.terminate(nil)</code> as soon as Sparkle signals install-ready. <code>TerminationListener</code> fires immediately, the installer swaps the bundle, and the new build relaunches without the dead-time stall.</li>
+          <li><strong>Clarification on the "kills sessions" report:</strong> the upgrade does NOT SIGINT running <code>claude</code> CLI sessions. The local MCP gateway is briefly down during the 2–3s restart — any MCP write-tool call in flight during that window will fail, but the sessions themselves keep running and pick up the new gateway as soon as Claude Bar is back.</li>
+          <li>Closes <a href="https://github.com/ncthanhngo/claude-bar/issues/20">#20</a>.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Fri, 29 May 2026 12:06:37 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v11.29/ClaudeBar.zip"
+        sparkle:version="11.29"
+        sparkle:shortVersionString="11.29"
+        sparkle:edSignature="Qtqcg0K1aaXxhwbmpsowPyWwdxK7yjaHvNmsan77IVgdFHhlDA1ZZxygkFgiHJHqfLf4JKy/46Z/V5C46hNbBw=="
+        length="7988752"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 11.28 (BETA)</title>
       <sparkle:version>11.28</sparkle:version>
       <sparkle:shortVersionString>11.28</sparkle:shortVersionString>
