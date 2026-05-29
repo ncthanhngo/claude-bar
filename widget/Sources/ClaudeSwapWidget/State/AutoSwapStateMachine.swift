@@ -4,11 +4,16 @@ import UserNotifications
 /// Threshold-based auto-swap orchestrator.
 ///
 /// Flow:
-///   threshold reached → notify user → poll sessions every N sec →
-///   when no busy/waiting session → swap → notify → return to IDLE.
+///   threshold reached → notify user with 60s grace → after grace,
+///   swap → notify → return to IDLE.
 ///
-/// Per spec: never kills claude processes (aggressiveAutoKill toggle reserved
-/// for future use, not implemented in v1).
+/// The grace window is a soft warning, not a hard gate. Pre-#18 the swap
+/// also waited for `safeToSwap` (no live claude session) after the grace,
+/// which silently disabled auto-swap for anyone keeping a claude session
+/// running. Now: notify, wait the grace, swap regardless. Auto-swap does
+/// not kill claude — the existing process keeps its cached tokens; the
+/// next invocation picks up the new account. Users who want the live
+/// process restarted can enable `autoKillCLIAfterSwap` (post-swap SIGINT).
 @MainActor
 final class AutoSwapStateMachine: ObservableObject {
     enum State: Equatable {
@@ -20,7 +25,6 @@ final class AutoSwapStateMachine: ObservableObject {
     @Published private(set) var state: State = .idle
 
     var snapshotProvider: () -> ListAccountsDTO? = { nil }
-    var sessionsProvider: () -> SessionReportDTO? = { nil }
     var onSwapPerformed: (() async -> Void)?
 
     private let client: CswClient
@@ -97,9 +101,9 @@ final class AutoSwapStateMachine: ObservableObject {
         // Wait out the grace window before attempting the swap.
         if Date() < swapAt { return }
 
-        // Deadline reached — only swap if no claude session is running.
-        guard let sess = sessionsProvider(), sess.safeToSwap else { return }
-
+        // Deadline reached — swap regardless of live claude sessions. The
+        // grace already warned the user; further blocking would silently
+        // disable auto-swap for anyone running claude continuously.
         do {
             try await client.switchTo(target.account.number)
             await notifySwapped(to: target)
@@ -130,7 +134,7 @@ final class AutoSwapStateMachine: ObservableObject {
     private func notifyPending(to target: AccountViewDTO, activePct: Int, inSec: Int) async {
         await postNotification(
             title: "Auto-swap in \(inSec)s (\(activePct)% used)",
-            body: "Will switch to \(target.account.displayName) in \(inSec)s if no claude session is running.",
+            body: "Will switch to \(target.account.displayName) in \(inSec)s. Close claude now if you want it to finish cleanly first.",
             id: "csw.pending"
         )
     }

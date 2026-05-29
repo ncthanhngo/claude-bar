@@ -58,7 +58,6 @@ final class AppStore: ObservableObject {
     init() {
         self.autoSwap = AutoSwapStateMachine(client: client, settings: AppSettings.shared)
         autoSwap.snapshotProvider = { [weak self] in self?.snapshot }
-        autoSwap.sessionsProvider = { [weak self] in self?.sessions }
         autoSwap.onSwapPerformed = { [weak self] in
             await self?.refreshNow()
             self?.schedulePostSwapIntegrations()

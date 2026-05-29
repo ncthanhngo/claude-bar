@@ -21,7 +21,7 @@ brew install --cask claude-bar
 - **Credential health** — inactive accounts that can no longer refresh are marked before a broken switch
 - **Usage display** — 5-hour and 7-day quota bars with % and time-until-reset for each account
 - **Token usage chart** — Hour / Day / Month histogram of tokens and estimated USD cost across all local Claude Code sessions (CLI + IDE extensions). Click **Details** next to USD to see Anthropic's per-model rate table; rates auto-refresh in the background from a hosted JSON so updated Anthropic pricing flows in without a new release
-- **Auto-swap** — automatically switches to a lower-usage account when the active one hits your threshold; waits for `claude` to exit first, then notifies you
+- **Auto-swap** — automatically switches to a lower-usage account when the active one hits your threshold; gives you a 60-second grace window with a heads-up notification, then swaps regardless of whether `claude` is still running
 - **IDE reload** — after a swap, reloads VSCode / Code Insiders / Cursor / Windsurf / Antigravity windows so the extension picks up new credentials (requires Accessibility permission). Reload shortcut is user-configurable (default `⌃⌘R`) and auto-installed into each editor's `keybindings.json`
 - **CLI auto-restart** — sends SIGINT to running `claude` sessions; use with the bundled `claude-watch` wrapper to auto-restart in your terminal
 - **Session guard** — warns you if Claude is running before a manual switch; option to force-switch anyway
@@ -122,11 +122,10 @@ make install      # builds and copies to /Applications/ClaudeBar.app
 ## How auto-swap works
 
 1. **Polls usage** every N seconds with adaptive frequency — faster as you approach the threshold
-2. Active 5h usage ≥ threshold → notification **"Auto-swap pending (X% used)"** — you are warned before anything happens
-3. **Waits** until no `claude` sessions are busy (`safeToSwap = true`) — Claude Bar never interrupts a running session
-4. **Swaps** to the inactive account with the lowest 5-hour usage
-5. Notification **"Switched to [account]"** — confirmation after the swap completes
-6. Triggers **IDE reload** (VSCode / Code Insiders / Cursor / Windsurf / Antigravity) and **CLI restart** (`claude-watch`) if those options are enabled in Settings
+2. Active 5h usage ≥ threshold → notification **"Auto-swap in 60s (X% used)"** — 60-second grace window; close `claude` now if you want it to finish cleanly first
+3. After the grace, **swaps** to the inactive account with the lowest 5-hour usage (highest subscription tier preferred). The swap goes through even if a `claude` session is still live — Claude Bar does not kill the process, the next invocation simply picks up the new account
+4. Notification **"Switched to [account]"** — confirmation after the swap completes
+5. Triggers **IDE reload** (VSCode / Code Insiders / Cursor / Windsurf / Antigravity) and **CLI restart** (`claude-watch`) if those options are enabled in Settings
 
 If all inactive accounts are also above the threshold → notification **"All accounts above threshold"**, retry in 10 minutes.
 
