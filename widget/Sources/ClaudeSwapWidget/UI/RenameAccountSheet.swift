@@ -50,13 +50,26 @@ final class RenameAccountCoordinator {
         // window in the app becomes key — including the Rename sheet we
         // just showed. There is no documented hook to override that
         // dismissal (NSPopover.behavior isn't reachable through the
-        // MenuBarExtra abstraction). Re-open the popover on the next
-        // runloop tick so the user sees both at once: the Rename window
-        // at popUpMenu+2 on top, the menu-bar popover at .floating
-        // behind it. Without this, every Rename click yanked the user
-        // out of the account list they were just looking at.
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-            MenuBarPopoverToggle.openIfClosed()
+        // MenuBarExtra abstraction). Re-open the popover after the
+        // dismissal lands so the user sees both at once: the Rename
+        // window at popUpMenu+2 on top, the menu-bar popover at
+        // .floating behind it.
+        //
+        // The dismissal timing is non-deterministic — SwiftUI runs it on
+        // a later body update, sometimes within ~50ms but often later
+        // (observed up to ~300ms when the click came through the …
+        // overflow Menu, which itself dispatches its action handler
+        // after its own close animation). A single fixed delay races:
+        // fire too early and openIfClosed sees the popover still
+        // visible and no-ops, leaving it permanently closed when
+        // dismissal lands a beat later. Fan out a few attempts across
+        // the plausible window — each is a no-op while the popover is
+        // still up, and the first one after dismissal re-opens it.
+        let restoreDelays: [TimeInterval] = [0.05, 0.15, 0.3, 0.5]
+        for delay in restoreDelays {
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+                MenuBarPopoverToggle.openIfClosed()
+            }
         }
     }
 }
