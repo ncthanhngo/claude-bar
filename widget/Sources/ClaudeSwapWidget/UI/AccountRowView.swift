@@ -31,6 +31,12 @@ struct AccountRowView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .background(isHovering && !view.isActive ? Color.primary.opacity(0.06) : Color.clear)
+        .overlay {
+            // Pulsing glow while a hidden recovery re-login runs for this row.
+            if recovery.isRecovering(view.account.number) {
+                RecoveryGlowView(accent: settings.widgetTheme.activeAccent)
+            }
+        }
         .clipShape(RoundedRectangle(cornerRadius: 8))
         .contentShape(Rectangle())
         .allowsHitTesting(store.swappingTo == nil)
