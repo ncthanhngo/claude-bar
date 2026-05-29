@@ -23,6 +23,10 @@ final class AppStore: ObservableObject {
     let settings = AppSettings.shared
     let autoSwap: AutoSwapStateMachine
     var cloudSync: CloudSyncCoordinator?
+    /// Reachable by Phases 3/4/5 via the state machine and by any future view
+    /// that needs to inspect per-account recovery status or trigger recovery.
+    /// Set once at app launch by the wiring in `ClaudeSwapWidgetApp`.
+    weak var recovery: CredentialRecoveryCoordinator?
     var webUsageProvider: (([AccountViewDTO]) async -> [Int: UsageDTO])?
     /// Synchronous "is this account web-linked?" query so refreshNow can
     /// route around the OAuth usage fallback for already-linked accounts.

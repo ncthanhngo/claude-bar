@@ -28,6 +28,7 @@ struct ClaudeSwapWidgetApp: App {
     @StateObject private var verifyCoordinator = VerifyCoordinator()
     @StateObject private var webFallback = WebFallbackCoordinator()
     @StateObject private var quickRelogin = QuickReloginCoordinator()
+    @StateObject private var recovery = CredentialRecoveryCoordinator()
     @StateObject private var cloudSync = CloudSyncCoordinator(client: CswClient())
     @StateObject private var localMCP = LocalMCPCoordinator(client: CswClient())
     @StateObject private var chatStore = ChatStore()
@@ -142,6 +143,7 @@ struct ClaudeSwapWidgetApp: App {
                 .environmentObject(verifyCoordinator)
                 .environmentObject(webFallback)
                 .environmentObject(quickRelogin)
+                .environmentObject(recovery)
                 .environmentObject(cloudSync)
                 .environmentObject(localMCP)
                 .environmentObject(updateController)
@@ -169,6 +171,16 @@ struct ClaudeSwapWidgetApp: App {
                     verifyCoordinator.attach(store: store)
                     webFallback.attach(store: store)
                     quickRelogin.attach(store: store, webFallback: webFallback, loginCoordinator: loginCoordinator)
+                    // Wire headless re-login into the recovery coordinator.
+                    // The weak capture prevents a retain cycle between the two
+                    // @StateObject instances (both live for app lifetime, but
+                    // explicit weak keeps the reference graph clean and allows
+                    // future teardown in tests).
+                    recovery.headlessRelogin = { [weak quickRelogin] accountNum in
+                        await quickRelogin?.beginHeadless(forAccountNumber: accountNum)
+                            ?? .failed("no coordinator")
+                    }
+                    store.recovery = recovery
                     store.cloudSync = cloudSync
                     store.start()
                     chatStore.bind(to: store)
