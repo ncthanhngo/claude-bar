@@ -390,6 +390,10 @@ final class QuickReloginCoordinator: ObservableObject {
             subscriptionType: nil,
             expectedEmail: payload.signedInEmail
         )
+        // Clear any terminal needs-manual-sign-in flag immediately — the user
+        // just re-authenticated by hand, so the popover "Log in" button must
+        // vanish without waiting for the snapshot to report ready.
+        store.recovery?.noteHealthy(account.number)
         await store.refreshNow()
         // When the rewritten account was already active, the running `claude`
         // CLI is still holding the now-superseded tokens in memory. Trigger

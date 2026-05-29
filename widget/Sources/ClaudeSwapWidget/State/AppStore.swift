@@ -298,6 +298,10 @@ final class AppStore: ObservableObject {
                 .replacingUsage(webUsages)
             let sess = try await sessionsAsync
             self.snapshot = list
+            // Clear any terminal needs-manual-sign-in flag for accounts that
+            // are healthy again (e.g. after the user completed an interactive
+            // re-login) so the popover "Log in" button disappears promptly.
+            recovery?.reconcile(list)
             self.sessions = sess
             // Token-stats failure is non-fatal — keep the last good value so
             // the UI doesn't blank out on a transient scan error.

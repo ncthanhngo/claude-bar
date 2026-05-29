@@ -101,6 +101,26 @@ final class CredentialRecoveryCoordinator: ObservableObject {
         }
     }
 
+    // MARK: - Healthy reconciliation
+
+    /// Clears all recovery state for an account that is healthy again, so a
+    /// terminal needs-manual-sign-in flag never sticks. Called when a fresh
+    /// snapshot reports the account ready and after a successful interactive
+    /// re-login — belt-and-suspenders so the popover button disappears
+    /// promptly regardless of which signal arrives first.
+    func noteHealthy(_ accountNum: Int) {
+        guard statuses[accountNum] != nil else { return }
+        statuses[accountNum] = nil
+    }
+
+    /// Reconciles recovery state against a fresh snapshot: any account now
+    /// reporting `credentialState == "ready"` clears its recovery status.
+    func reconcile(_ snapshot: ListAccountsDTO) {
+        for view in snapshot.accounts where view.credentialState == "ready" {
+            noteHealthy(view.account.number)
+        }
+    }
+
     // MARK: - Recovery entry point
 
     /// Finds the first inactive account whose `credentialState == "needs_login"`

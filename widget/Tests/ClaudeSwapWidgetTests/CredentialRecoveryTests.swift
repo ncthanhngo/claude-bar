@@ -89,6 +89,44 @@ final class CredentialRecoveryTests: XCTestCase {
         XCTAssertTrue(coord.isEligible(1))
     }
 
+    // MARK: - Healthy reconciliation (Phase 4)
+
+    func testNoteHealthyClearsManualSignIn() async {
+        let coord = CredentialRecoveryCoordinator()
+        coord.headlessRelogin = { _ in .needsManualSignIn }
+        _ = await coord.recover(accountNum: 1)
+        XCTAssertTrue(coord.manualSignInRequired(1))
+        coord.noteHealthy(1)
+        XCTAssertFalse(coord.manualSignInRequired(1))
+        XCTAssertTrue(coord.isEligible(1))
+    }
+
+    func testReconcileClearsAccountsReportingReady() async {
+        let coord = CredentialRecoveryCoordinator()
+        coord.headlessRelogin = { _ in .needsManualSignIn }
+        _ = await coord.recover(accountNum: 3)
+        XCTAssertTrue(coord.manualSignInRequired(3))
+        // A fresh snapshot now reports account 3 healthy → flag must clear.
+        let snap = ListAccountsDTO(accounts: [
+            view(1, active: true, credState: "ready"),
+            view(3, active: false, credState: "ready"),
+        ], activeAccountNumber: 1)
+        coord.reconcile(snap)
+        XCTAssertFalse(coord.manualSignInRequired(3))
+    }
+
+    func testReconcileLeavesStillDeadAccountsFlagged() async {
+        let coord = CredentialRecoveryCoordinator()
+        coord.headlessRelogin = { _ in .needsManualSignIn }
+        _ = await coord.recover(accountNum: 3)
+        // Snapshot still shows account 3 needs_login → flag must persist.
+        let snap = ListAccountsDTO(accounts: [
+            view(3, active: false, credState: "needs_login"),
+        ], activeAccountNumber: 1)
+        coord.reconcile(snap)
+        XCTAssertTrue(coord.manualSignInRequired(3))
+    }
+
     // MARK: - Inactive sweep targeting
 
     func testRecoverInactiveSkipsActiveAndHealthy() async {

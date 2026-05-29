@@ -6,6 +6,8 @@ struct AccountRowView: View {
 
     @EnvironmentObject var store: AppStore
     @EnvironmentObject var webFallback: WebFallbackCoordinator
+    @EnvironmentObject var quickRelogin: QuickReloginCoordinator
+    @EnvironmentObject var recovery: CredentialRecoveryCoordinator
     @ObservedObject private var settings = AppSettings.shared
     @State private var isHovering = false
 
@@ -199,7 +201,12 @@ struct AccountRowView: View {
     @ViewBuilder
     private var usageBlock: some View {
         VStack(alignment: .leading, spacing: 3) {
-            if view.credentialState == "needs_login" {
+            // Manual-sign-in-required dominates the passive badge: it appears
+            // only after a headless re-login concluded the web cookies are
+            // also dead, so auto-recovery cannot proceed without the user.
+            if recovery.manualSignInRequired(view.account.number) {
+                manualLoginButton
+            } else if view.credentialState == "needs_login" {
                 credentialBadge
             }
             if let usage = view.usage {
@@ -217,6 +224,31 @@ struct AccountRowView: View {
         }
         .padding(.leading, 32)
         .padding(.top, 2)
+    }
+
+    /// Actionable "Log in" affordance shown when automatic recovery has given
+    /// up (web cookies dead). Opens the INTERACTIVE Quick re-login sheet so the
+    /// user can type credentials. Disabled while any headless attempt is still
+    /// in flight to avoid racing the coordinator's single-flight guard.
+    private var manualLoginButton: some View {
+        Button {
+            quickRelogin.begin(for: view.account)
+        } label: {
+            HStack(spacing: 4) {
+                Image(systemName: "person.crop.circle.badge.exclamationmark")
+                    .font(.system(size: 9))
+                Text("Log in")
+                    .font(.system(size: 10, weight: .semibold))
+            }
+            .foregroundColor(.white)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 3)
+            .background(Capsule().fill(Color.orange))
+        }
+        .buttonStyle(.plain)
+        .disabled(recovery.isBusy)
+        .opacity(recovery.isBusy ? 0.5 : 1)
+        .help(view.credentialError ?? "Session expired — sign in to restore this account.")
     }
 
     private var credentialBadge: some View {
