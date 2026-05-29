@@ -90,6 +90,17 @@ func (s *Service) listAccounts(ctx context.Context, usageAccounts map[int]bool) 
 		wg.Wait()
 	}
 
+	// Inspect the LIVE credential for the active account. Runs on every call
+	// (including metadata-only) so credential loss is surfaced even when the
+	// usage fetch is skipped. Runs AFTER fillUsage so a definitive needs_login
+	// from the live check always wins over a stale fillUsage result.
+	for _, v := range views {
+		if v.IsActive {
+			s.inspectActiveCredential(ctx, v)
+			break
+		}
+	}
+
 	return &ListAccountsResult{
 		Accounts:            views,
 		ActiveAccountNumber: activeNum,
@@ -102,6 +113,79 @@ func allUsageAccounts(views []*AccountView) map[int]bool {
 		accountNumbers[v.Account.Number] = true
 	}
 	return accountNumbers
+}
+
+// inspectActiveCredential performs a READ-ONLY liveness check of the LIVE
+// credential slot (the token Claude Code itself uses). It only sets
+// CredentialState/CredentialError when it finds a definitive failure; it never
+// clears a healthy state set by fillUsage.
+//
+// Safety invariants upheld here:
+//   - NEVER calls Refresh on the live token. The live refresh_token is
+//     single-use-rotating; refreshing it from here would desync Claude Code.
+//   - NEVER writes or deletes the live credential.
+//   - On ANY ambiguity (read error, network error, 429, expired-but-maybe-ok)
+//     the view is left unchanged. False-positive "needs_login" on an active
+//     session is worse than a missed detection.
+func (s *Service) inspectActiveCredential(ctx context.Context, v *AccountView) {
+	if s.Live == nil {
+		return
+	}
+
+	blob, err := s.Live.Read(ctx)
+	if err != nil {
+		// Read failure is ambiguous (Keychain ACL, timeout, etc.) — leave as-is.
+		return
+	}
+	if blob == "" {
+		// Empty slot = logged out; this is definitive.
+		v.CredentialState = "needs_login"
+		v.CredentialError = "not logged in (live credential missing)"
+		return
+	}
+
+	payload, err := blob.Extract()
+	if err != nil {
+		// Corrupt/unreadable blob — definitive; Claude Code can't use it either.
+		v.CredentialState = "needs_login"
+		v.CredentialError = "live credential unreadable: " + err.Error()
+		return
+	}
+
+	if payload.AccessToken == "" || payload.RefreshToken == "" {
+		v.CredentialState = "needs_login"
+		v.CredentialError = "live credential missing tokens"
+		return
+	}
+
+	// Access token is NOT expired: probe liveness with a read-only usage call.
+	// A 401 on a non-expired token is unambiguously revoked.
+	// Expired tokens are left alone — Claude Code will rotate them; we cannot
+	// classify expiry without refreshing, and refreshing is forbidden here.
+	if !oauth.IsExpired(payload.ExpiresAt) {
+		if s.Usage == nil {
+			return
+		}
+		// Don't probe while a rate-limit backoff is active — the endpoint is
+		// already throttling us, and a 429 here tells us nothing about the
+		// token's validity. Skip and re-check on a later poll.
+		if s.Backoff != nil {
+			if skip, _ := s.Backoff.ShouldSkip(); skip {
+				return
+			}
+		}
+		_, fetchErr := s.Usage.Fetch(ctx, payload.AccessToken)
+		if fetchErr != nil {
+			if oauth.IsDefinitiveAuthFailure(fetchErr) {
+				// 401 on a non-expired token = token revoked server-side.
+				v.CredentialState = "needs_login"
+				v.CredentialError = "live token rejected (401)"
+			}
+			// RateLimitedError, network error, or other transient → leave as-is.
+		}
+		// Success → token is healthy; leave CredentialState unchanged.
+	}
+	// Expired token → no action; leave CredentialState unchanged.
 }
 
 func (s *Service) fillUsage(ctx context.Context, v *AccountView) {
