@@ -13,9 +13,9 @@
     <key>CFBundleIdentifier</key>
     <string>dev.ncthanhngo.claude-bar</string>
     <key>CFBundleVersion</key>
-    <string>11.33</string>
+    <string>11.34</string>
     <key>CFBundleShortVersionString</key>
-    <string>11.33</string>
+    <string>11.34</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleSignature</key>
@@ -35,7 +35,7 @@
     <key>NSHumanReadableCopyright</key>
     <string>Copyright © 2026 Thanh Ngô. Licensed under MIT.</string>
     <key>CFBundleGetInfoString</key>
-    <string>Claude Bar 11.33 — menu-bar manager for multiple Claude Code accounts</string>
+    <string>Claude Bar 11.34 — menu-bar manager for multiple Claude Code accounts</string>
     <key>CBAuthorName</key>
     <string>Thanh Ngô</string>
     <key>CBAuthorEmail</key>
@@ -49,13 +49,13 @@
     <key>CBReleaseChannel</key>
     <string>Beta</string>
     <key>CBReleaseWhatsNew</key>
-    <string>Quick re-login now completes automatically on Anthropic's "Authentication Code" page — no more manual copy-paste.</string>
+    <string>Quick re-login is now fully automatic — one right-click signs you back in.
+Auto-clicks Authorize and shows a clear success screen when it's done.</string>
     <key>CBReleaseHotfixes</key>
-    <string>Fixed: Quick re-login stalled on the "Paste this into Claude Code" page because the WebView was waiting for a redirect that never fires.</string>
+    <string>Fixed: Quick re-login failed with a 400 "Invalid request format" — the OAuth exchange was missing the state value, so no tokens were ever saved.</string>
     <key>CBReleaseKnownIssues</key>
-    <string>Quick re-login depends on Anthropic's authorize URL + auth-code page layout staying stable; if either changes, use the Terminal fallback button in the sheet.
-Auto-restart after re-login obeys "Auto-kill CLI sessions" / "Auto-reload IDE after swap" — leave both off if you want manual control.
-MCP hot-reload kills any in-flight Claude response and unsaved typed input — wait for idle before toggling MCP.</string>
+    <string>If your claude.ai web session has expired, you still sign in once before it auto-completes; the Terminal fallback stays in the sheet.
+Quick re-login depends on Anthropic's authorize page layout staying stable.</string>
     <key>CFBundleDevelopmentRegion</key>
     <string>en</string>
     <key>CFBundleLocalizations</key>

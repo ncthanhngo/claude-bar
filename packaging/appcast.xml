@@ -12,6 +12,27 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 11.34 (BETA)</title>
+      <sparkle:version>11.34</sparkle:version>
+      <sparkle:shortVersionString>11.34</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li><strong>Quick re-login is now fully automatic</strong> — one right-click signs you back in. The sheet auto-clicks <strong>Authorize</strong> on Anthropic's consent page, captures the auth code, exchanges it, and shows a clear success screen, then closes.</li>
+          <li><strong>Hotfix:</strong> re-login was failing with a <code>400 "Invalid request format"</code> at the token endpoint. Root cause: the OAuth <code>authorization_code</code> exchange body was missing the <code>state</code> value (the second half of the <code>code#state</code> string Anthropic renders). Claude Code's token endpoint requires it echoed back — without it, no tokens were ever saved.</li>
+          <li>Success now covers the stale "Paste this into Claude Code" page with an unmistakable confirmation instead of leaving it visible behind a one-line banner.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Fri, 29 May 2026 22:32:45 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v11.34/ClaudeBar.zip"
+        sparkle:version="11.34"
+        sparkle:shortVersionString="11.34"
+        sparkle:edSignature="qGb8l13onjdJTUVtllIZQZPwilZ6dMAIXsmUYv3NJjq7mLrqAsgaOVwRTB0E7OmYc0rugwsekdtQB+rF/I+/DQ=="
+        length="7909505"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 11.33 (BETA)</title>
       <sparkle:version>11.33</sparkle:version>
       <sparkle:shortVersionString>11.33</sparkle:shortVersionString>
