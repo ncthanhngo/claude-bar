@@ -27,6 +27,10 @@ final class AppStore: ObservableObject {
     /// that needs to inspect per-account recovery status or trigger recovery.
     /// Set once at app launch by the wiring in `ClaudeSwapWidgetApp`.
     weak var recovery: CredentialRecoveryCoordinator?
+    /// Strong reference to the notification-action handler: `UNUserNotification
+    /// Center.delegate` is weak, so without this it would deallocate and the
+    /// Cancel/Retry buttons would stop working.
+    var notificationHandler: NotificationActionHandler?
     var webUsageProvider: (([AccountViewDTO]) async -> [Int: UsageDTO])?
     /// Synchronous "is this account web-linked?" query so refreshNow can
     /// route around the OAuth usage fallback for already-linked accounts.

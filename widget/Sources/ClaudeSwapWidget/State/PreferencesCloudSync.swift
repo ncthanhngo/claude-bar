@@ -311,6 +311,9 @@ private let syncedKeys: [SyncedKey] = [
     // General tab
     .init(id: "autoSwapEnabled",          kind: .bool),
     .init(id: "thresholdPct",             kind: .int),
+    .init(id: "autoRecoverEnabled",       kind: .bool),
+    .init(id: "credSwapDelaySec",         kind: .int),
+    .init(id: "credReloginDelaySec",      kind: .int),
     .init(id: "refreshIntervalSec",       kind: .int),
     .init(id: "refreshIntervalHighSec",   kind: .int),
     .init(id: "adaptiveHighThresholdPct", kind: .int),

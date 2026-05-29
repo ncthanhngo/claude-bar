@@ -184,6 +184,12 @@ struct ClaudeSwapWidgetApp: App {
                             ?? .failed("no coordinator")
                     }
                     store.recovery = recovery
+                    // Register the notification-action handler (Cancel/Retry)
+                    // before any recovery notification can fire. Retained on
+                    // the store because the center's delegate ref is weak.
+                    let notifHandler = NotificationActionHandler(autoSwap: store.autoSwap)
+                    notifHandler.install()
+                    store.notificationHandler = notifHandler
                     // Let the auto-swap loop drive credential recovery: it
                     // reads recovery status to gate the active branch and
                     // sweeps inactive accounts through the same coordinator.

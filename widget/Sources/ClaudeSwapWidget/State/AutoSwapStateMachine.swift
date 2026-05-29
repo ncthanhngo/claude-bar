@@ -66,16 +66,34 @@ final class AutoSwapStateMachine: ObservableObject {
     /// poll (healthy, transient error, or unknown).
     var consecutiveCredFailures: [Int: Int] = [:]
 
+    /// Per-account suppression deadline: while in the future, the credential
+    /// branch will NOT arm a recovery for that account. Set when the user taps
+    /// Cancel on a pending-recovery notification so the same dead credential
+    /// does not immediately re-arm on the next poll.
+    var credRecoverySuppressedUntil: [Int: Date] = [:]
+
+    /// How long a user Cancel suppresses re-arming for that account.
+    private let credCancelSuppressionSec: TimeInterval = 30 * 60
+
+    /// Injectable notification poster so the credential branch can be unit
+    /// tested without touching `UNUserNotificationCenter` (which is unusable in
+    /// a SwiftPM test process). Defaults to the real implementation.
+    lazy var credNotificationPoster: (_ title: String, _ body: String, _ id: String, _ category: String?) async -> Void = {
+        [weak self] title, body, id, category in
+        await self?.postNotification(title: title, body: body, id: id, category: category)
+    }
+
     /// Consecutive definitive failures required before acting. A single blip
     /// must never trigger recovery; N in a row is the signal.
     let credFailureThreshold = 2
 
     /// Grace between the "swapping to recover" notification and the swap.
     /// Shorter than the 60s quota grace (user-confirmed) — recovery is urgent;
-    /// the Cancel notification action (Phase 7) is the safety valve.
-    let credSwapDelaySec: TimeInterval = 3
+    /// the Cancel notification action is the safety valve. Sourced from
+    /// settings (cloud-synced) with the user-confirmed 3s/7s defaults.
+    var credSwapDelaySec: TimeInterval { TimeInterval(max(0, settings.credSwapDelaySec)) }
     /// Grace before a hidden in-place re-login when no swap target exists.
-    let credReloginDelaySec: TimeInterval = 7
+    var credReloginDelaySec: TimeInterval { TimeInterval(max(0, settings.credReloginDelaySec)) }
 
     /// Grace window between the user-facing "auto-swap pending" notification
     /// and the actual swap attempt. Gives users a chance to interrupt or wrap
@@ -209,11 +227,46 @@ final class AutoSwapStateMachine: ObservableObject {
         )
     }
 
-    func postNotification(title: String, body: String, id: String) async {
+    func postNotification(title: String, body: String, id: String, category: String? = nil) async {
         let content = UNMutableNotificationContent()
         content.title = title
         content.body = body
+        if let category { content.categoryIdentifier = category }
         let req = UNNotificationRequest(identifier: id, content: content, trigger: nil)
         try? await UNUserNotificationCenter.current().add(req)
+    }
+
+    // MARK: - Notification-action handling (Cancel / Retry)
+
+    /// Notification category + action identifiers. Registered at launch by the
+    /// notification-action handler so the Cancel/Retry buttons render.
+    enum Notif {
+        static let pendingCategory = "csw.cred.pending"
+        static let failedCategory = "csw.cred.failed"
+        static let cancelAction = "csw.cred.cancel"
+        static let retryAction = "csw.cred.retry"
+    }
+
+    /// User tapped Cancel on a pending-recovery notification: drop the pending
+    /// action and suppress re-arming for this account for a while so the same
+    /// dead credential does not immediately re-trigger.
+    func cancelActiveRecovery() {
+        credAction = .idle
+        guard let active = snapshotProvider()?.active else { return }
+        let num = active.account.number
+        consecutiveCredFailures[num] = 0
+        credRecoverySuppressedUntil[num] = Date().addingTimeInterval(credCancelSuppressionSec)
+    }
+
+    /// User tapped Retry on a failure notification: lift any suppression and
+    /// reset the coordinator's cooldown/terminal state for the active account
+    /// so the next tick re-attempts recovery.
+    func retryActiveRecovery() {
+        credAction = .idle
+        guard let active = snapshotProvider()?.active else { return }
+        let num = active.account.number
+        consecutiveCredFailures[num] = 0
+        credRecoverySuppressedUntil[num] = nil
+        recovery?.resetForRetry(num)
     }
 }

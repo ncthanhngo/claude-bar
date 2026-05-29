@@ -46,6 +46,13 @@ final class CredentialRecoveryCoordinator: ObservableObject {
     /// Cooldown between retry attempts after a transient failure.
     private static let cooldownInterval: TimeInterval = 5 * 60  // 5 minutes
 
+    /// Auto-authorize budget: at most this many UNATTENDED grants per account
+    /// within `autoAuthorizeWindow`. Guards against an induced credential-loss
+    /// loop or a poisoned synced cookie store driving unbounded silent OAuth
+    /// grants. Exceeding it forces the account to manual sign-in for the window.
+    private static let maxAutoAuthorizePerWindow = 5
+    private static let autoAuthorizeWindow: TimeInterval = 60 * 60  // 1 hour
+
     // MARK: - Published state
 
     @Published private(set) var statuses: [Int: RecoveryStatus] = [:]
@@ -64,6 +71,11 @@ final class CredentialRecoveryCoordinator: ObservableObject {
     /// called again before the first finishes (e.g. two rapid state-machine
     /// ticks). Only one headless attempt runs at a time across all accounts.
     private var recoveryInFlight = false
+
+    /// Timestamps of recent unattended auto-authorize grants per account, used
+    /// to enforce `maxAutoAuthorizePerWindow`. Pruned to the rolling window on
+    /// each check so it never grows unbounded.
+    private var grantHistory: [Int: [Date]] = [:]
 
     // MARK: - Computed helpers
 
@@ -161,14 +173,27 @@ final class CredentialRecoveryCoordinator: ObservableObject {
     func recover(accountNum: Int) async -> ReloginOutcome? {
         guard !recoveryInFlight else { return nil }
 
+        // Budget gate: refuse (and force manual sign-in) if this account has
+        // already burned its unattended-grant budget for the rolling window.
+        if !withinAutoAuthorizeBudget(accountNum) {
+            DiagnosticsLogger.shared.log(.warning, subsystem: "credential-recovery-audit",
+                "auto-authorize budget exceeded account=\(accountNum) window=\(Int(Self.autoAuthorizeWindow))s cap=\(Self.maxAutoAuthorizePerWindow) — refusing unattended grant, forcing manual sign-in")
+            var status = statuses[accountNum] ?? RecoveryStatus()
+            status.phase = .needsManualSignIn
+            statuses[accountNum] = status
+            return nil
+        }
+
         recoveryInFlight = true
         // Exception-safe: a future throwing/cancelled headlessRelogin must not
         // leave this stuck true, which would wedge all recovery permanently.
         defer { recoveryInFlight = false }
         setPhase(.recovering, for: accountNum)
 
-        DiagnosticsLogger.shared.log(.info, subsystem: "credential-recovery",
-            "starting headless recovery account=\(accountNum) attempts=\(statuses[accountNum]?.attempts ?? 0)")
+        // Audit + budget accounting: record the grant attempt before it runs.
+        recordAutoAuthorizeGrant(accountNum)
+        DiagnosticsLogger.shared.log(.info, subsystem: "credential-recovery-audit",
+            "unattended auto-authorize grant account=\(accountNum) attempts=\(statuses[accountNum]?.attempts ?? 0)")
 
         guard let fn = headlessRelogin else {
             // No attempt actually ran — don't burn the retry budget. Revert to
@@ -229,6 +254,31 @@ final class CredentialRecoveryCoordinator: ObservableObject {
             status.phase = .needsManualSignIn
             statuses[accountNum] = status
         }
+    }
+
+    /// Clears all recovery state for an account so it is immediately eligible
+    /// again — invoked when the user taps Retry on a failure notification.
+    /// Distinct from `noteHealthy`: Retry forces another attempt even though
+    /// the account is still unhealthy, whereas noteHealthy means it recovered.
+    func resetForRetry(_ accountNum: Int) {
+        statuses[accountNum] = nil
+        grantHistory[accountNum] = nil
+    }
+
+    // MARK: - Auto-authorize budget
+
+    /// True while `accountNum` still has unattended-grant budget in the rolling
+    /// window. Prunes expired timestamps as a side effect.
+    private func withinAutoAuthorizeBudget(_ accountNum: Int) -> Bool {
+        let cutoff = Date().addingTimeInterval(-Self.autoAuthorizeWindow)
+        let recent = (grantHistory[accountNum] ?? []).filter { $0 > cutoff }
+        grantHistory[accountNum] = recent
+        return recent.count < Self.maxAutoAuthorizePerWindow
+    }
+
+    /// Records an unattended grant for budget accounting.
+    private func recordAutoAuthorizeGrant(_ accountNum: Int) {
+        grantHistory[accountNum, default: []].append(Date())
     }
 
     // MARK: - Helpers

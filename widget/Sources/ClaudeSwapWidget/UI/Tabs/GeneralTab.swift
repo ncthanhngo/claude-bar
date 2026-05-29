@@ -66,6 +66,8 @@ struct GeneralTab: View {
                     }
                 }
 
+                autoRecoveryGroup
+
                 // Adaptive-refresh is power-user-only — most people never
                 // tweak it. Tuck behind a disclosure so the General page
                 // doesn't open with three steppers competing for attention
@@ -112,6 +114,26 @@ struct GeneralTab: View {
                     .buttonStyle(.borderless)
                     .help(c.label)
                 }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var autoRecoveryGroup: some View {
+        SettingsGroup("Auto-recovery", subtitle: "When the active account's login expires, Claude Bar can recover it automatically — switch to a healthy account (and silently repair the broken one) or sign back in for you in the background.") {
+            Toggle("Recover dead logins automatically", isOn: $settings.autoRecoverEnabled)
+            if settings.autoRecoverEnabled {
+                Divider()
+                Stepper(value: $settings.credSwapDelaySec, in: 0...30, step: 1) {
+                    valueRow(title: "Wait before swapping", value: formatSec(settings.credSwapDelaySec))
+                }
+                Stepper(value: $settings.credReloginDelaySec, in: 0...60, step: 1) {
+                    valueRow(title: "Wait before re-login", value: formatSec(settings.credReloginDelaySec))
+                }
+                Text("A notification appears first with a Cancel button, so an unwanted recovery can be stopped during the wait.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
     }

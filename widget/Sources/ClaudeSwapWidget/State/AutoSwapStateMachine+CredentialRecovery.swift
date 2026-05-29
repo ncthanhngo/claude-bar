@@ -56,6 +56,12 @@ extension AutoSwapStateMachine {
         // Stand down while the user is resolving it by hand.
         if isInteractiveReloginActive() { credAction = .idle; return false }
 
+        // Respect a user Cancel: do not re-arm while suppression is active.
+        if let until = credRecoverySuppressedUntil[num], Date() < until {
+            credAction = .idle
+            return false
+        }
+
         // Let the coordinator own this account if it is already recovering it,
         // cooling down, or terminal (needs manual sign-in). Prevents spamming
         // attempts and hands terminal states to Phase 4.
@@ -137,10 +143,12 @@ extension AutoSwapStateMachine {
         switch outcome {
         case .succeeded:
             await notifyCredRecovered()
+        case .failed:
+            // Transient failure (coordinator is now in cooldown). Offer Retry.
+            await notifyCredFailed()
         default:
-            // failure / terminal / busy: the coordinator owns cooldown + the
-            // needsManualSignIn terminal state (surfaced by Phase 4). No notify
-            // here to avoid spamming on a transient retry.
+            // needsManualSignIn / identityMismatch are terminal and surfaced by
+            // the popover "Log in" button (Phase 4); busy is a no-op. No notify.
             break
         }
     }
@@ -179,34 +187,47 @@ extension AutoSwapStateMachine {
     // MARK: - Notifications
 
     private func notifyCredSwapPending(to target: AccountViewDTO, inSec: Int) async {
-        await postNotification(
-            title: "Re-login needed — swapping in \(inSec)s",
-            body: "Active account credential expired. Switching to \(target.account.displayName) and repairing it in the background.",
-            id: "csw.cred.swap"
+        await credNotificationPoster(
+            "Re-login needed — swapping in \(inSec)s",
+            "Active account credential expired. Switching to \(target.account.displayName) and repairing it in the background.",
+            "csw.cred.swap",
+            Notif.pendingCategory
         )
     }
 
     private func notifyCredReloginPending(inSec: Int) async {
-        await postNotification(
-            title: "Re-login needed — recovering in \(inSec)s",
-            body: "Active account credential expired. Signing back in automatically.",
-            id: "csw.cred.relogin"
+        await credNotificationPoster(
+            "Re-login needed — recovering in \(inSec)s",
+            "Active account credential expired. Signing back in automatically.",
+            "csw.cred.relogin",
+            Notif.pendingCategory
         )
     }
 
     private func notifyCredSwapped(to target: AccountViewDTO) async {
-        await postNotification(
-            title: "Recovered — switched to \(target.account.displayName)",
-            body: "Restart claude to use the new account. The expired account is being repaired.",
-            id: "csw.cred.swapped"
+        await credNotificationPoster(
+            "Recovered — switched to \(target.account.displayName)",
+            "Restart claude to use the new account. The expired account is being repaired.",
+            "csw.cred.swapped",
+            nil
         )
     }
 
     private func notifyCredRecovered() async {
-        await postNotification(
-            title: "Re-login complete",
-            body: "Your active account credential was restored automatically.",
-            id: "csw.cred.recovered"
+        await credNotificationPoster(
+            "Re-login complete",
+            "Your active account credential was restored automatically.",
+            "csw.cred.recovered",
+            nil
+        )
+    }
+
+    private func notifyCredFailed() async {
+        await credNotificationPoster(
+            "Automatic re-login failed",
+            "Couldn't restore your active account automatically. Tap Retry to try again.",
+            "csw.cred.failed",
+            Notif.failedCategory
         )
     }
 }

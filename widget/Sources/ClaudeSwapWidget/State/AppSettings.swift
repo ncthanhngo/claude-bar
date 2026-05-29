@@ -16,6 +16,15 @@ final class AppSettings: ObservableObject {
     /// toggle (Phase 7) lets users opt out. Gated independently of
     /// `autoSwapEnabled` so recovery and quota-swap can be toggled separately.
     @AppStorage("autoRecoverEnabled") var autoRecoverEnabled: Bool = true
+
+    /// Grace (seconds) between the "swapping to recover" notification and the
+    /// swap when an active credential dies and a healthy target exists.
+    /// User-confirmed default 3s; the Cancel notification action is the safety
+    /// valve for the short window.
+    @AppStorage("credSwapDelaySec") var credSwapDelaySec: Int = 3
+    /// Grace (seconds) before a hidden in-place re-login when no swap target
+    /// exists. User-confirmed default 7s.
+    @AppStorage("credReloginDelaySec") var credReloginDelaySec: Int = 7
     /// Refresh interval used when active 5h utilisation is below
     /// `adaptiveHighThresholdPct`. Default 180s (3 min).
     @AppStorage("refreshIntervalSec") var refreshIntervalSec: Int = 180

@@ -181,4 +181,123 @@ final class CredentialRecoveryTests: XCTestCase {
         ], activeAccountNumber: 1)
         XCTAssertNil(sm.pickHealthyTarget(snap))
     }
+
+    // MARK: - State-machine recovery branch (Phase 7)
+
+    /// Builds a state machine with auto-recover on, a silent notification
+    /// poster (UNUserNotificationCenter is unusable in tests), and a fixed
+    /// snapshot. `recovery` is left nil so arming never spawns real work.
+    private func makeRecoverySM(_ snap: ListAccountsDTO) -> AutoSwapStateMachine {
+        AppSettings.shared.autoRecoverEnabled = true
+        AppSettings.shared.credSwapDelaySec = 3
+        AppSettings.shared.credReloginDelaySec = 7
+        let sm = AutoSwapStateMachine(client: CswClient(), settings: AppSettings.shared)
+        sm.snapshotProvider = { snap }
+        sm.credNotificationPoster = { _, _, _, _ in }
+        return sm
+    }
+
+    private func activeDeadNoTarget() -> ListAccountsDTO {
+        ListAccountsDTO(accounts: [view(1, active: true, credState: "needs_login")],
+                        activeAccountNumber: 1)
+    }
+
+    func testDebounceRequiresConsecutiveFailuresBeforeArming() async {
+        let sm = makeRecoverySM(activeDeadNoTarget())
+        let first = await sm.handleCredentialRecovery()
+        XCTAssertFalse(first, "single failure must not arm recovery")
+        XCTAssertEqual(sm.credAction, .idle)
+        let second = await sm.handleCredentialRecovery()
+        XCTAssertTrue(second, "second consecutive failure should arm recovery")
+        if case .pendingRelogin = sm.credAction {} else {
+            XCTFail("expected pendingRelogin (no target), got \(sm.credAction)")
+        }
+    }
+
+    func testHealthyActiveResetsDebounce() async {
+        let sm = makeRecoverySM(activeDeadNoTarget())
+        _ = await sm.handleCredentialRecovery()             // counter = 1
+        sm.snapshotProvider = {
+            ListAccountsDTO(accounts: [self.view(1, active: true, credState: "ready")],
+                            activeAccountNumber: 1)
+        }
+        let healthy = await sm.handleCredentialRecovery()
+        XCTAssertFalse(healthy)
+        XCTAssertEqual(sm.consecutiveCredFailures[1], 0)
+        XCTAssertEqual(sm.credAction, .idle)
+    }
+
+    func testTransientErrorDoesNotCountTowardDebounce() async {
+        // needs_login but with a transient usage error set → treated transient.
+        let snap = ListAccountsDTO(accounts: [
+            AccountViewDTO(account: account(1), isActive: true, usage: nil,
+                           error: "rate limited", credentialState: "needs_login",
+                           credentialError: nil, subscriptionType: nil)
+        ], activeAccountNumber: 1)
+        let sm = makeRecoverySM(snap)
+        _ = await sm.handleCredentialRecovery()
+        _ = await sm.handleCredentialRecovery()
+        XCTAssertEqual(sm.consecutiveCredFailures[1], 0, "transient error must reset the streak")
+        XCTAssertEqual(sm.credAction, .idle)
+    }
+
+    func testRoutesToSwapWhenHealthyTargetExists() async {
+        let snap = ListAccountsDTO(accounts: [
+            view(1, active: true, credState: "needs_login"),
+            view(2, active: false, credState: "ready"),
+        ], activeAccountNumber: 1)
+        let sm = makeRecoverySM(snap)
+        _ = await sm.handleCredentialRecovery()
+        _ = await sm.handleCredentialRecovery()
+        if case .pendingSwap(let target, _) = sm.credAction {
+            XCTAssertEqual(target, 2)
+        } else {
+            XCTFail("expected pendingSwap(target: 2), got \(sm.credAction)")
+        }
+    }
+
+    func testAutoRecoverDisabledDoesNotArm() async {
+        let sm = makeRecoverySM(activeDeadNoTarget())
+        AppSettings.shared.autoRecoverEnabled = false
+        defer { AppSettings.shared.autoRecoverEnabled = true }
+        let handled = await sm.handleCredentialRecovery()
+        XCTAssertFalse(handled)
+        XCTAssertEqual(sm.credAction, .idle)
+    }
+
+    func testCancelSuppressesRearming() async {
+        let sm = makeRecoverySM(activeDeadNoTarget())
+        _ = await sm.handleCredentialRecovery()
+        _ = await sm.handleCredentialRecovery()   // armed
+        sm.cancelActiveRecovery()
+        XCTAssertEqual(sm.credAction, .idle)
+        XCTAssertNotNil(sm.credRecoverySuppressedUntil[1])
+        // Subsequent ticks must not re-arm while suppressed.
+        let again = await sm.handleCredentialRecovery()
+        XCTAssertFalse(again)
+        XCTAssertEqual(sm.credAction, .idle)
+    }
+
+    // MARK: - Auto-authorize budget (Phase 7)
+
+    func testAutoAuthorizeBudgetForcesManualSignInAfterCap() async {
+        let coord = CredentialRecoveryCoordinator()
+        coord.headlessRelogin = { _ in .succeeded(displayName: "u1", wroteLive: true) }
+        // 5 grants are allowed in the window; the 6th must be refused.
+        for _ in 0..<5 { _ = await coord.recover(accountNum: 1) }
+        XCTAssertFalse(coord.manualSignInRequired(1))
+        let sixth = await coord.recover(accountNum: 1)
+        XCTAssertNil(sixth, "6th unattended grant must be refused")
+        XCTAssertTrue(coord.manualSignInRequired(1), "budget exhaustion forces manual sign-in")
+    }
+
+    func testResetForRetryClearsBudgetAndStatus() async {
+        let coord = CredentialRecoveryCoordinator()
+        coord.headlessRelogin = { _ in .succeeded(displayName: "u1", wroteLive: true) }
+        for _ in 0..<5 { _ = await coord.recover(accountNum: 1) }
+        _ = await coord.recover(accountNum: 1)   // 6th refused → manual
+        XCTAssertTrue(coord.manualSignInRequired(1))
+        coord.resetForRetry(1)
+        XCTAssertTrue(coord.isEligible(1), "Retry must clear cooldown/budget and re-enable recovery")
+    }
 }
