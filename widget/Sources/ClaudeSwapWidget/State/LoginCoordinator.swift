@@ -21,6 +21,10 @@ final class LoginCoordinator: ObservableObject {
 
     private let window = FloatingWindow<AnyView>()
     private weak var store: AppStore?
+    /// Set by app wiring so the WebView add-account path (primary) can hand off
+    /// to the shared OAuth coordinator without the sheet needing it in its
+    /// environment (the wizard lives in its own floating window).
+    weak var quickRelogin: QuickReloginCoordinator?
 
     func attach(store: AppStore) { self.store = store }
 
@@ -36,6 +40,16 @@ final class LoginCoordinator: ObservableObject {
                     .environmentObject(self)
             )
         }
+    }
+
+    /// Primary add-account path: close the wizard window and hand off to the
+    /// shared WebView OAuth flow (a NEW account, fresh store). Carries the
+    /// chosen nickname through to the new-account ingest.
+    func beginWebViewAdd() {
+        let nick = pendingNickname
+        let q = quickRelogin
+        dismiss()
+        q?.beginAddAccount(nickname: nick)
     }
 
     func spawnTerminal(client: CswClient) async {

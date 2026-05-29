@@ -171,6 +171,9 @@ struct ClaudeSwapWidgetApp: App {
                     verifyCoordinator.attach(store: store)
                     webFallback.attach(store: store)
                     quickRelogin.attach(store: store, webFallback: webFallback, loginCoordinator: loginCoordinator)
+                    // Primary "Add account" path hands off to the shared OAuth
+                    // coordinator; the wizard window can't see it via environment.
+                    loginCoordinator.quickRelogin = quickRelogin
                     // Wire headless re-login into the recovery coordinator.
                     // The weak capture prevents a retain cycle between the two
                     // @StateObject instances (both live for app lifetime, but

@@ -52,6 +52,8 @@ func main() {
 		err = runSnapshotActive(ctx, svc, args)
 	case "ingest-oauth":
 		err = runIngestOAuth(ctx, svc, args)
+	case "add-oauth":
+		err = runAddAccountOAuth(ctx, svc, args)
 	case "cloud":
 		err = runCloud(ctx, svc, args)
 	case "mcp":
@@ -104,6 +106,8 @@ Commands:
   snapshot-active         Snapshot the active account's live creds into its backup slot
   ingest-oauth            Write a fresh OAuth payload (from in-app WebView re-login) to an account's slots
                           (stdin JSON: {accountNum, accessToken, refreshToken, expiresAt, scopes, subscriptionType, expectedEmail})
+  add-oauth               Create a NEW account from a WebView OAuth payload (dedupes by email+orgUuid, backup-only)
+                          (stdin JSON: {accessToken, refreshToken, expiresAt, scopes, subscriptionType, email, orgUuid, organizationName, nickname})
   cloud status            Show iCloud Drive bundle status
   cloud push              Encrypt and push accounts to iCloud Drive
   cloud pull              Restore accounts from iCloud Drive bundle

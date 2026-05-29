@@ -149,6 +149,42 @@ actor CswClient {
         )
     }
 
+    /// Creates a NEW account from a WebView OAuth payload (the add-account
+    /// primary flow). Dedupes by (email, orgUuid) server-side; writes only the
+    /// backup slot, never the live credential, so adding never disrupts the
+    /// running CLI session. `orgUuid` is required — the backend refuses to
+    /// dedupe without it rather than risk overwriting another org's account.
+    func addAccountFromOAuth(
+        accessToken: String,
+        refreshToken: String,
+        expiresAt: Int64,
+        scopes: [String],
+        subscriptionType: String?,
+        email: String,
+        orgUuid: String,
+        organizationName: String?,
+        nickname: String?
+    ) async throws -> AddAccountDTO {
+        var payload: [String: Any] = [
+            "accessToken": accessToken,
+            "refreshToken": refreshToken,
+            "expiresAt": expiresAt,
+            "scopes": scopes,
+            "email": email,
+            "orgUuid": orgUuid,
+        ]
+        if let sub = subscriptionType, !sub.isEmpty { payload["subscriptionType"] = sub }
+        if let org = organizationName, !org.isEmpty { payload["organizationName"] = org }
+        if let nick = nickname, !nick.isEmpty { payload["nickname"] = nick }
+        let data = try JSONSerialization.data(withJSONObject: payload)
+        let raw = String(data: data, encoding: .utf8) ?? "{}"
+        return try await runWithStdinDecoding(
+            ["add-oauth", "--json"],
+            stdin: raw,
+            decode: AddAccountDTO.self
+        )
+    }
+
     private func runWithStdinDecoding<T: Decodable>(
         _ args: [String],
         stdin payload: String,

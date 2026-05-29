@@ -76,6 +76,15 @@ final class QuickReloginCoordinator: ObservableObject {
     // without touching the in-flight attempt's state.
     private var inFlight = false
 
+    // Add-account mode: when true the exchanged token is routed to the backend
+    // "create new account" use case (dedupe by identity, backup-only) instead
+    // of re-login ingest. There is no target account, so the re-login identity
+    // guard does not apply — add-account is safe by construction (it can only
+    // create a new slot or refresh the matched identity, never overwrite an
+    // arbitrary slot). Reset in clearFlight so a later re-login is unaffected.
+    private var isAddAccount = false
+    private var addNickname = ""
+
     // Reserved hook for an external observer of the interactive flow's terminal
     // result (e.g. resetting a recovery status after a manual re-login).
     // Currently never assigned — `finishInteractive` reads it as nil and the
@@ -165,6 +174,56 @@ final class QuickReloginCoordinator: ObservableObject {
         attempt = nil
         isPresentingInteractive = false
         clearFlight()
+    }
+
+    // MARK: - Add-account entry point
+
+    /// Opens the interactive WebView OAuth flow to add a NEW account. Uses a
+    /// FRESH non-persistent data store so the user can sign into any identity
+    /// (not pinned to an existing account's cookies) and no claude.ai session
+    /// leaks into another account's store. The exchanged token is routed to the
+    /// backend "create new account" use case via [[exchangeAndAdd]].
+    func beginAddAccount(nickname: String = "") {
+        guard !inFlight else {
+            DiagnosticsLogger.shared.log(.warning, subsystem: "relogin",
+                "beginAddAccount ignored — attempt already in flight")
+            return
+        }
+        inFlight = true
+        isAddAccount = true
+        addNickname = nickname
+        account = nil
+        step = .loading
+        let attempt = OAuthLoginEngine.Attempt()
+        self.attempt = attempt
+        guard let url = engine.buildAuthorizeURL(attempt) else {
+            self.step = .failed("Could not build authorize URL.")
+            self.attempt = nil
+            clearFlight()
+            return
+        }
+        // Fresh non-persistent store: add-account must not reuse another
+        // account's claude.ai cookies, and the store dies with the sheet.
+        self.dataStore = .nonPersistent()
+
+        window.show(
+            title: "Add account",
+            size: NSSize(width: 720, height: 720)
+        ) {
+            AnyView(
+                QuickReloginSheet(
+                    initialURL: url,
+                    dataStore: self.dataStore ?? .nonPersistent()
+                )
+                .environmentObject(self)
+            )
+        }
+        isPresentingInteractive = true
+        window.onClose = { [weak self] in
+            self?.attempt = nil
+            self?.isPresentingInteractive = false
+            self?.clearFlight()
+        }
     }
 
     // MARK: - Headless entry point
@@ -267,6 +326,12 @@ final class QuickReloginCoordinator: ObservableObject {
         // its input, React hydration replays) cannot trigger a duplicate
         // exchange with the same code.
         attempt = nil
+        if isAddAccount {
+            let result = await exchangeAndAdd(joined: joined, attempt: current)
+            applyStepFromOutcome(result)
+            finishInteractive(outcome: result)
+            return
+        }
         guard let account else {
             finishInteractive(outcome: .failed("Internal error: no target account."))
             return
@@ -364,6 +429,54 @@ final class QuickReloginCoordinator: ObservableObject {
         }
     }
 
+    /// Add-account variant of [[exchangeAndIngest]]: exchanges the code, then
+    /// routes the token to the backend "create new account" use case. Requires
+    /// both email and orgUuid from the exchange response — if the org is
+    /// missing the backend cannot safely dedupe, so we fail fast here with a
+    /// clear message rather than send an unsafe request.
+    private func exchangeAndAdd(
+        joined: String,
+        attempt: OAuthLoginEngine.Attempt
+    ) async -> ReloginOutcome {
+        let parts = joined.split(separator: "#", maxSplits: 1).map(String.init)
+        guard parts.count == 2 else {
+            return .failed("Auth code format unexpected (no `#` separator).")
+        }
+        guard parts[1] == attempt.state else {
+            return .failed("OAuth state mismatch — refusing to use this code.")
+        }
+        guard let store else {
+            return .failed("Internal error: no store reference.")
+        }
+        do {
+            let payload = try await engine.exchangeCode(
+                code: parts[0], state: parts[1], verifier: attempt.verifier)
+            guard let email = payload.signedInEmail, !email.isEmpty else {
+                return .failed("Could not read the signed-in email from Anthropic's response.")
+            }
+            guard let orgUuid = payload.organizationUuid, !orgUuid.isEmpty else {
+                return .failed("Anthropic did not return an organization for this sign-in, so the account can't be added safely. Use the Terminal flow instead.")
+            }
+            let res = try await store.client.addAccountFromOAuth(
+                accessToken: payload.accessToken,
+                refreshToken: payload.refreshToken,
+                expiresAt: payload.expiresAt,
+                scopes: payload.scopes,
+                subscriptionType: nil,
+                email: email,
+                orgUuid: orgUuid,
+                organizationName: nil,
+                nickname: addNickname
+            )
+            await store.refreshNow()
+            // Add-account writes only the backup slot, so wroteLive is always
+            // false — the running CLI session is never disturbed.
+            return .succeeded(displayName: res.account.displayName, wroteLive: false)
+        } catch {
+            return .failed(error.localizedDescription)
+        }
+    }
+
     /// Calls `csw ingest-oauth` and maps the result to a `ReloginOutcome`.
     private func ingest(
         payload: OAuthLoginEngine.ExchangedToken,
@@ -432,9 +545,12 @@ final class QuickReloginCoordinator: ObservableObject {
     }
 
     /// Clears the single-flight guard. Called when an attempt fully completes
-    /// (success, failure, or window close).
+    /// (success, failure, or window close). Also resets add-account mode so a
+    /// subsequent re-login is never misrouted to the add-account path.
     private func clearFlight() {
         inFlight = false
+        isAddAccount = false
+        addNickname = ""
     }
 }
 

@@ -23,7 +23,7 @@ struct AddAccountSheet: View {
     private var header: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text("Add Claude account").font(.title2).fontWeight(.semibold)
-            Text("Snapshot a logged-in Claude account into the widget.")
+            Text("Sign into a Claude account and add it to the widget.")
                 .font(.subheadline).foregroundColor(.secondary)
         }
     }
@@ -46,15 +46,19 @@ struct AddAccountSheet: View {
 
     private var introStep: some View {
         VStack(alignment: .leading, spacing: 12) {
-            stepRow(1, "Pick a profile name (optional, can be renamed later).")
+            Text("Profile name (optional, can be renamed later)")
+                .font(.callout).foregroundColor(.secondary)
             TextField("e.g. Personal, Work, Side project", text: $loginCoordinator.pendingNickname)
                 .textFieldStyle(.roundedBorder)
-            stepRow(2, "We’ll open a Terminal window with `claude` ready to go.")
-            stepRow(3, "Run `/login` in that terminal, finish the browser OAuth.")
-            stepRow(4, "Return here and click \"I’m logged in\".")
             Label(
-                "Always add new accounts through this wizard — running `claude /login` outside it can invalidate the active account's saved login.",
-                systemImage: "info.circle"
+                "Sign in with your browser — a Claude login window opens, you authorise, and the account is added automatically. No Terminal needed.",
+                systemImage: "globe"
+            )
+            .font(.callout)
+            .fixedSize(horizontal: false, vertical: true)
+            Label(
+                "Prefer the command line? Use the Terminal flow (`claude /login`) instead — same result, a few more steps.",
+                systemImage: "terminal"
             )
             .font(.caption)
             .foregroundColor(.secondary)
@@ -107,8 +111,11 @@ struct AddAccountSheet: View {
             Spacer()
             switch loginCoordinator.step {
             case .intro:
-                Button("Open Terminal") {
+                Button("Use Terminal instead") {
                     Task { await loginCoordinator.spawnTerminal(client: store.client) }
+                }
+                Button("Sign in with browser") {
+                    loginCoordinator.beginWebViewAdd()
                 }
                 .keyboardShortcut(.defaultAction)
             case .terminalSpawned:
