@@ -13,9 +13,9 @@
     <key>CFBundleIdentifier</key>
     <string>dev.ncthanhngo.claude-bar</string>
     <key>CFBundleVersion</key>
-    <string>11.30</string>
+    <string>11.31</string>
     <key>CFBundleShortVersionString</key>
-    <string>11.30</string>
+    <string>11.31</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleSignature</key>
@@ -35,7 +35,7 @@
     <key>NSHumanReadableCopyright</key>
     <string>Copyright © 2026 Thanh Ngô. Licensed under MIT.</string>
     <key>CFBundleGetInfoString</key>
-    <string>Claude Bar 11.30 — menu-bar manager for multiple Claude Code accounts</string>
+    <string>Claude Bar 11.31 — menu-bar manager for multiple Claude Code accounts</string>
     <key>CBAuthorName</key>
     <string>Thanh Ngô</string>
     <key>CBAuthorEmail</key>
@@ -49,14 +49,13 @@
     <key>CBReleaseChannel</key>
     <string>Beta</string>
     <key>CBReleaseWhatsNew</key>
-    <string>Right-click an account → Quick re-login… signs in inside the app instead of bouncing through Terminal and the browser.
-Reuses your existing claude.ai web session so most accounts re-login in a single Authorize click.
-The classic Terminal-based add-account flow is unchanged and still available as a one-click fallback.</string>
+    <string>Quick re-login of the active account now auto-restarts your `claude` terminal and resumes the same conversation — no context lost.
+Cmux panes and supported IDEs (VSCode/Cursor/Windsurf/Antigravity) reload too, respecting your existing post-swap toggles.</string>
     <key>CBReleaseHotfixes</key>
-    <string>None</string>
+    <string>Fixed: after Quick re-login, the running `claude` kept using old tokens until you restarted it manually.</string>
     <key>CBReleaseKnownIssues</key>
     <string>Quick re-login depends on Anthropic's authorize URL staying stable; if it ever fails, use the Terminal fallback button in the sheet.
-Auto-swap does not kill the running `claude` process; enable Auto-kill CLI sessions to restart it automatically via claude-watch.
+Auto-restart after re-login obeys "Auto-kill CLI sessions" / "Auto-reload IDE after swap" — leave both off if you want manual control.
 MCP hot-reload kills any in-flight Claude response and unsaved typed input — wait for idle before toggling MCP.</string>
     <key>CFBundleDevelopmentRegion</key>
     <string>en</string>
