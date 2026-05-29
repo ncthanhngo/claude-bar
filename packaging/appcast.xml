@@ -12,6 +12,28 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 11.27 (BETA)</title>
+      <sparkle:version>11.27</sparkle:version>
+      <sparkle:shortVersionString>11.27</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li><strong>Hotfix:</strong> auto-swap no longer stalls silently when a <code>claude</code> session is still running. After the 60-second pending notification, the swap now fires regardless of session state. Users running <code>claude</code> continuously had been seeing the "Auto-swap pending" toast but no actual swap.</li>
+          <li><strong>Behaviour change:</strong> the 60s grace is the entire warning window — close <code>claude</code> within those 60s if you want it to finish cleanly first. Auto-swap still does NOT kill the running process; enable <strong>Auto-kill CLI sessions after swap</strong> if you want <code>claude-watch</code> to SIGINT and restart it.</li>
+          <li>Notification copy updated: "Will switch to … in 60s. Close claude now if you want it to finish cleanly first."</li>
+          <li>Closes <a href="https://github.com/ncthanhngo/claude-bar/issues/18">#18</a>.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Fri, 29 May 2026 11:18:41 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v11.27/ClaudeBar.zip"
+        sparkle:version="11.27"
+        sparkle:shortVersionString="11.27"
+        sparkle:edSignature="nnJFn6PUoKU888EvIiULSldri/V2CW38YEc761fGY/wG1fnvBw9CbXx3q1/lYU6xmxuHQ0qYaKYLagjabAU/Dw=="
+        length="7988605"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 11.26 (BETA)</title>
       <sparkle:version>11.26</sparkle:version>
       <sparkle:shortVersionString>11.26</sparkle:shortVersionString>

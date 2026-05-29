@@ -13,9 +13,9 @@
     <key>CFBundleIdentifier</key>
     <string>dev.ncthanhngo.claude-bar</string>
     <key>CFBundleVersion</key>
-    <string>11.26</string>
+    <string>11.27</string>
     <key>CFBundleShortVersionString</key>
-    <string>11.26</string>
+    <string>11.27</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleSignature</key>
@@ -35,7 +35,7 @@
     <key>NSHumanReadableCopyright</key>
     <string>Copyright © 2026 Thanh Ngô. Licensed under MIT.</string>
     <key>CFBundleGetInfoString</key>
-    <string>Claude Bar 11.26 — menu-bar manager for multiple Claude Code accounts</string>
+    <string>Claude Bar 11.27 — menu-bar manager for multiple Claude Code accounts</string>
     <key>CBAuthorName</key>
     <string>Thanh Ngô</string>
     <key>CBAuthorEmail</key>
@@ -45,17 +45,17 @@
     <key>CBLicense</key>
     <string>MIT</string>
     <key>CBBuildDate</key>
-    <string>2026-05-28</string>
+    <string>2026-05-29</string>
     <key>CBReleaseChannel</key>
     <string>Beta</string>
     <key>CBReleaseWhatsNew</key>
-    <string>None — hotfix release.</string>
+    <string>Auto-swap now fires reliably after the 60-second grace warning instead of stalling when a `claude` session is still running.</string>
     <key>CBReleaseHotfixes</key>
-    <string>Fixed: gated MCP write prompts (Slack post, etc.) called inside a subagent / skill now surface — previously timed out with `user_cancelled` after 60s.</string>
+    <string>Fixed: auto-swap never firing when `claude` stayed open past the threshold notification — now swaps after the 60s grace regardless. (#18)</string>
     <key>CBReleaseKnownIssues</key>
-    <string>MCP hot-reload kills any in-flight Claude response and unsaved typed input — wait for idle before toggling MCP.
+    <string>Swap does not kill the running `claude` process; enable Auto-kill CLI sessions to restart it automatically via claude-watch.
+MCP hot-reload kills any in-flight Claude response and unsaved typed input — wait for idle before toggling MCP.
 Web-poll cycle loads a WKWebView per linked account; disable web-link on less-used accounts if you have many.
-Old Google tokens lack `spreadsheets` / `drive.file` scopes — Disconnect + Reconnect Google to enable Sheets write and Drive sharing.
 Menu-bar popover dismisses when the Rename window opens (macOS menu-bar behaviour); reopen to see the new name.</string>
     <key>CFBundleDevelopmentRegion</key>
     <string>en</string>
