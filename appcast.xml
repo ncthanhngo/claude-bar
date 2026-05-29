@@ -12,6 +12,28 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 11.31 (BETA)</title>
+      <sparkle:version>11.31</sparkle:version>
+      <sparkle:shortVersionString>11.31</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li><strong>Quick re-login auto-restarts the running `claude` and resumes the conversation.</strong> After a Quick re-login of the active account, the in-memory tokens held by the running CLI are no longer stale — Claude Bar now sends SIGINT and lets <code>claude-watch</code> re-launch the child with <code>claude --resume &lt;sessionId&gt;</code>, so the conversation continues without context loss.</li>
+          <li><strong>Cmux panes get the same treatment.</strong> <code>CmuxPaneRelauncher</code> walks every active <code>claude</code> pane, sends <code>Ctrl-C</code> + <code>claude --resume &lt;sid&gt;</code>, and the user keeps their conversation across the OAuth refresh.</li>
+          <li><strong>IDE windows reload if you opt in.</strong> VSCode / Cursor / Windsurf / Antigravity reload when <em>Auto-reload IDE after swap</em> is on, so the extension picks up the freshly-written tokens without a manual reload command.</li>
+          <li><strong>Reuses the existing post-swap toggles.</strong> No new settings: the Quick re-login flow respects <code>Auto-kill CLI sessions</code> and <code>Auto-reload IDE after swap</code>. Inactive-account re-logins skip the pipeline since no running CLI is affected.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Fri, 29 May 2026 13:56:12 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v11.31/ClaudeBar.zip"
+        sparkle:version="11.31"
+        sparkle:shortVersionString="11.31"
+        sparkle:edSignature="IIs9yvEdSH4IsFA8AsXe8pIqKVwEgRTKdMdvId5eI2JkJEzcfM4JsDlrw2Iad3Z8Uo7g9gtugos6bGiDRwzgDw=="
+        length="8039205"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 11.30 (BETA)</title>
       <sparkle:version>11.30</sparkle:version>
       <sparkle:shortVersionString>11.30</sparkle:shortVersionString>
