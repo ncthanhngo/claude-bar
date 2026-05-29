@@ -345,7 +345,14 @@ final class AppStore: ObservableObject {
         swapError = nil
     }
 
-    private func schedulePostSwapIntegrations() {
+    /// Fires the SIGINT-then-`claude-watch --resume`, IDE reload, and cmux
+    /// pane relaunch pipeline. Called from the swap path and from
+    /// [[QuickReloginCoordinator]] when an active account's tokens have just
+    /// been rewritten — semantically the same situation as a swap to the
+    /// "same account, fresh credentials", so it reuses the same toggles
+    /// (`autoKillCLIAfterSwap`, `autoReloadIDEAfterSwap`) and the always-on
+    /// cmux relauncher.
+    func schedulePostSwapIntegrations() {
         Task { [weak self] in
             await self?.restartCLISessionsAfterSwap()
         }
