@@ -123,9 +123,45 @@ final class QuickReloginCoordinator: ObservableObject {
         oauthState = nil
     }
 
-    /// Called by the embedded WebView when WKNavigationDelegate spots the
-    /// redirect_uri being navigated to. Pulls `code` + `state` from the
-    /// querystring, validates them, and drives the rest of the flow.
+    /// Called when the embedded WebView's DOM scan finds the rendered
+    /// "Authentication Code" page Anthropic's OAuth server shows after the
+    /// user clicks Authorize. The code on that page is the `<code>#<state>`
+    /// concatenation Claude Code CLI normally asks the user to paste into
+    /// the terminal — we split it, validate the state, and drive the rest
+    /// of the flow without making the user copy/paste.
+    func handleManualAuthCode(_ joined: String) async {
+        guard let expectedState = oauthState, let verifier = pkceVerifier else { return }
+        // Consume PKCE pair atomically so a second DOM scan (page re-renders
+        // its input, React hydration replays) cannot trigger a duplicate
+        // exchange with the same code.
+        pkceVerifier = nil
+        oauthState = nil
+
+        let parts = joined.split(separator: "#", maxSplits: 1).map(String.init)
+        guard parts.count == 2 else {
+            step = .failed("Auth code format unexpected (no `#` separator).")
+            return
+        }
+        let code = parts[0]
+        let receivedState = parts[1]
+        guard receivedState == expectedState else {
+            step = .failed("OAuth state mismatch — refusing to use this code.")
+            return
+        }
+
+        step = .exchanging
+        do {
+            let payload = try await exchangeCode(code: code, verifier: verifier)
+            try await ingest(payload: payload)
+        } catch {
+            step = .failed(error.localizedDescription)
+        }
+    }
+
+    /// Legacy redirect-callback path. Kept as a safety net in case Anthropic
+    /// ever migrates the CLI OAuth client to a machine-readable redirect_uri
+    /// — current Claude Code flow renders the manual-paste page instead, so
+    /// this path is not exercised today.
     func handleRedirect(_ url: URL) async {
         guard let expectedState = oauthState, let verifier = pkceVerifier else { return }
         // Consume the PKCE pair immediately so a second navigation to the
