@@ -1,5 +1,4 @@
 import AppKit
-import CryptoKit
 import Foundation
 import SwiftUI
 import WebKit
@@ -12,8 +11,8 @@ import WebKit
 /// 2. Load `claude.ai/oauth/authorize` for the Claude Code CLI's client_id.
 /// 3. Intercept the redirect to `console.anthropic.com/oauth/code/callback`.
 /// 4. Exchange the `code` for an OAuth payload at `platform.claude.com`.
-/// 5. Decode the access_token JWT to read the signed-in email and confirm it
-///    matches the account the user right-clicked — refuses to overwrite
+/// 5. Read the signed-in email from the token-exchange response and confirm
+///    it matches the account the user right-clicked — refuses to overwrite
 ///    Account-A's tokens when the consent screen authorised Account-B.
 /// 6. Pipe the payload to `csw ingest-oauth` (writes backup + live slot).
 ///
@@ -40,19 +39,12 @@ final class QuickReloginCoordinator: ObservableObject {
     private weak var webFallback: WebFallbackCoordinator?
     private weak var loginCoordinator: LoginCoordinator?
 
-    // PKCE state lives for the duration of one re-login attempt.
-    private var pkceVerifier: String?
-    private var oauthState: String?
+    // Stateless OAuth primitives (authorize URL, PKCE, token exchange).
+    private let engine = OAuthLoginEngine()
+    // The PKCE pair + `state` for the current attempt; nil between attempts and
+    // consumed atomically on first use so a replayed DOM scan can't double-exchange.
+    private var attempt: OAuthLoginEngine.Attempt?
     private var dataStore: WKWebsiteDataStore?
-
-    // OAuth client constants — must match the Claude Code CLI's registration
-    // (same client_id the Go TokenRefresher already uses at
-    // backend/internal/adapter/oauth/token_refresher.go).
-    private let clientID = "9d1c250a-e61b-44d9-88ed-5944d1962f5e"
-    private let authorizeURL = "https://claude.ai/oauth/authorize"
-    private let tokenURL = URL(string: "https://platform.claude.com/v1/oauth/token")!
-    private let redirectURI = "https://console.anthropic.com/oauth/code/callback"
-    private let scope = "org:create_api_key user:profile user:inference"
 
     func attach(store: AppStore, webFallback: WebFallbackCoordinator, loginCoordinator: LoginCoordinator) {
         self.store = store
@@ -80,10 +72,9 @@ final class QuickReloginCoordinator: ObservableObject {
     func begin(for account: AccountDTO) {
         self.account = account
         self.step = .loading
-        self.pkceVerifier = Self.makeCodeVerifier()
-        self.oauthState = Self.makeRandomState()
-        guard let verifier = pkceVerifier, let state = oauthState else { return }
-        guard let url = buildAuthorizeURL(verifier: verifier, state: state) else {
+        let attempt = OAuthLoginEngine.Attempt()
+        self.attempt = attempt
+        guard let url = engine.buildAuthorizeURL(attempt) else {
             self.step = .failed("Could not build authorize URL.")
             return
         }
@@ -113,16 +104,13 @@ final class QuickReloginCoordinator: ObservableObject {
         }
         window.onClose = { [weak self] in
             // User closed the window mid-flow — drop any in-flight state.
-            guard let self else { return }
-            self.pkceVerifier = nil
-            self.oauthState = nil
+            self?.attempt = nil
         }
     }
 
     func dismiss() {
         window.close()
-        pkceVerifier = nil
-        oauthState = nil
+        attempt = nil
     }
 
     /// Called when the embedded WebView's DOM scan finds the rendered
@@ -132,12 +120,13 @@ final class QuickReloginCoordinator: ObservableObject {
     /// the terminal — we split it, validate the state, and drive the rest
     /// of the flow without making the user copy/paste.
     func handleManualAuthCode(_ joined: String) async {
-        guard let expectedState = oauthState, let verifier = pkceVerifier else { return }
-        // Consume PKCE pair atomically so a second DOM scan (page re-renders
+        guard let current = attempt else { return }
+        // Consume the attempt atomically so a second DOM scan (page re-renders
         // its input, React hydration replays) cannot trigger a duplicate
         // exchange with the same code.
-        pkceVerifier = nil
-        oauthState = nil
+        attempt = nil
+        let expectedState = current.state
+        let verifier = current.verifier
 
         DiagnosticsLogger.shared.log(.info, subsystem: "relogin",
             "captured auth code len=\(joined.count) hasHash=\(joined.contains("#")) prefix=\(joined.prefix(8))…")
@@ -155,7 +144,7 @@ final class QuickReloginCoordinator: ObservableObject {
 
         step = .exchanging
         do {
-            let payload = try await exchangeCode(code: code, state: receivedState, verifier: verifier)
+            let payload = try await engine.exchangeCode(code: code, state: receivedState, verifier: verifier)
             try await ingest(payload: payload)
         } catch {
             step = .failed(error.localizedDescription)
@@ -167,14 +156,15 @@ final class QuickReloginCoordinator: ObservableObject {
     /// — current Claude Code flow renders the manual-paste page instead, so
     /// this path is not exercised today.
     func handleRedirect(_ url: URL) async {
-        guard let expectedState = oauthState, let verifier = pkceVerifier else { return }
-        // Consume the PKCE pair immediately so a second navigation to the
+        guard let current = attempt else { return }
+        // Consume the attempt immediately so a second navigation to the
         // callback URL (back-button, redirect chain replay) cannot trigger
         // a second exchange with the same code — the token endpoint would
         // return 400 and the sheet would surface a `.failed` state for what
         // is actually a succeeded flow.
-        pkceVerifier = nil
-        oauthState = nil
+        attempt = nil
+        let expectedState = current.state
+        let verifier = current.verifier
         guard let comps = URLComponents(url: url, resolvingAgainstBaseURL: false),
               let items = comps.queryItems else {
             step = .failed("Callback URL is missing query parameters.")
@@ -198,76 +188,14 @@ final class QuickReloginCoordinator: ObservableObject {
 
         step = .exchanging
         do {
-            let payload = try await exchangeCode(code: code, state: receivedState, verifier: verifier)
+            let payload = try await engine.exchangeCode(code: code, state: receivedState, verifier: verifier)
             try await ingest(payload: payload)
         } catch {
             step = .failed(error.localizedDescription)
         }
     }
 
-    private func exchangeCode(code: String, state: String, verifier: String) async throws -> ExchangedToken {
-        var req = URLRequest(url: tokenURL)
-        req.httpMethod = "POST"
-        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        req.setValue("claude-bar-relogin/0.1", forHTTPHeaderField: "User-Agent")
-        // Claude Code's token endpoint requires the `state` value back in the
-        // exchange body — it is the second half of the `code#state` string the
-        // Authorization Code page renders. Omitting it yields a 400
-        // "Invalid request format" even though the code + verifier are valid.
-        let body: [String: Any] = [
-            "grant_type": "authorization_code",
-            "code": code,
-            "state": state,
-            "code_verifier": verifier,
-            "client_id": clientID,
-            "redirect_uri": redirectURI,
-        ]
-        req.httpBody = try JSONSerialization.data(withJSONObject: body)
-
-        DiagnosticsLogger.shared.log(.info, subsystem: "relogin",
-            "exchange POST \(tokenURL.absoluteString) keys=\(body.keys.sorted().joined(separator: ",")) code=\(code.prefix(6))… state=\(state.prefix(6))… verifierLen=\(verifier.count)")
-
-        let (data, resp) = try await URLSession.shared.data(for: req)
-        guard let http = resp as? HTTPURLResponse else {
-            throw NSError(domain: "QuickRelogin", code: -1,
-                          userInfo: [NSLocalizedDescriptionKey: "No HTTP response."])
-        }
-        if http.statusCode >= 400 {
-            let body = String(data: data, encoding: .utf8) ?? "<binary>"
-            DiagnosticsLogger.shared.log(.warning, subsystem: "relogin",
-                "exchange FAIL \(http.statusCode) — \(body.prefix(300))")
-            throw NSError(domain: "QuickRelogin", code: http.statusCode,
-                          userInfo: [NSLocalizedDescriptionKey: "Token endpoint \(http.statusCode): \(body.prefix(180))"])
-        }
-        DiagnosticsLogger.shared.log(.info, subsystem: "relogin", "exchange OK \(http.statusCode)")
-        struct Wire: Decodable {
-            let access_token: String
-            let refresh_token: String?
-            let expires_in: Int64?
-            let scope: String?
-        }
-        let wire = try JSONDecoder().decode(Wire.self, from: data)
-        guard !wire.access_token.isEmpty, let rt = wire.refresh_token, !rt.isEmpty else {
-            throw NSError(domain: "QuickRelogin", code: -2,
-                          userInfo: [NSLocalizedDescriptionKey: "Token endpoint returned no usable token pair."])
-        }
-        let nowMillis = Int64(Date().timeIntervalSince1970 * 1000)
-        let lifetimeSec = wire.expires_in ?? 3600
-        let expiresAt = nowMillis + lifetimeSec * 1000
-        let scopes: [String] = (wire.scope ?? scope)
-            .split(separator: " ")
-            .map(String.init)
-        let signedInEmail = Self.emailFromJWT(wire.access_token)
-        return ExchangedToken(
-            accessToken: wire.access_token,
-            refreshToken: rt,
-            expiresAt: expiresAt,
-            scopes: scopes,
-            signedInEmail: signedInEmail
-        )
-    }
-
-    private func ingest(payload: ExchangedToken) async throws {
+    private func ingest(payload: OAuthLoginEngine.ExchangedToken) async throws {
         guard let account, let store else {
             step = .failed("Internal error: no target account.")
             return
@@ -311,86 +239,6 @@ final class QuickReloginCoordinator: ObservableObject {
         }
     }
 
-    // MARK: - PKCE / URL helpers
-
-    private func buildAuthorizeURL(verifier: String, state: String) -> URL? {
-        var comps = URLComponents(string: authorizeURL)
-        let challenge = Self.codeChallenge(for: verifier)
-        comps?.queryItems = [
-            URLQueryItem(name: "code", value: "true"),
-            URLQueryItem(name: "client_id", value: clientID),
-            URLQueryItem(name: "response_type", value: "code"),
-            URLQueryItem(name: "redirect_uri", value: redirectURI),
-            URLQueryItem(name: "scope", value: scope),
-            URLQueryItem(name: "code_challenge", value: challenge),
-            URLQueryItem(name: "code_challenge_method", value: "S256"),
-            URLQueryItem(name: "state", value: state),
-        ]
-        return comps?.url
-    }
-
-    fileprivate func isCallback(_ url: URL) -> Bool {
-        guard let comps = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return false }
-        return (comps.host?.lowercased() == "console.anthropic.com")
-            && (comps.path == "/oauth/code/callback")
-    }
-
-    private static func makeCodeVerifier() -> String {
-        var bytes = [UInt8](repeating: 0, count: 48)
-        _ = SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes)
-        return base64URL(Data(bytes))
-    }
-
-    private static func makeRandomState() -> String {
-        var bytes = [UInt8](repeating: 0, count: 24)
-        _ = SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes)
-        return base64URL(Data(bytes))
-    }
-
-    private static func codeChallenge(for verifier: String) -> String {
-        let digest = SHA256.hash(data: Data(verifier.utf8))
-        return base64URL(Data(digest))
-    }
-
-    private static func base64URL(_ data: Data) -> String {
-        data.base64EncodedString()
-            .replacingOccurrences(of: "+", with: "-")
-            .replacingOccurrences(of: "/", with: "_")
-            .replacingOccurrences(of: "=", with: "")
-    }
-
-    private static func base64URLDecode(_ s: String) -> Data? {
-        var v = s.replacingOccurrences(of: "-", with: "+")
-                 .replacingOccurrences(of: "_", with: "/")
-        let pad = 4 - v.count % 4
-        if pad < 4 { v += String(repeating: "=", count: pad) }
-        return Data(base64Encoded: v)
-    }
-
-    /// Lifts the `email` claim out of an access_token shaped like a JWT.
-    /// Returns nil when the token isn't a JWT or the claim is absent — the
-    /// caller then skips the identity guard rather than rejecting on a
-    /// false-negative.
-    private static func emailFromJWT(_ jwt: String) -> String? {
-        let parts = jwt.split(separator: ".")
-        guard parts.count >= 2 else { return nil }
-        guard let data = base64URLDecode(String(parts[1])),
-              let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-            return nil
-        }
-        if let email = obj["email"] as? String { return email }
-        if let email = obj["preferred_username"] as? String,
-           email.contains("@") { return email }
-        return nil
-    }
-
-    fileprivate struct ExchangedToken {
-        let accessToken: String
-        let refreshToken: String
-        let expiresAt: Int64
-        let scopes: [String]
-        let signedInEmail: String?
-    }
 }
 
 extension WebFallbackCoordinator {
