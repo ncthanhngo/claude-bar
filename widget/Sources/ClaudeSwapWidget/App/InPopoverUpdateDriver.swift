@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import Sparkle
 
@@ -231,6 +232,18 @@ final class InPopoverUpdateDriver: NSObject, ObservableObject, SPUUserDriver {
                               retryTerminatingApplication: @escaping () -> Void) {
         retryTerminationHandler = retryTerminatingApplication
         stage = .installing
+        // Pre-#20: nothing in this app responded to the install-and-relaunch
+        // signal, so after the installer extracted the new bundle the host
+        // process just sat there. Sparkle's installer waits for the host
+        // PID to exit before swapping bundles + relaunching — without an
+        // explicit terminate the user saw a "loading" menu-bar icon for
+        // 10–20 minutes until some incidental runloop event (e.g. clicking
+        // the icon) nudged it. Quit ourselves so Sparkle's TerminationListener
+        // fires immediately and the new build launches right away.
+        guard !applicationTerminated else { return }
+        DispatchQueue.main.async {
+            NSApp.terminate(nil)
+        }
     }
 
     func showUpdateInstalledAndRelaunched(_ relaunched: Bool, acknowledgement: @escaping () -> Void) {
