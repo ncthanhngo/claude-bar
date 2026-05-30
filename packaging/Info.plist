@@ -13,9 +13,9 @@
     <key>CFBundleIdentifier</key>
     <string>dev.ncthanhngo.claude-bar</string>
     <key>CFBundleVersion</key>
-    <string>11.34</string>
+    <string>11.35</string>
     <key>CFBundleShortVersionString</key>
-    <string>11.34</string>
+    <string>11.35</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleSignature</key>
@@ -35,7 +35,7 @@
     <key>NSHumanReadableCopyright</key>
     <string>Copyright © 2026 Thanh Ngô. Licensed under MIT.</string>
     <key>CFBundleGetInfoString</key>
-    <string>Claude Bar 11.34 — menu-bar manager for multiple Claude Code accounts</string>
+    <string>Claude Bar 11.35 — menu-bar manager for multiple Claude Code accounts</string>
     <key>CBAuthorName</key>
     <string>Thanh Ngô</string>
     <key>CBAuthorEmail</key>
@@ -45,17 +45,20 @@
     <key>CBLicense</key>
     <string>MIT</string>
     <key>CBBuildDate</key>
-    <string>2026-05-29</string>
+    <string>2026-05-30</string>
     <key>CBReleaseChannel</key>
     <string>Beta</string>
     <key>CBReleaseWhatsNew</key>
-    <string>Quick re-login is now fully automatic — one right-click signs you back in.
-Auto-clicks Authorize and shows a clear success screen when it's done.</string>
+    <string>Your active account now auto-recovers in the background when its login expires — no manual steps.
+Add accounts with a built-in browser sign-in; the Terminal flow stays as a fallback.
+A "Log in" button and a pulsing glow show when an account needs you.
+Cancel or retry a recovery straight from its notification.
+New Auto-recovery controls under Settings → General.</string>
     <key>CBReleaseHotfixes</key>
-    <string>Fixed: Quick re-login failed with a 400 "Invalid request format" — the OAuth exchange was missing the state value, so no tokens were ever saved.</string>
+    <string>None</string>
     <key>CBReleaseKnownIssues</key>
-    <string>If your claude.ai web session has expired, you still sign in once before it auto-completes; the Terminal fallback stays in the sheet.
-Quick re-login depends on Anthropic's authorize page layout staying stable.</string>
+    <string>Background recovery is new — covered by tests but not yet exercised live against every failure case.
+If your claude.ai web session has expired, you sign in once before recovery completes.</string>
     <key>CFBundleDevelopmentRegion</key>
     <string>en</string>
     <key>CFBundleLocalizations</key>
