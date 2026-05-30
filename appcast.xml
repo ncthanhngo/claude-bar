@@ -12,6 +12,29 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 11.35</title>
+      <sparkle:version>11.35</sparkle:version>
+      <sparkle:shortVersionString>11.35</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li><strong>Automatic credential recovery</strong> — when your active account's login expires, Claude Bar re-authenticates it in the background and swaps accounts if needed.</li>
+          <li><strong>Browser-first add account</strong> — adding an account now uses an in-app browser sign-in, with the Terminal flow kept as a fallback.</li>
+          <li><strong>Visible recovery</strong> — a pulsing glow marks the account being recovered, and a "Log in" button appears if it needs your input.</li>
+          <li><strong>Actionable notifications</strong> — Cancel or Retry a recovery directly from its notification.</li>
+          <li><strong>Auto-recovery settings</strong> — new toggle and swap / re-login delay controls under Settings → General, plus a per-account auto-authorize budget that prevents retry loops.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Sat, 30 May 2026 09:49:00 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v11.35/ClaudeBar.zip"
+        sparkle:version="11.35"
+        sparkle:shortVersionString="11.35"
+        sparkle:edSignature="HkXkkI5320p6t7xTQBxbkI2aiI5KOh2CPkeSNR9WkHKAWrmaXrPlDFfW+jACGxUsm7OYJWTbRQieAq7YIeNqDA=="
+        length="8000188"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 11.34 (BETA)</title>
       <sparkle:version>11.34</sparkle:version>
       <sparkle:shortVersionString>11.34</sparkle:shortVersionString>
