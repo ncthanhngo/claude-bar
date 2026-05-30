@@ -15,6 +15,10 @@ final class AppStore: ObservableObject {
     @Published private(set) var isRefreshing: Bool = false
     @Published private(set) var lastRefreshAt: Date?
     @Published private(set) var swappingTo: Int?
+    /// Account IDs whose per-account "Refresh usage" action is in flight.
+    /// Drives the row-level spinner so multiple clicks don't pile up and
+    /// the user sees feedback the moment they press the button.
+    @Published private(set) var refreshingAccountIds: Set<Int> = []
     /// Typed surface for the most recent failed swap. Cleared on dismiss /
     /// successful retry. Drives `SwapErrorOverlay` so the menu header stays
     /// usable for steady-state status while the modal owns swap diagnostics.
@@ -99,6 +103,20 @@ final class AppStore: ObservableObject {
         refreshTask = Task { [weak self] in
             await self?.refreshNow()
             await self?.backupTokenRefreshIfNeeded()
+            // Post-launch hydration retry. claude.ai's React SPA paints the
+            // 5h block ~2s before the 7d block, and the scraper bails after
+            // ~8s. The very first scrape after a fresh process therefore
+            // often returns 5h-only — and there's no prior snapshot to
+            // preserve the missing 7d from, so the popover would otherwise
+            // show "7d unavailable" until the next 60–120s tick. One
+            // targeted retry catches the hydration tail; we skip the retry
+            // entirely if the first pass returned both windows for every
+            // web-linked account so users with fast machines / few accounts
+            // don't eat an extra round of WKWebView scrapes for nothing.
+            if let self, await self.firstRefreshHadPartialWeb() {
+                try? await Task.sleep(nanoseconds: 12_000_000_000)
+                await self.refreshNow()
+            }
             while !Task.isCancelled {
                 guard let self else { return }
                 let secs = self.nextRefreshIntervalSec()
@@ -108,6 +126,20 @@ final class AppStore: ObservableObject {
             }
         }
         autoSwap.start()
+    }
+
+    /// True if any web-linked account in the just-loaded snapshot has 5h
+    /// usage but is missing the 7d window — the canonical signature of an
+    /// SPA hydration race on first launch. Returns false on `snapshot == nil`
+    /// (refresh hadn't completed yet, retry would be premature) or when no
+    /// accounts are web-linked (OAuth fetches don't have this race).
+    private func firstRefreshHadPartialWeb() -> Bool {
+        guard let accounts = snapshot?.accounts, let check = isWebLinked else { return false }
+        return accounts.contains { view in
+            guard check(view.account) else { return false }
+            guard let usage = view.usage else { return true }
+            return usage.fiveHour != nil && usage.sevenDay == nil
+        }
     }
 
     private func backupTokenRefreshIfNeeded() async {
@@ -389,6 +421,47 @@ final class AppStore: ObservableObject {
         } catch {
             self.lastError = error.localizedDescription
         }
+    }
+
+    /// Forces a fresh usage fetch for a single account, bypassing the
+    /// global cadence and OAuth/web fallback gating. Used by the
+    /// row-level refresh button so the user can react to a stale or
+    /// post-update misread without waiting for the next poll cycle.
+    ///
+    /// Routes per the same web-first rule the polling loop uses:
+    ///   - Web-linked → scrape claude.ai through WKWebView. Bypasses the
+    ///     rate-limit backoff window deliberately: the user explicitly
+    ///     asked, treat it as override.
+    ///   - Not web-linked → OAuth `/usage` for this account only. No
+    ///     batch overhead, sibling accounts stay quiet.
+    /// On success the snapshot is mutated through `replacingUsage` so
+    /// only this row re-renders.
+    func refreshAccount(_ view: AccountViewDTO) async {
+        guard !refreshingAccountIds.contains(view.id) else { return }
+        refreshingAccountIds.insert(view.id)
+        defer { refreshingAccountIds.remove(view.id) }
+
+        let webLinked = isWebLinked?(view.account) ?? false
+        var fetched: UsageDTO?
+        if webLinked, let provider = webUsageProvider {
+            // Provider takes the full account list but only the ones we
+            // pass through; pass just this one so peers don't get
+            // unintentionally re-scraped.
+            let result = await provider([view])
+            fetched = result[view.id]
+        } else {
+            do {
+                let list = try await client.list(includeUsage: true, usageAccounts: [view.account.number])
+                fetched = list.accounts.first(where: { $0.id == view.id })?.usage
+            } catch {
+                self.lastError = error.localizedDescription
+            }
+        }
+        guard let usage = fetched else { return }
+        if let snap = snapshot {
+            self.snapshot = snap.replacingUsage([view.id: usage])
+        }
+        self.lastRefreshAt = Date()
     }
 
     func swap(to num: Int) async {

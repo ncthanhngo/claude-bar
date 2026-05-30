@@ -60,102 +60,16 @@ struct ClaudeSwapWidgetApp: App {
         seedAutoApproveSlackPostMessageDefault()
         syncReloadShortcutIfNeeded()
 
-        // Capture refs to every @StateObject the launch-time wiring needs.
-        // MenuBarExtra's `.task` is lazy — fires only on first popover render
-        // — so wiring that lives there is invisible to background work after
-        // a Sparkle restart until the user manually opens the menu. Lifting
-        // the full setup into AppDelegate.applicationDidFinishLaunching means
-        // the polling loop, notification handler, and recovery plumbing all
-        // come up at process start, matching what users expect from a
-        // menu-bar app.
-        let storeRef = _store.wrappedValue
-        let loginRef = _loginCoordinator.wrappedValue
-        let verifyRef = _verifyCoordinator.wrappedValue
-        let webRef = _webFallback.wrappedValue
-        let quickRef = _quickRelogin.wrappedValue
-        let recoveryRef = _recovery.wrappedValue
-        let cloudRef = _cloudSync.wrappedValue
-        let mcpRef = _localMCP.wrappedValue
-        let chatRef = _chatStore.wrappedValue
-        let prefsRef = _prefsCloudSync.wrappedValue
-        let updateRef = _updateController.wrappedValue
-        let gateRef = _gateCoord.wrappedValue
-        let settingsRef = AppSettings.shared
+        // GateCoordinator is a singleton (`.shared`) so it can safely run
+        // before any view materialises. Everything else gets wired from
+        // MenuBarLabelView.onAppear — see `wireCoordinatorsOnce` for the
+        // reasoning around @StateObject identity in App.init().
         AppDelegate.onLaunchCompleted = {
             Task { @MainActor in
-                DiagnosticsLogger.shared.log(.info, subsystem: "launch", "begin onLaunchCompleted")
-                // Start the gate IPC proxy unconditionally at launch so MCP
-                // write-tool prompts (Slack post, Sheets write, etc.) can
-                // surface even when the user has never opened the popover.
-                gateRef.start()
-                // Coordinator wire-up — order matches the previous in-popover
-                // sequence so cross-coordinator weak references settle before
-                // anyone is asked to do real work.
-                loginRef.attach(store: storeRef)
-                verifyRef.attach(store: storeRef)
-                webRef.attach(store: storeRef)
-                quickRef.attach(store: storeRef, webFallback: webRef, loginCoordinator: loginRef)
-                loginRef.quickRelogin = quickRef
-                recoveryRef.headlessRelogin = { [weak quickRef] accountNum in
-                    await quickRef?.beginHeadless(forAccountNumber: accountNum)
-                        ?? .failed("no coordinator")
-                }
-                storeRef.recovery = recoveryRef
-                let notifHandler = NotificationActionHandler(autoSwap: storeRef.autoSwap)
-                notifHandler.install()
-                storeRef.notificationHandler = notifHandler
-                storeRef.autoSwap.recovery = recoveryRef
-                storeRef.autoSwap.isInteractiveReloginActive = { [weak quickRef] in
-                    quickRef?.isPresentingInteractive ?? false
-                }
-                storeRef.cloudSync = cloudRef
-                DiagnosticsLogger.shared.log(.info, subsystem: "launch", "coordinators wired")
-                // Kick the polling timer + auto-swap loop. Previously deferred
-                // to first popover open, which broke auto-swap and token
-                // refresh after a Sparkle restart.
-                storeRef.start()
-                chatRef.bind(to: storeRef)
-                DiagnosticsLogger.shared.log(.info, subsystem: "launch", "polling started")
-                // Standalone Settings window inherits the same coordinators
-                // the popover would have injected via environment.
-                SettingsWindowController.shared.bindEnvironment { content in
-                    AnyView(
-                        content
-                            .environmentObject(storeRef)
-                            .environmentObject(loginRef)
-                            .environmentObject(verifyRef)
-                            .environmentObject(webRef)
-                            .environmentObject(quickRef)
-                            .environmentObject(cloudRef)
-                            .environmentObject(mcpRef)
-                            .environmentObject(updateRef)
-                            .environmentObject(gateRef)
-                    )
-                }
-                prefsRef.start()
-                await cloudRef.refreshStatus()
-                await cloudRef.checkOnboarding(snapshot: storeRef.snapshot)
-                DiagnosticsLogger.shared.log(.info, subsystem: "launch", "cloud sync ready (enabled=\(settingsRef.iCloudSyncEnabled))")
-                // Give the first refresh cycle a moment so onboarding sees
-                // the real account count instead of nil — matches prior
-                // behaviour where popover render ran the same await chain
-                // before this 800ms gap.
-                try? await Task.sleep(nanoseconds: 800_000_000)
-                presentOnboardingIfNeededAtLaunch(
-                    store: storeRef,
-                    loginCoordinator: loginRef,
-                    settings: settingsRef,
-                    cloudSync: cloudRef
-                )
-                // Pre-warm MCP off the main path so Settings → Local MCP is
-                // hot on first open, no late-inflate flash.
-                Task.detached(priority: .utility) { [mcpRef] in
-                    await mcpRef.refresh()
-                }
-                DiagnosticsLogger.shared.log(.info, subsystem: "launch", "end onLaunchCompleted")
+                DiagnosticsLogger.shared.log(.info, subsystem: "launch", "AppDelegate didFinishLaunching")
+                GateCoordinator.shared.start()
             }
         }
-        _ = settingsRef
     }
 
     /// Keep the configured reload shortcut in sync with each VSCode-family
@@ -243,9 +157,92 @@ struct ClaudeSwapWidgetApp: App {
         } label: {
             MenuBarLabelView()
                 .environmentObject(store)
+                .onAppear {
+                    // Wire coordinators from the LABEL's onAppear — not the
+                    // popover content's `.task` (lazy, popover-only) and not
+                    // AppDelegate.applicationDidFinishLaunching (the
+                    // `_xxx.wrappedValue` access inside App.init() materialises
+                    // a TRANSIENT @StateObject instance that views never see;
+                    // the launch closure's attach() targets the transient
+                    // coordinator with a transient store, both deallocate when
+                    // the closure releases, leaving the views' real
+                    // coordinators with `weak var store == nil` → "Internal
+                    // error: no store reference" in Quick Login). The label is
+                    // rendered as the menu-bar icon at app start, so onAppear
+                    // here fires at launch AND the @StateObject references in
+                    // the surrounding App are the persistent instances views
+                    // actually use.
+                    wireCoordinatorsOnce()
+                }
         }
         .menuBarExtraStyle(.window)
     }
+
+    @MainActor
+    private func wireCoordinatorsOnce() {
+        guard !Self.didWireCoordinators else { return }
+        Self.didWireCoordinators = true
+        DiagnosticsLogger.shared.log(.info, subsystem: "launch", "begin wireCoordinatorsOnce")
+        loginCoordinator.attach(store: store)
+        verifyCoordinator.attach(store: store)
+        webFallback.attach(store: store)
+        quickRelogin.attach(store: store, webFallback: webFallback, loginCoordinator: loginCoordinator)
+        loginCoordinator.quickRelogin = quickRelogin
+        recovery.headlessRelogin = { [weak quickRelogin] accountNum in
+            await quickRelogin?.beginHeadless(forAccountNumber: accountNum)
+                ?? .failed("no coordinator")
+        }
+        store.recovery = recovery
+        let notifHandler = NotificationActionHandler(autoSwap: store.autoSwap)
+        notifHandler.install()
+        store.notificationHandler = notifHandler
+        store.autoSwap.recovery = recovery
+        store.autoSwap.isInteractiveReloginActive = { [weak quickRelogin] in
+            quickRelogin?.isPresentingInteractive ?? false
+        }
+        store.cloudSync = cloudSync
+        DiagnosticsLogger.shared.log(.info, subsystem: "launch", "coordinators wired")
+        store.start()
+        chatStore.bind(to: store)
+        DiagnosticsLogger.shared.log(.info, subsystem: "launch", "polling started")
+        let storeBind = store
+        let loginBind = loginCoordinator
+        let verifyBind = verifyCoordinator
+        let webBind = webFallback
+        let quickBind = quickRelogin
+        let cloudBind = cloudSync
+        let mcpBind = localMCP
+        let updateBind = updateController
+        let gateBind = gateCoord
+        SettingsWindowController.shared.bindEnvironment { content in
+            AnyView(
+                content
+                    .environmentObject(storeBind)
+                    .environmentObject(loginBind)
+                    .environmentObject(verifyBind)
+                    .environmentObject(webBind)
+                    .environmentObject(quickBind)
+                    .environmentObject(cloudBind)
+                    .environmentObject(mcpBind)
+                    .environmentObject(updateBind)
+                    .environmentObject(gateBind)
+            )
+        }
+        prefsCloudSync.start()
+        Task { @MainActor in
+            await cloudSync.refreshStatus()
+            await cloudSync.checkOnboarding(snapshot: store.snapshot)
+            DiagnosticsLogger.shared.log(.info, subsystem: "launch", "cloud sync ready (enabled=\(AppSettings.shared.iCloudSyncEnabled))")
+            try? await Task.sleep(nanoseconds: 800_000_000)
+            presentOnboardingIfNeeded()
+            DiagnosticsLogger.shared.log(.info, subsystem: "launch", "end wireCoordinatorsOnce")
+        }
+        Task.detached(priority: .utility) { [localMCP] in
+            await localMCP.refresh()
+        }
+    }
+
+    nonisolated(unsafe) private static var didWireCoordinators = false
 
     /// Show the first-launch onboarding window when the user has no accounts
     /// AND hasn't already finished or skipped the wizard. Triggered after

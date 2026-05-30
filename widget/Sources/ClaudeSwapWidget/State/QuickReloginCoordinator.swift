@@ -482,7 +482,10 @@ final class QuickReloginCoordinator: ObservableObject {
         payload: OAuthLoginEngine.ExchangedToken,
         account: AccountDTO
     ) async throws -> ReloginOutcome {
+        DiagnosticsLogger.shared.log(.info, subsystem: "relogin",
+            "ingest begin acc#\(account.number) expectedEmail=\(account.email) signedInEmail=\(payload.signedInEmail ?? "<nil>") orgUuid=\(payload.organizationUuid ?? "<nil>") scopes=\(payload.scopes.joined(separator: ","))")
         guard let store else {
+            DiagnosticsLogger.shared.log(.warning, subsystem: "relogin", "ingest abort — no store reference")
             return .failed("Internal error: no store reference.")
         }
 
@@ -491,18 +494,29 @@ final class QuickReloginCoordinator: ObservableObject {
         // Mismatch is terminal: retrying would re-authorize the wrong account.
         if let signedIn = payload.signedInEmail,
            signedIn.lowercased() != account.email.lowercased() {
+            DiagnosticsLogger.shared.log(.warning, subsystem: "relogin",
+                "identity mismatch — signedIn=\(signedIn) expected=\(account.email)")
             return .identityMismatch(signedInAs: signedIn, expected: account.email)
         }
 
-        let res = try await store.client.ingestOAuth(
-            accountNum: account.number,
-            accessToken: payload.accessToken,
-            refreshToken: payload.refreshToken,
-            expiresAt: payload.expiresAt,
-            scopes: payload.scopes,
-            subscriptionType: nil,
-            expectedEmail: payload.signedInEmail
-        )
+        let res: CswClient.IngestOAuthDTO
+        do {
+            res = try await store.client.ingestOAuth(
+                accountNum: account.number,
+                accessToken: payload.accessToken,
+                refreshToken: payload.refreshToken,
+                expiresAt: payload.expiresAt,
+                scopes: payload.scopes,
+                subscriptionType: nil,
+                expectedEmail: payload.signedInEmail
+            )
+        } catch {
+            DiagnosticsLogger.shared.log(.warning, subsystem: "relogin",
+                "csw ingest-oauth threw — \(error.localizedDescription)")
+            throw error
+        }
+        DiagnosticsLogger.shared.log(.info, subsystem: "relogin",
+            "csw ingest-oauth OK acc#\(account.number) wroteLive=\(res.wroteLive) display=\(res.account.displayName)")
         // Clear any terminal needs-manual-sign-in flag immediately — the user
         // just re-authenticated by hand, so the popover "Log in" button must
         // vanish without waiting for the snapshot to report ready.

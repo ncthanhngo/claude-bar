@@ -45,6 +45,7 @@ struct AccountRowView: View {
     }
 
     private var isSwappingThisRow: Bool { store.swappingTo == view.account.number }
+    private var isRefreshingThisRow: Bool { store.refreshingAccountIds.contains(view.id) }
 
     // MARK: - Title line
 
@@ -63,6 +64,7 @@ struct AccountRowView: View {
                 .lineLimit(1)
 
             webUsageBadge
+            refreshButton.opacity(isHovering || isRefreshingThisRow ? 1 : 0)
 
             Spacer(minLength: 4)
 
@@ -112,6 +114,29 @@ struct AccountRowView: View {
             .padding(.horizontal, 7).padding(.vertical, 3)
             .background(settings.widgetTheme.activeChipBackground)
             .clipShape(Capsule())
+    }
+
+    private var refreshButton: some View {
+        Button {
+            Task { await store.refreshAccount(view) }
+        } label: {
+            Group {
+                if isRefreshingThisRow {
+                    ProgressView().controlSize(.mini)
+                } else {
+                    Image(systemName: "arrow.clockwise")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundColor(.secondary)
+                }
+            }
+            .padding(.horizontal, 5).padding(.vertical, 2)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(isRefreshingThisRow)
+        .pointingHandCursor()
+        .help("Refresh usage for this account")
+        .accessibilityLabel("Refresh usage for \(view.account.displayName)")
     }
 
     private var moreButton: some View {
