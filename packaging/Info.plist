@@ -13,9 +13,9 @@
     <key>CFBundleIdentifier</key>
     <string>dev.ncthanhngo.claude-bar</string>
     <key>CFBundleVersion</key>
-    <string>11.36</string>
+    <string>11.37</string>
     <key>CFBundleShortVersionString</key>
-    <string>11.36</string>
+    <string>11.37</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleSignature</key>
@@ -35,7 +35,7 @@
     <key>NSHumanReadableCopyright</key>
     <string>Copyright © 2026 Thanh Ngô. Licensed under MIT.</string>
     <key>CFBundleGetInfoString</key>
-    <string>Claude Bar 11.36 — menu-bar manager for multiple Claude Code accounts</string>
+    <string>Claude Bar 11.37 — menu-bar manager for multiple Claude Code accounts</string>
     <key>CBAuthorName</key>
     <string>Thanh Ngô</string>
     <key>CBAuthorEmail</key>
@@ -49,15 +49,12 @@
     <key>CBReleaseChannel</key>
     <string>Beta</string>
     <key>CBReleaseWhatsNew</key>
-    <string>Polling now backs off automatically when claude.ai rate-limits an account; row badge shows the wait.
-Opening the menu refreshes immediately and polls faster for 5 minutes (toggle in Settings).
-Background keep-alive pings idle web sessions every few hours so cookies don't lapse.
-Polling and auto-swap now start at app launch — no need to open the menu first.
-Diagnostics → Web usage shows the keep-alive heartbeat at a glance.</string>
+    <string>Per-account refresh button next to the Web badge — force a fresh usage scrape without waiting for the next poll.
+First scrape after launch now auto-retries 12s later if claude.ai only returned 5h data — full chart fills in faster.</string>
     <key>CBReleaseHotfixes</key>
-    <string>Fixed auto-swap and token refresh not running after a Sparkle update until the menu was opened.</string>
+    <string>Fixed Quick Login failing with "no store reference" right after auto-authorize. Account wiring now runs from a stable place at launch.</string>
     <key>CBReleaseKnownIssues</key>
-    <string>The keep-alive heartbeat first appears ~3–5 hours after launch — earlier than that the Diagnostics row reads "no ping yet" by design.</string>
+    <string>None.</string>
     <key>CFBundleDevelopmentRegion</key>
     <string>en</string>
     <key>CFBundleLocalizations</key>

@@ -12,6 +12,28 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 11.37</title>
+      <sparkle:version>11.37</sparkle:version>
+      <sparkle:shortVersionString>11.37</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li><strong>Per-account refresh</strong> — a refresh button next to each account's Web badge lets you force a fresh usage scrape for just that account, without disturbing the others or waiting for the next poll cycle.</li>
+          <li><strong>Faster fresh data after launch</strong> — when claude.ai's React SPA returns 5h-only on the first scrape (a hydration race), the app now auto-retries 12 seconds later so the full 5h + 7d chart fills in within seconds instead of after the next 2-minute tick.</li>
+          <li><strong>Quick Login fix</strong> — Fixed "Internal error: no store reference" right after auto-authorize. Account wiring was capturing transient @StateObject instances during App init; it now runs from a stable launch hook so weak references stay valid for the lifetime of the app.</li>
+          <li><strong>Better Quick Login diagnostics</strong> — explicit log lines around the OAuth ingest path so future Quick Login failures surface the exact failing step (identity mismatch, backend ingest error, etc.) instead of going silent after the token exchange.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Sat, 30 May 2026 21:29:38 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v11.37/ClaudeBar.zip"
+        sparkle:version="11.37"
+        sparkle:shortVersionString="11.37"
+        sparkle:edSignature="g4TFdljBUw+XpJXpUC30OMvBbaLpv14q55Kgpq1FuYLxxjrAhh3sKgGKXFjBjuoCd1SuQtkQD35GwKkb+JnSBw=="
+        length="8032363"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 11.36</title>
       <sparkle:version>11.36</sparkle:version>
       <sparkle:shortVersionString>11.36</sparkle:shortVersionString>
