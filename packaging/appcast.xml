@@ -12,6 +12,29 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 11.36</title>
+      <sparkle:version>11.36</sparkle:version>
+      <sparkle:shortVersionString>11.36</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li><strong>Rate-limit aware polling</strong> — when claude.ai pushes back on a web usage scrape, that account backs off with exponential delays. The row badge shows the wait time, other accounts keep polling normally.</li>
+          <li><strong>Popover-open boost</strong> — opening the menu triggers an immediate refresh and tightens the poll cadence for 5 minutes so the chart stays fresh while you watch. Toggle in Settings → Adaptive refresh.</li>
+          <li><strong>Cookie keep-alive</strong> — a background loop pings idle web sessions every few hours so claude.ai cookies don't lapse into server-side idle timeout. Respects rate-limit backoff and the new Settings toggle.</li>
+          <li><strong>Polling starts at launch</strong> — auto-swap, token refresh, and the notification handler now come up at app start instead of waiting for the first menu open. Fixes a stall after Sparkle updates.</li>
+          <li><strong>Keep-alive diagnostics</strong> — Diagnostics → Web usage shows when the keep-alive last ran and how many accounts it pinged.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Sat, 30 May 2026 20:04:08 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v11.36/ClaudeBar.zip"
+        sparkle:version="11.36"
+        sparkle:shortVersionString="11.36"
+        sparkle:edSignature="HJK9B7C6ad5hjQ0xqLEzVhLJLJFqunHl53NR7tdioP1aPhJVe3FfLjIiElkEdPi+GMxKy4mUbO5rCXTzsp+HAQ=="
+        length="8018156"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 11.35</title>
       <sparkle:version>11.35</sparkle:version>
       <sparkle:shortVersionString>11.35</sparkle:shortVersionString>

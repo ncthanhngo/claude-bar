@@ -13,9 +13,9 @@
     <key>CFBundleIdentifier</key>
     <string>dev.ncthanhngo.claude-bar</string>
     <key>CFBundleVersion</key>
-    <string>11.35</string>
+    <string>11.36</string>
     <key>CFBundleShortVersionString</key>
-    <string>11.35</string>
+    <string>11.36</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleSignature</key>
@@ -35,7 +35,7 @@
     <key>NSHumanReadableCopyright</key>
     <string>Copyright © 2026 Thanh Ngô. Licensed under MIT.</string>
     <key>CFBundleGetInfoString</key>
-    <string>Claude Bar 11.35 — menu-bar manager for multiple Claude Code accounts</string>
+    <string>Claude Bar 11.36 — menu-bar manager for multiple Claude Code accounts</string>
     <key>CBAuthorName</key>
     <string>Thanh Ngô</string>
     <key>CBAuthorEmail</key>
@@ -49,16 +49,15 @@
     <key>CBReleaseChannel</key>
     <string>Beta</string>
     <key>CBReleaseWhatsNew</key>
-    <string>Your active account now auto-recovers in the background when its login expires — no manual steps.
-Add accounts with a built-in browser sign-in; the Terminal flow stays as a fallback.
-A "Log in" button and a pulsing glow show when an account needs you.
-Cancel or retry a recovery straight from its notification.
-New Auto-recovery controls under Settings → General.</string>
+    <string>Polling now backs off automatically when claude.ai rate-limits an account; row badge shows the wait.
+Opening the menu refreshes immediately and polls faster for 5 minutes (toggle in Settings).
+Background keep-alive pings idle web sessions every few hours so cookies don't lapse.
+Polling and auto-swap now start at app launch — no need to open the menu first.
+Diagnostics → Web usage shows the keep-alive heartbeat at a glance.</string>
     <key>CBReleaseHotfixes</key>
-    <string>None</string>
+    <string>Fixed auto-swap and token refresh not running after a Sparkle update until the menu was opened.</string>
     <key>CBReleaseKnownIssues</key>
-    <string>Background recovery is new — covered by tests but not yet exercised live against every failure case.
-If your claude.ai web session has expired, you sign in once before recovery completes.</string>
+    <string>The keep-alive heartbeat first appears ~3–5 hours after launch — earlier than that the Diagnostics row reads "no ping yet" by design.</string>
     <key>CFBundleDevelopmentRegion</key>
     <string>en</string>
     <key>CFBundleLocalizations</key>
