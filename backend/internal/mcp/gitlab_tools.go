@@ -203,6 +203,69 @@ func (g *Gateway) registerGitLabTools(srv *server.MCPServer) {
 		g.gitlabListPipelines,
 	)
 
+	g.addTool(srv, "cb_gitlab_get_pipeline",
+		"Get a single pipeline's status, duration, and web_url. Read-only. Useful for polling until done.",
+		[]mcpgo.ToolOption{
+			mcpgo.WithString("instance", mcpgo.Description("Instance id or name.")),
+			mcpgo.WithString("project", mcpgo.Required(), mcpgo.Description("Project path.")),
+			mcpgo.WithNumber("pipeline_id", mcpgo.Required(), mcpgo.Description("Pipeline ID.")),
+		},
+		g.gitlabGetPipeline,
+	)
+
+	g.addTool(srv, "cb_gitlab_list_pipeline_jobs",
+		"List jobs in a pipeline. Filter `scope` to find failed jobs (e.g. \"failed\" or \"failed,running\"). Read-only.",
+		[]mcpgo.ToolOption{
+			mcpgo.WithString("instance", mcpgo.Description("Instance id or name.")),
+			mcpgo.WithString("project", mcpgo.Required(), mcpgo.Description("Project path.")),
+			mcpgo.WithNumber("pipeline_id", mcpgo.Required(), mcpgo.Description("Pipeline ID.")),
+			mcpgo.WithString("scope", mcpgo.Description("CSV: created|pending|running|failed|success|canceled|skipped|manual.")),
+			mcpgo.WithNumber("per_page", mcpgo.Description("1–100. Default 50.")),
+		},
+		g.gitlabListPipelineJobs,
+	)
+
+	g.addTool(srv, "cb_gitlab_get_job_log",
+		"Read the tail of a job's log (trace). Returns last `tail_kb` KB so failure context wins over build noise. Read-only.",
+		[]mcpgo.ToolOption{
+			mcpgo.WithString("instance", mcpgo.Description("Instance id or name.")),
+			mcpgo.WithString("project", mcpgo.Required(), mcpgo.Description("Project path.")),
+			mcpgo.WithNumber("job_id", mcpgo.Required(), mcpgo.Description("Job ID.")),
+			mcpgo.WithNumber("tail_kb", mcpgo.Description("KB of log tail to return. 1–512. Default 64.")),
+		},
+		g.gitlabGetJobLog,
+	)
+
+	g.addTool(srv, "cb_gitlab_retry_pipeline",
+		"Retry failed and canceled jobs in a pipeline. Gated.",
+		[]mcpgo.ToolOption{
+			mcpgo.WithString("instance", mcpgo.Description("Instance id or name.")),
+			mcpgo.WithString("project", mcpgo.Required(), mcpgo.Description("Project path.")),
+			mcpgo.WithNumber("pipeline_id", mcpgo.Required(), mcpgo.Description("Pipeline ID.")),
+		},
+		g.gitlabRetryPipeline,
+	)
+
+	g.addTool(srv, "cb_gitlab_cancel_pipeline",
+		"Cancel all running jobs in a pipeline. Gated.",
+		[]mcpgo.ToolOption{
+			mcpgo.WithString("instance", mcpgo.Description("Instance id or name.")),
+			mcpgo.WithString("project", mcpgo.Required(), mcpgo.Description("Project path.")),
+			mcpgo.WithNumber("pipeline_id", mcpgo.Required(), mcpgo.Description("Pipeline ID.")),
+		},
+		g.gitlabCancelPipeline,
+	)
+
+	g.addTool(srv, "cb_gitlab_create_pipeline",
+		"Trigger a new pipeline on a ref (branch/tag). Gated.",
+		[]mcpgo.ToolOption{
+			mcpgo.WithString("instance", mcpgo.Description("Instance id or name.")),
+			mcpgo.WithString("project", mcpgo.Required(), mcpgo.Description("Project path.")),
+			mcpgo.WithString("ref", mcpgo.Required(), mcpgo.Description("Branch or tag to run against.")),
+		},
+		g.gitlabCreatePipeline,
+	)
+
 	// --- expanded writes ---
 
 	g.addTool(srv, "cb_gitlab_create_issue",
@@ -929,6 +992,220 @@ func (g *Gateway) gitlabCloseIssue(ctx context.Context, req mcpgo.CallToolReques
 			b, err := g.gitlabAPI(ctx, inst, token, http.MethodPut, fmt.Sprintf("/projects/%s/issues/%d", encodeProject(project), iid), nil, map[string]any{"state_event": "close"})
 			if err != nil {
 				return toolErrorf("gitlab close: %v", err), nil
+			}
+			var out map[string]any
+			_ = json.Unmarshal(b, &out)
+			return jsonResult(out)
+		},
+	})
+}
+
+// --- pipeline read handlers ---
+
+func (g *Gateway) gitlabGetPipeline(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
+	inst, token, err := g.gitlabResolve(ctx, req.GetString("instance", ""))
+	if err != nil {
+		return toolErrorf("gitlab: %v", err), nil
+	}
+	project, err := req.RequireString("project")
+	if err != nil {
+		return toolErrorf("project is required"), nil
+	}
+	pipelineID := req.GetInt("pipeline_id", 0)
+	if pipelineID <= 0 {
+		return toolErrorf("pipeline_id is required"), nil
+	}
+	body, err := g.gitlabAPI(ctx, inst, token, http.MethodGet,
+		fmt.Sprintf("/projects/%s/pipelines/%d", encodeProject(project), pipelineID), nil, nil)
+	if err != nil {
+		return toolErrorf("gitlab get pipeline: %v", err), nil
+	}
+	var out map[string]any
+	_ = json.Unmarshal(body, &out)
+	return jsonResult(out)
+}
+
+func (g *Gateway) gitlabListPipelineJobs(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
+	inst, token, err := g.gitlabResolve(ctx, req.GetString("instance", ""))
+	if err != nil {
+		return toolErrorf("gitlab: %v", err), nil
+	}
+	project, err := req.RequireString("project")
+	if err != nil {
+		return toolErrorf("project is required"), nil
+	}
+	pipelineID := req.GetInt("pipeline_id", 0)
+	if pipelineID <= 0 {
+		return toolErrorf("pipeline_id is required"), nil
+	}
+	q := url.Values{}
+	if v := strings.TrimSpace(req.GetString("scope", "")); v != "" {
+		// Multi-value scope (e.g. "failed,running") goes through as
+		// repeated `scope[]=` per GitLab API. Comma-separated is the
+		// user-facing form here.
+		for _, s := range parseCSVStrings(v) {
+			q.Add("scope[]", s)
+		}
+	}
+	pp := req.GetInt("per_page", 50)
+	if pp < 1 {
+		pp = 50
+	}
+	if pp > 100 {
+		pp = 100
+	}
+	q.Set("per_page", strconv.Itoa(pp))
+	body, err := g.gitlabAPI(ctx, inst, token, http.MethodGet,
+		fmt.Sprintf("/projects/%s/pipelines/%d/jobs", encodeProject(project), pipelineID), q, nil)
+	if err != nil {
+		return toolErrorf("gitlab list jobs: %v", err), nil
+	}
+	var out []map[string]any
+	_ = json.Unmarshal(body, &out)
+	return jsonResult(out)
+}
+
+// gitlabGetJobLog returns the raw trace of a job. GitLab serves logs as
+// plain text (not JSON), so we cap response size to keep the MCP payload
+// bounded — the tail is where the failure usually is anyway.
+func (g *Gateway) gitlabGetJobLog(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
+	inst, token, err := g.gitlabResolve(ctx, req.GetString("instance", ""))
+	if err != nil {
+		return toolErrorf("gitlab: %v", err), nil
+	}
+	project, err := req.RequireString("project")
+	if err != nil {
+		return toolErrorf("project is required"), nil
+	}
+	jobID := req.GetInt("job_id", 0)
+	if jobID <= 0 {
+		return toolErrorf("job_id is required"), nil
+	}
+	tailKB := req.GetInt("tail_kb", 64)
+	if tailKB < 1 {
+		tailKB = 64
+	}
+	if tailKB > 512 {
+		tailKB = 512
+	}
+	// GitLab trace endpoint returns text/plain. Bypass gitlabAPI's JSON-y
+	// helper and call directly so we can preserve the raw body.
+	u := strings.TrimRight(inst.BaseURL, "/") + fmt.Sprintf("/projects/%s/jobs/%d/trace", encodeProject(project), jobID)
+	r, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
+	if err != nil {
+		return toolErrorf("gitlab build req: %v", err), nil
+	}
+	r.Header.Set("PRIVATE-TOKEN", token)
+	r.Header.Set("Accept", "text/plain")
+	r.Header.Set("User-Agent", g.UserAgent)
+	resp, err := g.HTTP.Do(r)
+	if err != nil {
+		return toolErrorf("gitlab trace http: %v", err), nil
+	}
+	defer resp.Body.Close()
+	raw, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode/100 != 2 {
+		return toolErrorf("gitlab trace http %d: %s", resp.StatusCode, Redact(strings.TrimSpace(string(raw)))), nil
+	}
+	// Tail: keep the last `tailKB` KB so failure context wins over the
+	// noisy build setup at the top.
+	max := tailKB * 1024
+	if len(raw) > max {
+		raw = raw[len(raw)-max:]
+	}
+	return jsonResult(map[string]any{
+		"job_id":      jobID,
+		"truncated":   len(raw) >= max,
+		"tail_bytes":  len(raw),
+		"trace":       string(raw),
+	})
+}
+
+// --- pipeline write handlers ---
+
+func (g *Gateway) gitlabRetryPipeline(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
+	inst, token, err := g.gitlabResolve(ctx, req.GetString("instance", ""))
+	if err != nil {
+		return toolErrorf("gitlab: %v", err), nil
+	}
+	project, _ := req.RequireString("project")
+	pipelineID := req.GetInt("pipeline_id", 0)
+	if project == "" || pipelineID <= 0 {
+		return toolErrorf("project, pipeline_id are required"), nil
+	}
+	args := map[string]any{"instance": inst.Name, "project": project, "pipeline_id": pipelineID}
+	return g.runThroughGate(ctx, writeGateRequest{
+		Tool:    "cb_gitlab_retry_pipeline",
+		Risk:    RiskMedium,
+		Origin:  OriginLLM,
+		Summary: fmt.Sprintf("GitLab[%s]: RETRY pipeline %s#%d", inst.Name, project, pipelineID),
+		Args:    args,
+		Execute: func(ctx context.Context) (*mcpgo.CallToolResult, error) {
+			b, err := g.gitlabAPI(ctx, inst, token, http.MethodPost,
+				fmt.Sprintf("/projects/%s/pipelines/%d/retry", encodeProject(project), pipelineID), nil, nil)
+			if err != nil {
+				return toolErrorf("gitlab retry: %v", err), nil
+			}
+			var out map[string]any
+			_ = json.Unmarshal(b, &out)
+			return jsonResult(out)
+		},
+	})
+}
+
+func (g *Gateway) gitlabCancelPipeline(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
+	inst, token, err := g.gitlabResolve(ctx, req.GetString("instance", ""))
+	if err != nil {
+		return toolErrorf("gitlab: %v", err), nil
+	}
+	project, _ := req.RequireString("project")
+	pipelineID := req.GetInt("pipeline_id", 0)
+	if project == "" || pipelineID <= 0 {
+		return toolErrorf("project, pipeline_id are required"), nil
+	}
+	args := map[string]any{"instance": inst.Name, "project": project, "pipeline_id": pipelineID}
+	return g.runThroughGate(ctx, writeGateRequest{
+		Tool:    "cb_gitlab_cancel_pipeline",
+		Risk:    RiskMedium,
+		Origin:  OriginLLM,
+		Summary: fmt.Sprintf("GitLab[%s]: CANCEL pipeline %s#%d", inst.Name, project, pipelineID),
+		Args:    args,
+		Execute: func(ctx context.Context) (*mcpgo.CallToolResult, error) {
+			b, err := g.gitlabAPI(ctx, inst, token, http.MethodPost,
+				fmt.Sprintf("/projects/%s/pipelines/%d/cancel", encodeProject(project), pipelineID), nil, nil)
+			if err != nil {
+				return toolErrorf("gitlab cancel: %v", err), nil
+			}
+			var out map[string]any
+			_ = json.Unmarshal(b, &out)
+			return jsonResult(out)
+		},
+	})
+}
+
+func (g *Gateway) gitlabCreatePipeline(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
+	inst, token, err := g.gitlabResolve(ctx, req.GetString("instance", ""))
+	if err != nil {
+		return toolErrorf("gitlab: %v", err), nil
+	}
+	project, _ := req.RequireString("project")
+	ref, _ := req.RequireString("ref")
+	if project == "" || ref == "" {
+		return toolErrorf("project, ref are required"), nil
+	}
+	args := map[string]any{"instance": inst.Name, "project": project, "ref": ref}
+	return g.runThroughGate(ctx, writeGateRequest{
+		Tool:    "cb_gitlab_create_pipeline",
+		Risk:    RiskMedium,
+		Origin:  OriginLLM,
+		Summary: fmt.Sprintf("GitLab[%s]: RUN pipeline %s @ %s", inst.Name, project, ref),
+		Args:    args,
+		Execute: func(ctx context.Context) (*mcpgo.CallToolResult, error) {
+			payload := map[string]any{"ref": ref}
+			b, err := g.gitlabAPI(ctx, inst, token, http.MethodPost,
+				"/projects/"+encodeProject(project)+"/pipeline", nil, payload)
+			if err != nil {
+				return toolErrorf("gitlab create pipeline: %v", err), nil
 			}
 			var out map[string]any
 			_ = json.Unmarshal(b, &out)

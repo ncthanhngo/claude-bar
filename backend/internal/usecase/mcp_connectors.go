@@ -87,6 +87,18 @@ func (s *Service) connectorSummaryRows(ctx context.Context, accountNum int, meta
 			return nil, fmt.Errorf("read mcp secret %s/%d: %w", svc, accountNum, err)
 		}
 		row.HasSecret = payload != ""
+		// GitLab stores PATs per self-hosted instance under
+		// `gitlab:<instanceID>` Keychain slots, NOT the bare `gitlab`
+		// slot the loop above checked. Without this fallback, the row
+		// reads `HasSecret == false` even after the user successfully
+		// adds an instance — UI shows "off" forever while the registry
+		// flag is `enabled: true`. We can't reach the gitlab-instance
+		// store from usecase, so we trust the registry mirror: an entry
+		// here only gets `Enabled=true` after a successful `Put` + PAT
+		// save in `cmd_gitlab.go`.
+		if svc == domain.MCPServiceGitLab && !row.HasSecret && row.Enabled {
+			row.HasSecret = true
+		}
 		if accountNum != 0 && !row.HasSecret {
 			if sharedMeta, ok := fallback[svc]; ok && sharedMeta != nil && sharedMeta.Enabled {
 				sharedPayload, err := s.MCPSecrets.Read(ctx, 0, svc)
