@@ -11,12 +11,21 @@ import SwiftUI
 /// purely visual. No data path differs between them.
 struct PopoverRoot: View {
     @ObservedObject private var settings = AppSettings.shared
+    @EnvironmentObject private var store: AppStore
 
     var body: some View {
-        switch settings.popoverLayout {
-        case .full:     WidgetTabbedPopover()
-        case .standard: MediumPopoverView()
-        case .tiny:     TinyPopoverView()
+        Group {
+            switch settings.popoverLayout {
+            case .full:     WidgetTabbedPopover()
+            case .standard: MediumPopoverView()
+            case .tiny:     TinyPopoverView()
+            }
         }
+        // MenuBarExtra re-renders its content view each time the popover
+        // opens, so `.onAppear` fires on every open. Used by AppStore to
+        // record the popover-open timestamp (boosts polling cadence for a
+        // short window) and to trigger an immediate refresh so the user
+        // doesn't see a minutes-old snapshot at glance.
+        .onAppear { store.notePopoverOpened() }
     }
 }

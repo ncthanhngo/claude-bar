@@ -36,6 +36,21 @@ final class AppSettings: ObservableObject {
 
     /// Cutoff (%) where we switch from "low" to "high" refresh frequency.
     @AppStorage("adaptiveHighThresholdPct") var adaptiveHighThresholdPct: Int = 80
+
+    /// When true, opening the menu-bar popover triggers an immediate refresh
+    /// and tightens the polling cadence for ~5 minutes so the chart stays
+    /// fresh while in view. Turn off on laptops running on battery if the
+    /// extra WKWebView scrapes feel costly — background polling still
+    /// follows `refreshIntervalSec`.
+    @AppStorage("popoverBoostEnabled") var popoverBoostEnabled: Bool = true
+
+    /// When true, web-linked accounts that haven't been polled within the
+    /// keep-alive window get an explicit refresh so the claude.ai session
+    /// cookie doesn't lapse into server-side idle timeout. Useful when the
+    /// regular poll cadence has been stretched (low traffic settings, many
+    /// accounts) or when an account spent a long stretch in rate-limit
+    /// backoff. Safe to turn off if you don't link web profiles.
+    @AppStorage("cookieKeepAliveEnabled") var cookieKeepAliveEnabled: Bool = true
     @AppStorage("sessionPollIntervalSec") var sessionPollIntervalSec: Int = 5
     @AppStorage("menuBarStyle") var menuBarStyle: MenuBarStyle = .compact
     @AppStorage("aggressiveAutoKill") var aggressiveAutoKill: Bool = false

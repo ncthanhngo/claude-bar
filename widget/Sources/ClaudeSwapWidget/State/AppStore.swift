@@ -63,6 +63,25 @@ final class AppStore: ObservableObject {
 
     private var refreshTask: Task<Void, Never>?
 
+    /// Last time the user opened the menu-bar popover. Drives a short
+    /// "boost" window during which the polling cadence shrinks toward the
+    /// hardcoded floors so the usage chart reflects fresh numbers while
+    /// the popover is actively in view — even if the user has bumped the
+    /// configurable interval up to a low-traffic setting. Stays nil until
+    /// the first open so background-only behaviour matches pre-boost.
+    private var popoverOpenedAt: Date?
+    /// How long after a popover-open we keep the boosted cadence. Long
+    /// enough to catch repeated quick opens (user glances at the chart
+    /// every minute or so) without permanently overriding the
+    /// user-configured interval. Hardcoded — not worth a setting.
+    private static let popoverBoostWindow: TimeInterval = 5 * 60
+    /// Boosted interval ceiling/floor for OAuth (`/usage`) and web scrape
+    /// respectively while the boost window is active. Picked at the same
+    /// "high traffic" levels the adaptive cadence already uses so we never
+    /// poll faster than steady-state worst case.
+    private static let boostedOAuthIntervalSec = 60
+    private static let boostedWebIntervalSec = 30
+
     init() {
         self.autoSwap = AutoSwapStateMachine(client: client, settings: AppSettings.shared)
         autoSwap.snapshotProvider = { [weak self] in self?.snapshot }
@@ -183,16 +202,69 @@ final class AppStore: ObservableObject {
     /// The OAuth `/usage` call inside `refreshNow` is still gated by
     /// `lastOAuthFallbackAt` so Anthropic's rate-limited endpoint keeps
     /// its own slower cadence even on the faster outer loop.
+    ///
+    /// Two further effects layer on top:
+    /// 1. Popover-open boost — for `popoverBoostWindow` after the user
+    ///    opens the menu the cadence is clamped down to the hardcoded
+    ///    boosted floors so the chart stays fresh while in view.
+    /// 2. ±20% jitter — the returned value is randomised so the poll
+    ///    timing isn't a perfect metronome. Reduces the bot-like
+    ///    fingerprint on claude.ai's side without changing the average
+    ///    request rate.
     func nextRefreshIntervalSec() -> Int {
         let cutoff = settings.adaptiveHighThresholdPct
         let pct = snapshot?.active?.usage?.fiveHour?.percentInt
         let isHigh = (pct ?? 0) >= cutoff
-        if anyAccountWebLinked() {
-            return isHigh ? Self.webRefreshIntervalHighSec : Self.webRefreshIntervalSec
+        let webLinked = anyAccountWebLinked()
+        let base: Int
+        if webLinked {
+            base = isHigh ? Self.webRefreshIntervalHighSec : Self.webRefreshIntervalSec
+        } else {
+            let low = max(30, settings.refreshIntervalSec)
+            let high = max(30, settings.refreshIntervalHighSec)
+            base = isHigh ? high : low
         }
-        let low = max(30, settings.refreshIntervalSec)
-        let high = max(30, settings.refreshIntervalHighSec)
-        return isHigh ? high : low
+        let boosted = applyPopoverBoost(base: base, webLinked: webLinked)
+        return Self.applyJitter(boosted)
+    }
+
+    /// Shrinks the interval toward the boosted floor while the popover-open
+    /// window is still active. Returns the original `base` once the window
+    /// has lapsed (or the user disabled the boost in Settings) so background
+    /// polling falls back to the user-configured cadence.
+    private func applyPopoverBoost(base: Int, webLinked: Bool) -> Int {
+        guard settings.popoverBoostEnabled,
+              let opened = popoverOpenedAt,
+              Date().timeIntervalSince(opened) < Self.popoverBoostWindow else {
+            return base
+        }
+        let floor = webLinked ? Self.boostedWebIntervalSec : Self.boostedOAuthIntervalSec
+        return min(base, floor)
+    }
+
+    /// ±20% jitter clamped to a 30s floor. Picked over a Gaussian or
+    /// half-window jitter because uniform spread is enough to defeat
+    /// "exactly 180.000s" pattern matching without changing the long-run
+    /// request rate. Floor protects against a low base + unlucky negative
+    /// draw producing a request-storm.
+    private static func applyJitter(_ secs: Int) -> Int {
+        let spread = Double(secs) * 0.20
+        let delta = Double.random(in: -spread...spread)
+        return max(30, Int((Double(secs) + delta).rounded()))
+    }
+
+    /// Called when the popover is shown. Records the timestamp so the
+    /// boost layer in `nextRefreshIntervalSec` kicks in, and triggers an
+    /// immediate refresh so the just-opened popover doesn't render
+    /// against stale snapshot data from minutes ago.
+    ///
+    /// Both effects are gated on `popoverBoostEnabled` so users on
+    /// battery / metered connections can opt out entirely — the timer
+    /// loop alone keeps the snapshot fresh at their configured cadence.
+    func notePopoverOpened() {
+        guard settings.popoverBoostEnabled else { return }
+        popoverOpenedAt = Date()
+        Task { await refreshNow() }
     }
 
     /// OAuth `/usage` cadence — kept at the user-configurable 180s / 120s

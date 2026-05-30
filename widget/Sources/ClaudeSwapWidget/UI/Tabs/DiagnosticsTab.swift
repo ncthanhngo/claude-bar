@@ -495,6 +495,7 @@ struct DiagnosticsTab: View {
 
     private var webUsageGroup: some View {
         SettingsGroup("Web usage diagnostics", subtitle: "Each account has its own embedded web profile. Web sessions sync separately through iCloud Keychain by account email.") {
+            keepAliveStatusRow
             if let accounts = store.snapshot?.accounts, !accounts.isEmpty {
                 ForEach(accounts) { acc in
                     HStack(spacing: 8) {
@@ -533,6 +534,53 @@ struct DiagnosticsTab: View {
         case .fallback: return .orange
         case .linked, .notLinked: return .secondary
         }
+    }
+
+    /// Shows when the keep-alive loop last ran and how many accounts it
+    /// pinged in that tick. Lets users verify the safety net is alive
+    /// without scrubbing through the diagnostics log file.
+    @ViewBuilder
+    private var keepAliveStatusRow: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "heart.circle")
+                .foregroundColor(.secondary)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Cookie keep-alive")
+                    .font(.system(size: 12, weight: .medium))
+                Text(keepAliveDetailText)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer()
+        }
+        .padding(.bottom, 4)
+    }
+
+    private var keepAliveDetailText: String {
+        guard AppSettings.shared.cookieKeepAliveEnabled else {
+            return "Disabled in Settings → Adaptive refresh. Cookies rely on normal polling only."
+        }
+        guard let last = webFallback.keepAliveLastTickAt else {
+            return "First tick fires within ~5h of launch. No ping yet."
+        }
+        let ago = relativeShort(from: last)
+        let pinged = webFallback.keepAliveLastPingedCount
+        if pinged == 0 {
+            return "Last tick \(ago) — every linked account was already fresh, nothing to ping."
+        }
+        return "Last tick \(ago) — pinged \(pinged) account\(pinged == 1 ? "" : "s") that had gone quiet."
+    }
+
+    /// Short human-readable "Xm ago" / "Xh ago" formatter scoped to this
+    /// row. Avoids pulling in DateFormatter for a single label.
+    private func relativeShort(from date: Date) -> String {
+        let secs = max(0, Int(Date().timeIntervalSince(date)))
+        if secs < 60 { return "just now" }
+        if secs < 3600 { return "\(secs / 60)m ago" }
+        if secs < 86_400 { return "\(secs / 3600)h ago" }
+        return "\(secs / 86_400)d ago"
     }
 
     // MARK: - Logs & diagnostics

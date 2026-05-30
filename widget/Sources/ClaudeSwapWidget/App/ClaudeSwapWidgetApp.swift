@@ -60,27 +60,86 @@ struct ClaudeSwapWidgetApp: App {
         seedAutoApproveSlackPostMessageDefault()
         syncReloadShortcutIfNeeded()
 
-        // Capture refs to the @StateObject coordinators in a closure that
-        // fires from AppDelegate.applicationDidFinishLaunching — independent
-        // of whether MenuBarExtra ever opens its popover.
+        // Capture refs to every @StateObject the launch-time wiring needs.
+        // MenuBarExtra's `.task` is lazy — fires only on first popover render
+        // — so wiring that lives there is invisible to background work after
+        // a Sparkle restart until the user manually opens the menu. Lifting
+        // the full setup into AppDelegate.applicationDidFinishLaunching means
+        // the polling loop, notification handler, and recovery plumbing all
+        // come up at process start, matching what users expect from a
+        // menu-bar app.
         let storeRef = _store.wrappedValue
         let loginRef = _loginCoordinator.wrappedValue
+        let verifyRef = _verifyCoordinator.wrappedValue
+        let webRef = _webFallback.wrappedValue
+        let quickRef = _quickRelogin.wrappedValue
+        let recoveryRef = _recovery.wrappedValue
         let cloudRef = _cloudSync.wrappedValue
+        let mcpRef = _localMCP.wrappedValue
+        let chatRef = _chatStore.wrappedValue
+        let prefsRef = _prefsCloudSync.wrappedValue
+        let updateRef = _updateController.wrappedValue
         let gateRef = _gateCoord.wrappedValue
         let settingsRef = AppSettings.shared
         AppDelegate.onLaunchCompleted = {
             Task { @MainActor in
+                DiagnosticsLogger.shared.log(.info, subsystem: "launch", "begin onLaunchCompleted")
                 // Start the gate IPC proxy unconditionally at launch so MCP
                 // write-tool prompts (Slack post, Sheets write, etc.) can
                 // surface even when the user has never opened the popover.
-                // Without this, MenuBarExtra's `.task` modifier defers the
-                // start until first popover render, and every MCP write
-                // call before that times out with `user_cancelled` (#11).
                 gateRef.start()
-                // Give store.start() (kicked off from the popover's .task)
-                // a moment to fetch the snapshot. If the popover never opens,
-                // snapshot stays nil — but `accounts.isEmpty` is still
-                // computable as 0, so onboarding still fires correctly.
+                // Coordinator wire-up — order matches the previous in-popover
+                // sequence so cross-coordinator weak references settle before
+                // anyone is asked to do real work.
+                loginRef.attach(store: storeRef)
+                verifyRef.attach(store: storeRef)
+                webRef.attach(store: storeRef)
+                quickRef.attach(store: storeRef, webFallback: webRef, loginCoordinator: loginRef)
+                loginRef.quickRelogin = quickRef
+                recoveryRef.headlessRelogin = { [weak quickRef] accountNum in
+                    await quickRef?.beginHeadless(forAccountNumber: accountNum)
+                        ?? .failed("no coordinator")
+                }
+                storeRef.recovery = recoveryRef
+                let notifHandler = NotificationActionHandler(autoSwap: storeRef.autoSwap)
+                notifHandler.install()
+                storeRef.notificationHandler = notifHandler
+                storeRef.autoSwap.recovery = recoveryRef
+                storeRef.autoSwap.isInteractiveReloginActive = { [weak quickRef] in
+                    quickRef?.isPresentingInteractive ?? false
+                }
+                storeRef.cloudSync = cloudRef
+                DiagnosticsLogger.shared.log(.info, subsystem: "launch", "coordinators wired")
+                // Kick the polling timer + auto-swap loop. Previously deferred
+                // to first popover open, which broke auto-swap and token
+                // refresh after a Sparkle restart.
+                storeRef.start()
+                chatRef.bind(to: storeRef)
+                DiagnosticsLogger.shared.log(.info, subsystem: "launch", "polling started")
+                // Standalone Settings window inherits the same coordinators
+                // the popover would have injected via environment.
+                SettingsWindowController.shared.bindEnvironment { content in
+                    AnyView(
+                        content
+                            .environmentObject(storeRef)
+                            .environmentObject(loginRef)
+                            .environmentObject(verifyRef)
+                            .environmentObject(webRef)
+                            .environmentObject(quickRef)
+                            .environmentObject(cloudRef)
+                            .environmentObject(mcpRef)
+                            .environmentObject(updateRef)
+                            .environmentObject(gateRef)
+                    )
+                }
+                prefsRef.start()
+                await cloudRef.refreshStatus()
+                await cloudRef.checkOnboarding(snapshot: storeRef.snapshot)
+                DiagnosticsLogger.shared.log(.info, subsystem: "launch", "cloud sync ready (enabled=\(settingsRef.iCloudSyncEnabled))")
+                // Give the first refresh cycle a moment so onboarding sees
+                // the real account count instead of nil — matches prior
+                // behaviour where popover render ran the same await chain
+                // before this 800ms gap.
                 try? await Task.sleep(nanoseconds: 800_000_000)
                 presentOnboardingIfNeededAtLaunch(
                     store: storeRef,
@@ -88,6 +147,12 @@ struct ClaudeSwapWidgetApp: App {
                     settings: settingsRef,
                     cloudSync: cloudRef
                 )
+                // Pre-warm MCP off the main path so Settings → Local MCP is
+                // hot on first open, no late-inflate flash.
+                Task.detached(priority: .utility) { [mcpRef] in
+                    await mcpRef.refresh()
+                }
+                DiagnosticsLogger.shared.log(.info, subsystem: "launch", "end onLaunchCompleted")
             }
         }
         _ = settingsRef
@@ -166,82 +231,14 @@ struct ClaudeSwapWidgetApp: App {
                         .background(Color(NSColor.windowBackgroundColor))
                 }
                 .task {
-                    gateCoord.start()
-                    loginCoordinator.attach(store: store)
-                    verifyCoordinator.attach(store: store)
-                    webFallback.attach(store: store)
-                    quickRelogin.attach(store: store, webFallback: webFallback, loginCoordinator: loginCoordinator)
-                    // Primary "Add account" path hands off to the shared OAuth
-                    // coordinator; the wizard window can't see it via environment.
-                    loginCoordinator.quickRelogin = quickRelogin
-                    // Wire headless re-login into the recovery coordinator.
-                    // The weak capture prevents a retain cycle between the two
-                    // @StateObject instances (both live for app lifetime, but
-                    // explicit weak keeps the reference graph clean and allows
-                    // future teardown in tests).
-                    recovery.headlessRelogin = { [weak quickRelogin] accountNum in
-                        await quickRelogin?.beginHeadless(forAccountNumber: accountNum)
-                            ?? .failed("no coordinator")
-                    }
-                    store.recovery = recovery
-                    // Register the notification-action handler (Cancel/Retry)
-                    // before any recovery notification can fire. Retained on
-                    // the store because the center's delegate ref is weak.
-                    let notifHandler = NotificationActionHandler(autoSwap: store.autoSwap)
-                    notifHandler.install()
-                    store.notificationHandler = notifHandler
-                    // Let the auto-swap loop drive credential recovery: it
-                    // reads recovery status to gate the active branch and
-                    // sweeps inactive accounts through the same coordinator.
-                    store.autoSwap.recovery = recovery
-                    store.autoSwap.isInteractiveReloginActive = { [weak quickRelogin] in
-                        quickRelogin?.isPresentingInteractive ?? false
-                    }
-                    store.cloudSync = cloudSync
-                    store.start()
-                    chatStore.bind(to: store)
-                    // Wire environment for the standalone Settings window so
-                    // its SwiftUI content sees the same coordinators the old
-                    // in-popover SettingsTab received via the MenuBarExtra
-                    // environment chain.
-                    let storeBind = store
-                    let loginBind = loginCoordinator
-                    let verifyBind = verifyCoordinator
-                    let webBind = webFallback
-                    let quickBind = quickRelogin
-                    let cloudBind = cloudSync
-                    let mcpBind = localMCP
-                    let updateBind = updateController
-                    let gateBind = gateCoord
-                    SettingsWindowController.shared.bindEnvironment { content in
-                        AnyView(
-                            content
-                                .environmentObject(storeBind)
-                                .environmentObject(loginBind)
-                                .environmentObject(verifyBind)
-                                .environmentObject(webBind)
-                                .environmentObject(quickBind)
-                                .environmentObject(cloudBind)
-                                .environmentObject(mcpBind)
-                                .environmentObject(updateBind)
-                                .environmentObject(gateBind)
-                        )
-                    }
-                    prefsCloudSync.start()
-                    await cloudSync.refreshStatus()
-                    await cloudSync.checkOnboarding(snapshot: store.snapshot)
-                    presentOnboardingIfNeeded()
-                    // Pre-warm the MCP coordinator off the main path so
-                    // Settings → Local MCP is hot the first time the user
-                    // opens it. Without this, the .task inside
-                    // LocalMCPSettingsView fires on first open and the
-                    // connector list inflates from a 1-line "Loading…"
-                    // placeholder to ~5 connector rows AFTER first paint,
-                    // shifting the page contents downward — the user
-                    // perceives this as a "flash".
-                    Task.detached(priority: .utility) { [localMCP] in
-                        await localMCP.refresh()
-                    }
+                    // All launch-time wiring (timer start, coordinator
+                    // attaches, notification handler) now fires from
+                    // AppDelegate.applicationDidFinishLaunching via
+                    // onLaunchCompleted, so background polling and auto-swap
+                    // come up without requiring the user to open the popover
+                    // first. Kept as an explicit empty hook to document the
+                    // move — anything popover-render-specific in the future
+                    // belongs here.
                 }
         } label: {
             MenuBarLabelView()

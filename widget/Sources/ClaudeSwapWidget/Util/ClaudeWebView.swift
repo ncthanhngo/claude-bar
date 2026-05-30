@@ -4,6 +4,10 @@ import WebKit
 enum ClaudeWebUsageError: LocalizedError {
     case usagePageNotReady
     case usageUnavailable
+    /// claude.ai returned 429 (Too Many Requests) or 403 (Forbidden) on the
+    /// usage navigation. Surfaces a hint so the caller can backoff polling
+    /// for that account instead of hammering the same response.
+    case rateLimited(status: Int)
 
     var errorDescription: String? {
         switch self {
@@ -11,6 +15,8 @@ enum ClaudeWebUsageError: LocalizedError {
             return "Claude web usage page did not finish loading."
         case .usageUnavailable:
             return "Claude web usage did not expose a 5h or 7d quota window."
+        case .rateLimited(let status):
+            return "claude.ai blocked the usage request (HTTP \(status))."
         }
     }
 }
@@ -71,6 +77,11 @@ final class ClaudeWebUsageFetcher: NSObject, WKNavigationDelegate {
     private let usageURL = URL(string: "https://claude.ai/settings/usage")!
     private let webView: WKWebView
     private var loadContinuation: CheckedContinuation<Void, Error>?
+    /// Status code captured by `decidePolicyFor:NavigationResponse` for the
+    /// main-frame response. Surfaces 429 / 403 so the caller can backoff
+    /// polling for the offending account instead of hammering the same
+    /// rate-limited response. Reset on every `reloadUsagePage`.
+    private var lastMainFrameStatus: Int?
 
     init(dataStore: WKWebsiteDataStore) {
         let config = WKWebViewConfiguration()
@@ -82,6 +93,14 @@ final class ClaudeWebUsageFetcher: NSObject, WKNavigationDelegate {
 
     func fetchUsage() async throws -> UsageDTO {
         try await reloadUsagePage()
+        // Reject 429 / 403 before scraping — claude.ai sometimes still
+        // renders a usable-looking shell on rate-limit so DOM scraping
+        // would yield empty results that masquerade as "SPA not hydrated".
+        // Surfacing the status explicitly lets the coordinator backoff
+        // this account instead of retrying every poll cycle.
+        if let status = lastMainFrameStatus, status == 429 || status == 403 {
+            throw ClaudeWebUsageError.rateLimited(status: status)
+        }
         // claude.ai is a React SPA — `didFinish` fires when HTML+JS is loaded
         // but the usage numbers arrive via a follow-up XHR. The weekly-limit
         // block hydrates several seconds AFTER the 5h block in steady state,
@@ -144,6 +163,7 @@ final class ClaudeWebUsageFetcher: NSObject, WKNavigationDelegate {
     }
 
     private func reloadUsagePage() async throws {
+        lastMainFrameStatus = nil
         try await withCheckedThrowingContinuation { continuation in
             loadContinuation = continuation
             // Bypass HTTP cache so a recent reset isn't masked by a 304 that
@@ -169,6 +189,23 @@ final class ClaudeWebUsageFetcher: NSObject, WKNavigationDelegate {
         let bodyJS = "(document.body && document.body.innerText || '').slice(0, 200).replace(/\\s+/g, ' ')"
         let body = (try? await webView.evaluateJavaScript(bodyJS)) as? String ?? "<no body>"
         return "url=\(url) | title=\(title) | bodyPrefix=\(body)"
+    }
+
+    nonisolated func webView(_: WKWebView,
+                             decidePolicyFor navigationResponse: WKNavigationResponse,
+                             decisionHandler: @escaping (WKNavigationResponsePolicy) -> Void) {
+        // Capture the main-frame HTTP status so fetchUsage() can detect
+        // rate limiting (429) and outright blocks (403) before falling
+        // into the JS scrape loop. Subresources (XHR, fonts, CSS) are
+        // ignored — only the page navigation matters for backoff.
+        if navigationResponse.isForMainFrame,
+           let http = navigationResponse.response as? HTTPURLResponse {
+            let status = http.statusCode
+            Task { @MainActor [weak self] in
+                self?.lastMainFrameStatus = status
+            }
+        }
+        decisionHandler(.allow)
     }
 
     func webView(_: WKWebView, didFinish _: WKNavigation!) {

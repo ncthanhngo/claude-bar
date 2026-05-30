@@ -164,6 +164,25 @@ struct GeneralTab: View {
                     Stepper(value: $settings.adaptiveHighThresholdPct, in: 50...95, step: 5) {
                         valueRow(title: "Fast refresh starts at", value: "\(settings.adaptiveHighThresholdPct)%")
                     }
+                    Divider().padding(.vertical, 4)
+                    Toggle(isOn: $settings.popoverBoostEnabled) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Boost refresh when popover is open")
+                            Text("Triggers an immediate refresh on open and shortens the poll cadence for ~5 minutes. Turn off on battery or metered connections — background polling keeps following the interval above.")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+                    Toggle(isOn: $settings.cookieKeepAliveEnabled) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Keep web session cookies fresh")
+                            Text("Every few hours, pings claude.ai for any web-linked account quiet for >20h so its session cookie doesn't lapse. Skips accounts in rate-limit backoff. Safe to turn off if you don't link web profiles.")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
                 }
                 .padding(.top, 6)
             } label: {

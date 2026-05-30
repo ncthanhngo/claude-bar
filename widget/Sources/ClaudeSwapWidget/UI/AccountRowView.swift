@@ -169,7 +169,19 @@ struct AccountRowView: View {
         .help(webUsageHelp)
     }
 
+    /// Minutes remaining on this account's rate-limit backoff, or nil if
+    /// not rate-limited. Drives the badge variant — when set, the badge
+    /// dominates the connected/linked/fallback display because the user
+    /// needs to know polling is paused right now.
+    private var rateLimitedMinutesRemaining: Int? {
+        guard let until = webFallback.rateLimitedUntil(view.account) else { return nil }
+        let secs = until.timeIntervalSinceNow
+        guard secs > 0 else { return nil }
+        return max(1, Int((secs / 60).rounded(.up)))
+    }
+
     private var webUsageIcon: String {
+        if rateLimitedMinutesRemaining != nil { return "clock.badge.exclamationmark" }
         switch webFallback.state(for: view.account) {
         case .connected: return "checkmark.icloud"
         case .linked: return "globe"
@@ -179,6 +191,7 @@ struct AccountRowView: View {
     }
 
     private var webUsageLabel: String {
+        if let mins = rateLimitedMinutesRemaining { return "Wait \(mins)m" }
         switch webFallback.state(for: view.account) {
         case .connected, .linked, .fallback: return "Web"
         case .notLinked: return "Terminal"
@@ -186,6 +199,7 @@ struct AccountRowView: View {
     }
 
     private var webUsageColor: Color {
+        if rateLimitedMinutesRemaining != nil { return .red }
         switch webFallback.state(for: view.account) {
         case .connected: return .green
         case .fallback: return .orange
@@ -194,6 +208,9 @@ struct AccountRowView: View {
     }
 
     private var webUsageHelp: String {
+        if let mins = rateLimitedMinutesRemaining {
+            return "claude.ai rate-limited this account. Polling resumes in ~\(mins)m. Other accounts unaffected."
+        }
         switch webFallback.state(for: view.account) {
         case .connected(let summary): return "Web usage linked: \(summary)"
         case .linked: return "Web usage linked for this account."
