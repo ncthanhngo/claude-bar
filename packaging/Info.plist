@@ -13,9 +13,9 @@
     <key>CFBundleIdentifier</key>
     <string>dev.ncthanhngo.claude-bar</string>
     <key>CFBundleVersion</key>
-    <string>11.37</string>
+    <string>11.38</string>
     <key>CFBundleShortVersionString</key>
-    <string>11.37</string>
+    <string>11.38</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleSignature</key>
@@ -35,7 +35,7 @@
     <key>NSHumanReadableCopyright</key>
     <string>Copyright © 2026 Thanh Ngô. Licensed under MIT.</string>
     <key>CFBundleGetInfoString</key>
-    <string>Claude Bar 11.37 — menu-bar manager for multiple Claude Code accounts</string>
+    <string>Claude Bar 11.38 — menu-bar manager for multiple Claude Code accounts</string>
     <key>CBAuthorName</key>
     <string>Thanh Ngô</string>
     <key>CBAuthorEmail</key>
@@ -49,10 +49,10 @@
     <key>CBReleaseChannel</key>
     <string>Beta</string>
     <key>CBReleaseWhatsNew</key>
-    <string>Per-account refresh button next to the Web badge — force a fresh usage scrape without waiting for the next poll.
-First scrape after launch now auto-retries 12s later if claude.ai only returned 5h data — full chart fills in faster.</string>
+    <string>New GitLab MCP tools to diagnose failed pipelines: get pipeline status, list jobs, read job log tail.
+New gated GitLab actions: retry pipeline, cancel pipeline, create pipeline on a ref.</string>
     <key>CBReleaseHotfixes</key>
-    <string>Fixed Quick Login failing with "no store reference" right after auto-authorize. Account wiring now runs from a stable place at launch.</string>
+    <string>Fixed Settings → MCP showing GitLab as "off" after a successful Add — instance and PAT were saved but the row never flipped to "connected".</string>
     <key>CBReleaseKnownIssues</key>
     <string>None.</string>
     <key>CFBundleDevelopmentRegion</key>

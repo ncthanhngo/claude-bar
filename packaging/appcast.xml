@@ -12,6 +12,27 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 11.38</title>
+      <sparkle:version>11.38</sparkle:version>
+      <sparkle:shortVersionString>11.38</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li><strong>GitLab pipeline diagnostics</strong> — new MCP tools to find what broke a failed pipeline: <code>cb_gitlab_get_pipeline</code> for status + duration, <code>cb_gitlab_list_pipeline_jobs</code> with a <code>scope=failed</code> filter, and <code>cb_gitlab_get_job_log</code> returning the last 64 KB (configurable up to 512 KB) of a job's trace.</li>
+          <li><strong>GitLab pipeline actions</strong> — gated write tools to drive pipelines: <code>cb_gitlab_retry_pipeline</code>, <code>cb_gitlab_cancel_pipeline</code>, and <code>cb_gitlab_create_pipeline</code> (run a pipeline on a ref).</li>
+          <li><strong>Fixed GitLab connector showing "off" after Add</strong> — the Settings → MCP connectors list checked the bare <code>gitlab</code> Keychain slot, but multi-instance PATs live at <code>gitlab:&lt;id&gt;</code>. The row now trusts the registry mirror that gets flipped on a successful add, so GitLab flips to "connected" the moment you finish the Add Instance sheet.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Sat, 30 May 2026 22:18:55 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v11.38/ClaudeBar.zip"
+        sparkle:version="11.38"
+        sparkle:shortVersionString="11.38"
+        sparkle:edSignature="g28xV/r4gKHPVP4SzS/a/xoh588pIZ+xn3eS6Nw2ccX8u2JZ3UFQQcryZmlL3n/pjlcaajgPYidsQERRqRJFCg=="
+        length="8041107"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 11.37</title>
       <sparkle:version>11.37</sparkle:version>
       <sparkle:shortVersionString>11.37</sparkle:shortVersionString>
