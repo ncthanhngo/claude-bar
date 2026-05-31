@@ -13,9 +13,9 @@
     <key>CFBundleIdentifier</key>
     <string>dev.ncthanhngo.claude-bar</string>
     <key>CFBundleVersion</key>
-    <string>11.38</string>
+    <string>12</string>
     <key>CFBundleShortVersionString</key>
-    <string>11.38</string>
+    <string>12</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleSignature</key>
@@ -35,7 +35,7 @@
     <key>NSHumanReadableCopyright</key>
     <string>Copyright © 2026 Thanh Ngô. Licensed under MIT.</string>
     <key>CFBundleGetInfoString</key>
-    <string>Claude Bar 11.38 — menu-bar manager for multiple Claude Code accounts</string>
+    <string>Claude Bar 12 — menu-bar manager for multiple Claude Code accounts</string>
     <key>CBAuthorName</key>
     <string>Thanh Ngô</string>
     <key>CBAuthorEmail</key>
@@ -47,12 +47,13 @@
     <key>CBBuildDate</key>
     <string>2026-05-30</string>
     <key>CBReleaseChannel</key>
-    <string>Beta</string>
+    <string>Stable</string>
     <key>CBReleaseWhatsNew</key>
-    <string>New GitLab MCP tools to diagnose failed pipelines: get pipeline status, list jobs, read job log tail.
-New gated GitLab actions: retry pipeline, cancel pipeline, create pipeline on a ref.</string>
+    <string>Polling resumes instantly when your Mac wakes from sleep — no more stale chart after overnight idle.
+cmux is auto-configured to use claude-watch so CLI sessions auto-restart after a swap or recovery.
+App Nap throttling no longer slows the background poll cadence.</string>
     <key>CBReleaseHotfixes</key>
-    <string>Fixed Settings → MCP showing GitLab as "off" after a successful Add — instance and PAT were saved but the row never flipped to "connected".</string>
+    <string>Fixed CLI sessions spawned by cmux dying without restart after an overnight credential recovery.</string>
     <key>CBReleaseKnownIssues</key>
     <string>None.</string>
     <key>CFBundleDevelopmentRegion</key>
