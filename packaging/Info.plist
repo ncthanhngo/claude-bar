@@ -13,9 +13,9 @@
     <key>CFBundleIdentifier</key>
     <string>dev.ncthanhngo.claude-bar</string>
     <key>CFBundleVersion</key>
-    <string>12.1</string>
+    <string>12.2</string>
     <key>CFBundleShortVersionString</key>
-    <string>12.1</string>
+    <string>12.2</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleSignature</key>
@@ -35,7 +35,7 @@
     <key>NSHumanReadableCopyright</key>
     <string>Copyright © 2026 Thanh Ngô. Licensed under MIT.</string>
     <key>CFBundleGetInfoString</key>
-    <string>Claude Bar 12.1 — menu-bar manager for multiple Claude Code accounts</string>
+    <string>Claude Bar 12.2 — menu-bar manager for multiple Claude Code accounts</string>
     <key>CBAuthorName</key>
     <string>Thanh Ngô</string>
     <key>CBAuthorEmail</key>
@@ -49,12 +49,11 @@
     <key>CBReleaseChannel</key>
     <string>Beta</string>
     <key>CBReleaseWhatsNew</key>
-    <string>Direct JSON API replaces the WebView scrape for web-linked accounts — per-poll cost drops from ~800 KB / 3 s to ~3 KB / 0.5 s.
-Falls back to the WebView scrape automatically if the API changes or cookies expire — no regression.</string>
+    <string>Maintenance release — no functional changes since v12.1. Carries forward the direct usage API fast path.</string>
     <key>CBReleaseHotfixes</key>
     <string>None.</string>
     <key>CBReleaseKnownIssues</key>
-    <string>If Anthropic changes the usage API schema, web-linked accounts revert to the slower WebView path until the parser is updated.</string>
+    <string>None.</string>
     <key>CFBundleDevelopmentRegion</key>
     <string>en</string>
     <key>CFBundleLocalizations</key>
