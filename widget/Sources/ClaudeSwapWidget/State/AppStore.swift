@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import SwiftUI
 import UserNotifications
@@ -66,6 +67,10 @@ final class AppStore: ObservableObject {
     private static let webRefreshIntervalHighSec = 60
 
     private var refreshTask: Task<Void, Never>?
+    private var wakeObserver: NSObjectProtocol?
+    /// Opaque token returned by `ProcessInfo.beginActivity` — kept alive
+    /// for the AppStore lifetime so App Nap throttling stays off.
+    private var backgroundActivity: NSObjectProtocol?
 
     /// Last time the user opened the menu-bar popover. Drives a short
     /// "boost" window during which the polling cadence shrinks toward the
@@ -126,6 +131,51 @@ final class AppStore: ObservableObject {
             }
         }
         autoSwap.start()
+        installWakeObserver()
+        beginBackgroundActivity()
+    }
+
+    /// Subscribed at `start()`; fires `refreshNow` immediately when macOS
+    /// wakes from sleep. Without this the polling Task can stay parked for
+    /// hours after a long sleep because `Task.sleep` clocks pause under
+    /// App Nap / system idle — the loop technically runs but the cadence
+    /// drifts to "minutes-to-hours behind real time", which observably
+    /// stalls the menu data overnight even though the process is alive.
+    @MainActor
+    private func installWakeObserver() {
+        guard wakeObserver == nil else { return }
+        let nc = NSWorkspace.shared.notificationCenter
+        wakeObserver = nc.addObserver(
+            forName: NSWorkspace.didWakeNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                DiagnosticsLogger.shared.log(.info, subsystem: "lifecycle",
+                    "Mac woke from sleep — kicking immediate refresh")
+                await self.refreshNow()
+                await self.backupTokenRefreshIfNeeded()
+            }
+        }
+    }
+
+    /// Tells macOS we have user-visible work that should not be throttled by
+    /// App Nap. The activity stays alive for the lifetime of the AppStore;
+    /// the polling cadence still drives traffic, but the OS treats us as
+    /// "userInitiated" rather than a backgroundable agent.
+    @MainActor
+    private func beginBackgroundActivity() {
+        guard backgroundActivity == nil else { return }
+        // `.userInitiated` opts out of App Nap throttling so the polling
+        // loop keeps a steady cadence in the background. We deliberately
+        // DO NOT add `.idleSystemSleepDisabled` — the user closing their
+        // laptop should still put the Mac to sleep; we just want the loop
+        // to resume promptly on wake (see `installWakeObserver`).
+        backgroundActivity = ProcessInfo.processInfo.beginActivity(
+            options: [.userInitiated],
+            reason: "Claude Bar background polling"
+        )
     }
 
     /// True if any web-linked account in the just-loaded snapshot has 5h
@@ -510,6 +560,8 @@ final class AppStore: ObservableObject {
     /// (`autoKillCLIAfterSwap`, `autoReloadIDEAfterSwap`) and the always-on
     /// cmux relauncher.
     func schedulePostSwapIntegrations() {
+        DiagnosticsLogger.shared.log(.info, subsystem: "post-swap",
+            "scheduled — autoKillCLI=\(settings.autoKillCLIAfterSwap) autoReloadIDE=\(settings.autoReloadIDEAfterSwap)")
         Task { [weak self] in
             await self?.restartCLISessionsAfterSwap()
         }
@@ -533,11 +585,16 @@ final class AppStore: ObservableObject {
             // conversation continues. A SIGINT here would race the resume.
             let killed = CLISessionKiller.killAll(skipCmuxTracked: true)
             killCount = killed.count
+            DiagnosticsLogger.shared.log(.info, subsystem: "post-swap",
+                "SIGINT sent to \(killCount) CLI PID(s) (cmux-tracked skipped)")
             if killCount > 0 {
                 try? await Task.sleep(nanoseconds: 800_000_000) // 0.8s graceful
                 CLISessionKiller.forceKillSurvivors(killed)
                 try? await Task.sleep(nanoseconds: 200_000_000) // 0.2s settle
             }
+        } else {
+            DiagnosticsLogger.shared.log(.info, subsystem: "post-swap",
+                "CLI auto-kill disabled — leaving running claude PIDs alone")
         }
 
         await postSwapNotification(
