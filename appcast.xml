@@ -12,6 +12,30 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 12.1 (BETA)</title>
+      <sparkle:version>12.1</sparkle:version>
+      <sparkle:shortVersionString>12.1</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <p><strong>Beta</strong> — testing a major optimisation before promoting to v13.</p>
+        <ul>
+          <li><strong>Direct usage API path</strong> — for web-linked accounts the poller now calls <code>https://claude.ai/api/organizations/&lt;orgUuid&gt;/usage</code> through <code>URLSession</code> with cookies harvested from the per-account <code>WKWebsiteDataStore</code>. Per-poll cost drops from ~800 KB / 2.5–3 s (WebView scrape) to ~3 KB / 0.3–0.7 s. At the default cadence that's ~17 GB → ~5 MB per account per month.</li>
+          <li><strong>Cookie cache priming</strong> — a one-shot favicon fetch wakes <code>WKWebsiteDataStore(forIdentifier:)</code>'s in-memory cookie cache so <code>httpCookieStore.allCookies()</code> returns the persisted session on first call. Adds ~1 KB once per process per account.</li>
+          <li><strong>Automatic WebView fallback</strong> — missing org UUID, empty cookie jar, non-2xx HTTP, or decode failure all fall through to the legacy DOM scrape, so a future schema change at Anthropic doesn't break the chart — it just temporarily reverts to the slower path.</li>
+          <li><strong>Quieter logs</strong> — only the first successful API response is logged in full; subsequent polls log a one-line headline (<code>fast path acc@email — 5h X%, 7d Y%</code>).</li>
+        </ul>
+        <p>If you hit a persistent <code>account_session_invalid</code> 403 after updating: Settings → Diagnostics → Web usage → Disconnect, then Connect again and complete the full sign-in flow.</p>
+      ]]></description>
+      <pubDate>Sun, 31 May 2026 16:44:11 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v12.1/ClaudeBar.zip"
+        sparkle:version="12.1"
+        sparkle:shortVersionString="12.1"
+        sparkle:edSignature="mH0o+3wTQNxKpmgE5JMQYFsxtiAlTLGux42jeiQDSo/1VlyL4X2ZddL4WpjT3OA1A6mUPezPKvMegD/poqtaAw=="
+        length="8068091"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 12</title>
       <sparkle:version>12</sparkle:version>
       <sparkle:shortVersionString>12</sparkle:shortVersionString>
