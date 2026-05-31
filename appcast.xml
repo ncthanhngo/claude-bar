@@ -12,6 +12,23 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 12.2 (BETA)</title>
+      <sparkle:version>12.2</sparkle:version>
+      <sparkle:shortVersionString>12.2</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <p>Maintenance release. No functional changes since v12.1 — carries forward the direct usage API fast path for web-linked accounts.</p>
+      ]]></description>
+      <pubDate>Sun, 31 May 2026 18:10:28 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v12.2/ClaudeBar.zip"
+        sparkle:version="12.2"
+        sparkle:shortVersionString="12.2"
+        sparkle:edSignature="/oBvAQBo7ljRFy3ju+6TQ+4TnLA+c7fbNQhziwGsy6V6x21oHwfqeNum3FNlvyI+LCoPQzW7U/DQdlwIL8L/AQ=="
+        length="8067962"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 12.1 (BETA)</title>
       <sparkle:version>12.1</sparkle:version>
       <sparkle:shortVersionString>12.1</sparkle:shortVersionString>
