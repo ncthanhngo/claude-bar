@@ -12,6 +12,30 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 12</title>
+      <sparkle:version>12</sparkle:version>
+      <sparkle:shortVersionString>12</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <p>First <strong>Stable</strong> release. Highlights since v11.38:</p>
+        <ul>
+          <li><strong>Wake-on-resume polling</strong> — subscribed to <code>NSWorkspace.didWakeNotification</code> so polling and credential refresh fire immediately when your Mac wakes from sleep, instead of drifting hours behind real time after an overnight idle.</li>
+          <li><strong>App Nap mitigation</strong> — <code>ProcessInfo.beginActivity(.userInitiated)</code> tells macOS the polling cadence is user-visible, stopping background throttling. Closing the laptop still puts the Mac to sleep as normal.</li>
+          <li><strong>cmux auto-configures claude-watch</strong> — new installer injects <code>automation.claudeBinaryPath</code> into <code>~/.config/cmux/cmux.json</code> on launch (idempotent, respects manual overrides). Fixes the morning-after 401 where cmux invoked the bare <code>claude</code> binary, so SIGINT from an overnight credential recovery killed the CLI without restarting it.</li>
+          <li><strong>Post-swap diagnostics</strong> — new <code>post-swap</code> log subsystem reports SIGINT count + auto-kill-disabled paths so the recovery → CLI-restart chain is debuggable end-to-end.</li>
+          <li><strong>Hotfix</strong>: CLI sessions spawned by cmux no longer die without restart after an overnight credential recovery.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Sun, 31 May 2026 10:23:33 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v12/ClaudeBar.zip"
+        sparkle:version="12"
+        sparkle:shortVersionString="12"
+        sparkle:edSignature="JnFbEMt3Mk87797xbrg7Dx3RNV2bqvpyZ+IEflUFW2y1TwUnIr/nuI2X738QHGw59h9E5Mw2GaQAJGZ7CCaeDA=="
+        length="8047850"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 11.38</title>
       <sparkle:version>11.38</sparkle:version>
       <sparkle:shortVersionString>11.38</sparkle:shortVersionString>
