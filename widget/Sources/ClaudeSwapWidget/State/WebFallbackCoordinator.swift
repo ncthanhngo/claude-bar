@@ -217,22 +217,50 @@ final class WebFallbackCoordinator: ObservableObject {
         await ClaudeWebSessionSync.save(account: view.account, dataStore: dataStore)
         let started = Date()
         do {
-            // Hard 12s ceiling so a hung WKWebView load (DNS stall,
-            // claude.ai redirect loop, login race) can't block the
-            // entire refresh cycle. Without this we observed 40–50s
-            // pending tasks piling up on the main actor.
-            let fetcher = ClaudeWebUsageFetcher(dataStore: dataStore)
-            let usage = try await withThrowingTaskGroup(of: UsageDTO.self) { group in
-                group.addTask { try await fetcher.fetchUsage() }
-                group.addTask {
-                    try await Task.sleep(nanoseconds: 12_000_000_000)
-                    throw ClaudeWebUsageError.usagePageNotReady
+            // Fast path: direct JSON API call (~3 KB per request) using the
+            // claude.ai session cookies already in the WKWebsiteDataStore.
+            // Falls through to the legacy WebView scrape if the API returns
+            // a non-2xx (Cloudflare challenge, expired session, schema
+            // drift) so we keep working even when Anthropic moves the
+            // endpoint around.
+            let usage: UsageDTO
+            var apiAttempted = false
+            var apiResult: UsageDTO?
+            if let orgUuid = view.account.organizationUuid, !orgUuid.isEmpty {
+                apiAttempted = true
+                do {
+                    apiResult = try await ClaudeWebUsageAPI.fetch(orgUuid: orgUuid, dataStore: dataStore)
+                } catch {
+                    DiagnosticsLogger.shared.log(.warning, subsystem: "usage-api",
+                        "fast path FAILED \(view.account.email) — \(error.localizedDescription)")
                 }
-                defer { group.cancelAll() }
-                guard let first = try await group.next() else {
-                    throw ClaudeWebUsageError.usagePageNotReady
+            }
+            if let direct = apiResult {
+                usage = direct
+                DiagnosticsLogger.shared.log(.info, subsystem: "usage-api",
+                    "fast path \(view.account.email) — \(direct.diagnosticSummary)")
+            } else {
+                if apiAttempted {
+                    DiagnosticsLogger.shared.log(.info, subsystem: "usage-api",
+                        "falling back to WebView scrape for \(view.account.email)")
                 }
-                return first
+                // Hard 12s ceiling so a hung WKWebView load (DNS stall,
+                // claude.ai redirect loop, login race) can't block the
+                // entire refresh cycle. Without this we observed 40–50s
+                // pending tasks piling up on the main actor.
+                let fetcher = ClaudeWebUsageFetcher(dataStore: dataStore)
+                usage = try await withThrowingTaskGroup(of: UsageDTO.self) { group in
+                    group.addTask { try await fetcher.fetchUsage() }
+                    group.addTask {
+                        try await Task.sleep(nanoseconds: 12_000_000_000)
+                        throw ClaudeWebUsageError.usagePageNotReady
+                    }
+                    defer { group.cancelAll() }
+                    guard let first = try await group.next() else {
+                        throw ClaudeWebUsageError.usagePageNotReady
+                    }
+                    return first
+                }
             }
             let elapsedMs = Int(Date().timeIntervalSince(started) * 1000)
             // If any scraped window's resetsAt is already in the past the SPA
