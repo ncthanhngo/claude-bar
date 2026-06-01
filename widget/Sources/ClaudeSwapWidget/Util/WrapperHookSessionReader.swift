@@ -1,6 +1,6 @@
 import Foundation
 
-/// One claude-bar-watch wrapper instance tracked via
+/// One claude-watch wrapper instance tracked via
 /// `~/.claude-bar/wrappers/<wrapper_pid>.json`. The wrapper writes one file
 /// per running invocation; on EXIT it removes its own file. Files belonging
 /// to wrappers whose PIDs no longer exist are filtered out at read time so

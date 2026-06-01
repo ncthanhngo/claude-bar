@@ -23,7 +23,7 @@ brew install --cask claude-bar
 - **Token usage chart** — Hour / Day / Month histogram of tokens and estimated USD cost across all local Claude Code sessions (CLI + IDE extensions). Click **Details** next to USD to see Anthropic's per-model rate table; rates auto-refresh in the background from a hosted JSON so updated Anthropic pricing flows in without a new release
 - **Auto-swap** — automatically switches to a lower-usage account when the active one hits your threshold; gives you a 60-second grace window with a heads-up notification, then swaps regardless of whether `claude` is still running
 - **IDE reload** — after a swap, reloads VSCode / Code Insiders / Cursor / Windsurf / Antigravity windows so the extension picks up new credentials (requires Accessibility permission). Reload shortcut is user-configurable (default `⌃⌘R`) and auto-installed into each editor's `keybindings.json`
-- **CLI auto-restart** — sends SIGINT to running `claude` sessions; use with the bundled `claude-bar-watch` wrapper to auto-restart in your terminal
+- **CLI auto-restart** — sends SIGINT to running `claude` sessions; use with the bundled `claude-watch` wrapper to auto-restart in your terminal
 - **Session guard** — warns you if Claude is running before a manual switch; option to force-switch anyway
 - **Web-first usage** — each account can link its own embedded claude.ai web profile for usage before falling back to terminal OAuth usage; web sessions sync separately through iCloud Keychain by account email
 - **Themes** — Light, Dark, and Rainbow
@@ -47,7 +47,7 @@ Open **Settings → Accounts → Add account**. Each account needs a separate Cl
 
 ### Auto-restart terminal sessions
 
-Enable **Auto-kill CLI sessions** in Settings → General. Claude Bar automatically installs `claude-bar-watch` and adds the shell alias on first launch — no manual steps needed. When a swap happens, your terminal session (including GoLand's integrated terminal) restarts automatically with the new account credentials.
+Enable **Auto-kill CLI sessions** in Settings → General. Claude Bar automatically installs `claude-watch` and adds the shell alias on first launch — no manual steps needed. When a swap happens, your terminal session (including GoLand's integrated terminal) restarts automatically with the new account credentials.
 
 ### IDE reload — VSCode / Code Insiders / Cursor / Windsurf / Antigravity
 
@@ -96,14 +96,13 @@ Or manually: download the latest `ClaudeBar.zip` from [Releases](https://github.
 brew uninstall --cask claude-bar
 ```
 
-To also remove all data (accounts, settings, claude-bar-watch script):
+To also remove all data (accounts, settings, claude-watch script):
 
 ```bash
 rm -rf "$HOME/Library/Application Support/claude-bar"
 defaults delete dev.ncthanhngo.claude-bar 2>/dev/null
 # Remove shell alias if you added it
-sed -i '' '/alias claude="claude-bar-watch"/d' ~/.zshrc
-sed -i '' '/alias claude="claude-watch"/d' ~/.zshrc  # legacy name (pre-rename)
+sed -i '' '/alias claude="claude-watch"/d' ~/.zshrc
 ```
 
 ---
@@ -126,7 +125,7 @@ make install      # builds and copies to /Applications/ClaudeBar.app
 2. Active 5h usage ≥ threshold → notification **"Auto-swap in 60s (X% used)"** — 60-second grace window; close `claude` now if you want it to finish cleanly first
 3. After the grace, **swaps** to the inactive account with the lowest 5-hour usage (highest subscription tier preferred). The swap goes through even if a `claude` session is still live — Claude Bar does not kill the process, the next invocation simply picks up the new account
 4. Notification **"Switched to [account]"** — confirmation after the swap completes
-5. Triggers **IDE reload** (VSCode / Code Insiders / Cursor / Windsurf / Antigravity) and **CLI restart** (`claude-bar-watch`) if those options are enabled in Settings
+5. Triggers **IDE reload** (VSCode / Code Insiders / Cursor / Windsurf / Antigravity) and **CLI restart** (`claude-watch`) if those options are enabled in Settings
 
 If all inactive accounts are also above the threshold → notification **"All accounts above threshold"**, retry in 10 minutes.
 

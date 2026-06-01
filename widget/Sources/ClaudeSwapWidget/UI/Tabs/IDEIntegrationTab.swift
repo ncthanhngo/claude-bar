@@ -4,7 +4,7 @@ import SwiftUI
 /// that were previously buried inside General as a conditional reveal:
 ///   • Auto-reload IDE after swap (Accessibility + reload shortcut +
 ///     keybindings.json injection)
-///   • Auto-kill CLI sessions after swap (claude-bar-watch install + alias)
+///   • Auto-kill CLI sessions after swap (claude-watch install + alias)
 ///
 /// Pulled out of General because the combined surface is a workflow, not a
 /// preference toggle — the user opens this screen *because* they want to
@@ -43,13 +43,13 @@ struct IDEIntegrationTab: View {
                     Toggle(isOn: $settings.autoKillCLIAfterSwap) {
                         SettingsToggleLabel(
                             title: "Auto-kill CLI sessions after swap",
-                            detail: "Sends SIGINT to every claude CLI process. Pair with claude-bar-watch so your terminal — including GoLand's built-in one — auto-restarts on the new account."
+                            detail: "Sends SIGINT to every claude CLI process. Pair with claude-watch so your terminal — including GoLand's built-in one — auto-restarts on the new account."
                         )
                     }
                     if settings.autoKillCLIAfterSwap {
-                        commandRow(label: "Install claude-bar-watch once", command: installCmd)
+                        commandRow(label: "Install claude-watch once", command: installCmd)
                         commandRow(label: "Make claude auto-restart everywhere", command: aliasCmd)
-                        Text("Open a new terminal tab after running the alias command. claude-bar-watch detects the credential change and restarts automatically.")
+                        Text("Open a new terminal tab after running the alias command. claude-watch detects the credential change and restarts automatically.")
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
@@ -178,7 +178,7 @@ struct IDEIntegrationTab: View {
             : "Removed from \(removed.map(\.displayName).joined(separator: ", "))."
     }
 
-    // MARK: - claude-bar-watch shell snippets
+    // MARK: - claude-watch shell snippets
 
     private func commandRow(label: String, command: String) -> some View {
         VStack(alignment: .leading, spacing: 5) {
@@ -210,14 +210,14 @@ struct IDEIntegrationTab: View {
     }
 
     private var installCmd: String {
-        let support = ("~/Library/Application Support/claude-swap-widget/claude-bar-watch.sh" as NSString)
+        let support = ("~/Library/Application Support/claude-swap-widget/claude-watch.sh" as NSString)
             .expandingTildeInPath
         let binDir = FileManager.default.fileExists(atPath: "/opt/homebrew/bin")
             ? "/opt/homebrew/bin" : "/usr/local/bin"
-        return "chmod +x \"\(support)\" && ln -sf \"\(support)\" \(binDir)/claude-bar-watch"
+        return "chmod +x \"\(support)\" && ln -sf \"\(support)\" \(binDir)/claude-watch"
     }
 
     private var aliasCmd: String {
-        "grep -qxF 'alias claude=\"claude-bar-watch\"' ~/.zshrc 2>/dev/null || echo 'alias claude=\"claude-bar-watch\"' >> ~/.zshrc; grep -qxF 'alias claude=\"claude-bar-watch\"' ~/.zprofile 2>/dev/null || echo 'alias claude=\"claude-bar-watch\"' >> ~/.zprofile"
+        "grep -qxF 'alias claude=\"claude-watch\"' ~/.zshrc 2>/dev/null || echo 'alias claude=\"claude-watch\"' >> ~/.zshrc; grep -qxF 'alias claude=\"claude-watch\"' ~/.zprofile 2>/dev/null || echo 'alias claude=\"claude-watch\"' >> ~/.zprofile"
     }
 }

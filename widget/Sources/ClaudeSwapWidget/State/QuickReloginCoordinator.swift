@@ -524,7 +524,7 @@ final class QuickReloginCoordinator: ObservableObject {
         await store.refreshNow()
         // When the rewritten account was already active, the running `claude`
         // CLI is still holding the now-superseded tokens in memory. Trigger
-        // the same post-swap pipeline a normal swap uses — claude-bar-watch SIGINT
+        // the same post-swap pipeline a normal swap uses — claude-watch SIGINT
         // → `claude --resume <sid>` keeps the conversation; cmux panes get the
         // same treatment via CmuxPaneRelauncher; IDE windows reload if the
         // user has the toggle on. Inactive re-login skips this since no live
