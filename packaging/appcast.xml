@@ -12,6 +12,25 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 12.7</title>
+      <sparkle:version>12.7</sparkle:version>
+      <sparkle:shortVersionString>12.7</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li>Account row now flips to a red <strong>Sign in</strong> badge after repeated web-usage auth failures, so you know when Quick Login is needed. The CLI is unaffected.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Mon, 01 Jun 2026 20:43:21 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v12.7/ClaudeBar.zip"
+        sparkle:version="12.7"
+        sparkle:shortVersionString="12.7"
+        sparkle:edSignature="VKcqmvsGZSqXFswmA9w564Ihe2sZAmoQvgkmd2n7Q29J5Vquh1d76ZHnv0ZkopogyPsk4IlbpRUBxpEqVz3xDg=="
+        length="8073445"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 12.6 (BETA)</title>
       <sparkle:version>12.6</sparkle:version>
       <sparkle:shortVersionString>12.6</sparkle:shortVersionString>
