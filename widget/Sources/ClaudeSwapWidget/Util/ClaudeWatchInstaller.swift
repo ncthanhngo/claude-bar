@@ -141,6 +141,47 @@ private let claudeWatchScript = #"""
 
 set -uo pipefail
 
+# ---------------------------------------------------------------------------
+# Resolve the REAL claude binary up front, then call it explicitly everywhere
+# below instead of a bare `claude`.
+#
+# Claude Bar installs `alias claude="claude-watch"` in the user's shell rc AND
+# points cmux's automation.claudeBinaryPath at this wrapper. A bare `claude`
+# call inside this script is therefore only safe in a plain non-interactive
+# bash (where the alias is inert). But cmux launches the configured binary
+# through an interactive login shell, where `claude` resolves back to
+# claude-watch — so the wrapper re-invokes ITSELF instead of the CLI, and each
+# round spawns another wrapper + session_watcher pair. Left unchecked this is
+# an unbounded process chain. Resolving the actual binary once and invoking it
+# directly makes self-recursion structurally impossible.
+resolve_real_claude() {
+    local dir candidate resolved
+    local IFS=:
+    for dir in $PATH; do
+        candidate="$dir/claude"
+        [ -x "$candidate" ] || continue
+        resolved="$candidate"
+        # Follow one symlink hop so a claude->claude-watch link is caught.
+        [ -L "$candidate" ] && resolved="$(/usr/bin/readlink "$candidate" 2>/dev/null || echo "$candidate")"
+        case "$resolved" in
+            *claude-watch*) continue ;;   # skip our own wrapper — never re-enter
+        esac
+        printf '%s' "$candidate"
+        return 0
+    done
+    return 1
+}
+
+CLAUDE_BIN="$(resolve_real_claude)"
+[ -n "$CLAUDE_BIN" ] || CLAUDE_BIN="claude"
+
+# Re-entry guard: if a nested invocation still reaches this script, hand off
+# straight to the resolved binary instead of wrapping a second time.
+if [ -n "${CLAUDE_WATCH_ACTIVE:-}" ]; then
+    exec "$CLAUDE_BIN" "$@"
+fi
+export CLAUDE_WATCH_ACTIVE=1
+
 CLAUDE_JSON="${HOME}/.claude.json"
 SESSIONS_DIR="${HOME}/.claude/sessions"
 # Seconds to wait for a credential change after claude exits before treating
@@ -281,7 +322,7 @@ FIRST_RUN=true
 
 while true; do
     if $FIRST_RUN; then
-        claude "$@" &
+        "$CLAUDE_BIN" "$@" &
         CLAUDE_PID=$!
         FIRST_RUN=false
     else
@@ -296,7 +337,7 @@ while true; do
                 echo "     (resuming this terminal's session: ${SID})"
             fi
             echo ""
-            claude --resume "$SID" &
+            "$CLAUDE_BIN" --resume "$SID" &
             CLAUDE_PID=$!
         else
             if has_continuable_history; then
@@ -307,7 +348,7 @@ while true; do
                     echo "     (no session id captured — continuing latest conversation in this directory)"
                 fi
                 echo ""
-                claude --continue &
+                "$CLAUDE_BIN" --continue &
             else
                 if [ "$FORCE_RESTART_PRINT" = "1" ]; then
                     echo "  ↻  Reloading claude (MCP config changed) — starting fresh session…"
@@ -316,7 +357,7 @@ while true; do
                     echo "     (no session id captured and no prior conversation — starting fresh)"
                 fi
                 echo ""
-                claude &
+                "$CLAUDE_BIN" &
             fi
             CLAUDE_PID=$!
         fi
