@@ -12,6 +12,25 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 12.6 (BETA)</title>
+      <sparkle:version>12.6</sparkle:version>
+      <sparkle:shortVersionString>12.6</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li>Fixed: the Today / This week / This month KPI strip in the full popover no longer sits flush against the bottom border.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Mon, 01 Jun 2026 17:08:25 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v12.6/ClaudeBar.zip"
+        sparkle:version="12.6"
+        sparkle:shortVersionString="12.6"
+        sparkle:edSignature="ju451v3aQ+a8Xq9CLBPoV510PndpeEfdCemzp5FGQ4ovlxuJFE0Gw2BZD0OpXTkxy1yjJCzJtcT6JPO28cu1Aw=="
+        length="8220461"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 12.5 (BETA)</title>
       <sparkle:version>12.5</sparkle:version>
       <sparkle:shortVersionString>12.5</sparkle:shortVersionString>

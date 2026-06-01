@@ -13,9 +13,9 @@
     <key>CFBundleIdentifier</key>
     <string>dev.ncthanhngo.claude-bar</string>
     <key>CFBundleVersion</key>
-    <string>12.5</string>
+    <string>12.6</string>
     <key>CFBundleShortVersionString</key>
-    <string>12.5</string>
+    <string>12.6</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleSignature</key>
@@ -35,7 +35,7 @@
     <key>NSHumanReadableCopyright</key>
     <string>Copyright © 2026 Thanh Ngô. Licensed under MIT.</string>
     <key>CFBundleGetInfoString</key>
-    <string>Claude Bar 12.5 — menu-bar manager for multiple Claude Code accounts</string>
+    <string>Claude Bar 12.6 — menu-bar manager for multiple Claude Code accounts</string>
     <key>CBAuthorName</key>
     <string>Thanh Ngô</string>
     <key>CBAuthorEmail</key>
@@ -49,9 +49,9 @@
     <key>CBReleaseChannel</key>
     <string>Beta</string>
     <key>CBReleaseWhatsNew</key>
-    <string>Auto-cleans the leftover claude-bar-watch symlink, script, and shell alias from the reverted v12.3 rename so the wrapper has one canonical name again.</string>
+    <string>None.</string>
     <key>CBReleaseHotfixes</key>
-    <string>Removed v12.3 artifacts (claude-bar-watch symlink + script + duplicate rc alias) so typing claude-bar-watch directly no longer hits the broken v12.3 wrapper.</string>
+    <string>Today / This week / This month KPI strip in the full popover no longer sits flush against the bottom border.</string>
     <key>CBReleaseKnownIssues</key>
     <string>None.</string>
     <key>CFBundleDevelopmentRegion</key>
