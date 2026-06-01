@@ -13,9 +13,9 @@
     <key>CFBundleIdentifier</key>
     <string>dev.ncthanhngo.claude-bar</string>
     <key>CFBundleVersion</key>
-    <string>12.2</string>
+    <string>12.4</string>
     <key>CFBundleShortVersionString</key>
-    <string>12.2</string>
+    <string>12.4</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleSignature</key>
@@ -35,7 +35,7 @@
     <key>NSHumanReadableCopyright</key>
     <string>Copyright © 2026 Thanh Ngô. Licensed under MIT.</string>
     <key>CFBundleGetInfoString</key>
-    <string>Claude Bar 12.2 — menu-bar manager for multiple Claude Code accounts</string>
+    <string>Claude Bar 12.4 — menu-bar manager for multiple Claude Code accounts</string>
     <key>CBAuthorName</key>
     <string>Thanh Ngô</string>
     <key>CBAuthorEmail</key>
@@ -45,13 +45,13 @@
     <key>CBLicense</key>
     <string>MIT</string>
     <key>CBBuildDate</key>
-    <string>2026-05-30</string>
+    <string>2026-06-01</string>
     <key>CBReleaseChannel</key>
     <string>Beta</string>
     <key>CBReleaseWhatsNew</key>
-    <string>Maintenance release — no functional changes since v12.1. Carries forward the direct usage API fast path.</string>
+    <string>Fixed terminal getting stuck on "No conversation found to continue" when an account swap happens in a fresh terminal.</string>
     <key>CBReleaseHotfixes</key>
-    <string>None.</string>
+    <string>Fixed claude-watch falling back to --continue even when the current directory has no prior conversation, leaving the user at an unrecoverable error.</string>
     <key>CBReleaseKnownIssues</key>
     <string>None.</string>
     <key>CFBundleDevelopmentRegion</key>

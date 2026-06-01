@@ -12,6 +12,26 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 12.4 (BETA)</title>
+      <sparkle:version>12.4</sparkle:version>
+      <sparkle:shortVersionString>12.4</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li>Fixed <code>claude-watch</code> getting stuck on <code>No conversation found to continue</code> when an account swap happens in a terminal that has no prior Claude conversation.</li>
+          <li>Wrapper now checks <code>~/.claude/projects/&lt;cwd&gt;/*.jsonl</code> before falling back to <code>--continue</code>; a cwd with no history launches a fresh <code>claude</code> instead of an unrecoverable error.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Mon, 01 Jun 2026 13:59:04 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v12.4/ClaudeBar.zip"
+        sparkle:version="12.4"
+        sparkle:shortVersionString="12.4"
+        sparkle:edSignature="bcQ9KnjKod/gXNurBlfNyix5qcs40dXTI/1KcSMWBE2M3naZHSaTl+enL9SrHQF52YyxvRirc3RK3mcz/1GCCw=="
+        length="8219211"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 12.2 (BETA)</title>
       <sparkle:version>12.2</sparkle:version>
       <sparkle:shortVersionString>12.2</sparkle:shortVersionString>
