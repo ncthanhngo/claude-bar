@@ -207,6 +207,7 @@ struct AccountRowView: View {
 
     private var webUsageIcon: String {
         if rateLimitedMinutesRemaining != nil { return "clock.badge.exclamationmark" }
+        if webFallback.needsWebRelogin(view.account) { return "person.crop.circle.badge.exclamationmark" }
         switch webFallback.state(for: view.account) {
         case .connected: return "checkmark.icloud"
         case .linked: return "globe"
@@ -217,6 +218,7 @@ struct AccountRowView: View {
 
     private var webUsageLabel: String {
         if let mins = rateLimitedMinutesRemaining { return "Wait \(mins)m" }
+        if webFallback.needsWebRelogin(view.account) { return "Sign in" }
         switch webFallback.state(for: view.account) {
         case .connected, .linked, .fallback: return "Web"
         case .notLinked: return "Terminal"
@@ -225,6 +227,7 @@ struct AccountRowView: View {
 
     private var webUsageColor: Color {
         if rateLimitedMinutesRemaining != nil { return .red }
+        if webFallback.needsWebRelogin(view.account) { return .red }
         switch webFallback.state(for: view.account) {
         case .connected: return .green
         case .fallback: return .orange
@@ -235,6 +238,9 @@ struct AccountRowView: View {
     private var webUsageHelp: String {
         if let mins = rateLimitedMinutesRemaining {
             return "claude.ai rate-limited this account. Polling resumes in ~\(mins)m. Other accounts unaffected."
+        }
+        if webFallback.needsWebRelogin(view.account) {
+            return "Web session expired after repeated auth failures. Use Quick Login to refresh usage. CLI is unaffected."
         }
         switch webFallback.state(for: view.account) {
         case .connected(let summary): return "Web usage linked: \(summary)"

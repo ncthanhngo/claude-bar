@@ -86,6 +86,15 @@ final class WebFallbackCoordinator: ObservableObject {
         60 * 60    // 1 h (cap)
     ]
 
+    /// Consecutive auth-shaped fetch failures per account (401/403/missing
+    /// cookies). Rate-limit (429) and transient errors (timeout, parse) do
+    /// NOT count — they're not solved by signing in again. Cleared on any
+    /// successful fetch. When this reaches `authFailureThreshold` the state
+    /// label switches to an explicit "session expired — Quick Login" message
+    /// so the row badge stops blaming a generic "Web unavailable".
+    @Published private(set) var authFailureCount: [String: Int] = [:]
+    private static let authFailureThreshold = 3
+
     func attach(store: AppStore) {
         self.store = store
         store.webUsageProvider = { [weak self] accounts in
@@ -216,6 +225,10 @@ final class WebFallbackCoordinator: ObservableObject {
         // the cloud bundle empty for the entire poll cycle.
         await ClaudeWebSessionSync.save(account: view.account, dataStore: dataStore)
         let started = Date()
+        // Hoisted out of the do-block so the catch can see whether the fast
+        // path itself looked like an auth failure even when the scraper
+        // fallback threw a different error class.
+        var fastPathAuthFailed = false
         do {
             // Fast path: direct JSON API call (~3 KB per request) using the
             // claude.ai session cookies already in the WKWebsiteDataStore.
@@ -231,6 +244,7 @@ final class WebFallbackCoordinator: ObservableObject {
                 do {
                     apiResult = try await ClaudeWebUsageAPI.fetch(orgUuid: orgUuid, dataStore: dataStore)
                 } catch {
+                    if Self.isAuthShaped(error) { fastPathAuthFailed = true }
                     DiagnosticsLogger.shared.log(.warning, subsystem: "usage-api",
                         "fast path FAILED \(view.account.email) — \(error.localizedDescription)")
                 }
@@ -282,6 +296,7 @@ final class WebFallbackCoordinator: ObservableObject {
             // Successful scrape clears any pending backoff — the account is
             // healthy again so the next 429 starts fresh at step 0 (5 min).
             backoff.removeValue(forKey: view.account.identityKey)
+            authFailureCount.removeValue(forKey: view.account.identityKey)
             DiagnosticsLogger.shared.log(.info, subsystem: "web-usage",
                 "ok \(view.account.email) (\(elapsedMs)ms) — \(usage.diagnosticSummary)")
             return usage
@@ -304,13 +319,55 @@ final class WebFallbackCoordinator: ObservableObject {
                 DiagnosticsLogger.shared.log(.warning, subsystem: "web-usage",
                     "rate-limit \(view.account.email) (\(elapsedMs)ms) HTTP=\(status) step=\(capped) wait=\(Int(wait))s")
             } else {
-                accountStates[view.account.identityKey] = .fallback(error.localizedDescription)
-                DiagnosticsLogger.shared.log(.warning, subsystem: "web-usage",
-                    "fail \(view.account.email) (\(elapsedMs)ms) — \(error.localizedDescription)")
+                // Auth-shaped failures (401/403/no cookies) escalate to a
+                // sign-in prompt only after enough consecutive hits to rule
+                // out a single transient blip. Other errors fall through to
+                // the previous generic message.
+                let key = view.account.identityKey
+                if fastPathAuthFailed || Self.isAuthShaped(error) {
+                    let next = (authFailureCount[key] ?? 0) + 1
+                    authFailureCount[key] = next
+                    if next >= Self.authFailureThreshold {
+                        accountStates[key] = .fallback(
+                            "Web session expired — Quick Login to refresh usage."
+                        )
+                        DiagnosticsLogger.shared.log(.warning, subsystem: "web-usage",
+                            "auth-expired \(view.account.email) consecutiveFails=\(next) — prompting relogin")
+                    } else {
+                        accountStates[key] = .fallback(error.localizedDescription)
+                        DiagnosticsLogger.shared.log(.warning, subsystem: "web-usage",
+                            "auth-fail \(view.account.email) (\(elapsedMs)ms) consecutiveFails=\(next) — \(error.localizedDescription)")
+                    }
+                } else {
+                    accountStates[key] = .fallback(error.localizedDescription)
+                    DiagnosticsLogger.shared.log(.warning, subsystem: "web-usage",
+                        "fail \(view.account.email) (\(elapsedMs)ms) — \(error.localizedDescription)")
+                }
             }
             lastCheckedAt = Date()
             return nil
         }
+    }
+
+    /// Returns true if `error` is the kind of failure a fresh sign-in would
+    /// resolve: 401/403 from the JSON API, or no claude.ai cookies in the
+    /// data store at all. Rate-limit (429) is intentionally excluded — that's
+    /// handled by the backoff path and a relogin would not help.
+    private static func isAuthShaped(_ error: Error) -> Bool {
+        if let api = error as? ClaudeWebUsageAPI.APIError {
+            switch api {
+            case .noCookies: return true
+            case .httpError(let status, _): return status == 401 || status == 403
+            default: return false
+            }
+        }
+        return false
+    }
+
+    /// SwiftUI consumers (account row badge) use this to swap the label/CTA
+    /// to "Sign in" once the web session has clearly expired.
+    func needsWebRelogin(_ account: AccountDTO) -> Bool {
+        (authFailureCount[account.identityKey] ?? 0) >= Self.authFailureThreshold
     }
 
     func disconnect(_ account: AccountDTO) async {
