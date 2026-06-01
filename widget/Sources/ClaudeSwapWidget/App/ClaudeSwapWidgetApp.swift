@@ -39,12 +39,12 @@ struct ClaudeSwapWidgetApp: App {
 
     init() {
         // Diagnostics first so anything that crashes during the rest of init
-        // (ClaudeWatchInstaller, settings migration, hotkey wiring) lands
+        // (ClaudeBarWatchInstaller, settings migration, hotkey wiring) lands
         // in ~/Library/Logs/ClaudeBar/.
         DiagnosticsLogger.shared.bootstrap()
         CrashHandler.install()
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
-        ClaudeWatchInstaller.install()
+        ClaudeBarWatchInstaller.install()
         CmuxConfigInstaller.install()
         migrateSettingsIfNeeded()
         // Reset the iCloud-sync toggle to false on every Sparkle update

@@ -22,7 +22,7 @@ enum CLISessionKiller {
     /// restart with `--resume <sid>` and keep the conversation. Otherwise a
     /// double SIGINT here would race the resume command.
     ///
-    /// Sessions running inside a claude-watch wrapper (tracked in
+    /// Sessions running inside a claude-bar-watch wrapper (tracked in
     /// `~/.claude-bar/wrappers/<pid>.json`) are skipped when
     /// `skipWrapperTracked` is true — `signalWrappers()` already handed the
     /// wrapper a SIGUSR1, and the wrapper performs its own kill+resume so
@@ -44,7 +44,7 @@ enum CLISessionKiller {
         }
     }
 
-    /// Send SIGUSR1 to every active claude-watch wrapper so each wrapper can
+    /// Send SIGUSR1 to every active claude-bar-watch wrapper so each wrapper can
     /// snapshot its child's sessionId, stop the child, and re-launch with
     /// `--resume <sid>`. The wrapper preserves conversation across the
     /// reload — unlike the SIGINT path in `killAll()` which leaves a

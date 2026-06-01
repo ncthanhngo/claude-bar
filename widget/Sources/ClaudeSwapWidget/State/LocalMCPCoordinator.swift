@@ -153,7 +153,7 @@ final class LocalMCPCoordinator: ObservableObject {
             accounts = try await client.mcpConnectorsList()
             // BuildServer() reads Enabled flags on each spawn, so a toggle
             // only takes effect on the next Claude Code session. SIGINT
-            // running `claude` processes so claude-watch restarts them with
+            // running `claude` processes so claude-bar-watch restarts them with
             // the new toolset — same machinery the swap flow uses, minus
             // the credential switch. cmux panes are skipped because the
             // cmux relauncher would race the resume; user keeps cmux state.
@@ -196,7 +196,7 @@ final class LocalMCPCoordinator: ObservableObject {
     }
 
     private func restartClaudeForMCPReload() async {
-        // Wrapped sessions (claude-watch) get SIGUSR1: the wrapper snapshots
+        // Wrapped sessions (claude-bar-watch) get SIGUSR1: the wrapper snapshots
         // its child's sessionId, kills the child, and re-launches with
         // `--resume <sid>` so the user keeps their conversation and never
         // sees a shell prompt. cmux panes are already handled by their own

@@ -1,11 +1,22 @@
 import Foundation
 
-/// Writes the `claude-watch` shell wrapper to
-/// ~/Library/Application Support/claude-swap-widget/claude-watch.sh
+/// Writes the `claude-bar-watch` shell wrapper to
+/// ~/Library/Application Support/claude-swap-widget/claude-bar-watch.sh
 /// on every launch so the script stays up-to-date with the app.
-enum ClaudeWatchInstaller {
+///
+/// Also migrates installs that used the legacy `claude-watch` name —
+/// removing the old script, symlinks, and shell-alias lines so users
+/// don't end up with two competing wrappers on PATH.
+enum ClaudeBarWatchInstaller {
 
     static let scriptDestination: URL = {
+        let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+        return support
+            .appendingPathComponent("claude-swap-widget")
+            .appendingPathComponent("claude-bar-watch.sh")
+    }()
+
+    private static let legacyScriptDestination: URL = {
         let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
         return support
             .appendingPathComponent("claude-swap-widget")
@@ -15,11 +26,12 @@ enum ClaudeWatchInstaller {
     static func install() {
         let dir = scriptDestination.deletingLastPathComponent()
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        try? claudeWatchScript.write(to: scriptDestination, atomically: true, encoding: .utf8)
+        try? claudeBarWatchScript.write(to: scriptDestination, atomically: true, encoding: .utf8)
         try? FileManager.default.setAttributes(
             [.posixPermissions: 0o755],
             ofItemAtPath: scriptDestination.path
         )
+        migrateLegacyArtifacts()
         installSymlink()
         installShellAlias()
     }
@@ -27,6 +39,11 @@ enum ClaudeWatchInstaller {
     // MARK: - Auto-setup helpers
 
     private static let symlinkCandidates = [
+        "/opt/homebrew/bin/claude-bar-watch",
+        "/usr/local/bin/claude-bar-watch"
+    ]
+
+    private static let legacySymlinkCandidates = [
         "/opt/homebrew/bin/claude-watch",
         "/usr/local/bin/claude-watch"
     ]
@@ -44,9 +61,9 @@ enum ClaudeWatchInstaller {
         }
     }
 
-    /// Appends `alias claude="claude-watch"` to ~/.zshrc / ~/.bashrc if not already present.
+    /// Appends `alias claude="claude-bar-watch"` to ~/.zshrc / ~/.bashrc if not already present.
     private static func installShellAlias() {
-        let alias = #"alias claude="claude-watch""#
+        let alias = #"alias claude="claude-bar-watch""#
         let marker = "# Added by Claude Bar"
         let block = "\n\(marker)\n\(alias)\n"
 
@@ -70,24 +87,55 @@ enum ClaudeWatchInstaller {
             }
         }
     }
+
+    /// Remove legacy `claude-watch` script, symlinks, and shell-alias lines
+    /// so renamed installs don't ship two competing wrappers.
+    private static func migrateLegacyArtifacts() {
+        let fm = FileManager.default
+
+        // Old script copy.
+        try? fm.removeItem(at: legacyScriptDestination)
+
+        // Old symlinks on PATH.
+        for linkPath in legacySymlinkCandidates {
+            if fm.fileExists(atPath: linkPath) || (try? fm.destinationOfSymbolicLink(atPath: linkPath)) != nil {
+                try? fm.removeItem(atPath: linkPath)
+            }
+        }
+
+        // Old shell-alias lines.
+        let legacyAlias = #"alias claude="claude-watch""#
+        let profiles = ["~/.zshrc", "~/.zprofile", "~/.bashrc", "~/.bash_profile"]
+        for rawPath in profiles {
+            let path = (rawPath as NSString).expandingTildeInPath
+            guard fm.fileExists(atPath: path),
+                  let existing = try? String(contentsOfFile: path, encoding: .utf8),
+                  existing.contains(legacyAlias) else { continue }
+            let cleaned = existing
+                .split(separator: "\n", omittingEmptySubsequences: false)
+                .filter { !$0.contains(legacyAlias) }
+                .joined(separator: "\n")
+            try? cleaned.write(toFile: path, atomically: true, encoding: .utf8)
+        }
+    }
 }
 
 // MARK: - script source
 
-private let claudeWatchScript = #"""
+private let claudeBarWatchScript = #"""
 #!/usr/bin/env bash
-# claude-watch — runs `claude` and auto-restarts when:
+# claude-bar-watch — runs `claude` and auto-restarts when:
 #   (a) account credentials change (existing flow — swap account)
 #   (b) Claude Bar sends SIGUSR1 (MCP config / connector toggled — reload)
 #
 # Use together with Claude Bar's "Auto-kill CLI" toggle.
 #
 # Install:
-#   chmod +x this-file && ln -sf this-file /usr/local/bin/claude-watch
+#   chmod +x this-file && ln -sf this-file /usr/local/bin/claude-bar-watch
 #
 # Usage:
-#   claude-watch          # same as `claude`, but restarts after account swap
-#   claude-watch [args]   # passes args to claude on first launch only
+#   claude-bar-watch          # same as `claude`, but restarts after account swap
+#   claude-bar-watch [args]   # passes args to claude on first launch only
 
 set -uo pipefail
 
@@ -116,7 +164,7 @@ WRAPPER_REGISTRY_FILE="${WRAPPER_REGISTRY_DIR}/${MY_PID}.json"
 # Per-watcher scratch file holding the most recent sessionId observed for the
 # claude child of THIS shell. Lets each terminal restart on its own session
 # instead of all racing onto whichever was most recent globally.
-SID_FILE=$(/usr/bin/mktemp -t claude-watch-sid.XXXXXX)
+SID_FILE=$(/usr/bin/mktemp -t claude-bar-watch-sid.XXXXXX)
 
 # Tracks the currently-running claude child so the SIGUSR1 handler can
 # SIGINT it. Empty between iterations.

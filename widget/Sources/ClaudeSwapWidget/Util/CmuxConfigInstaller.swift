@@ -1,6 +1,6 @@
 import Foundation
 
-/// Injects `automation.claudeBinaryPath = "/opt/homebrew/bin/claude-watch"`
+/// Injects `automation.claudeBinaryPath = "/opt/homebrew/bin/claude-bar-watch"`
 /// into `~/.config/cmux/cmux.json` so cmux-spawned `claude` sessions go
 /// through the wrapper. Without this, cmux invokes the binary directly,
 /// bypassing the shell alias — when Claude Bar's auto-kill sends SIGINT
@@ -10,18 +10,28 @@ import Foundation
 ///
 /// Design choices:
 /// - No-op if `~/.config/cmux/cmux.json` doesn't exist (cmux not installed).
-/// - Idempotent — if the path is already set (whether to claude-watch or
+/// - Idempotent — if the path is already set (whether to claude-bar-watch or
 ///   anything else the user picked), we leave the file alone. The state
 ///   file marks our one-time write so a manual cmux UI change isn't
 ///   reverted on the next Claude Bar launch.
+/// - Auto-migrates the legacy `/opt/homebrew/bin/claude-watch` value to
+///   the new `claude-bar-watch` path on first launch after the rename.
 /// - State file lives under `~/Library/Application Support/claude-swap-widget/`
 ///   alongside the rest of the app's install state.
 enum CmuxConfigInstaller {
 
     private static let cmuxConfigPath = NSString(string: "~/.config/cmux/cmux.json").expandingTildeInPath
-    private static let claudeWatchPath = "/opt/homebrew/bin/claude-watch"
+    private static let claudeBarWatchPath = "/opt/homebrew/bin/claude-bar-watch"
+    private static let legacyClaudeWatchPath = "/opt/homebrew/bin/claude-watch"
 
     private static let stateFile: URL = {
+        let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+        return support
+            .appendingPathComponent("claude-swap-widget")
+            .appendingPathComponent("cmux-claude-bar-watch-installed.json")
+    }()
+
+    private static let legacyStateFile: URL = {
         let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
         return support
             .appendingPathComponent("claude-swap-widget")
@@ -34,6 +44,11 @@ enum CmuxConfigInstaller {
         guard FileManager.default.fileExists(atPath: cmuxConfigPath) else {
             return
         }
+        // Always run the legacy-path migration even when we'd otherwise
+        // short-circuit — installs from before the rename have a state
+        // file that says "we already injected" but their cmux.json still
+        // points at the old `claude-watch` binary.
+        migrateLegacyPath()
         if hasAlreadyInjected() {
             return
         }
@@ -85,7 +100,7 @@ enum CmuxConfigInstaller {
         let block = [
             "",
             "  \"automation\": {",
-            "    \"claudeBinaryPath\": \"\(claudeWatchPath)\"",
+            "    \"claudeBinaryPath\": \"\(claudeBarWatchPath)\"",
             "  },"
         ]
         out.insert(contentsOf: block, at: anchorIdx + 1)
@@ -96,11 +111,31 @@ enum CmuxConfigInstaller {
         FileManager.default.fileExists(atPath: stateFile.path)
     }
 
+    /// Rewrites `/opt/homebrew/bin/claude-watch` → `/opt/homebrew/bin/claude-bar-watch`
+    /// in cmux.json and removes the old state-file marker so the new
+    /// state file gets written on the next idempotent pass. Safe to call
+    /// repeatedly — does nothing once the legacy path is gone.
+    private static func migrateLegacyPath() {
+        let fm = FileManager.default
+        try? fm.removeItem(at: legacyStateFile)
+        guard let content = try? String(contentsOfFile: cmuxConfigPath, encoding: .utf8),
+              content.contains(legacyClaudeWatchPath) else { return }
+        let updated = content.replacingOccurrences(of: legacyClaudeWatchPath, with: claudeBarWatchPath)
+        do {
+            try updated.write(toFile: cmuxConfigPath, atomically: true, encoding: .utf8)
+            DiagnosticsLogger.shared.log(.info, subsystem: "cmux-install",
+                "migrated cmux.json claudeBinaryPath from claude-watch to claude-bar-watch")
+        } catch {
+            DiagnosticsLogger.shared.log(.warning, subsystem: "cmux-install",
+                "failed to migrate cmux.json — \(error.localizedDescription)")
+        }
+    }
+
     private static func markInjected() {
         let dir = stateFile.deletingLastPathComponent()
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         let payload = """
-        {"installedAt":"\(ISO8601DateFormatter().string(from: Date()))","claudeBinaryPath":"\(claudeWatchPath)"}
+        {"installedAt":"\(ISO8601DateFormatter().string(from: Date()))","claudeBinaryPath":"\(claudeBarWatchPath)"}
         """
         try? payload.write(to: stateFile, atomically: true, encoding: .utf8)
     }

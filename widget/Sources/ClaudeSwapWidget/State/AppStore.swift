@@ -552,7 +552,7 @@ final class AppStore: ObservableObject {
         swapError = nil
     }
 
-    /// Fires the SIGINT-then-`claude-watch --resume`, IDE reload, and cmux
+    /// Fires the SIGINT-then-`claude-bar-watch --resume`, IDE reload, and cmux
     /// pane relaunch pipeline. Called from the swap path and from
     /// [[QuickReloginCoordinator]] when an active account's tokens have just
     /// been rewritten — semantically the same situation as a swap to the
@@ -574,7 +574,7 @@ final class AppStore: ObservableObject {
     }
 
     private func restartCLISessionsAfterSwap() async {
-        // Credentials must already be switched before SIGINT so claude-watch
+        // Credentials must already be switched before SIGINT so claude-bar-watch
         // can see the changed ~/.claude.json and restart the same terminal.
         // When cmux pane relaunch is enabled, those PIDs are skipped here so
         // the dedicated relauncher can run `claude --resume <sid>` cleanly.
