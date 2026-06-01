@@ -151,6 +151,22 @@ read_session_id_for() {
     /usr/bin/sed -n 's/.*"sessionId":"\([^"]*\)".*/\1/p' "$file" 2>/dev/null | /usr/bin/head -n1
 }
 
+# Claude stores per-cwd conversation history under
+# ~/.claude/projects/<sanitized-cwd>/<uuid>.jsonl, where the sanitization
+# is "replace every / with -". `claude --continue` only works when at
+# least one jsonl exists for the current cwd — otherwise it prints
+# "No conversation found to continue" and exits immediately. Without
+# this guard the wrapper happily restarts into an unrecoverable state
+# whenever credentials change before the user has typed anything.
+has_continuable_history() {
+    local cwd sanitized dir
+    cwd="$(pwd 2>/dev/null)" || return 1
+    sanitized="${cwd//\//-}"
+    dir="${HOME}/.claude/projects/${sanitized}"
+    [ -d "$dir" ] || return 1
+    /bin/ls "$dir"/*.jsonl >/dev/null 2>&1
+}
+
 # Kill the session_watcher subprocess hard on script exit. SIGTERM was
 # sometimes ignored by a bash subshell mid-`sleep`, leaving an orphan
 # process attached to the terminal so the shell prompt never returned —
@@ -233,14 +249,25 @@ while true; do
             claude --resume "$SID" &
             CLAUDE_PID=$!
         else
-            if [ "$FORCE_RESTART_PRINT" = "1" ]; then
-                echo "  ↻  Reloading claude (MCP config changed)…"
+            if has_continuable_history; then
+                if [ "$FORCE_RESTART_PRINT" = "1" ]; then
+                    echo "  ↻  Reloading claude (MCP config changed) — continuing latest conversation in this directory…"
+                else
+                    echo "  ↻  Credentials changed — restarting claude with new account…"
+                    echo "     (no session id captured — continuing latest conversation in this directory)"
+                fi
+                echo ""
+                claude --continue &
             else
-                echo "  ↻  Credentials changed — restarting claude with new account…"
-                echo "     (no session id captured — falling back to --continue)"
+                if [ "$FORCE_RESTART_PRINT" = "1" ]; then
+                    echo "  ↻  Reloading claude (MCP config changed) — starting fresh session…"
+                else
+                    echo "  ↻  Credentials changed — restarting claude with new account…"
+                    echo "     (no session id captured and no prior conversation — starting fresh)"
+                fi
+                echo ""
+                claude &
             fi
-            echo ""
-            claude --continue &
             CLAUDE_PID=$!
         fi
     fi
