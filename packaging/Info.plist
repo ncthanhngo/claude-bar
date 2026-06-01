@@ -13,9 +13,9 @@
     <key>CFBundleIdentifier</key>
     <string>dev.ncthanhngo.claude-bar</string>
     <key>CFBundleVersion</key>
-    <string>12.4</string>
+    <string>12.5</string>
     <key>CFBundleShortVersionString</key>
-    <string>12.4</string>
+    <string>12.5</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleSignature</key>
@@ -35,7 +35,7 @@
     <key>NSHumanReadableCopyright</key>
     <string>Copyright © 2026 Thanh Ngô. Licensed under MIT.</string>
     <key>CFBundleGetInfoString</key>
-    <string>Claude Bar 12.4 — menu-bar manager for multiple Claude Code accounts</string>
+    <string>Claude Bar 12.5 — menu-bar manager for multiple Claude Code accounts</string>
     <key>CBAuthorName</key>
     <string>Thanh Ngô</string>
     <key>CBAuthorEmail</key>
@@ -49,9 +49,9 @@
     <key>CBReleaseChannel</key>
     <string>Beta</string>
     <key>CBReleaseWhatsNew</key>
-    <string>Fixed terminal getting stuck on "No conversation found to continue" when an account swap happens in a fresh terminal.</string>
+    <string>Auto-cleans the leftover claude-bar-watch symlink, script, and shell alias from the reverted v12.3 rename so the wrapper has one canonical name again.</string>
     <key>CBReleaseHotfixes</key>
-    <string>Fixed claude-watch falling back to --continue even when the current directory has no prior conversation, leaving the user at an unrecoverable error.</string>
+    <string>Removed v12.3 artifacts (claude-bar-watch symlink + script + duplicate rc alias) so typing claude-bar-watch directly no longer hits the broken v12.3 wrapper.</string>
     <key>CBReleaseKnownIssues</key>
     <string>None.</string>
     <key>CFBundleDevelopmentRegion</key>

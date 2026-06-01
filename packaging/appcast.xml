@@ -12,6 +12,26 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 12.5 (BETA)</title>
+      <sparkle:version>12.5</sparkle:version>
+      <sparkle:shortVersionString>12.5</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li>Sweeps the leftover <code>claude-bar-watch</code> symlink (<code>/opt/homebrew/bin</code> / <code>/usr/local/bin</code>), the orphan <code>claude-bar-watch.sh</code> in Application Support, and the duplicate <code>alias claude="claude-bar-watch"</code> line in <code>~/.zshrc</code> / <code>~/.zprofile</code> / <code>~/.bashrc</code> / <code>~/.bash_profile</code>. The reverted v12.3 rename leaves no trace after one upgrade cycle.</li>
+          <li>Typing <code>claude-bar-watch</code> directly used to keep hitting the broken v12.3 wrapper after the upgrade. Now the binary is gone — only <code>claude-watch</code> (with the v12.4 <code>--continue</code> fix) remains.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Mon, 01 Jun 2026 14:11:02 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v12.5/ClaudeBar.zip"
+        sparkle:version="12.5"
+        sparkle:shortVersionString="12.5"
+        sparkle:edSignature="zfzRNJPGgjtK/sDPu+oGNpFObwqQW+b4VTdKt62CaAsSFFylwHCi2txWifNAzwZzeY6qxWPsZBTZ5DK4zi6kCA=="
+        length="8220550"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 12.4 (BETA)</title>
       <sparkle:version>12.4</sparkle:version>
       <sparkle:shortVersionString>12.4</sparkle:shortVersionString>
