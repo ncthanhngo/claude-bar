@@ -1,17 +1,57 @@
 # Claude Bar
 
-A macOS menu-bar app for managing multiple [Claude Code](https://claude.ai/code) accounts. Switch between accounts instantly, auto-swap when quota runs out, and keep your IDE in sync.
+A macOS menu-bar app for managing multiple [Claude Code](https://claude.ai/code) accounts. Switch between accounts instantly, auto-swap when quota runs out, track token usage and cost, and keep your IDE and terminal in sync.
 
-![macOS 14+](https://img.shields.io/badge/macOS-14%2B-blue) ![License MIT](https://img.shields.io/badge/license-MIT-green) [![CI](https://github.com/ncthanhngo/claude-bar/actions/workflows/test.yml/badge.svg)](https://github.com/ncthanhngo/claude-bar/actions/workflows/test.yml)
+[![macOS 14+](https://img.shields.io/badge/macOS-14%2B-blue)](https://www.apple.com/macos/)
+[![Release](https://img.shields.io/github/v/release/ncthanhngo/claude-bar?include_prereleases&sort=semver)](https://github.com/ncthanhngo/claude-bar/releases/latest)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green)](./LICENSE)
+[![CI](https://github.com/ncthanhngo/claude-bar/actions/workflows/test.yml/badge.svg)](https://github.com/ncthanhngo/claude-bar/actions/workflows/test.yml)
+![Built with Swift & Go](https://img.shields.io/badge/built%20with-Swift%20%2B%20Go-orange)
 
 ---
 
-## Install via Homebrew
+## Why Claude Bar?
+
+One Claude Code login at a time means hitting a quota wall mid-session and stopping to re-authenticate by hand. Claude Bar keeps every account a click away in the menu bar, watches your 5-hour usage, and **auto-swaps to a fresh account the moment you run low** — then reloads your IDE and restarts your terminal session so you barely notice. It's local-first: credentials live in your macOS Keychain, and nothing leaves your Mac unless you opt in.
+
+---
+
+## Contents
+
+- [Install](#install)
+- [Features](#features)
+- [Requirements](#requirements)
+- [Setup](#setup)
+  - [Add accounts](#add-accounts)
+  - [Auto-restart terminal sessions](#auto-restart-terminal-sessions)
+  - [IDE reload](#ide-reload--vscode--code-insiders--cursor--windsurf--antigravity)
+  - [Cmux pane relaunch](#cmux-pane-relaunch)
+  - [Local MCP connectors](#local-mcp-connectors-optional)
+- [How auto-swap works](#how-auto-swap-works)
+- [Update](#update)
+- [Uninstall](#uninstall)
+- [Build from source](#build-from-source)
+- [Architecture](#architecture)
+- [Contributing](#contributing)
+- [Security](#security)
+- [License](#license)
+
+---
+
+## Install
+
+### Homebrew (recommended)
 
 ```bash
 brew tap ncthanhngo/tap
 brew install --cask claude-bar
 ```
+
+### Manual
+
+1. Download `ClaudeBar.zip` from [Releases](https://github.com/ncthanhngo/claude-bar/releases/latest)
+2. Unzip and drag `ClaudeBar.app` to `/Applications`
+3. Launch — the icon appears in your menu bar
 
 ---
 
@@ -26,16 +66,17 @@ brew install --cask claude-bar
 - **CLI auto-restart** — sends SIGINT to running `claude` sessions; use with the bundled `claude-watch` wrapper to auto-restart in your terminal
 - **Session guard** — warns you if Claude is running before a manual switch; option to force-switch anyway
 - **Web-first usage** — each account can link its own embedded claude.ai web profile for usage before falling back to terminal OAuth usage; web sessions sync separately through iCloud Keychain by account email
+- **Local MCP connectors** — share one set of Slack / ClickUp / Google / GitHub / GitLab / Bitwarden tokens across accounts and reach them from Claude Code through a local stdio gateway (see [below](#local-mcp-connectors-optional))
 - **Themes** — Light, Dark, and Rainbow
 - **Icon color** — 11 preset tint colors for the menu bar icon (Settings → General)
 
 ---
 
-## Manual install
+## Requirements
 
-1. Download `ClaudeBar.zip` from [Releases](https://github.com/ncthanhngo/claude-bar/releases/latest)
-2. Unzip and drag `ClaudeBar.app` to `/Applications`
-3. Launch — the icon appears in your menu bar
+- macOS 14 (Sonoma) or later
+- [Claude Code](https://claude.ai/code) installed, with at least one account logged in (`claude /login`)
+- For building from source: Xcode 15+ and Go 1.23+
 
 ---
 
@@ -55,7 +96,7 @@ Enable **Auto-reload IDE after swap** in Settings → General, then click **Gran
 
 **Reload shortcut.** Default is `⌃⌘R` (Cmd+Ctrl+R) — picked to avoid clashes with VSCode's `⌘R` (Recent Files) and Cursor's `⇧⌘R` (Rerun). Change it in **Settings → General → Reload shortcut** via the key recorder; the new chord is re-applied to every detected editor instantly.
 
-**How injection works.** With *Install shortcut into IDE keybindings.json* enabled (default), Claude Bar adds one entry to each detected editor's `keybindings.json` tagged with `"when": "!falseClaudeBarManaged"`. Toggle off to revert to the legacy `⌘⇧P → Developer: Reload Window` command-palette flow. Zed uses its own keymap and is unaffected. Managed-state lives at `~/Library/Application Support/claude-bar/managed-shortcuts.json` and is cleaned up automatically when the shortcut changes or injection is disabled.
+**How injection works.** With *Install shortcut into IDE keybindings.json* enabled (default), Claude Bar adds one entry to each detected editor's `keybindings.json` tagged with `"when": "!falseClaudeBarManaged"`. Toggle off to revert to the legacy `⌘⇧P → Developer: Reload Window` command-palette flow. Zed uses its own keymap and is unaffected. Managed state lives at `~/Library/Application Support/claude-bar/managed-shortcuts.json` and is cleaned up automatically when the shortcut changes or injection is disabled.
 
 ### Cmux pane relaunch
 
@@ -70,13 +111,42 @@ Claude Bar can keep one shared set of Slack, ClickUp, and Google Workspace token
 1. Open **Settings → Local MCP**.
 2. Click **Install** to wire `claude-bar-mcp` into `~/.claude.json`.
 3. In **Shared for all accounts**, click **Connect** next to each service you want to use across all Claude Bar accounts. Use per-account rows only when an account should override the shared connector.
-   - Slack/ClickUp: paste a user token (Slack `xoxp-…` or `xoxe-…` / ClickUp `pk_…`). Slack bot tokens (`xoxb-…`) are not supported because Slack search requires a user token. The token is piped to `csw` over stdin and never appears in argv or shell history.
+   - Slack/ClickUp/GitHub/GitLab: paste a personal user token (Slack `xoxp-…`/`xoxe-…`, ClickUp `pk_…`, GitHub `ghp_…`/`github_pat_…`, GitLab PAT). Slack bot tokens (`xoxb-…`) are not supported because Slack search requires a user token. The token is piped to `csw` over stdin and never appears in argv or shell history.
    - Google Workspace: enable Drive, Calendar, Gmail, and Sheets APIs in Google Cloud, paste your OAuth Desktop client ID/secret or import the downloaded JSON file, then click **Open browser to connect**. PKCE (S256) is still used. Existing Google connectors created before Sheets/share support must be disconnected and reconnected once so Google grants the newer `spreadsheets` and `drive.file` scopes.
 4. Restart Claude Code once so it picks up the new MCP server. After that, switching Claude Bar accounts is hot — Claude Code keeps running.
 
-Tools currently exposed include read tools for Slack, ClickUp, Google Drive, Calendar, Gmail, GitHub, GitLab, Bitwarden, and SSH, plus write tools such as Slack posting, ClickUp task updates, Google Sheets create/write, Google Drive file sharing, and GitHub/GitLab review workflows. High-impact write tools are gated by local approval prompts.
+**Tools exposed.** The gateway registers more than 90 tools, named `cb_<service>_…` and grouped by service:
+
+| Service | Tools | Examples |
+|---|---|---|
+| Slack | 9 | list channels, search messages, read threads, post message, reply |
+| ClickUp | 15 | list/search/get tasks, comments, create & update tasks, assign |
+| GitHub | 28 | issues, PRs, reviews, file/commit reads, CI runs, plus gated writes (open PR, merge, labels) |
+| GitLab | 19 | MRs, issues, file reads, pipelines, plus gated writes (open/approve/merge MR) |
+| Google Drive | 6 | search files, read docs, file metadata, download, share |
+| Google Calendar | 4 | list calendars, list events, get event, free/busy |
+| Gmail | 4 | search messages, get message/thread, list labels |
+| Google Sheets | 4 | create spreadsheet, create from CSV, append/update values |
+| Bitwarden | 3 | search items, get item, list folders |
+| SSH | 4 | list hosts (from `~/.ssh/config`), exec, read file, tail |
+
+High-impact write tools (posting, task updates, Sheets create/write, Drive share, GitHub/GitLab review and merge workflows, `ssh exec`) are gated by local approval prompts before they run; read tools run without a prompt.
 
 > **Privacy boundary:** shared tokens are usable by every Claude Bar account configured on this Mac. If iCloud Sync is enabled, the same connector tokens are available to Macs that share your Apple ID and know the Claude Bar sync passphrase. Tool results still flow through your Claude account's chat history, which may be shared if you share that Claude login.
+
+---
+
+## How auto-swap works
+
+1. **Polls usage** every N seconds with adaptive frequency — faster as you approach the threshold
+2. Active 5h usage ≥ threshold → notification **"Auto-swap in 60s (X% used)"** — 60-second grace window; close `claude` now if you want it to finish cleanly first
+3. After the grace, **swaps** to the inactive account with the lowest 5-hour usage (highest subscription tier preferred). The swap goes through even if a `claude` session is still live — Claude Bar does not kill the process, the next invocation simply picks up the new account
+4. Notification **"Switched to [account]"** — confirmation after the swap completes
+5. Triggers **IDE reload** (VSCode / Code Insiders / Cursor / Windsurf / Antigravity) and **CLI restart** (`claude-watch`) if those options are enabled in Settings
+
+If all inactive accounts are also above the threshold → notification **"All accounts above threshold"**, retry in 10 minutes.
+
+> Auto-swap is driven by the **5-hour** window exclusively. The 7-day window is displayed for reference but does not affect swap decisions.
 
 ---
 
@@ -117,19 +187,32 @@ cd claude-bar
 make install      # builds and copies to /Applications/ClaudeBar.app
 ```
 
+Other useful targets:
+
+```bash
+make app          # build the .app bundle without installing
+make backend      # build only the Go backend (csw)
+make widget       # build only the SwiftUI menu-bar app
+make test         # run the test suite
+```
+
 ---
 
-## How auto-swap works
+## Architecture
 
-1. **Polls usage** every N seconds with adaptive frequency — faster as you approach the threshold
-2. Active 5h usage ≥ threshold → notification **"Auto-swap in 60s (X% used)"** — 60-second grace window; close `claude` now if you want it to finish cleanly first
-3. After the grace, **swaps** to the inactive account with the lowest 5-hour usage (highest subscription tier preferred). The swap goes through even if a `claude` session is still live — Claude Bar does not kill the process, the next invocation simply picks up the new account
-4. Notification **"Switched to [account]"** — confirmation after the swap completes
-5. Triggers **IDE reload** (VSCode / Code Insiders / Cursor / Windsurf / Antigravity) and **CLI restart** (`claude-watch`) if those options are enabled in Settings
+Claude Bar follows a clean / hexagonal layout: a SwiftUI menu-bar app (`widget/`) is a thin client that talks to a Go backend (`csw`, `backend/`) over stdin/stdout JSON. The Go side keeps the domain pure and pushes all I/O — Keychain, `~/.claude.json`, the registry, OAuth, sessions — out to adapters behind ports.
 
-If all inactive accounts are also above the threshold → notification **"All accounts above threshold"**, retry in 10 minutes.
+See [`docs/architecture.md`](./docs/architecture.md) for the layered diagram and the account-swap transaction.
 
-> Auto-swap is driven by the **5-hour** window exclusively. The 7-day window is displayed for reference but does not affect swap decisions.
+---
+
+## Contributing
+
+Issues and pull requests are welcome.
+
+1. Build and test locally with `make app` and `make test`.
+2. Keep changes focused; match the existing Go and Swift style in the surrounding code.
+3. For anything that touches credentials, syncing, or the MCP gateway, read [SECURITY.md](./SECURITY.md) first and call out the trust-boundary impact in your PR description.
 
 ---
 
@@ -141,4 +224,4 @@ Claude Bar is local-first and opt-in for any data that leaves your Mac. See [SEC
 
 ## License
 
-MIT
+[MIT](./LICENSE)
