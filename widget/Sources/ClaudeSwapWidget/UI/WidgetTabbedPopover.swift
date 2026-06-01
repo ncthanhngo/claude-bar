@@ -28,10 +28,10 @@ struct WidgetTabbedPopover: View {
     /// Re-measured against the rendered shell: header 36 + divider 1 +
     /// accountsHeader 22 + divider 1 + auto-swap title 22 + auto-swap
     /// section 86 + token-usage title 22 + token stats minimum 196
-    /// + outer paddings ~16 = 402pt. Was 475 — that overshoot is what
-    /// pushed the popover taller than it needed to be even with one
-    /// account.
-    private static let shellHeight: CGFloat = 402
+    /// + outer paddings ~22 = 408pt. Bottom padding was bumped 8 → 14
+    /// so the Today / This week / This month KPI strip doesn't sit
+    /// flush against the hairline border.
+    private static let shellHeight: CGFloat = 408
     /// Height saved when the Token-usage section is hidden — title 22 +
     /// chart + KPI cards ~196 = 218pt. The popover frame subtracts this
     /// when `settings.showTokenUsageInFullPopover` is false.
@@ -167,7 +167,7 @@ struct WidgetTabbedPopover: View {
         // above instead of running edge-to-edge against the popover
         // hairline border.
         .padding(.horizontal, 14)
-        .padding(.bottom, 8)
+        .padding(.bottom, 14)
     }
 
     private func promptRename(for acc: AccountViewDTO) {
