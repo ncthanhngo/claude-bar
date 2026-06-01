@@ -12,6 +12,27 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 12.3 (BETA)</title>
+      <sparkle:version>12.3</sparkle:version>
+      <sparkle:shortVersionString>12.3</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li>Renamed CLI wrapper <code>claude-watch</code> → <code>claude-bar-watch</code> for clearer origin (the previous name didn't hint where it came from).</li>
+          <li>Auto-migrates the old script, symlinks, shell alias (<code>.zshrc</code>/<code>.zprofile</code>/<code>.bashrc</code>/<code>.bash_profile</code>), and <code>cmux.json</code> <code>claudeBinaryPath</code> on first launch after the update.</li>
+          <li><strong>Heads-up:</strong> existing terminal tabs still hold the old <code>claude=claude-watch</code> alias in memory and the old binary has been removed. Open a new terminal tab (or run <code>source ~/.zshrc</code>) — and relaunch cmux panes — after updating to pick up the new alias.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Mon, 01 Jun 2026 11:04:49 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v12.3/ClaudeBar.zip"
+        sparkle:version="12.3"
+        sparkle:shortVersionString="12.3"
+        sparkle:edSignature="/C7n3o9roSmLj8qPvyQUz5tepw/4b3ZxGm+R65tGaCrFuZrtcZaLSy9vguXnrsiHz5Xl37G/RmfChPLOX/xGCw=="
+        length="8069575"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 12.2 (BETA)</title>
       <sparkle:version>12.2</sparkle:version>
       <sparkle:shortVersionString>12.2</sparkle:shortVersionString>
