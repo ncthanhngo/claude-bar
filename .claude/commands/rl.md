@@ -61,13 +61,29 @@ together.
 
 1. Confirm CWD is the project root (`/Users/soi/dev/02-claude-bar`) and
    `git rev-parse --abbrev-ref HEAD` returns `main`.
-2. Working tree must be clean: `git status --short` outputs nothing.
-3. New version must be strictly greater than the current
+2. Local `main` is **not behind `origin/main`** — parallel maintainer
+   activity has shipped many releases between sessions before, and
+   blindly bumping `Info.plist` while origin is ahead means your
+   release commit lands on top of a stale tree and your tag races
+   another maintainer's. Run:
+   ```
+   git fetch origin main
+   git rev-list --count HEAD..origin/main
+   ```
+   If the count is non-zero, STOP and report:
+   "origin/main has N commits not in local — run
+   `git pull --rebase origin main` first, then re-derive `<NEW>` from
+   the freshly-pulled `Info.plist` before re-running /rl."
+   Do not auto-pull yourself — the user may have local commits to
+   inspect first, and the rebase may surface conflicts that need their
+   judgment.
+3. Working tree must be clean: `git status --short` outputs nothing.
+4. New version must be strictly greater than the current
    `CFBundleShortVersionString` in `packaging/Info.plist`.
-4. GitHub release must not already exist:
+5. GitHub release must not already exist:
    `gh release view v<NEW> -R ncthanhngo/claude-bar` should print
    `release not found`.
-5. Sparkle key intact:
+6. Sparkle key intact:
    `widget/.build/artifacts/sparkle/Sparkle/bin/generate_keys -p`
    must print `zkx2LvzfHOZJ0Z5BAcPogHdSx7ClEixTYZqTE4CC/CY=`.
    If it says "No existing signing key found", restore from
