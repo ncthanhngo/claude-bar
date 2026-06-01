@@ -12,6 +12,26 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 12.8</title>
+      <sparkle:version>12.8</sparkle:version>
+      <sparkle:shortVersionString>12.8</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li>Fixed runaway <code>claude-watch</code> processes — the wrapper no longer recurses into itself when launched through cmux's automation, which could leave hundreds of leftover processes behind.</li>
+          <li>Added ClickUp Docs (v3) read support via the new <code>cb_clickup_get_doc</code> MCP tool.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Tue, 02 Jun 2026 00:13:45 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v12.8/ClaudeBar.zip"
+        sparkle:version="12.8"
+        sparkle:shortVersionString="12.8"
+        sparkle:edSignature="EWEBmhtT1pu7h3HQK4b7Ei9xIwk0vQVrpV3oaGSKM+4uGLTr+zARu+3rHyi2NsAYeg5XXMRuUmpPLTBVdQBhBA=="
+        length="8076536"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 12.7</title>
       <sparkle:version>12.7</sparkle:version>
       <sparkle:shortVersionString>12.7</sparkle:shortVersionString>
