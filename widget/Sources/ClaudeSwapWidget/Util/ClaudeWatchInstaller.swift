@@ -20,6 +20,7 @@ enum ClaudeWatchInstaller {
             [.posixPermissions: 0o755],
             ofItemAtPath: scriptDestination.path
         )
+        removeLegacyClaudeBarWatchArtifacts()
         installSymlink()
         installShellAlias()
     }
@@ -41,6 +42,55 @@ enum ClaudeWatchInstaller {
             try? fm.removeItem(atPath: linkPath)
             try? fm.createSymbolicLink(atPath: linkPath, withDestinationPath: src)
             break
+        }
+    }
+
+    /// v12.3 briefly renamed the wrapper to `claude-bar-watch`. The rename was
+    /// reverted, but users who upgraded through v12.3 still have leftover
+    /// symlinks, the old script in Application Support, and a duplicate alias
+    /// in their shell rc files — gnarly enough that typing `claude-bar-watch`
+    /// directly still hits the broken v12.3 wrapper. Sweep those on every
+    /// launch so the rename leaves no trace after one upgrade cycle.
+    private static func removeLegacyClaudeBarWatchArtifacts() {
+        let fm = FileManager.default
+
+        let legacySymlinks = [
+            "/opt/homebrew/bin/claude-bar-watch",
+            "/usr/local/bin/claude-bar-watch"
+        ]
+        for path in legacySymlinks {
+            let binDir = URL(fileURLWithPath: path).deletingLastPathComponent().path
+            guard fm.isWritableFile(atPath: binDir),
+                  fm.fileExists(atPath: path) || (try? fm.destinationOfSymbolicLink(atPath: path)) != nil else { continue }
+            try? fm.removeItem(atPath: path)
+        }
+
+        let legacyScript = scriptDestination
+            .deletingLastPathComponent()
+            .appendingPathComponent("claude-bar-watch.sh")
+        try? fm.removeItem(at: legacyScript)
+
+        let legacyAlias = #"alias claude="claude-bar-watch""#
+        let marker = "# Added by Claude Bar"
+        let legacyBlock = "\n\(marker)\n\(legacyAlias)\n"
+
+        let profiles = ["~/.zshrc", "~/.zprofile", "~/.bashrc", "~/.bash_profile"]
+        for rawPath in profiles {
+            let path = (rawPath as NSString).expandingTildeInPath
+            guard fm.fileExists(atPath: path),
+                  var content = try? String(contentsOfFile: path, encoding: .utf8),
+                  content.contains(legacyAlias) else { continue }
+
+            // First sweep removes the full block written by v12.3's installer.
+            // Second sweep catches any stray `alias claude="claude-bar-watch"`
+            // line in case the marker was edited or the block got reflowed.
+            content = content.replacingOccurrences(of: legacyBlock, with: "")
+            content = content
+                .components(separatedBy: "\n")
+                .filter { $0.trimmingCharacters(in: .whitespaces) != legacyAlias }
+                .joined(separator: "\n")
+
+            try? content.write(toFile: path, atomically: true, encoding: .utf8)
         }
     }
 
