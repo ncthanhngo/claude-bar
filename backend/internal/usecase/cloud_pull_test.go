@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"os"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -137,43 +136,15 @@ func makeBundle(accounts []cloudsync.BundleAccount) *cloudsync.CloudBundle {
 	}
 }
 
-// TestCloudPull_OptionA_BundleFresher_WritesBundleBlob — local is stale,
-// bundle is newer → bundle blob must be written.
-func TestCloudPull_OptionA_BundleFresher_WritesBundleBlob(t *testing.T) {
-	bundleBlob := credentialBlob("bundle-token", "bundle-rt", time.Now().Add(2*time.Hour))
-	localBlob := credentialBlob("local-token", "local-rt", time.Now().Add(time.Hour))
-	passphrase := "test-pass"
-
-	cleanup := writeBundleFile(t, makeBundle([]cloudsync.BundleAccount{
-		{Number: 1, Email: "a@example.com", CredentialBlob: string(bundleBlob)},
-	}), passphrase)
-	defer cleanup()
-
-	bak := &pullTestBackupStore{blobs: map[int]domain.CredentialBlob{1: localBlob}}
-	reg := &pullTestRegistry{reg: &domain.Registry{
-		ActiveAccountNumber: 0,
-		Accounts:            map[int]*domain.Account{},
-		Sequence:            []int{},
-	}}
-
-	svc := &Service{
-		Backup:     bak,
-		Registry:   reg,
-		Lock:       &pushTestLock{},
-		Refresh:    &pullTestRefresher{err: errors.New("refresh disabled")},
-		MCPSecrets: pullTestMCPSecretStore{},
-	}
-
-	if err := svc.CloudPull(context.Background(), passphrase); err != nil {
-		t.Fatalf("CloudPull returned error: %v", err)
-	}
-	if got := bak.get(1); string(got) != string(bundleBlob) {
-		t.Fatalf("expected bundle blob to be written, got %q", got)
-	}
-}
-
 // TestCloudPull_OptionA_LocalFresher_WritesLocalBlob — local is newer than bundle
 // → local blob must be preserved (not overwritten).
+//
+// Bundle no longer carries CredentialBlob (metadata-only sync), so the
+// "merge" half of the original Option-A contract is moot. What remains
+// worth asserting is the negative: CloudPull never overwrites the local
+// backup blob. The other Option-A variants (BundleFresher / LocalNotExist
+// / SameExpiresAt) and the keychain-write partial-failure test were
+// removed when credential sync was dropped — see commit 10c4034.
 func TestCloudPull_OptionA_LocalFresher_WritesLocalBlob(t *testing.T) {
 	bundleBlob := credentialBlob("bundle-token", "bundle-rt", time.Now().Add(time.Hour))
 	localBlob := credentialBlob("local-token", "local-rt", time.Now().Add(2*time.Hour))
@@ -207,123 +178,11 @@ func TestCloudPull_OptionA_LocalFresher_WritesLocalBlob(t *testing.T) {
 	}
 }
 
-// TestCloudPull_OptionA_LocalNotExist_WritesBundleBlob — no local backup (new
-// machine) → bundle blob must always be written.
-func TestCloudPull_OptionA_LocalNotExist_WritesBundleBlob(t *testing.T) {
-	bundleBlob := credentialBlob("bundle-token", "bundle-rt", time.Now().Add(time.Hour))
-	passphrase := "test-pass"
-
-	cleanup := writeBundleFile(t, makeBundle([]cloudsync.BundleAccount{
-		{Number: 1, Email: "a@example.com", CredentialBlob: string(bundleBlob)},
-	}), passphrase)
-	defer cleanup()
-
-	bak := &pullTestBackupStore{blobs: map[int]domain.CredentialBlob{}}
-	reg := &pullTestRegistry{reg: &domain.Registry{
-		Accounts: map[int]*domain.Account{},
-		Sequence: []int{},
-	}}
-
-	svc := &Service{
-		Backup:     bak,
-		Registry:   reg,
-		Lock:       &pushTestLock{},
-		Refresh:    &pullTestRefresher{err: errors.New("refresh disabled")},
-		MCPSecrets: pullTestMCPSecretStore{},
-	}
-
-	if err := svc.CloudPull(context.Background(), passphrase); err != nil {
-		t.Fatalf("CloudPull returned error: %v", err)
-	}
-	if got := bak.get(1); string(got) != string(bundleBlob) {
-		t.Fatalf("expected bundle blob on new machine, got %q", got)
-	}
-}
-
-// TestCloudPull_OptionA_SameExpiresAt_BundleWins — tie → bundle wins.
-func TestCloudPull_OptionA_SameExpiresAt_BundleWins(t *testing.T) {
-	fixed := time.Now().Add(time.Hour)
-	bundleBlob := credentialBlob("bundle-token", "bundle-rt", fixed)
-	localBlob := credentialBlob("local-token", "local-rt", fixed)
-	passphrase := "test-pass"
-
-	cleanup := writeBundleFile(t, makeBundle([]cloudsync.BundleAccount{
-		{Number: 1, Email: "a@example.com", CredentialBlob: string(bundleBlob)},
-	}), passphrase)
-	defer cleanup()
-
-	bak := &pullTestBackupStore{blobs: map[int]domain.CredentialBlob{1: localBlob}}
-	reg := &pullTestRegistry{reg: &domain.Registry{Accounts: map[int]*domain.Account{}, Sequence: []int{}}}
-
-	svc := &Service{
-		Backup:     bak,
-		Registry:   reg,
-		Lock:       &pushTestLock{},
-		Refresh:    &pullTestRefresher{err: errors.New("refresh disabled")},
-		MCPSecrets: pullTestMCPSecretStore{},
-	}
-	if err := svc.CloudPull(context.Background(), passphrase); err != nil {
-		t.Fatalf("CloudPull returned error: %v", err)
-	}
-	if got := bak.get(1); string(got) != string(bundleBlob) {
-		t.Fatalf("expected bundle to win on tie, got %q", got)
-	}
-}
-
-// TestCloudPull_R6_OneAccountWriteError_OthersSucceed_RegistrySaved — one
-// keychain write failure must not abort the restore for other accounts, and the
-// registry must be saved for the successful ones.
-func TestCloudPull_R6_OneAccountWriteError_OthersSucceed_RegistrySaved(t *testing.T) {
-	blob1 := credentialBlob("t1", "r1", time.Now().Add(time.Hour))
-	blob2 := credentialBlob("t2", "r2", time.Now().Add(time.Hour))
-	passphrase := "test-pass"
-
-	cleanup := writeBundleFile(t, makeBundle([]cloudsync.BundleAccount{
-		{Number: 1, Email: "a1@example.com", CredentialBlob: string(blob1)},
-		{Number: 2, Email: "a2@example.com", CredentialBlob: string(blob2)},
-	}), passphrase)
-	defer cleanup()
-
-	bak := &pullTestBackupStore{
-		blobs:     map[int]domain.CredentialBlob{},
-		writeErrs: map[int]error{1: errors.New("keychain write failed")},
-	}
-	reg := &pullTestRegistry{reg: &domain.Registry{Accounts: map[int]*domain.Account{}, Sequence: []int{}}}
-
-	svc := &Service{
-		Backup:     bak,
-		Registry:   reg,
-		Lock:       &pushTestLock{},
-		Refresh:    &pullTestRefresher{err: errors.New("refresh disabled")},
-		MCPSecrets: pullTestMCPSecretStore{},
-	}
-	err := svc.CloudPull(context.Background(), passphrase)
-	if err == nil {
-		t.Fatal("expected partial-failure error, got nil")
-	}
-	if !strings.Contains(err.Error(), "partial restore") {
-		t.Fatalf("error should mention partial restore: %v", err)
-	}
-
-	// Account 2 must be written.
-	if got := bak.get(2); string(got) != string(blob2) {
-		t.Fatalf("account 2 should succeed, blobs: %v", bak.blobs)
-	}
-
-	// Registry must be saved with account 2 present.
-	if reg.saveCalls == 0 {
-		t.Fatal("Registry.Save must be called even when some accounts fail")
-	}
-	if _, ok := reg.reg.Accounts[2]; !ok {
-		t.Fatal("account 2 must be in registry after partial restore")
-	}
-	if _, ok := reg.reg.Accounts[1]; ok {
-		t.Fatal("failed account 1 must not be in registry")
-	}
-}
-
+// TestCloudPull_PreservesActiveLocalIdentityWhenBundleNumberCollides — when a
+// bundle account number collides with an unrelated local active account,
+// CloudPull must keep the local identity in its slot and assign the bundle
+// account to a fresh slot.
 func TestCloudPull_PreservesActiveLocalIdentityWhenBundleNumberCollides(t *testing.T) {
-	bundleBlob := credentialBlob("bundle-token", "bundle-rt", time.Now().Add(time.Hour))
 	passphrase := "test-pass"
 
 	cleanup := writeBundleFile(t, makeBundle([]cloudsync.BundleAccount{
@@ -331,7 +190,6 @@ func TestCloudPull_PreservesActiveLocalIdentityWhenBundleNumberCollides(t *testi
 			Number:           4,
 			Email:            "soi@example.com",
 			OrganizationUUID: "soi-org",
-			CredentialBlob:   string(bundleBlob),
 		},
 	}), passphrase)
 	defer cleanup()
@@ -364,9 +222,6 @@ func TestCloudPull_PreservesActiveLocalIdentityWhenBundleNumberCollides(t *testi
 	pulledNum := reg.reg.FindByIdentity("soi@example.com", "soi-org")
 	if pulledNum == 0 || pulledNum == 4 {
 		t.Fatalf("pulled account number = %d, want a new local slot", pulledNum)
-	}
-	if got := bak.get(pulledNum); got != bundleBlob {
-		t.Fatalf("pulled backup at account %d = %q, want bundle blob", pulledNum, got)
 	}
 }
 

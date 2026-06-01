@@ -46,10 +46,18 @@ final class PopoverWindowRegistry {
 /// or when the popover is triggered by global hotkey while the user is on
 /// the secondary display — that anchor screen often isn't the screen the
 /// user is looking at, so the popover appears on the wrong display.
+// Newer SDKs (Xcode 16 / macOS 15) infer NSViewRepresentable conformance
+// as @MainActor, so `capture`/`relocateToCursorScreenIfNeeded` were
+// implicitly main-actor and the @MainActor PopoverWindowRegistry accesses
+// were legal. On macos-14's Xcode 15 SDK that inference is missing — the
+// struct stays nonisolated and the registry accesses inside `capture`
+// fail to build. Explicit @MainActor on the struct mirrors the newer-SDK
+// behavior and keeps both runners happy.
+@MainActor
 struct PopoverWindowCapture: NSViewRepresentable {
     func makeNSView(context: Context) -> NSView {
         let v = NSView()
-        DispatchQueue.main.async {
+        Task { @MainActor in
             capture(from: v)
             relocateToCursorScreenIfNeeded()
         }
@@ -61,7 +69,7 @@ struct PopoverWindowCapture: NSViewRepresentable {
         // popover NSWindow is recycled (e.g. after a display reconfiguration),
         // and SwiftUI MenuBarExtra recreates the hosting window in that case.
         capture(from: nsView)
-        DispatchQueue.main.async { relocateToCursorScreenIfNeeded() }
+        Task { @MainActor in relocateToCursorScreenIfNeeded() }
     }
 
     private func capture(from view: NSView) {

@@ -35,6 +35,7 @@ func TestGatewayToolsListExposesEveryConnector(t *testing.T) {
 		"cb_clickup_list_workspaces",
 		"cb_clickup_list_tasks",
 		"cb_clickup_get_task",
+		"cb_clickup_get_doc",
 		"cb_gdrive_search_files",
 		"cb_gdrive_get_file_metadata",
 		"cb_gdrive_get_doc_text",

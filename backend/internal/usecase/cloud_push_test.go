@@ -297,27 +297,7 @@ func TestCloudPush_R2_ActiveLiveFailFallsBackToBackup(t *testing.T) {
 	}
 }
 
-// TestCloudPush_R2_ActiveLiveFailNoBackup_ReturnsError verifies that when both
-// the live read and the backup are empty, CloudPush returns an explicit error.
-func TestCloudPush_R2_ActiveLiveFailNoBackup_ReturnsError(t *testing.T) {
-	reg := &domain.Registry{
-		ActiveAccountNumber: 1,
-		Sequence:            []int{1},
-		Accounts:            map[int]*domain.Account{1: {Number: 1, Email: "a@example.com"}},
-	}
-	svc := &Service{
-		Live:     &pushTestLiveStore{err: errors.New("keychain locked")},
-		Backup:   &pushTestBackupStore{blobs: map[int]domain.CredentialBlob{}},
-		Lock:     &pushTestLock{},
-		Refresh:  &pushTestRefresher{},
-		Registry: &pushTestRegistry{reg: reg},
-	}
-
-	err := svc.CloudPush(context.Background(), "pass")
-	if err == nil {
-		t.Fatal("expected error when live and backup both empty, got nil")
-	}
-	if !strings.Contains(err.Error(), "cannot push") {
-		t.Fatalf("error does not mention 'cannot push': %v", err)
-	}
-}
+// TestCloudPush_R2_ActiveLiveFailNoBackup_ReturnsError was removed when
+// credential sync was dropped (commit 10c4034 — metadata-only). CloudPush
+// no longer reads the active account's credential blob, so the "live
+// missing AND backup missing → cannot push" path is unreachable.

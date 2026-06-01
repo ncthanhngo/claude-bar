@@ -71,6 +71,17 @@ func (g *Gateway) registerClickUpTools(srv *server.MCPServer) {
 		g.clickupGetTask,
 	)
 
+	g.addTool(srv, "cb_clickup_get_doc",
+		"Read a ClickUp Doc's page content as markdown. Accept either a full doc URL (…/v/dc/{docId}/{pageId}) or workspace_id + doc_id (+ optional page_id). Omit the page to get every page of the doc. Read-only.",
+		[]mcpgo.ToolOption{
+			mcpgo.WithString("url", mcpgo.Description("Full ClickUp doc URL, e.g. https://app.clickup.com/{workspace}/v/dc/{docId}/{pageId}. Use this OR workspace_id + doc_id.")),
+			mcpgo.WithString("workspace_id", mcpgo.Description("ClickUp workspace/team ID. Use with doc_id when no url is given.")),
+			mcpgo.WithString("doc_id", mcpgo.Description("ClickUp doc ID (e.g. 3m5v4-218736). Use with workspace_id when no url is given.")),
+			mcpgo.WithString("page_id", mcpgo.Description("ClickUp doc page ID. Omit to return all pages of the doc.")),
+		},
+		g.clickupGetDoc,
+	)
+
 	g.addTool(srv, "cb_clickup_list_comments",
 		"List comments on a ClickUp task. Returns the comment body, author, and timestamps. Read-only.",
 		[]mcpgo.ToolOption{

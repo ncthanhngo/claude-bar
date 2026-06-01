@@ -54,6 +54,7 @@ var AllTools = []ToolMeta{
 	{ID: "cb_clickup_list_members", Service: domain.MCPServiceClickUp, Label: "List members", Description: "Members of a workspace.", Category: "People", Priority: ToolPriorityCommon},
 	{ID: "cb_clickup_list_tasks", Service: domain.MCPServiceClickUp, Label: "List tasks", Description: "Tasks in a list with optional status/assignee filters.", Category: "Tasks", Priority: ToolPriorityEssential},
 	{ID: "cb_clickup_get_task", Service: domain.MCPServiceClickUp, Label: "Get task", Description: "Full detail for one task — description, comments, fields.", Category: "Tasks", Priority: ToolPriorityEssential},
+	{ID: "cb_clickup_get_doc", Service: domain.MCPServiceClickUp, Label: "Read Doc", Description: "Markdown content of a ClickUp Doc (single page or whole doc) from a doc URL or workspace_id + doc_id.", Category: "Docs", Priority: ToolPriorityCommon},
 	{ID: "cb_clickup_search_tasks", Service: domain.MCPServiceClickUp, Label: "Search tasks", Description: "Full-text task search across a workspace.", Category: "Tasks", Priority: ToolPriorityCommon},
 	{ID: "cb_clickup_list_comments", Service: domain.MCPServiceClickUp, Label: "List comments", Description: "Comments on one task.", Category: "Comments", Priority: ToolPriorityCommon},
 	{ID: "cb_clickup_create_task", Service: domain.MCPServiceClickUp, Label: "Create task", Description: "Open a new task in a list. Gated.", Category: "Writes", Priority: ToolPriorityCommon},
