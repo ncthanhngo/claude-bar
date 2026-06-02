@@ -15,6 +15,10 @@ EXECUTABLE   := ClaudeSwapWidget
 BUNDLE_ID    := dev.ncthanhngo.claude-bar
 SIGN_ID      := ClaudeSwapWidgetLocalDev
 
+# Source Info.plist baked into the bundle. Override to build the AI Bar track:
+#   make release DISPLAY_NAME=AIBar INFO_PLIST=packaging/Info-aibar.plist
+INFO_PLIST   ?= packaging/Info.plist
+
 BACKEND_BIN  := backend/bin/csw
 WIDGET_BUILD := widget/.build/release/$(EXECUTABLE)
 APP_BUNDLE   := release/$(DISPLAY_NAME).app
@@ -46,7 +50,7 @@ app: backend widget
 	cp $(BACKEND_BIN)               $(APP_BUNDLE)/Contents/Resources/csw
 	cp packaging/icon.png           $(APP_BUNDLE)/Contents/Resources/icon.png
 	cp packaging/AppIcon.icns       $(APP_BUNDLE)/Contents/Resources/AppIcon.icns
-	cp packaging/Info.plist         $(APP_BUNDLE)/Contents/Info.plist
+	cp $(INFO_PLIST)                $(APP_BUNDLE)/Contents/Info.plist
 	# Localized strings — Foundation resolves Bundle.main.localizedString
 	# against {locale}.lproj/Localizable.strings inside Contents/Resources.
 	# SwiftUI's `Text("…")` literal-key lookup hits Bundle.main by default,
