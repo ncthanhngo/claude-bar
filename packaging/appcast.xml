@@ -12,6 +12,26 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 12.9</title>
+      <sparkle:version>12.9</sparkle:version>
+      <sparkle:shortVersionString>12.9</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li>Fixed cmux <code>claude</code> sessions failing with <strong>"Argument list too long"</strong> (and earlier, a chain of runaway <code>claude-watch</code> processes). Claude Bar no longer routes cmux's claude through the auto-restart wrapper — cmux resolves the real CLI on its own.</li>
+          <li>Existing installs self-heal: on launch, Claude Bar removes the stale <code>claudeBinaryPath</code> line from <code>~/.config/cmux/cmux.json</code>, so reinstalling cmux can't bring the bug back.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Tue, 02 Jun 2026 08:37:21 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v12.9/ClaudeBar.zip"
+        sparkle:version="12.9"
+        sparkle:shortVersionString="12.9"
+        sparkle:edSignature="58wTm1Abt/SkuGnH3v3LJIn2o0Mckm4ZXUfUY9Ny2fpPs6PPvVzr5i7YSHgKazkQ5yuWqezP08mKw0PYlw0vBg=="
+        length="8076404"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 12.8</title>
       <sparkle:version>12.8</sparkle:version>
       <sparkle:shortVersionString>12.8</sparkle:shortVersionString>
