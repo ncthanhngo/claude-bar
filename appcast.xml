@@ -12,6 +12,26 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 13.0</title>
+      <sparkle:version>13.0</sparkle:version>
+      <sparkle:shortVersionString>13.0</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li>Fixed <strong>"401 Invalid authentication credentials / Please run /login"</strong> appearing in <strong>every terminal</strong> after Claude Bar's 6-hour background token refresh rotated the active account's token out from under already-running sessions.</li>
+          <li>Running <code>claude</code> sessions now auto-reload when the active token rotates — <code>claude-watch</code> wrappers resume the conversation in place; unwrapped sessions exit cleanly so the next launch picks up the fresh token.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Tue, 02 Jun 2026 10:25:23 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v13.0/ClaudeBar.zip"
+        sparkle:version="13.0"
+        sparkle:shortVersionString="13.0"
+        sparkle:edSignature="BZJE+km/Fj60HSkwvlNn2lG3nMPgsav1FfLnYBYsNeVVOIFzu5aM5isOwKOwEx9B8600N01ammnVwawj1jiaCQ=="
+        length="8230700"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 12.9</title>
       <sparkle:version>12.9</sparkle:version>
       <sparkle:shortVersionString>12.9</sparkle:shortVersionString>
