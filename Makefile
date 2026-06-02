@@ -15,6 +15,10 @@ EXECUTABLE   := ClaudeSwapWidget
 BUNDLE_ID    := dev.ncthanhngo.claude-bar
 SIGN_ID      := ClaudeSwapWidgetLocalDev
 
+# Source Info.plist baked into the bundle. Override to build the AI Bar track:
+#   make release DISPLAY_NAME=AIBar INFO_PLIST=packaging/Info-aibar.plist
+INFO_PLIST   ?= packaging/Info.plist
+
 BACKEND_BIN  := backend/bin/csw
 WIDGET_BUILD := widget/.build/release/$(EXECUTABLE)
 APP_BUNDLE   := release/$(DISPLAY_NAME).app
@@ -24,9 +28,33 @@ APP_BUNDLE   := release/$(DISPLAY_NAME).app
 # messages_fts virtual-table migration fails with "no such module: fts5".
 GO_TAGS := sqlite_fts5
 
-.PHONY: all backend widget app release install test clean sync-check
+.PHONY: all backend widget app release install test clean sync-check guard-identity
 
 all: app
+
+# Hard identity guard — the build-time backstop for the runbook preflights.
+# Refuses to build an app whose bundled identity contradicts the current git
+# branch, so `/rl` on ai-bar (stable plist + experimental code) or `/rl-aibar`
+# on main can't ship the wrong app to the wrong users. Only the two release
+# branches are enforced; feature/detached HEAD builds pass through. Escape
+# hatch for a deliberate cross-build: ALLOW_IDENTITY_MISMATCH=1.
+guard-identity:
+	@branch=$$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo unknown); \
+	bid=$$(plutil -extract CFBundleIdentifier raw "$(INFO_PLIST)" 2>/dev/null || echo unknown); \
+	if [ "$(ALLOW_IDENTITY_MISMATCH)" = "1" ]; then \
+	  echo "guard-identity: bypassed (ALLOW_IDENTITY_MISMATCH=1)"; exit 0; fi; \
+	if [ "$$branch" = "main" ] && [ "$$bid" != "dev.ncthanhngo.claude-bar" ]; then \
+	  echo ""; echo "  ✗ guard-identity: on 'main' but INFO_PLIST=$(INFO_PLIST) has id '$$bid'"; \
+	  echo "    (expected stable dev.ncthanhngo.claude-bar). 'main' builds Claude Bar."; \
+	  echo "    For AI Bar, switch to the ai-bar branch and use /rl-aibar. Aborting."; \
+	  echo ""; exit 1; fi; \
+	if [ "$$branch" = "ai-bar" ] && [ "$$bid" != "dev.ncthanhngo.ai-bar" ]; then \
+	  echo ""; echo "  ✗ guard-identity: on 'ai-bar' but INFO_PLIST=$(INFO_PLIST) has id '$$bid'"; \
+	  echo "    (expected dev.ncthanhngo.ai-bar). Build AI Bar with:"; \
+	  echo "      make release DISPLAY_NAME=AIBar INFO_PLIST=packaging/Info-aibar.plist"; \
+	  echo "    or run /rl-aibar. Did you mean /rl-aibar instead of /rl? Aborting."; \
+	  echo ""; exit 1; fi; \
+	true
 
 backend:
 	@mkdir -p backend/bin
@@ -37,7 +65,7 @@ backend:
 widget:
 	cd widget && swift build -c release
 
-app: backend widget
+app: guard-identity backend widget
 	@rm -rf $(APP_BUNDLE)
 	@mkdir -p $(APP_BUNDLE)/Contents/MacOS
 	@mkdir -p $(APP_BUNDLE)/Contents/Resources
@@ -46,7 +74,7 @@ app: backend widget
 	cp $(BACKEND_BIN)               $(APP_BUNDLE)/Contents/Resources/csw
 	cp packaging/icon.png           $(APP_BUNDLE)/Contents/Resources/icon.png
 	cp packaging/AppIcon.icns       $(APP_BUNDLE)/Contents/Resources/AppIcon.icns
-	cp packaging/Info.plist         $(APP_BUNDLE)/Contents/Info.plist
+	cp $(INFO_PLIST)                $(APP_BUNDLE)/Contents/Info.plist
 	# Localized strings — Foundation resolves Bundle.main.localizedString
 	# against {locale}.lproj/Localizable.strings inside Contents/Resources.
 	# SwiftUI's `Text("…")` literal-key lookup hits Bundle.main by default,
