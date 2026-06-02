@@ -69,6 +69,23 @@ enum CLISessionKiller {
         }
     }
 
+    /// Reload every running interactive `claude` session after the live
+    /// credential or MCP config changed underneath them. Wrapped sessions
+    /// (claude-watch) get SIGUSR1 — the wrapper snapshots its child's
+    /// sessionId, kills it, and re-launches `claude --resume <sid>` so the
+    /// conversation survives and the user never sees a shell prompt. Unwrapped
+    /// sessions fall through to SIGINT-then-SIGKILL: they can't auto-restart,
+    /// but they still must die so the user's next `claude` launch reads the
+    /// fresh credential instead of 401-ing on a rotated-away token. No-op when
+    /// nothing is running.
+    static func reloadRunningSessions() async {
+        signalWrappers()
+        let killed = killAll(skipCmuxTracked: true, skipWrapperTracked: true)
+        guard !killed.isEmpty else { return }
+        try? await Task.sleep(nanoseconds: 800_000_000)
+        forceKillSurvivors(killed)
+    }
+
     // MARK: - private
 
     private struct RawSession: Codable {

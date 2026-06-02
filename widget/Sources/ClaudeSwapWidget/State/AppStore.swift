@@ -238,6 +238,15 @@ final class AppStore: ObservableObject {
             try await client.refreshAllTokens()
             settings.lastBackupTokenRefreshSuccessAt = now
             refreshOk = true
+
+            // refresh-tokens rotates the ACTIVE account's live Keychain token,
+            // so every already-running `claude` is now holding a token the
+            // server has invalidated — the next call 401s with "Please run
+            // /login". The swap path reloads sessions after a credential
+            // change; a silent backup refresh must do the same or wrapped
+            // terminals die mid-session with no way back. SIGUSR1 lets each
+            // claude-watch wrapper resume its conversation on the fresh token.
+            await CLISessionKiller.reloadRunningSessions()
         } catch {
             print("[AppStore] Backup token refresh failed: \(error.localizedDescription)")
             // lastBackupTokenRefreshSuccessAt intentionally not updated on failure.
