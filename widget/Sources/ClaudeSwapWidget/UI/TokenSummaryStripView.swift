@@ -23,23 +23,22 @@ struct TokenSummaryStripView: View {
             RoundedRectangle(cornerRadius: 1.5)
                 .fill(tint)
                 .frame(width: 3)
+            // Tokens (hero) over request count. Dollar estimates were dropped
+            // — subscription accounts don't pay per token, so the USD figure
+            // was misleading rather than informative.
             VStack(alignment: .leading, spacing: 3) {
                 Text(title)
                     .font(.system(size: 10, weight: .medium))
                     .foregroundColor(.secondary)
-                HStack(alignment: .firstTextBaseline, spacing: 5) {
-                    Text(TokenFormatters.compact(bucket.totalTokens))
-                        .font(.system(size: 14, weight: .semibold, design: .monospaced))
-                        .foregroundColor(.primary)
-                    Text(TokenFormatters.cost(bucket.estimatedCostUsd))
-                        .font(.system(size: 10, weight: .semibold, design: .monospaced))
-                        .foregroundColor(.accentColor)
-                }
+                    .lineLimit(1)
+                Text(TokenFormatters.compact(bucket.totalTokens))
+                    .font(.system(size: 14, weight: .semibold, design: .monospaced))
+                    .foregroundColor(.primary)
                 Text("\(bucket.requests) req")
                     .font(.system(size: 9, design: .monospaced))
                     .foregroundColor(.secondary.opacity(0.8))
             }
-            .padding(.horizontal, 9)
+            .padding(.horizontal, 8)
             .padding(.vertical, 8)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -51,16 +50,9 @@ struct TokenSummaryStripView: View {
     }
 }
 
-// Shared formatters so TokenStatsSection (chart axis) and TokenSummaryStripView
+// Shared formatter so TokenStatsSection (chart axis) and TokenSummaryStripView
 // (KPI cards) speak the same compact-number language.
 enum TokenFormatters {
-    static func cost(_ usd: Double) -> String {
-        if usd < 0.01 { return "<$0.01" }
-        if usd < 10   { return String(format: "$%.2f", usd) }
-        if usd < 1000 { return String(format: "$%.1f", usd) }
-        return String(format: "$%.0f", usd)
-    }
-
     static func compact(_ n: Int64) -> String {
         let abs = n < 0 ? -n : n
         switch abs {

@@ -22,7 +22,6 @@ type Service struct {
 	Lock       port.FileLock
 	MCPSecrets port.MCPSecretStore
 	UsageLog   port.UsageLogScanner
-	Pricing    port.PricingProvider
 	UsageCache *cache.UsageCache
 	Backoff    *cache.Backoff
 

@@ -22,7 +22,10 @@ struct WindowAppearanceSetter: NSViewRepresentable {
         switch theme {
         case .light, .rainbow: window.appearance = NSAppearance(named: .aqua)
         case .dark:            window.appearance = NSAppearance(named: .darkAqua)
-        case .apple:           window.appearance = nil  // follow system appearance
+        // Pin Apple's frosted-glass theme to the light (.aqua) appearance so the
+        // vibrancy material always renders as bright frosted glass. Following the
+        // system instead made it dark/dim on machines in Dark Mode.
+        case .apple:           window.appearance = NSAppearance(named: .aqua)
         }
     }
 }

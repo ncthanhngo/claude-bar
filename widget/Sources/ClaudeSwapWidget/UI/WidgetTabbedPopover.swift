@@ -24,13 +24,17 @@ struct WidgetTabbedPopover: View {
     /// account list scrolls internally while the auto-swap + token
     /// dashboard underneath stays pinned.
     private static let accountsRowsBeforeScroll = 3
-    private static let popoverWidth: CGFloat = 400
+    /// Matches the Standard layout's width (MediumPopoverView is 300pt) so
+    /// the two layouts feel like one family. Narrowed down from the original
+    /// 400pt; everything below reflows to fit — the KPI cards stack their
+    /// tokens/req vertically (see `TokenSummaryStripView`) and the usage-bar
+    /// numeric columns tightened.
+    private static let popoverWidth: CGFloat = 300
     /// Re-measured against the rendered shell: header 36 + divider 1 +
     /// accountsHeader 22 + divider 1 + auto-swap title 22 + auto-swap
     /// section 86 + token-usage title 22 + token stats minimum 196
-    /// + outer paddings ~22 = 408pt. Bottom padding was bumped 8 → 14
-    /// so the Today / This week / This month KPI strip doesn't sit
-    /// flush against the hairline border.
+    /// + outer paddings ~22 = 408pt. The KPI cards stack title / tokens /
+    /// req (no dollar line), the same height as the old inline strip.
     private static let shellHeight: CGFloat = 408
     /// Height saved when the Token-usage section is hidden — title 22 +
     /// chart + KPI cards ~196 = 218pt. The popover frame subtracts this

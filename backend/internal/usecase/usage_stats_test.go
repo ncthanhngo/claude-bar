@@ -13,7 +13,7 @@ type usageStatsCountingScanner struct {
 	calls int32
 }
 
-func (s *usageStatsCountingScanner) Scan(_ context.Context, now time.Time, _ []domain.ModelPricing) (*domain.UsageStatsReport, error) {
+func (s *usageStatsCountingScanner) Scan(_ context.Context, now time.Time) (*domain.UsageStatsReport, error) {
 	atomic.AddInt32(&s.calls, 1)
 	return &domain.UsageStatsReport{FetchedAt: now}, nil
 }
@@ -87,38 +87,6 @@ func TestUsageStats_HourRolloverForcesRescan(t *testing.T) {
 	}
 	if scanner.calls != 2 {
 		t.Fatalf("scanner.calls = %d, want 2 after hour rollover", scanner.calls)
-	}
-}
-
-type fakePricingProvider struct {
-	rates     []domain.ModelPricing
-	reference string
-}
-
-func (f *fakePricingProvider) Current() ([]domain.ModelPricing, string) {
-	return f.rates, f.reference
-}
-func (f *fakePricingProvider) Refresh(_ context.Context) {}
-
-func TestUsageStats_RescansWhenPricingReferenceChanges(t *testing.T) {
-	scanner := &usageStatsCountingScanner{}
-	provider := &fakePricingProvider{
-		rates:     domain.PublishedPricing(),
-		reference: "snapshot A",
-	}
-	svc := &Service{UsageLog: scanner, Pricing: provider}
-
-	if _, err := svc.UsageStats(context.Background()); err != nil {
-		t.Fatal(err)
-	}
-	// Provider swaps to a new pricing snapshot (e.g. background refresh
-	// picked up an updated hosted JSON). Cache must drop so cost recomputes.
-	provider.reference = "snapshot B"
-	if _, err := svc.UsageStats(context.Background()); err != nil {
-		t.Fatal(err)
-	}
-	if scanner.calls != 2 {
-		t.Fatalf("scanner.calls = %d, want 2 after pricing-reference shift", scanner.calls)
 	}
 }
 

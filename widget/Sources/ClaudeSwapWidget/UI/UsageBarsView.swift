@@ -20,12 +20,12 @@ struct UsageBar: View {
                 .font(.system(size: 12, weight: .bold))
                 .monospacedDigit()
                 .foregroundColor(UsagePalette.percentText)
-                .frame(width: 42, alignment: .trailing)
+                .frame(width: 34, alignment: .trailing)
             Text(window.resetLabel())
                 .font(.system(size: 11, weight: .medium))
                 .monospacedDigit()
                 .foregroundColor(.primary.opacity(0.55))
-                .frame(width: 60, alignment: .trailing)
+                .frame(width: 52, alignment: .trailing)
         }
     }
 
@@ -89,11 +89,11 @@ struct UnavailableBar: View {
                 .font(.system(size: 12, weight: .bold))
                 .monospacedDigit()
                 .foregroundColor(.secondary.opacity(0.5))
-                .frame(width: 42, alignment: .trailing)
-            Text("unavailable")
+                .frame(width: 34, alignment: .trailing)
+            Text("n/a")
                 .font(.system(size: 10, weight: .medium))
                 .foregroundColor(.secondary.opacity(0.5))
-                .frame(width: 60, alignment: .trailing)
+                .frame(width: 52, alignment: .trailing)
         }
         .help("This window wasn't reported in the latest usage refresh.")
     }
@@ -125,9 +125,9 @@ struct SkeletonBar: View {
             }
             .frame(height: 5)
             Text("—").font(.system(size: 10)).foregroundColor(.secondary.opacity(0.5))
-                .frame(width: 38, alignment: .trailing)
+                .frame(width: 34, alignment: .trailing)
             Text("—").font(.system(size: 10)).foregroundColor(.secondary.opacity(0.5))
-                .frame(width: 56, alignment: .trailing)
+                .frame(width: 52, alignment: .trailing)
         }
         .onAppear {
             withAnimation(.linear(duration: 1.2).repeatForever(autoreverses: false)) {

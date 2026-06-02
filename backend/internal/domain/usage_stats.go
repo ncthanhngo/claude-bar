@@ -34,9 +34,9 @@ type TimedBucket struct {
 // makes the "total" number unreadable as a usage signal. Cache reads are kept
 // in their own field so users still see them in the breakdown.
 //
-// EstimatedCostUsd applies Anthropic's per-model published pricing
-// (see adapter/usagelog/pricing.go) and IS computed across all four token
-// flows including cache reads (cache reads aren't free even if they're cheap).
+// EstimatedCostUsd is retained for JSON-contract stability but is no longer
+// populated — it always serialises as 0. Dollar estimates were dropped because
+// subscription accounts don't pay per token, so the figure was misleading.
 type UsageBucket struct {
 	InputTokens         int64   `json:"inputTokens"`
 	OutputTokens        int64   `json:"outputTokens"`
@@ -47,14 +47,13 @@ type UsageBucket struct {
 	Requests            int     `json:"requests"`
 }
 
-// Add merges one assistant message's usage + estimated cost into the bucket.
-func (b *UsageBucket) Add(input, output, cacheCreate, cacheRead int64, costUsd float64) {
+// Add merges one assistant message's usage into the bucket.
+func (b *UsageBucket) Add(input, output, cacheCreate, cacheRead int64) {
 	b.InputTokens += input
 	b.OutputTokens += output
 	b.CacheCreationTokens += cacheCreate
 	b.CacheReadTokens += cacheRead
 	// Cache reads excluded from TotalTokens — see type doc.
 	b.TotalTokens += input + output + cacheCreate
-	b.EstimatedCostUsd += costUsd
 	b.Requests++
 }

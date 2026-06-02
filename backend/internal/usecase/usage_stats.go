@@ -16,33 +16,25 @@ import (
 func (s *Service) UsageStats(ctx context.Context) (*domain.UsageStatsReport, error) {
 	now := time.Now()
 
-	// Kick off a background refresh of the hosted pricing JSON. Non-blocking;
-	// the provider debounces by TTL and falls back to the in-memory snapshot
-	// (disk cache → bundled) on network failure.
-	rates, reference := domain.PublishedPricing(), domain.PublishedPricingReference
-	if s.Pricing != nil {
-		s.Pricing.Refresh(ctx)
-		rates, reference = s.Pricing.Current()
-	}
-
 	s.usageStatsMu.Lock()
 	if cached := s.usageStatsCached; cached != nil &&
 		time.Since(s.usageStatsCachedAt) < UsageStatsCacheTTL &&
-		sameHourSlot(now, s.usageStatsCachedAt) &&
-		cached.PricingReference == reference {
+		sameHourSlot(now, s.usageStatsCachedAt) {
 		s.usageStatsMu.Unlock()
 		return cached, nil
 	}
 	s.usageStatsMu.Unlock()
 
-	report, err := s.UsageLog.Scan(ctx, now, rates)
+	report, err := s.UsageLog.Scan(ctx, now)
 	if err != nil {
 		return nil, err
 	}
-	// Ship the rate table the cost column was computed against so the widget
-	// "Details" popover always matches what's on the chart.
-	report.Pricing = rates
-	report.PricingReference = reference
+	// Pricing/cost are no longer computed (subscription accounts don't pay per
+	// token). Ship an EMPTY (non-nil) rate table so the JSON encodes as `[]`,
+	// not `null` — the widget's `pricing: [ModelPricingDTO]` is non-optional
+	// and a null would fail to decode the whole report.
+	report.Pricing = []domain.ModelPricing{}
+	report.PricingReference = ""
 
 	s.usageStatsMu.Lock()
 	s.usageStatsCached = report

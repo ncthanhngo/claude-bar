@@ -43,12 +43,8 @@ func NewScanner(root string) *Scanner {
 // popover. Errors from individual files are swallowed (best-effort) — a
 // corrupt or transiently-locked log should not nuke the whole report.
 //
-// rates is the currently-active per-model pricing snapshot (from
-// PricingProvider). Each assistant message's cost is computed against it,
-// so a runtime pricing refresh shifts the next scan's cost column.
-func (s *Scanner) Scan(ctx context.Context, now time.Time, rates []domain.ModelPricing) (*domain.UsageStatsReport, error) {
+func (s *Scanner) Scan(ctx context.Context, now time.Time) (*domain.UsageStatsReport, error) {
 	report := &domain.UsageStatsReport{FetchedAt: now}
-	rateLookup := indexRates(rates)
 
 	loc := now.Location()
 	todayStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, loc)
@@ -90,7 +86,7 @@ func (s *Scanner) Scan(ctx context.Context, now time.Time, rates []domain.ModelP
 		s.foldFile(path, monthStart, weekStart, todayStart,
 			hourly, daily, monthly,
 			hourlyEarliest, dailyEarliest, monthlyEarliest,
-			rateLookup, report)
+			report)
 		return nil
 	})
 	report.Hourly = hourly
@@ -143,7 +139,6 @@ func (s *Scanner) foldFile(
 	monthStart, weekStart, todayStart time.Time,
 	hourly, daily, monthly []domain.TimedBucket,
 	hourlyEarliest, dailyEarliest, monthlyEarliest time.Time,
-	rates rateIndex,
 	report *domain.UsageStatsReport,
 ) {
 	f, err := os.Open(path)
@@ -179,36 +174,35 @@ func (s *Scanner) foldFile(
 		}
 
 		u := entry.Message.Usage
-		cost := rates.estimateCostUSD(entry.Message.Model, u)
 
 		// Calendar aggregates: current month / week / day in local time.
 		if !tsLocal.Before(monthStart) {
-			report.ThisMonth.Add(u.InputTokens, u.OutputTokens, u.CacheCreation, u.CacheRead, cost)
+			report.ThisMonth.Add(u.InputTokens, u.OutputTokens, u.CacheCreation, u.CacheRead)
 		}
 		if !tsLocal.Before(weekStart) {
-			report.ThisWeek.Add(u.InputTokens, u.OutputTokens, u.CacheCreation, u.CacheRead, cost)
+			report.ThisWeek.Add(u.InputTokens, u.OutputTokens, u.CacheCreation, u.CacheRead)
 		}
 		if !tsLocal.Before(todayStart) {
-			report.Today.Add(u.InputTokens, u.OutputTokens, u.CacheCreation, u.CacheRead, cost)
+			report.Today.Add(u.InputTokens, u.OutputTokens, u.CacheCreation, u.CacheRead)
 		}
 
 		// Histogram series.
 		if !tsLocal.Before(hourlyEarliest) {
 			idx := int(tsLocal.Sub(hourlyEarliest) / time.Hour)
 			if idx >= 0 && idx < len(hourly) {
-				hourly[idx].Bucket.Add(u.InputTokens, u.OutputTokens, u.CacheCreation, u.CacheRead, cost)
+				hourly[idx].Bucket.Add(u.InputTokens, u.OutputTokens, u.CacheCreation, u.CacheRead)
 			}
 		}
 		if !tsLocal.Before(dailyEarliest) {
 			idx := int(tsLocal.Sub(dailyEarliest) / (24 * time.Hour))
 			if idx >= 0 && idx < len(daily) {
-				daily[idx].Bucket.Add(u.InputTokens, u.OutputTokens, u.CacheCreation, u.CacheRead, cost)
+				daily[idx].Bucket.Add(u.InputTokens, u.OutputTokens, u.CacheCreation, u.CacheRead)
 			}
 		}
 		if !tsLocal.Before(monthlyEarliest) {
 			idx := monthDiff(monthlyEarliest, tsLocal)
 			if idx >= 0 && idx < len(monthly) {
-				monthly[idx].Bucket.Add(u.InputTokens, u.OutputTokens, u.CacheCreation, u.CacheRead, cost)
+				monthly[idx].Bucket.Add(u.InputTokens, u.OutputTokens, u.CacheCreation, u.CacheRead)
 			}
 		}
 	}

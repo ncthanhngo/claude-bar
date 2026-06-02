@@ -7,8 +7,6 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
-
-	"github.com/soi/claude-swap-widget/backend/internal/domain"
 )
 
 // writeJSONL writes a single JSONL file with the given lines (each line is a
@@ -30,7 +28,6 @@ func writeJSONL(t *testing.T, dir, name string, lines []string) string {
 }
 
 // assistantLine formats an assistant log entry with the given timestamp + usage.
-// Defaults to claude-opus-4 so cost estimates exercise the opus pricing row.
 func assistantLine(ts time.Time, input, output, cacheCreate, cacheRead int64) string {
 	return assistantLineWithModel(ts, "claude-opus-4-7", input, output, cacheCreate, cacheRead)
 }
@@ -63,7 +60,7 @@ func TestScanner_BucketsByCalendarWindow(t *testing.T) {
 		assistantLine(pastTs, 999, 999, 999, 999),
 	})
 
-	r, err := NewScanner(root).Scan(context.Background(), now, domain.PublishedPricing())
+	r, err := NewScanner(root).Scan(context.Background(), now)
 	if err != nil {
 		t.Fatalf("Scan error: %v", err)
 	}
@@ -79,9 +76,6 @@ func TestScanner_BucketsByCalendarWindow(t *testing.T) {
 	}
 	if r.Today.CacheReadTokens != 1000 {
 		t.Fatalf("Today.CacheReadTokens = %d, want 1000", r.Today.CacheReadTokens)
-	}
-	if r.Today.EstimatedCostUsd <= 0 {
-		t.Fatalf("Today.EstimatedCostUsd = %v, want > 0 for opus pricing", r.Today.EstimatedCostUsd)
 	}
 
 	// Week bucket = today + week.
@@ -119,7 +113,7 @@ func TestScanner_SkipsNonAssistantAndMalformed(t *testing.T) {
 		assistantLine(todayTs, 5, 7, 0, 0),
 	})
 
-	r, err := NewScanner(root).Scan(context.Background(), now, domain.PublishedPricing())
+	r, err := NewScanner(root).Scan(context.Background(), now)
 	if err != nil {
 		t.Fatalf("Scan error: %v", err)
 	}
@@ -131,7 +125,7 @@ func TestScanner_SkipsNonAssistantAndMalformed(t *testing.T) {
 func TestScanner_RootMissing_ReturnsEmptyReport(t *testing.T) {
 	now := time.Now()
 	root := filepath.Join(t.TempDir(), "does-not-exist")
-	r, err := NewScanner(root).Scan(context.Background(), now, domain.PublishedPricing())
+	r, err := NewScanner(root).Scan(context.Background(), now)
 	if err != nil {
 		t.Fatalf("Scan error: %v", err)
 	}
@@ -158,7 +152,7 @@ func TestScanner_SkipsFilesOlderThanMaxAge(t *testing.T) {
 		t.Fatalf("chtimes: %v", err)
 	}
 
-	r, err := NewScanner(root).Scan(context.Background(), now, domain.PublishedPricing())
+	r, err := NewScanner(root).Scan(context.Background(), now)
 	if err != nil {
 		t.Fatalf("Scan error: %v", err)
 	}
@@ -184,7 +178,7 @@ func TestScanner_BuildsHistogramSeriesWithFixedLengths(t *testing.T) {
 		assistantLine(fiveDaysAgo, 100, 200, 300, 400),
 	})
 
-	r, err := NewScanner(root).Scan(context.Background(), now, domain.PublishedPricing())
+	r, err := NewScanner(root).Scan(context.Background(), now)
 	if err != nil {
 		t.Fatalf("Scan error: %v", err)
 	}

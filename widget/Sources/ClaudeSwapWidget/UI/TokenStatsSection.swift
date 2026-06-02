@@ -10,8 +10,6 @@ import Charts
 struct TokenStatsSection: View {
     @EnvironmentObject var store: AppStore
     @State private var granularity: ChartGranularity = .day
-    @State private var metric: ChartMetric = .tokens
-    @State private var showingPricingDetails = false
 
     enum ChartGranularity: String, CaseIterable, Identifiable {
         case hour, day, month
@@ -25,29 +23,11 @@ struct TokenStatsSection: View {
         }
     }
 
-    enum ChartMetric: String, CaseIterable, Identifiable {
-        case tokens, cost
-        var id: String { rawValue }
-        var label: String {
-            switch self {
-            case .tokens: return "Tokens"
-            case .cost:   return "USD"
-            }
-        }
-    }
-
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             if let stats = store.tokenStats {
                 pickerBar
-                if showingPricingDetails && metric == .cost && !stats.pricing.isEmpty {
-                    PricingTablePopover(
-                        rows: stats.pricing,
-                        reference: stats.pricingReference
-                    )
-                    .transition(.opacity.combined(with: .move(edge: .top)))
-                }
-                UsageChart(stats: stats, granularity: granularity, metric: metric)
+                UsageChart(stats: stats, granularity: granularity)
                 Divider().opacity(0.3)
                 TokenSummaryStripView(stats: stats)
             } else {
@@ -69,7 +49,7 @@ struct TokenStatsSection: View {
     }
 
     private var pickerBar: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 8) {
             Picker("", selection: $granularity) {
                 ForEach(ChartGranularity.allCases) { g in
                     Text(g.label).tag(g)
@@ -77,64 +57,17 @@ struct TokenStatsSection: View {
             }
             .pickerStyle(.segmented)
             .labelsHidden()
-            .frame(maxWidth: 220)
+            .frame(maxWidth: 200)
             .pointingHandCursor()
-
-            Picker("", selection: $metric) {
-                ForEach(ChartMetric.allCases) { m in
-                    Text(m.label).tag(m)
-                }
-            }
-            .pickerStyle(.segmented)
-            .labelsHidden()
-            .frame(maxWidth: 140)
-            .pointingHandCursor()
-
-            if metric == .cost, let stats = store.tokenStats, !stats.pricing.isEmpty {
-                detailsButton(stats: stats)
-            }
 
             Spacer(minLength: 0)
         }
-    }
-
-    // Sits next to the USD segment. Only appears once cost is selected. Tap
-    // toggles the pricing-rate table inline below the picker — inline rather
-    // than `.popover` because MenuBarExtra(.window) clips child popovers to
-    // its window bounds.
-    private func detailsButton(stats: UsageStatsDTO) -> some View {
-        Button {
-            withAnimation(.easeInOut(duration: 0.18)) {
-                showingPricingDetails.toggle()
-            }
-        } label: {
-            HStack(spacing: 3) {
-                Image(systemName: showingPricingDetails ? "chevron.up.circle.fill" : "info.circle")
-                    .font(.system(size: 10, weight: .medium))
-                Text(showingPricingDetails ? "Hide" : "Details")
-                    .font(.system(size: 10.5, weight: .medium))
-            }
-            .foregroundColor(.accentColor)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 3)
-            .background(
-                RoundedRectangle(cornerRadius: 5, style: .continuous)
-                    .fill(Color.accentColor.opacity(showingPricingDetails ? 0.18 : 0.10))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 5, style: .continuous)
-                    .stroke(Color.accentColor.opacity(0.25), lineWidth: 0.5)
-            )
-        }
-        .buttonStyle(.plain)
-        .help("How USD is estimated")
     }
 }
 
 private struct UsageChart: View {
     let stats: UsageStatsDTO
     let granularity: TokenStatsSection.ChartGranularity
-    let metric: TokenStatsSection.ChartMetric
 
     private var series: [TimedBucketDTO] {
         switch granularity {
@@ -144,22 +77,13 @@ private struct UsageChart: View {
         }
     }
 
-    // Y value per bucket — switches between raw compute tokens and dollar cost
-    // depending on the picker. Bars stay sized relative to the series so the
-    // axes are always meaningful even when totals are tiny.
+    // Y value per bucket — raw compute tokens. Bars stay sized relative to the
+    // series so the axis is meaningful even when totals are tiny.
     private func yValue(_ b: UsageBucketDTO) -> Double {
-        switch metric {
-        case .tokens: return Double(b.totalTokens)
-        case .cost:   return b.estimatedCostUsd
-        }
+        Double(b.totalTokens)
     }
 
-    private var yAxisLabel: String {
-        switch metric {
-        case .tokens: return "Tokens"
-        case .cost:   return "USD"
-        }
-    }
+    private let yAxisLabel = "Tokens"
 
     private var hasData: Bool {
         series.contains { yValue($0.bucket) > 0 }
@@ -222,10 +146,7 @@ private struct UsageChart: View {
     }
 
     private func formatYAxis(_ v: Double) -> String {
-        switch metric {
-        case .tokens: return TokenFormatters.compact(Int64(v))
-        case .cost:   return TokenFormatters.cost(v)
-        }
+        TokenFormatters.compact(Int64(v))
     }
 
     private var unit: Calendar.Component {

@@ -30,10 +30,9 @@ func runUsageStats(ctx context.Context, svc *usecase.Service, args []string) err
 }
 
 func printBucket(label string, b domain.UsageBucket) {
-	fmt.Printf("%s : %d tokens · $%.2f (in %d / out %d / cache_w %d / cache_r %d, %d req)\n",
+	fmt.Printf("%s : %d tokens (in %d / out %d / cache_w %d / cache_r %d, %d req)\n",
 		label,
 		b.TotalTokens,
-		b.EstimatedCostUsd,
 		b.InputTokens, b.OutputTokens,
 		b.CacheCreationTokens, b.CacheReadTokens,
 		b.Requests,
