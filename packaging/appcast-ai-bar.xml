@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Sparkle appcast for AI Bar — the experimental track. Source of truth. The
+  file published at https://ncthanhngo.github.io/claude-bar/appcast-ai-bar.xml
+  is served from the `gh-pages` branch and is a byte-for-byte copy of this
+  file. When cutting an AI Bar release, prepend the new <item> here and copy
+  across. Separate from appcast.xml (stable Claude Bar) on purpose — AI Bar
+  installs have their own SUFeedURL and only ever see items in this feed.
+
+  Empty until the first AI Bar release. AI Bar ships with
+  SUEnableAutomaticChecks=false so an empty feed does not surface a daily
+  error dialog; the first /rl-aibar release adds an item AND flips that flag.
+-->
+<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <channel>
+    <title>AI Bar</title>
+    <link>https://github.com/ncthanhngo/claude-bar</link>
+    <description>Auto-update feed for AI Bar — the experimental build of the Claude Code menu-bar manager.</description>
+    <language>en</language>
+  </channel>
+</rss>
