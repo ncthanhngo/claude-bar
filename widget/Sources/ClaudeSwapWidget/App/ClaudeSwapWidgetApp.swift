@@ -31,6 +31,8 @@ struct ClaudeSwapWidgetApp: App {
     @StateObject private var recovery = CredentialRecoveryCoordinator()
     @StateObject private var cloudSync = CloudSyncCoordinator(client: CswClient())
     @StateObject private var localMCP = LocalMCPCoordinator(client: CswClient())
+    @StateObject private var briefingCoord = BriefingCoordinator(client: CswClient())
+    @StateObject private var newsCoord = NewsFeedCoordinator()
     @StateObject private var chatStore = ChatStore()
     @StateObject private var prefsCloudSync = PreferencesCloudSync.shared
     @StateObject private var updateController = UpdateController()
@@ -69,7 +71,34 @@ struct ClaudeSwapWidgetApp: App {
             Task { @MainActor in
                 DiagnosticsLogger.shared.log(.info, subsystem: "launch", "AppDelegate didFinishLaunching")
                 GateCoordinator.shared.start()
+                // ⌥Z toggles the popover, ⌥X toggles the Daily window. Must
+                // run at launch (not from the popover's .task) so the
+                // hotkeys work on a cold-launched session the user hasn't
+                // clicked into yet.
+                Self.registerBriefingHotkeys(settings: AppSettings.shared)
             }
+        }
+    }
+
+    /// Wire the two global Carbon hotkeys: ⌥Z toggles the menu-bar popover,
+    /// ⌥X toggles the Daily window. The briefing toggle resolves
+    /// `BriefingCoordinator.shared` at call-time so it always hits the live
+    /// SwiftUI-owned instance, not a transient one captured at registration.
+    @MainActor
+    static func registerBriefingHotkeys(settings: AppSettings) {
+        HotkeyRegistry.shared.register(
+            name: BriefingHotkeySlot.openApp,
+            keyCode: UInt32(settings.briefingHotkeyOpenAppKeyCode),
+            modifiers: UInt32(settings.briefingHotkeyOpenAppModifiers)
+        ) {
+            MenuBarPopoverToggle.toggle()
+        }
+        HotkeyRegistry.shared.register(
+            name: BriefingHotkeySlot.openBriefing,
+            keyCode: UInt32(settings.briefingHotkeyOpenBriefingKeyCode),
+            modifiers: UInt32(settings.briefingHotkeyOpenBriefingModifiers)
+        ) {
+            BriefingCoordinator.shared?.toggle()
         }
     }
 
@@ -126,6 +155,7 @@ struct ClaudeSwapWidgetApp: App {
                 .environmentObject(recovery)
                 .environmentObject(cloudSync)
                 .environmentObject(localMCP)
+                .environmentObject(briefingCoord)
                 .environmentObject(updateController)
                 .environmentObject(gateCoord)
                 // Write-gate sheet for Low / Medium / ReadSensitive prompts.
@@ -205,6 +235,14 @@ struct ClaudeSwapWidgetApp: App {
         DiagnosticsLogger.shared.log(.info, subsystem: "launch", "coordinators wired")
         store.start()
         chatStore.bind(to: store)
+        briefingCoord.start()
+        newsCoord.start()
+        BriefingWindowController.shared.attach(
+            coordinator: briefingCoord,
+            store: store,
+            chatStore: chatStore,
+            newsCoord: newsCoord
+        )
         DiagnosticsLogger.shared.log(.info, subsystem: "launch", "polling started")
         let storeBind = store
         let loginBind = loginCoordinator
@@ -213,6 +251,7 @@ struct ClaudeSwapWidgetApp: App {
         let quickBind = quickRelogin
         let cloudBind = cloudSync
         let mcpBind = localMCP
+        let briefBind = briefingCoord
         let updateBind = updateController
         let gateBind = gateCoord
         SettingsWindowController.shared.bindEnvironment { content in
@@ -225,6 +264,7 @@ struct ClaudeSwapWidgetApp: App {
                     .environmentObject(quickBind)
                     .environmentObject(cloudBind)
                     .environmentObject(mcpBind)
+                    .environmentObject(briefBind)
                     .environmentObject(updateBind)
                     .environmentObject(gateBind)
             )
