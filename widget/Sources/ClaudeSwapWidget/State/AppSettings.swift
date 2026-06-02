@@ -84,10 +84,57 @@ final class AppSettings: ObservableObject {
     /// that most users don't need glance-able. Toggled from General → UI.
     @AppStorage("showTokenUsageInFullPopover") var showTokenUsageInFullPopover: Bool = false
 
-    /// Active body of the Daily window. Only the chat mode survives; kept
-    /// as an enum-backed AppStorage so a future feature can re-introduce
-    /// alternative modes without a settings migration.
-    @AppStorage("dailyMode") var dailyMode: String = DailyMode.chat.rawValue
+    /// Active body of the Daily window: "plan" (editorial briefing) or "chat"
+    /// (OAuth-bound conversation thread). Persisted so the window opens in
+    /// whichever mode the user last used.
+    @AppStorage("dailyMode") var dailyMode: String = DailyMode.plan.rawValue
+
+    // MARK: - Daily Briefing scheduler + quiet hours
+
+    @AppStorage("briefingScheduleMode") var briefingScheduleMode: String = "cron"
+    @AppStorage("briefingIntervalMinutes") var briefingIntervalMinutes: Int = 15
+    @AppStorage("quietHoursStart") var quietHoursStart: String = "22:00"
+    @AppStorage("quietHoursEnd") var quietHoursEnd: String = "07:00"
+
+    // MARK: - Daily Briefing hotkeys (Carbon key codes + modifier bitmask)
+
+    @AppStorage("briefingHotkeyOpenAppKeyCode")
+    var briefingHotkeyOpenAppKeyCode: Int = 6   // kVK_ANSI_Z
+
+    @AppStorage("briefingHotkeyOpenAppModifiers")
+    var briefingHotkeyOpenAppModifiers: Int = 2048 // optionKey
+
+    @AppStorage("briefingHotkeyOpenBriefingKeyCode")
+    var briefingHotkeyOpenBriefingKeyCode: Int = 7  // kVK_ANSI_X
+
+    @AppStorage("briefingHotkeyOpenBriefingModifiers")
+    var briefingHotkeyOpenBriefingModifiers: Int = 2048 // optionKey
+
+    // MARK: - News feeds (JSON-encoded list of NewsFeedConfig)
+
+    @AppStorage("briefingNewsFeedsJSON")
+    var briefingNewsFeedsJSON: String = "[]"
+
+    /// "08:00" — fetch news at this local time. Empty disables auto fetch.
+    @AppStorage("briefingNewsFetchTime")
+    var briefingNewsFetchTime: String = "08:00"
+
+    /// How many times per day to refresh news. 1 = once at fetch time.
+    @AppStorage("briefingNewsFetchesPerDay")
+    var briefingNewsFetchesPerDay: Int = 1
+
+    /// Comma-separated "HH:mm" times at which the briefing auto-runs.
+    /// Persisted in addition to the cron expression so the Settings UI can
+    /// show a friendly time-picker; cron is regenerated from this on save.
+    @AppStorage("briefingScheduleTimes")
+    var briefingScheduleTimes: String = "08:33"
+
+    /// Free-form markdown the user pastes to steer the briefing summariser
+    /// — e.g. "tập trung vào việc kỹ thuật, bỏ qua marketing". Persisted
+    /// to a file the Go briefing runner reads so Claude's prompt sees it
+    /// as a "# Ưu tiên người dùng" section.
+    @AppStorage("briefingUserPrompt")
+    var briefingUserPrompt: String = ""
 
     /// Tool-permission level for the in-app chat ("Hỏi gì đó với Claude…").
     /// Read by `ChatStreamReader` and forwarded to the Go chat client via the
