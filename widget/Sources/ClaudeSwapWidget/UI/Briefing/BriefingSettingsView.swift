@@ -218,7 +218,7 @@ struct BriefingSettingsView: View {
     @ViewBuilder private var hotkeySection: some View {
         SettingsGroup("Hotkey") {
             hotkeyRow(
-                title: "Open Claude Bar",
+                title: "Open \(AppInfo.displayName)",
                 keyCode: $settings.briefingHotkeyOpenAppKeyCode,
                 modifiers: $settings.briefingHotkeyOpenAppModifiers
             )

@@ -12,7 +12,7 @@ struct PrivacyTab: View {
             SettingsPage {
                 SettingsGroup(
                     "Privacy & Permissions",
-                    subtitle: "Claude Bar asks for the minimum macOS permissions needed for each feature. Everything below is opt-in — nothing leaves your Mac without your explicit click."
+                    subtitle: "\(AppInfo.displayName) asks for the minimum macOS permissions needed for each feature. Everything below is opt-in — nothing leaves your Mac without your explicit click."
                 ) {
                     permissionRow(
                         icon: "accessibility",

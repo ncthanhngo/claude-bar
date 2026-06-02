@@ -49,7 +49,7 @@ struct OnboardingView: View {
                     .font(.system(size: 48, weight: .light))
                     .foregroundStyle(.tint)
                     .padding(.top, 8)
-                Text("Welcome to Claude Bar")
+                Text("Welcome to \(AppInfo.displayName)")
                     .font(.system(size: 22, weight: .semibold))
                 Text("A menu-bar manager for multiple Claude Code accounts. Switch between accounts instantly, auto-swap when quota runs out, and keep your IDE in sync.")
                     .font(.system(size: 13))

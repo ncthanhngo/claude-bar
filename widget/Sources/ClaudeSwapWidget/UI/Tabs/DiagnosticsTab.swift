@@ -160,7 +160,7 @@ struct DiagnosticsTab: View {
         ) else { return }
 
         let panel = NSSavePanel()
-        panel.title = "Export Claude Bar bundle"
+        panel.title = "Export \(AppInfo.displayName) bundle"
         panel.nameFieldStringValue = "claude-bar-bundle-\(Self.exportDateSlug()).cbb"
         panel.allowedContentTypes = [.data]
         panel.canCreateDirectories = true
@@ -175,7 +175,7 @@ struct DiagnosticsTab: View {
     /// bring in (anti-rollback bypassed; iCloud sync state is untouched).
     private func runImportPrompt() {
         let panel = NSOpenPanel()
-        panel.title = "Import Claude Bar bundle"
+        panel.title = "Import \(AppInfo.displayName) bundle"
         panel.allowsMultipleSelection = false
         panel.canChooseFiles = true
         panel.canChooseDirectories = false
@@ -630,7 +630,7 @@ struct DiagnosticsTab: View {
         --- Recent log (last 200 lines) ---
         \(log)
         """
-        let subject = "Claude Bar diagnostics"
+        let subject = "\(AppInfo.displayName) diagnostics"
         let q: (String) -> String = { s in
             s.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
         }

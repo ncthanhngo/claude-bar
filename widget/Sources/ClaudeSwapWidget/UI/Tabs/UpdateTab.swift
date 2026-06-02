@@ -30,11 +30,11 @@ struct UpdateTab: View {
     // MARK: - Auto-update
 
     private var autoUpdateGroup: some View {
-        SettingsGroup("Automatic updates", subtitle: "Claude Bar polls GitHub for new signed builds on a daily schedule.") {
+        SettingsGroup("Automatic updates", subtitle: "\(AppInfo.displayName) polls GitHub for new signed builds on a daily schedule.") {
             Toggle(isOn: $updateController.autoUpdateEnabled) {
                 SettingsToggleLabel(
-                    title: "Auto-update Claude Bar",
-                    detail: "When a new version is published, Claude Bar downloads it silently and installs it on the next idle moment — no prompt, no relaunch click. Turn off to keep manual control via the Check for updates button below."
+                    title: "Auto-update \(AppInfo.displayName)",
+                    detail: "When a new version is published, \(AppInfo.displayName) downloads it silently and installs it on the next idle moment — no prompt, no relaunch click. Turn off to keep manual control via the Check for updates button below."
                 )
             }
             .disabled(updateController.placeholderKey)
