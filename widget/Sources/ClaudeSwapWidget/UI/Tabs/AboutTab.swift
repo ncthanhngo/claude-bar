@@ -146,7 +146,7 @@ struct AboutTab: View {
                 .shadow(color: .black.opacity(0.15), radius: 6, y: 2)
 
             VStack(alignment: .leading, spacing: 6) {
-                Text("Claude Bar")
+                Text(AppInfo.displayName)
                     .font(.system(size: 22, weight: .bold))
                 Text("A menu-bar profile switcher for Claude Code accounts.")
                     .font(.system(size: 12))

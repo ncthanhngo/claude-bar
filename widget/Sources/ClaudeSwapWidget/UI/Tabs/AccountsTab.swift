@@ -89,7 +89,7 @@ struct AccountsTab: View {
             .buttonStyle(.borderedProminent)
             .controlSize(.large)
             .padding(.top, 2)
-            Text("Each account needs its own `claude /login` session — Claude Bar opens Terminal for you.")
+            Text("Each account needs its own `claude /login` session — \(AppInfo.displayName) opens Terminal for you.")
                 .font(.caption2)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)

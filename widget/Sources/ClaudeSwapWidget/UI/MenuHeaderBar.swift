@@ -124,7 +124,7 @@ struct MenuHeaderBar: View {
                 .foregroundColor(.secondary)
         }
         .buttonStyle(.borderless)
-        .help("Quit Claude Bar (⌘Q)")
+        .help("Quit \(AppInfo.displayName) (⌘Q)")
         .pointingHandCursor()
         .accessibilityLabel("Quit")
     }

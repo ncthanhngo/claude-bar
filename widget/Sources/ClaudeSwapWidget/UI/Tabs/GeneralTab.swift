@@ -120,7 +120,7 @@ struct GeneralTab: View {
 
     @ViewBuilder
     private var autoRecoveryGroup: some View {
-        SettingsGroup("Auto-recovery", subtitle: "When the active account's login expires, Claude Bar can recover it automatically — switch to a healthy account (and silently repair the broken one) or sign back in for you in the background.") {
+        SettingsGroup("Auto-recovery", subtitle: "When the active account's login expires, \(AppInfo.displayName) can recover it automatically — switch to a healthy account (and silently repair the broken one) or sign back in for you in the background.") {
             Toggle("Recover dead logins automatically", isOn: $settings.autoRecoverEnabled)
             if settings.autoRecoverEnabled {
                 Divider()

@@ -174,7 +174,7 @@ final class AppStore: ObservableObject {
         // to resume promptly on wake (see `installWakeObserver`).
         backgroundActivity = ProcessInfo.processInfo.beginActivity(
             options: [.userInitiated],
-            reason: "Claude Bar background polling"
+            reason: "\(AppInfo.displayName) background polling"
         )
     }
 
