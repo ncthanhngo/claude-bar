@@ -12,6 +12,29 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 13.1</title>
+      <sparkle:version>13.1</sparkle:version>
+      <sparkle:shortVersionString>13.1</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li>The <strong>Full</strong> popover is now the same width as the <strong>Standard</strong> layout — a slimmer, less intrusive panel.</li>
+          <li>Removed the estimated <strong>dollar-cost</strong> figures from Token usage (KPI cards, the chart's USD toggle, and the pricing-rate table). On subscription plans the per-token estimate was misleading.</li>
+          <li>The <strong>Apple</strong> frosted-glass theme is brighter and no longer dims when macOS is in Dark Mode.</li>
+          <li>Fixed Token usage failing to load in some cases.</li>
+          <li>Dropped the recurring <code>pricing.json</code> network fetch on the backend.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Tue, 02 Jun 2026 11:51:59 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v13.1/ClaudeBar.zip"
+        sparkle:version="13.1"
+        sparkle:shortVersionString="13.1"
+        sparkle:edSignature="rt0oyA7WUsB6Wxu6i03mBttHsj2m3T1ZfxEydQA2skIBrw2SONorEdSOxEv3LMJmOLjfYFXNFnBL5pTUwEziCQ=="
+        length="8195840"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 13.0</title>
       <sparkle:version>13.0</sparkle:version>
       <sparkle:shortVersionString>13.0</sparkle:shortVersionString>
