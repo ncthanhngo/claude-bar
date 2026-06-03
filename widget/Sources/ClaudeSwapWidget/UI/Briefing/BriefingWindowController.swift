@@ -41,6 +41,10 @@ final class BriefingWindowController: NSObject, NSWindowDelegate {
         return w.isVisible && w.isKeyWindow
     }
 
+    /// Current Daily window frame in screen coordinates, or nil when closed.
+    /// Used to dock companion windows (the AI chat) beside Daily.
+    var windowFrame: NSRect? { window?.frame }
+
     /// Raise the briefing window above every other app and make it key. Used
     /// by the global hotkey when Daily is open-but-buried so a single press
     /// pulls it forward instead of dismissing it. Also dismisses the menu-bar

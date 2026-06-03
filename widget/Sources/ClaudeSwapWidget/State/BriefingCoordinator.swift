@@ -69,25 +69,22 @@ final class BriefingCoordinator: ObservableObject {
     /// Daily, NSAlert modals, NSOpenPanel) and on the brief intermediate key
     /// state during the popover-dismiss → Daily-makeKey handoff, which made
     /// in-Daily actions like "Đoạn chat mới" feel broken.
-    /// Close Daily (and dismiss the menu-bar popover) the moment the user
-    /// activates another app — Chrome, Xcode, anything outside Claude Bar.
-    /// Without this, Daily lingers above the user's actual workspace until
-    /// they explicitly hit X or ⌥X.
+    /// Dismiss the menu-bar popover when the user activates another app. Daily
+    /// is intentionally LEFT OPEN — the user wants it to persist beside their
+    /// other apps (e.g. consulting the AI chat while working elsewhere); they
+    /// close it explicitly with X or ⌥X.
     ///
-    /// `didResignActiveNotification` only fires when the entire app loses
-    /// active status to ANOTHER app, so in-app focus shifts (SwiftUI sheets,
-    /// NSAlert, file pickers) do not trigger it. That avoids the historical
-    /// "Daily closes while typing in a TextField" footgun.
+    /// `didResignActiveNotification` only fires when the entire app loses active
+    /// status to ANOTHER app, so in-app focus shifts (SwiftUI sheets, NSAlert,
+    /// file pickers) do not trigger it.
     private func attachAppDeactivateObserver() {
         if appDeactivateObserver != nil { return }
         appDeactivateObserver = NotificationCenter.default.addObserver(
             forName: NSApplication.didResignActiveNotification,
             object: nil,
             queue: .main
-        ) { [weak self] _ in
-            Task { @MainActor [weak self] in
-                guard let self else { return }
-                if self.isWindowOpen { self.close() }
+        ) { _ in
+            Task { @MainActor in
                 MenuBarPopoverToggle.closeIfOpen()
             }
         }

@@ -16,8 +16,9 @@ struct NetbirdModeBody: View {
                 Rectangle().fill(palette.line).frame(height: 1)
                 SSHManagerView(palette: palette, meshServers: meshServers)
             }
-            .padding(.horizontal, 24)
-            .padding(.vertical, 18)
+            .padding(.leading, 4)
+            .padding(.trailing, 16)
+            .padding(.vertical, 4)
         }
         .task {
             coord.start()
@@ -50,18 +51,16 @@ struct NetbirdModeBody: View {
                 if !coord.pending.isEmpty {
                     NetbirdPendingView(coord: coord, palette: palette)
                 }
-                // Matrix (access) on the left, machine list on the right so the
-                // right half isn't left empty at Medium window size. The matrix
-                // scrolls horizontally inside its half when servers (columns)
-                // outgrow the width, so adding servers never squeezes the list.
-                HStack(alignment: .top, spacing: 16) {
-                    NetbirdMatrixView(coord: coord, palette: palette)
-                        .frame(maxWidth: .infinity, alignment: .topLeading)
-                    Rectangle().fill(palette.line).frame(width: 1)
-                    NetbirdPeerListView(coord: coord, palette: palette)
-                        .frame(maxWidth: .infinity, alignment: .topLeading)
-                }
+                // Inside the Tools sidebar+detail layout the horizontal budget is
+                // tight, so the matrix takes the FULL width on top (servers are
+                // columns and benefit from every pixel; it scrolls horizontally
+                // when they overflow) and the machine list sits below it.
+                NetbirdMatrixView(coord: coord, palette: palette)
+                    .frame(maxWidth: .infinity, alignment: .topLeading)
                 NetbirdExternalPoliciesView(coord: coord, palette: palette)
+                Rectangle().fill(palette.line).frame(height: 1)
+                NetbirdPeerListView(coord: coord, palette: palette)
+                    .frame(maxWidth: .infinity, alignment: .topLeading)
             }
         }
     }
@@ -75,6 +74,30 @@ struct NetbirdModeBody: View {
         }
     }
 
+    /// Builds the network context (servers · devs · access matrix) for the AI
+    /// advisor, or nil before NetBird is configured / loaded.
+    private func aiBuild() -> (system: String, prompt: String)? {
+        guard coord.configured, let ov = coord.overview else { return nil }
+        let system = """
+        Bạn là chuyên gia mạng zero-trust NetBird. Trả lời tiếng Việt, súc tích, gạch đầu dòng. \
+        Người dùng đưa cấu trúc mạng: nhóm server, nhóm dev và ma trận quyền SSH (dev → server). \
+        Tư vấn tổ chức nhóm và chính sách truy cập theo least-privilege: phát hiện quyền thừa, \
+        nhóm nên gộp/tách, server lộ quá nhiều, và đề xuất cải thiện. CHỉ dựa trên dữ liệu đưa ra.
+        """
+        let servers = coord.servers.map { "\($0.display)\($0.online ? " (online)" : "")" }.joined(separator: ", ")
+        let devs = coord.devs.map(\.display).joined(separator: ", ")
+        let access = ov.access.map { "\($0.sourceGroup) → \($0.destGroup)" }.joined(separator: "\n")
+        let ctx = """
+        Server (\(coord.servers.count)): \(servers.isEmpty ? "—" : servers)
+        Dev (\(coord.devs.count)): \(devs.isEmpty ? "—" : devs)
+        Online: \(coord.onlineCount) máy · chờ duyệt: \(coord.pending.count)
+
+        Quyền SSH hiện có (dev → server):
+        \(access.isEmpty ? "(chưa cấp quyền nào)" : access)
+        """
+        return (system, ctx)
+    }
+
     private var header: some View {
         HStack(alignment: .center, spacing: 12) {
             Text("Mạng & quyền truy cập")
@@ -82,6 +105,14 @@ struct NetbirdModeBody: View {
                 .foregroundColor(palette.ink)
             Spacer(minLength: 8)
             HStack(spacing: 6) {
+                AIAskButton(palette: palette) {
+                    if let (s, p) = aiBuild() {
+                        AIChatWindowController.shared.present(palette: palette, title: "AI tư vấn mạng NetBird",
+                            system: s, context: p,
+                            suggestions: ["Sắp xếp nhóm sao cho tốt hơn?", "Có quyền nào thừa không?",
+                                           "Rủi ro bảo mật trong access matrix?"])
+                    }
+                }
                 NetbirdSetupKeyButton(coord: coord, palette: palette)
                 NetbirdSetupKeysButton(coord: coord, palette: palette)
                 iconButton("gearshape", help: "Phân loại nhóm (server / dev)") {
