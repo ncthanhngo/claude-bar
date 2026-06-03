@@ -99,7 +99,7 @@ func usage() {
 Commands:
   list                    List all managed accounts with usage
   active                  Print the active account number
-  switch <num>            Switch active account to <num>
+  switch <num|label>      Switch active account by number or label (nickname/email)
   add [--nickname=NAME]   Snapshot the currently-logged-in account
   rename <num> <nickname> Rename an account (empty string clears)
   remove <num>            Remove an account (must not be active)

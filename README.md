@@ -150,6 +150,21 @@ If all inactive accounts are also above the threshold → notification **"All ac
 
 ---
 
+## Command line
+
+Claude Bar installs a `cbar` shortcut on launch — a symlink to its bundled `csw` backend, placed in the first writable `/opt/homebrew/bin` or `/usr/local/bin`. Use it from any terminal, SSH session, or script to switch accounts by number **or** label:
+
+```bash
+cbar list                 # accounts + usage
+cbar switch 2             # by number
+cbar switch work          # by nickname / email (substring match ok)
+cbar switch work --json   # machine-readable output
+```
+
+The shortcut points into the app bundle, so it stops working once the app is removed (clean it up with the [uninstall](#uninstall) steps). Building from source? The same binary is at `backend/bin/csw` after `make backend`.
+
+---
+
 ## Update
 
 ```bash
@@ -166,11 +181,12 @@ Or manually: download the latest `ClaudeBar.zip` from [Releases](https://github.
 brew uninstall --cask claude-bar
 ```
 
-To also remove all data (accounts, settings, claude-watch script):
+To also remove all data (accounts, settings, claude-watch script, `cbar` shortcut):
 
 ```bash
 rm -rf "$HOME/Library/Application Support/claude-bar"
 defaults delete dev.ncthanhngo.claude-bar 2>/dev/null
+rm -f /opt/homebrew/bin/cbar /usr/local/bin/cbar    # the cbar CLI shortcut
 # Remove shell alias if you added it
 sed -i '' '/alias claude="claude-watch"/d' ~/.zshrc
 ```

@@ -47,6 +47,7 @@ struct ClaudeSwapWidgetApp: App {
         CrashHandler.install()
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
         ClaudeWatchInstaller.install()
+        CbarShortcutInstaller.install()
         CmuxConfigInstaller.install()
         migrateSettingsIfNeeded()
         // Reset the iCloud-sync toggle to false on every Sparkle update
