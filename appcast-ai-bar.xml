@@ -18,6 +18,27 @@
     <description>Auto-update feed for AI Bar — the experimental build of the Claude Code menu-bar manager.</description>
     <language>en</language>
     <item>
+      <title>AI Bar 0.3</title>
+      <sparkle:version>0.3</sparkle:version>
+      <sparkle:shortVersionString>0.3</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li>Tools tab — macOS maintenance utilities right inside the Daily window.</li>
+          <li>Agentic Workspace action inbox to capture and act on items.</li>
+          <li>cbar CLI shortcut; switch accounts by label, nickname or email.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Wed, 03 Jun 2026 17:28:18 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/aibar-v0.3/AIBar.zip"
+        sparkle:version="0.3"
+        sparkle:shortVersionString="0.3"
+        sparkle:edSignature="3GkGvE/GhMlAMq5ig6r8hDW0Ddogj+zD40Ok8C6HYdaUKI4h8pwHE21VsetGFHIdjvHL9NC+3L1TY9CxBR7bAA=="
+        length="9954785"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>AI Bar 0.2</title>
       <sparkle:version>0.2</sparkle:version>
       <sparkle:shortVersionString>0.2</sparkle:shortVersionString>
