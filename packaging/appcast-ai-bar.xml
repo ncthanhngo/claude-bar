@@ -17,5 +17,28 @@
     <link>https://github.com/ncthanhngo/claude-bar</link>
     <description>Auto-update feed for AI Bar — the experimental build of the Claude Code menu-bar manager.</description>
     <language>en</language>
+    <item>
+      <title>AI Bar 0.2</title>
+      <sparkle:version>0.2</sparkle:version>
+      <sparkle:shortVersionString>0.2</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li>Chat tab in the Daily window — auto-growing composer, slimmer header, more room for the thread.</li>
+          <li>New Netbird mode — manage peers, people, roles, notes and SSH right from Daily.</li>
+          <li>Editorial Plan briefing with a menu-bar tether glow.</li>
+          <li>Pause background activity (dormant) mode to idle the app on demand.</li>
+          <li>Shows the real app name throughout instead of a hardcoded "Claude Bar" label.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Wed, 03 Jun 2026 12:01:33 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/aibar-v0.2/AIBar.zip"
+        sparkle:version="0.2"
+        sparkle:shortVersionString="0.2"
+        sparkle:edSignature="+jo0ZwXEo93otdQcuPb41lNl3z2jw4z3eTGi5CbTpv1iEY7rb2KRp+it6ZyZrj6/DUdNBSAVH1iDLzTV1dDICw=="
+        length="9532083"
+        type="application/octet-stream"/>
+    </item>
   </channel>
 </rss>
