@@ -70,7 +70,13 @@ struct ClaudeSwapWidgetApp: App {
         AppDelegate.onLaunchCompleted = {
             Task { @MainActor in
                 DiagnosticsLogger.shared.log(.info, subsystem: "launch", "AppDelegate didFinishLaunching")
-                GateCoordinator.shared.start()
+                // Skip the gate-proxy spawn when launched paused — the app
+                // is meant to sit as quiet as an uninstalled copy. The
+                // proxy gets started by `BackgroundWorkController.resume()`
+                // the moment the user un-pauses.
+                if !AppSettings.shared.dormantModeEnabled {
+                    GateCoordinator.shared.start()
+                }
                 // ⌥Z toggles the popover, ⌥X toggles the Daily window. Must
                 // run at launch (not from the popover's .task) so the
                 // hotkeys work on a cold-launched session the user hasn't
@@ -233,10 +239,21 @@ struct ClaudeSwapWidgetApp: App {
         }
         store.cloudSync = cloudSync
         DiagnosticsLogger.shared.log(.info, subsystem: "launch", "coordinators wired")
-        store.start()
         chatStore.bind(to: store)
-        briefingCoord.start()
-        newsCoord.start()
+        // All periodic loops (usage polling, briefing, news, iCloud prefs,
+        // web keep-alive) and the gate proxy are driven through one switch so
+        // a persisted pause survives relaunch and the Settings toggle can
+        // flip the whole app dormant. `apply` either starts everything or
+        // leaves it stopped depending on the saved flag.
+        BackgroundWorkController.shared.register(
+            store: store,
+            briefing: briefingCoord,
+            news: newsCoord,
+            prefsSync: prefsCloudSync,
+            webFallback: webFallback,
+            gate: gateCoord
+        )
+        BackgroundWorkController.shared.apply(dormant: settings.dormantModeEnabled)
         BriefingWindowController.shared.attach(
             coordinator: briefingCoord,
             store: store,
@@ -269,7 +286,7 @@ struct ClaudeSwapWidgetApp: App {
                     .environmentObject(gateBind)
             )
         }
-        prefsCloudSync.start()
+        // prefsCloudSync is started/stopped by BackgroundWorkController above.
         Task { @MainActor in
             await cloudSync.refreshStatus()
             await cloudSync.checkOnboarding(snapshot: store.snapshot)

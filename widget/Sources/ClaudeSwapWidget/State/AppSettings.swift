@@ -9,6 +9,17 @@ final class AppSettings: ObservableObject {
     @AppStorage("autoSwapEnabled") var autoSwapEnabled: Bool = false
     @AppStorage("thresholdPct") var thresholdPct: Int = 90
 
+    /// Master "pause" switch. When true the app stays in the menu bar and
+    /// remains fully interactive (manual refresh, account switch, settings)
+    /// but every background loop and helper process is torn down: usage
+    /// polling, the 6-hour token refresh, auto-swap, the briefing scheduler,
+    /// web cookie keep-alive, iCloud preference sync, and the gate-proxy
+    /// subprocess. App Nap is allowed to re-engage too, so a paused app is as
+    /// quiet as it was before it was installed. Persisted — a paused app
+    /// relaunches paused until the user flips it back. Coordinated centrally
+    /// by `BackgroundWorkController`.
+    @AppStorage("dormantModeEnabled") var dormantModeEnabled: Bool = false
+
     /// Auto-recover a dead active credential without user action: swap to a
     /// healthy account (then silently repair the broken one) or, when no
     /// target is available, run a hidden re-login. Defaults on — recovering a
