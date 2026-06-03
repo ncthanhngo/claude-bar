@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Sparkle appcast for AI Bar — the experimental track. Source of truth. The
+  file published at https://ncthanhngo.github.io/claude-bar/appcast-ai-bar.xml
+  is served from the `gh-pages` branch and is a byte-for-byte copy of this
+  file. When cutting an AI Bar release, prepend the new <item> here and copy
+  across. Separate from appcast.xml (stable Claude Bar) on purpose — AI Bar
+  installs have their own SUFeedURL and only ever see items in this feed.
+
+  Empty until the first AI Bar release. AI Bar ships with
+  SUEnableAutomaticChecks=false so an empty feed does not surface a daily
+  error dialog; the first /rl-aibar release adds an item AND flips that flag.
+-->
+<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <channel>
+    <title>AI Bar</title>
+    <link>https://github.com/ncthanhngo/claude-bar</link>
+    <description>Auto-update feed for AI Bar — the experimental build of the Claude Code menu-bar manager.</description>
+    <language>en</language>
+    <item>
+      <title>AI Bar 0.2</title>
+      <sparkle:version>0.2</sparkle:version>
+      <sparkle:shortVersionString>0.2</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li>Chat tab in the Daily window — auto-growing composer, slimmer header, more room for the thread.</li>
+          <li>New Netbird mode — manage peers, people, roles, notes and SSH right from Daily.</li>
+          <li>Editorial Plan briefing with a menu-bar tether glow.</li>
+          <li>Pause background activity (dormant) mode to idle the app on demand.</li>
+          <li>Shows the real app name throughout instead of a hardcoded "Claude Bar" label.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Wed, 03 Jun 2026 12:01:33 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/aibar-v0.2/AIBar.zip"
+        sparkle:version="0.2"
+        sparkle:shortVersionString="0.2"
+        sparkle:edSignature="+jo0ZwXEo93otdQcuPb41lNl3z2jw4z3eTGi5CbTpv1iEY7rb2KRp+it6ZyZrj6/DUdNBSAVH1iDLzTV1dDICw=="
+        length="9532083"
+        type="application/octet-stream"/>
+    </item>
+  </channel>
+</rss>
