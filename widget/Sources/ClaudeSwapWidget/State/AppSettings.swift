@@ -61,7 +61,11 @@ final class AppSettings: ObservableObject {
     @AppStorage("autoReloadIDEAfterSwap") var autoReloadIDEAfterSwap: Bool = false
 
     /// When true, sends SIGINT to every interactive `claude` CLI session after
-    /// a swap. Useful with the `claude-watch` wrapper script which auto-restarts.
+    /// a swap so it restarts as a fresh process (pair with the `claude-watch`
+    /// wrapper which auto-restarts). NOT required for credential pickup —
+    /// current Claude Code re-reads the swapped credentials in running
+    /// sessions automatically (verified live: `/usage` reflects the new
+    /// account mid-session without a restart).
     @AppStorage("autoKillCLIAfterSwap") var autoKillCLIAfterSwap: Bool = false
     /// VSCode-style string of the reload shortcut injected into VSCode-family
     /// editors and replayed by `IDEReloader`. Default `cmd+ctrl+r`.

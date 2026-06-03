@@ -88,7 +88,7 @@ Open **Settings → Accounts → Add account**. Each account needs a separate Cl
 
 ### Auto-restart terminal sessions
 
-Enable **Auto-kill CLI sessions** in Settings → General. Claude Bar automatically installs `claude-watch` and adds the shell alias on first launch — no manual steps needed. When a swap happens, your terminal session (including GoLand's integrated terminal) restarts automatically with the new account credentials.
+**Not required for swaps to take effect** — running `claude` sessions pick up the new account credentials automatically, without a restart (verify with `/usage` mid-session). Enable **Auto-kill CLI sessions** in Settings → General only if you prefer sessions to restart as fresh processes after a swap. Claude Bar automatically installs `claude-watch` and adds the shell alias on first launch — no manual steps needed. When a swap happens, your terminal session (including GoLand's integrated terminal) then restarts automatically.
 
 ### IDE reload — VSCode / Code Insiders / Cursor / Windsurf / Antigravity
 

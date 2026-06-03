@@ -38,12 +38,12 @@ struct IDEIntegrationTab: View {
 
                 SettingsGroup(
                     "Terminal reload",
-                    subtitle: "Restart interactive `claude` CLI sessions automatically so they re-read the new account credentials."
+                    subtitle: "Optionally restart interactive `claude` CLI sessions after a swap. Running sessions already pick up the new account credentials without a restart — enable this only if you want fresh processes."
                 ) {
                     Toggle(isOn: $settings.autoKillCLIAfterSwap) {
                         SettingsToggleLabel(
                             title: "Auto-kill CLI sessions after swap",
-                            detail: "Sends SIGINT to every claude CLI process. Pair with claude-watch so your terminal — including GoLand's built-in one — auto-restarts on the new account."
+                            detail: "Sends SIGINT to every claude CLI process. Pair with claude-watch so your terminal — including GoLand's built-in one — auto-restarts. Not required for the new account to take effect: running sessions adopt swapped credentials automatically."
                         )
                     }
                     if settings.autoKillCLIAfterSwap {
