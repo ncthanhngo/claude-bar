@@ -26,9 +26,9 @@
     <key>CFBundleIdentifier</key>
     <string>dev.ncthanhngo.ai-bar</string>
     <key>CFBundleVersion</key>
-    <string>0.1</string>
+    <string>0.2</string>
     <key>CFBundleShortVersionString</key>
-    <string>0.1</string>
+    <string>0.2</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleSignature</key>
@@ -48,7 +48,7 @@
     <key>NSHumanReadableCopyright</key>
     <string>Copyright © 2026 Thanh Ngô. Licensed under MIT.</string>
     <key>CFBundleGetInfoString</key>
-    <string>AI Bar 0.1 — experimental build of the Claude Code menu-bar manager</string>
+    <string>AI Bar 0.2 — experimental build of the Claude Code menu-bar manager</string>
     <key>CBAuthorName</key>
     <string>Thanh Ngô</string>
     <key>CBAuthorEmail</key>
@@ -58,14 +58,15 @@
     <key>CBLicense</key>
     <string>MIT</string>
     <key>CBBuildDate</key>
-    <string>2026-06-02</string>
+    <string>2026-06-03</string>
     <key>CBReleaseChannel</key>
     <string>Beta</string>
     <key>CBReleaseWhatsNew</key>
-    <string>First AI Bar build — the experimental track, separate from stable Claude Bar.
-Shares your existing Claude accounts; installs and updates on its own.</string>
+    <string>Daily window gains a Chat tab — auto-growing composer, slimmer header, more room for the thread.
+New Netbird mode: manage peers, people, roles, notes and SSH from Daily.
+Editorial Plan briefing plus a pause-background-activity (dormant) mode to idle the app on demand.</string>
     <key>CBReleaseHotfixes</key>
-    <string>None.</string>
+    <string>Shows the real app name throughout instead of a hardcoded "Claude Bar" label.</string>
     <key>CBReleaseKnownIssues</key>
     <string>Don't run AI Bar and Claude Bar at the same time — they share the same backend socket and account lock.</string>
     <key>CFBundleDevelopmentRegion</key>
@@ -85,7 +86,7 @@ Shares your existing Claude accounts; installs and updates on its own.</string>
     <key>SUPublicEDKey</key>
     <string>zkx2LvzfHOZJ0Z5BAcPogHdSx7ClEixTYZqTE4CC/CY=</string>
     <key>SUEnableAutomaticChecks</key>
-    <false/>
+    <true/>
     <key>SUScheduledCheckInterval</key>
     <integer>86400</integer>
 </dict>
