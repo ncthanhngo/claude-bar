@@ -377,7 +377,23 @@ final class AppStore: ObservableObject {
 
     func stop() {
         refreshTask?.cancel()
+        refreshTask = nil
         autoSwap.stop()
+        if let wakeObserver {
+            NSWorkspace.shared.notificationCenter.removeObserver(wakeObserver)
+            self.wakeObserver = nil
+        }
+        endBackgroundActivity()
+    }
+
+    /// Releases the App Nap opt-out taken in `beginBackgroundActivity` so a
+    /// paused app is throttled like any idle agent rather than kept "awake"
+    /// for a polling loop that is no longer running. Re-acquired by `start()`.
+    @MainActor
+    private func endBackgroundActivity() {
+        guard let backgroundActivity else { return }
+        ProcessInfo.processInfo.endActivity(backgroundActivity)
+        self.backgroundActivity = nil
     }
 
     func refreshNow() async {

@@ -28,6 +28,13 @@ final class NewsFeedCoordinator: ObservableObject {
         refresh()
     }
 
+    /// Cancels any in-flight fetch so no feed network calls run while the app
+    /// is paused. `start()` re-fetches on resume.
+    func stop() {
+        refreshTask?.cancel()
+        refreshTask = nil
+    }
+
     /// Force a refetch. Cancellable — calling again cancels the prior run.
     func refresh() {
         refreshTask?.cancel()

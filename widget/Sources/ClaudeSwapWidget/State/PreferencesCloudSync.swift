@@ -81,6 +81,18 @@ final class PreferencesCloudSync: ObservableObject {
         Task { await self.pullIfNewer() }
     }
 
+    /// Tears down the 60s poll timer, any pending push, and both
+    /// NotificationCenter observers so no iCloud preference work happens while
+    /// the app is paused. `start()` re-installs all of them on resume.
+    func stop() {
+        pollTimer?.invalidate()
+        pollTimer = nil
+        pushTask?.cancel()
+        pushTask = nil
+        observers.forEach { NotificationCenter.default.removeObserver($0) }
+        observers.removeAll()
+    }
+
     func syncNow() async {
         await pullIfNewer()
         await pushNow()

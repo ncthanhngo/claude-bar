@@ -68,6 +68,8 @@ struct GeneralTab: View {
 
                 autoRecoveryGroup
 
+                backgroundActivityGroup
+
                 // Adaptive-refresh is power-user-only — most people never
                 // tweak it. Tuck behind a disclosure so the General page
                 // doesn't open with three steppers competing for attention
@@ -134,6 +136,26 @@ struct GeneralTab: View {
                     .font(.caption)
                     .foregroundColor(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var backgroundActivityGroup: some View {
+        SettingsGroup("Background activity", subtitle: "Keep \(AppInfo.displayName) in the menu bar but stop everything it does in the background — usage polling, the periodic token refresh, auto-swap, the daily briefing, web keep-alive, iCloud preference sync, and the local MCP gate. The app goes as quiet as before it was installed; you can still refresh and switch accounts by hand.") {
+            Toggle(isOn: $settings.dormantModeEnabled) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Pause background activity")
+                    Text(settings.dormantModeEnabled
+                         ? "Paused — no background fetching or processes are running. This is remembered across restarts until you turn it back on."
+                         : "Running normally. Turn on to silence all background work.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .onChange(of: settings.dormantModeEnabled) { _, paused in
+                BackgroundWorkController.shared.apply(dormant: paused)
             }
         }
     }

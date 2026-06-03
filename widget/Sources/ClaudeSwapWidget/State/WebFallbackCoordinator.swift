@@ -110,6 +110,21 @@ final class WebFallbackCoordinator: ObservableObject {
         startKeepAliveLoop()
     }
 
+    /// Restarts the keep-alive loop after a pause. The store/provider wiring
+    /// set up in `attach` persists for the process lifetime, so resuming only
+    /// needs to spin the ticker back up.
+    func resumeKeepAlive() {
+        startKeepAliveLoop()
+    }
+
+    /// Cancels the keep-alive ticker so no web scrapes fire while the app is
+    /// paused. Manual usage refreshes through the popover still work because
+    /// the `webUsageProvider` wiring on `AppStore` is untouched.
+    func stop() {
+        keepAliveTask?.cancel()
+        keepAliveTask = nil
+    }
+
     /// Kicks off the background loop that pings quiet web-linked accounts.
     /// Cancels any previous loop first so re-attaching (tests, future
     /// reload scenarios) doesn't leak parallel tickers.
