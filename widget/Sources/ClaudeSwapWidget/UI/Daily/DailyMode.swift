@@ -12,7 +12,7 @@ enum DailyMode: String, CaseIterable, Identifiable {
     /// Label exactly as it appears in the editorial mode switcher.
     var label: String {
         switch self {
-        case .plan: return "Plan"
+        case .plan: return "Workspace"
         case .netbird: return "Netbird"
         case .chat: return "chat"
         }

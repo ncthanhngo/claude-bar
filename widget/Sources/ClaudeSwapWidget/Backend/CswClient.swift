@@ -229,6 +229,12 @@ actor CswClient {
         }
     }
 
+    /// Public stdin+decode entry point for callers that pass a JSON payload on
+    /// stdin and expect a decoded JSON response (e.g. the Workspace drafter).
+    func runWithStdin<T: Decodable>(_ args: [String], stdin payload: String, decode: T.Type) async throws -> T {
+        try await runWithStdinDecoding(args, stdin: payload, decode: decode)
+    }
+
     // MARK: - Cloud sync
 
     struct CloudStatusDTO: Codable {
