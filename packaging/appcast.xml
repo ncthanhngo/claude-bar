@@ -12,6 +12,26 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 13.2</title>
+      <sparkle:version>13.2</sparkle:version>
+      <sparkle:shortVersionString>13.2</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li>Fixed the "ACTIVE" badge wrapping onto two lines in the Full popover when an account name is long.</li>
+          <li>Account-row badges (ACTIVE, Switch, Web usage) now stay on one line; the account name truncates with an ellipsis instead of squeezing the badges.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Tue, 02 Jun 2026 22:44:01 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v13.2/ClaudeBar.zip"
+        sparkle:version="13.2"
+        sparkle:shortVersionString="13.2"
+        sparkle:edSignature="qt2RVJNZFqFAoloZgK4TFbkUyVXL6wiYJkg9aRkukvJLUvxjLGv/XxaPBNTj+cJSSijYQvnmMNwpyEWx5Qq3DA=="
+        length="8046325"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 13.1</title>
       <sparkle:version>13.1</sparkle:version>
       <sparkle:shortVersionString>13.1</sparkle:shortVersionString>
