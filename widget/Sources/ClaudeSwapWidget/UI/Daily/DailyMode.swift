@@ -4,6 +4,7 @@ import Foundation
 /// (OAuth-bound conversation thread). Stored as raw string in AppSettings.
 enum DailyMode: String, CaseIterable, Identifiable {
     case plan
+    case netbird
     case chat
 
     var id: String { rawValue }
@@ -12,6 +13,7 @@ enum DailyMode: String, CaseIterable, Identifiable {
     var label: String {
         switch self {
         case .plan: return "Plan"
+        case .netbird: return "Netbird"
         case .chat: return "chat"
         }
     }

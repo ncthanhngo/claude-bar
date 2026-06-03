@@ -14,8 +14,8 @@ struct ChatThreadHeader: View {
 
     var body: some View {
         if let conv = chatStore.activeConversation {
-            HStack(alignment: .top, spacing: 14) {
-                VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .center, spacing: 14) {
+                VStack(alignment: .leading, spacing: 2) {
                     titleField(for: conv)
                     metaLine(for: conv)
                 }
@@ -23,8 +23,8 @@ struct ChatThreadHeader: View {
                 tokenChip
             }
             .padding(.horizontal, 36)
-            .padding(.top, 18)
-            .padding(.bottom, 14)
+            .padding(.top, 8)
+            .padding(.bottom, 8)
             .overlay(Divider().background(palette.line), alignment: .bottom)
             .background(palette.paper)
         }
@@ -33,13 +33,13 @@ struct ChatThreadHeader: View {
     @ViewBuilder private func titleField(for conv: ConversationDTO) -> some View {
         if editing {
             TextField("Tiêu đề", text: $draftTitle)
-                .font(.system(size: 22, design: .serif).italic())
+                .font(.system(size: 18, design: .serif).italic())
                 .foregroundColor(palette.ink)
                 .textFieldStyle(.plain)
                 .onSubmit { commitTitle(conv.id) }
         } else {
             Text(displayTitle(conv))
-                .font(.system(size: 22, design: .serif).italic())
+                .font(.system(size: 18, design: .serif).italic())
                 .foregroundColor(palette.ink)
                 .onTapGesture(count: 2) {
                     draftTitle = conv.title

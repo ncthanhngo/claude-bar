@@ -12,6 +12,14 @@ const (
 	MCPServiceGitHub   MCPService = "github"
 	MCPServiceGitLab   MCPService = "gitlab"
 	MCPServiceBitwarden MCPService = "bitwarden"
+
+	// MCPServiceNetbird is a Keychain credential slot only — NOT a Claude
+	// Code tool connector. It is deliberately absent from AllMCPServices so
+	// it never registers tools in the MCP gateway or appears in the generic
+	// connectors UI. The Workspace Netbird panel reads/writes this slot
+	// directly via the secret store (csw netbird config). Payload is JSON
+	// {"baseURL":"…","token":"…"} stored under the shared account (0).
+	MCPServiceNetbird MCPService = "netbird"
 )
 
 // AllMCPServices is the registration order used for UI and tools/list.

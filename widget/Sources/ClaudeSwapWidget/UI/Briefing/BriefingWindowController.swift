@@ -123,6 +123,12 @@ final class BriefingWindowController: NSObject, NSWindowDelegate {
 
         let w = makeWindow()
         w.contentViewController = host
+        // Round the corners AFTER installing the hosting controller. Setting
+        // `contentViewController` swaps the window's content view for a fresh
+        // NSHostingView, so any cornerRadius applied to the old placeholder
+        // view in makeWindow() is thrown away — which is why the page showed
+        // square corners. Round the live content view here instead.
+        roundCorners(of: w)
         w.delegate = self
         self.window = w
 
@@ -177,12 +183,22 @@ final class BriefingWindowController: NSObject, NSWindowDelegate {
         w.hasShadow = true
         w.backgroundColor = .clear
         w.isOpaque = false
-        // Soft rounded chrome — NSVisualEffectView would clip our SwiftUI bg;
-        // keep the SwiftUI background and just round the window corners.
-        w.contentView?.wantsLayer = true
-        w.contentView?.layer?.cornerRadius = 22
-        w.contentView?.layer?.masksToBounds = true
+        // Corner rounding is applied in present() via roundCorners(of:), AFTER
+        // the hosting controller replaces the content view — rounding here would
+        // be discarded with the placeholder content view.
         return w
+    }
+
+    /// Round the window's live content view with Apple's continuous (squircle)
+    /// corner curve. Must run after `contentViewController` is set, since that
+    /// swaps in a fresh NSHostingView. NSVisualEffectView would clip our SwiftUI
+    /// background, so we keep the SwiftUI bg and just round + clip the layer.
+    private func roundCorners(of w: NSWindow) {
+        guard let content = w.contentView else { return }
+        content.wantsLayer = true
+        content.layer?.cornerRadius = 22
+        content.layer?.cornerCurve = .continuous
+        content.layer?.masksToBounds = true
     }
 
     /// Small rect anchored to the Claude Bar status item — gives the animation
@@ -202,14 +218,26 @@ final class BriefingWindowController: NSObject, NSWindowDelegate {
         return NSRect(x: v.maxX - 240, y: v.maxY - 22, width: 36, height: 22)
     }
 
-    /// Near-fullscreen, centered, with 32px inset on each side.
+    /// Open frame for the configured Daily window size. Max fills the screen
+    /// (32px inset); Medium / Small are centered cards. See `DailyWindowSize`.
     private var endFrame: NSRect {
         guard let screen = NSScreen.main else {
             return NSRect(x: 100, y: 100, width: 1400, height: 900)
         }
-        let v = screen.visibleFrame
-        let inset: CGFloat = 32
-        return v.insetBy(dx: inset, dy: inset)
+        return AppSettings.shared.dailyWindowSize.frame(in: screen.visibleFrame)
+    }
+
+    /// Re-apply the configured size to an already-open window, animating to the
+    /// new frame. No-op when the window isn't showing. The tether beam tracks
+    /// the window frame on its own timer, so it follows without extra work.
+    func applyWindowSizeIfOpen() {
+        guard let w = window, w.isVisible else { return }
+        NSAnimationContext.runAnimationGroup { ctx in
+            ctx.duration = 0.22
+            ctx.timingFunction = CAMediaTimingFunction(controlPoints: 0.2, 0.85, 0.25, 1.0)
+            ctx.allowsImplicitAnimation = true
+            w.animator().setFrame(endFrame, display: true, animate: true)
+        }
     }
 
     // MARK: - Animation

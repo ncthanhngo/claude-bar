@@ -14,10 +14,17 @@ struct ChatTextEditor: NSViewRepresentable {
     @Binding var text: String
     let palette: BriefingPalette
     let placeholder: String
+    /// Floor / ceiling the measured content height is clamped to before being
+    /// reported back via `onHeightChange`. The composer reserves exactly the
+    /// space the draft needs — an empty box is one line tall, not a fixed slab.
+    let minHeight: CGFloat
+    let maxHeight: CGFloat
+    let onHeightChange: (CGFloat) -> Void
     let onSend: () -> Void
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(text: $text, onSend: onSend)
+        Coordinator(text: $text, minHeight: minHeight, maxHeight: maxHeight,
+                    onHeightChange: onHeightChange, onSend: onSend)
     }
 
     func makeNSView(context: Context) -> NSScrollView {
@@ -72,6 +79,9 @@ struct ChatTextEditor: NSViewRepresentable {
         textView.string = text
 
         scroll.documentView = textView
+        // First layout pass happens after the scroll view has a real width, so
+        // defer the initial height measurement to the next runloop tick.
+        DispatchQueue.main.async { context.coordinator.recalcHeight(for: textView) }
         return scroll
     }
 
@@ -86,20 +96,48 @@ struct ChatTextEditor: NSViewRepresentable {
         }
         textView.coordinator = context.coordinator
         context.coordinator.onSend = onSend
+        context.coordinator.onHeightChange = onHeightChange
+        // Re-measure after external text changes (clear-on-send) and width
+        // changes (window resize re-wraps the draft). Async-guarded so the
+        // height write doesn't re-enter SwiftUI layout synchronously.
+        DispatchQueue.main.async { context.coordinator.recalcHeight(for: textView) }
     }
 
     final class Coordinator: NSObject, NSTextViewDelegate {
         @Binding var text: String
+        let minHeight: CGFloat
+        let maxHeight: CGFloat
+        var onHeightChange: (CGFloat) -> Void
         var onSend: () -> Void
+        private var lastReportedHeight: CGFloat = 0
 
-        init(text: Binding<String>, onSend: @escaping () -> Void) {
+        init(text: Binding<String>, minHeight: CGFloat, maxHeight: CGFloat,
+             onHeightChange: @escaping (CGFloat) -> Void, onSend: @escaping () -> Void) {
             self._text = text
+            self.minHeight = minHeight
+            self.maxHeight = maxHeight
+            self.onHeightChange = onHeightChange
             self.onSend = onSend
         }
 
         func textDidChange(_ notification: Notification) {
             guard let textView = notification.object as? NSTextView else { return }
             self.text = textView.string
+            recalcHeight(for: textView)
+        }
+
+        /// Measure the laid-out text and report a clamped height. Only fires
+        /// when the height actually moved (line added/removed) so per-keystroke
+        /// typing inside one line stays free of layout churn.
+        @MainActor
+        func recalcHeight(for textView: NSTextView) {
+            guard let lm = textView.layoutManager, let tc = textView.textContainer else { return }
+            lm.ensureLayout(for: tc)
+            let used = lm.usedRect(for: tc).height
+            let target = min(max(used + textView.textContainerInset.height * 2, minHeight), maxHeight)
+            guard abs(target - lastReportedHeight) > 0.5 else { return }
+            lastReportedHeight = target
+            onHeightChange(target)
         }
     }
 }

@@ -31,6 +31,18 @@ extension CswClient {
         _ = try await self.runRaw(["ssh", "remove", "--name", name])
     }
 
+    func sshAdd(name: String, host: String, port: Int, user: String,
+                identity: String = "", jump: String = "", note: String = "") async throws {
+        var args = ["ssh", "add", "--name", name]
+        if !host.isEmpty { args += ["--host", host] }
+        if port > 0 { args += ["--port", String(port)] }
+        if !user.isEmpty { args += ["--user", user] }
+        if !identity.isEmpty { args += ["--identity", identity] }
+        if !jump.isEmpty { args += ["--jump", jump] }
+        if !note.isEmpty { args += ["--note", note] }
+        _ = try await self.runRaw(args)
+    }
+
     // MARK: - GitLab (Phase 7)
 
     struct GitLabInstanceDTO: Codable, Identifiable, Equatable {

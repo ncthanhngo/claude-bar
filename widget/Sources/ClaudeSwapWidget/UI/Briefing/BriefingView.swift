@@ -49,6 +49,9 @@ struct BriefingView: View {
             PlanModeBody(palette: palette)
                 .opacity(mode == .plan ? 1 : 0)
                 .allowsHitTesting(mode == .plan)
+            NetbirdModeBody(palette: palette)
+                .opacity(mode == .netbird ? 1 : 0)
+                .allowsHitTesting(mode == .netbird)
             ChatModeBody(palette: palette)
                 .opacity(mode == .chat ? 1 : 0)
                 .allowsHitTesting(mode == .chat)
@@ -64,8 +67,10 @@ struct BriefingView: View {
                 .keyboardShortcut(.cancelAction)
             Button("") { settings.dailyMode = DailyMode.plan.rawValue }
                 .keyboardShortcut("1", modifiers: .command)
-            Button("") { settings.dailyMode = DailyMode.chat.rawValue }
+            Button("") { settings.dailyMode = DailyMode.netbird.rawValue }
                 .keyboardShortcut("2", modifiers: .command)
+            Button("") { settings.dailyMode = DailyMode.chat.rawValue }
+                .keyboardShortcut("3", modifiers: .command)
         }
         .opacity(0)
         .frame(width: 0, height: 0)

@@ -60,6 +60,8 @@ func main() {
 		err = runMCP(ctx, svc, args)
 	case "briefing":
 		err = runBriefing(ctx, svc, args)
+	case "netbird":
+		err = runNetbird(ctx, svc, args)
 	case "chat":
 		err = runChat(ctx, svc, args)
 	case "usage-stats":
@@ -122,6 +124,15 @@ Commands:
   mcp connectors reconnect --account N --service slack|clickup|gdrive|github      (verify+enable saved credential)
   mcp connectors forget --account N --service slack|clickup|gdrive|github         (hard delete — wipes Keychain payload)
   mcp connectors set-enabled --account N --service slack|clickup|gdrive|github|gitlab --enabled=true|false
+  netbird config set --base-url URL --token=-   Save NetBird API credential (token on stdin)
+  netbird config show                           Show base URL + configured state (never the token)
+  netbird overview                              Peers + groups + policies + derived access edges
+  netbird peers                                 List mesh peers (servers + dev machines)
+  netbird grant --src-group dev-X --dst-group srv-Y     Grant access (create policy)
+  netbird revoke --policy ID                    Revoke access (delete policy)
+  netbird setup-key create --name N [--group dev-pending] [--expires-days 7]   Enrollment key
+  netbird peer assign --id ID --group dev-X     Approve a pending machine into a group
+  netbird peer delete --id ID                   Reject/remove a peer
   briefing run [--force]  Generate today's Daily Briefing (uses MCPs + Claude)
   briefing show [--date]  Read a cached briefing
   briefing schedule get|set|check       Manage briefing cron schedule

@@ -100,6 +100,11 @@ final class AppSettings: ObservableObject {
     /// whichever mode the user last used.
     @AppStorage("dailyMode") var dailyMode: String = DailyMode.plan.rawValue
 
+    /// On-screen footprint of the Daily window: Max (near-fullscreen, the
+    /// original behaviour), Medium, or Small. Read by `BriefingWindowController`
+    /// when it computes the open frame.
+    @AppStorage("dailyWindowSize") var dailyWindowSize: DailyWindowSize = .max
+
     // MARK: - Daily Briefing scheduler + quiet hours
 
     @AppStorage("briefingScheduleMode") var briefingScheduleMode: String = "cron"
