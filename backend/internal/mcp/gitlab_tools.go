@@ -326,8 +326,23 @@ func (g *Gateway) gitlabResolve(ctx context.Context, ref string) (*GitLabInstanc
 	return inst, tok, nil
 }
 
+// gitlabAPIRoot normalizes an instance base URL to its REST v4 root. Users
+// (and the widget UI) routinely save just the host, e.g.
+// "https://gitlab.example.com", but every tool path is "/projects/...".
+// Without the "/api/v4" segment GitLab 302-redirects to the HTML sign-in page,
+// which then decodes to an empty result and silently breaks every read tool.
+// Appending it here fixes both already-stored bare-host instances and future
+// ones, and is a no-op when the base URL already points at "/api/vN".
+func gitlabAPIRoot(baseURL string) string {
+	root := strings.TrimRight(baseURL, "/")
+	if !strings.Contains(root, "/api/v") {
+		root += "/api/v4"
+	}
+	return root
+}
+
 func (g *Gateway) gitlabAPI(ctx context.Context, inst *GitLabInstance, token, method, path string, query url.Values, body any) ([]byte, error) {
-	u := strings.TrimRight(inst.BaseURL, "/") + path
+	u := gitlabAPIRoot(inst.BaseURL) + path
 	if len(query) > 0 {
 		u += "?" + query.Encode()
 	}

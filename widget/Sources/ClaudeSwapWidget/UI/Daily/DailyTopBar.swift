@@ -30,6 +30,8 @@ struct DailyTopBar: View {
                         lastGenerated: lastGenerated,
                         nextRun: nextRun
                     )
+                case .netbird:
+                    EmptyView()
                 case .chat:
                     DailyChatSubBar(palette: palette, isReady: true, onNewChat: onNewChat)
                 }

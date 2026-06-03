@@ -13,6 +13,7 @@ struct BriefingSettingsView: View {
     var body: some View {
         ScrollView {
             SettingsPage {
+                windowSizeSection
                 schedSection
                 promptSection
                 hotkeySection
@@ -27,6 +28,30 @@ struct BriefingSettingsView: View {
             syncTimesFromSettings()
         }
         .onChange(of: coord.schedule?.cronExpr) { _, _ in syncDraftFromSchedule() }
+    }
+
+    // MARK: - Window size
+
+    @ViewBuilder private var windowSizeSection: some View {
+        SettingsGroup(
+            "Window size",
+            subtitle: "How large the Daily window opens on screen. Changes apply live if the window is already open."
+        ) {
+            Picker("Size", selection: $settings.dailyWindowSize) {
+                ForEach(DailyWindowSize.allCases) { size in
+                    Text(size.label).tag(size)
+                }
+            }
+            .pickerStyle(.segmented)
+            .frame(maxWidth: 360, alignment: .leading)
+            .onChange(of: settings.dailyWindowSize) { _, _ in
+                BriefingWindowController.shared.applyWindowSizeIfOpen()
+            }
+            Text(settings.dailyWindowSize.detail)
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
     }
 
     // MARK: - Schedule (time-of-day list)

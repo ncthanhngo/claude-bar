@@ -74,3 +74,18 @@ func TestGitLabInstanceStoreSingleInstanceImplicitResolve(t *testing.T) {
 		t.Errorf("single instance + empty ref should resolve to that one: %v %+v", err, g)
 	}
 }
+
+func TestGitLabAPIRoot(t *testing.T) {
+	cases := map[string]string{
+		"https://gitlab.evselab.com":          "https://gitlab.evselab.com/api/v4",
+		"https://gitlab.evselab.com/":         "https://gitlab.evselab.com/api/v4",
+		"https://gitlab.evselab.com/api/v4":   "https://gitlab.evselab.com/api/v4",
+		"https://gitlab.evselab.com/api/v4/":  "https://gitlab.evselab.com/api/v4",
+		"https://self.host/gitlab":            "https://self.host/gitlab/api/v4",
+	}
+	for in, want := range cases {
+		if got := gitlabAPIRoot(in); got != want {
+			t.Errorf("gitlabAPIRoot(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
