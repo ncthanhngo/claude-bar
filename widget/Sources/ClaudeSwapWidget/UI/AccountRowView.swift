@@ -62,6 +62,13 @@ struct AccountRowView: View {
                 .font(.system(size: 13, weight: view.isActive ? .semibold : .regular))
                 .foregroundColor(.primary)
                 .lineLimit(1)
+                .truncationMode(.tail)
+                // The display name is the only flexible element in this row;
+                // everything to its right is .fixedSize. A negative layout
+                // priority makes the name yield (truncate) first when the
+                // 300pt Full-popover width is tight, instead of letting the
+                // trailing chips compress and wrap (e.g. "ACTIVE" → "ACTIV\nE").
+                .layoutPriority(-1)
 
             webUsageBadge
             refreshButton.opacity(isHovering || isRefreshingThisRow ? 1 : 0)
@@ -94,6 +101,8 @@ struct AccountRowView: View {
         Button(action: trySwap) {
             Text("Switch")
                 .font(.system(size: 10, weight: .semibold))
+                .lineLimit(1)
+                .fixedSize()
                 .foregroundColor(.white)
                 .padding(.horizontal, 8).padding(.vertical, 3)
                 .background(Color.accentColor)
@@ -110,6 +119,8 @@ struct AccountRowView: View {
         Text("ACTIVE")
             .font(.system(size: 9, weight: .bold))
             .tracking(0.5)
+            .lineLimit(1)
+            .fixedSize()
             .foregroundColor(.white)
             .padding(.horizontal, 7).padding(.vertical, 3)
             .background(settings.widgetTheme.activeChipBackground)
@@ -186,6 +197,7 @@ struct AccountRowView: View {
                 .font(.system(size: 9, weight: .medium))
                 .lineLimit(1)
         }
+        .fixedSize()
         .foregroundColor(webUsageColor)
         .padding(.horizontal, 5)
         .padding(.vertical, 2)
