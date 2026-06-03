@@ -46,7 +46,7 @@ struct BriefingView: View {
     @ViewBuilder private var bodyStage: some View {
         let mode = DailyMode.from(settings.dailyMode)
         ZStack {
-            PlanModeBody(palette: palette)
+            WorkspaceModeBody(palette: palette)
                 .opacity(mode == .plan ? 1 : 0)
                 .allowsHitTesting(mode == .plan)
             NetbirdModeBody(palette: palette)

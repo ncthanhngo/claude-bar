@@ -60,6 +60,8 @@ func main() {
 		err = runMCP(ctx, svc, args)
 	case "briefing":
 		err = runBriefing(ctx, svc, args)
+	case "workspace":
+		err = runWorkspace(ctx, svc, args)
 	case "netbird":
 		err = runNetbird(ctx, svc, args)
 	case "chat":

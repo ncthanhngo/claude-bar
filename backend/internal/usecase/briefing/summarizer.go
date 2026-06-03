@@ -62,6 +62,22 @@ type claudeEnvelope struct {
 }
 
 func (r *ClaudeRunner) runOnce(ctx context.Context, prompt string) (*BriefingPayload, error) {
+	result, err := r.RunText(ctx, prompt)
+	if err != nil {
+		return nil, err
+	}
+
+	var payload BriefingPayload
+	if err := json.Unmarshal([]byte(extractJSONObject(result)), &payload); err != nil {
+		return nil, fmt.Errorf("payload decode: %w", err)
+	}
+	return &payload, nil
+}
+
+// RunText runs one prompt through the `claude` CLI and returns the raw result
+// string (the envelope's `result` field, trimmed). Shared by the briefing
+// summarizer and the Workspace action drafter.
+func (r *ClaudeRunner) RunText(ctx context.Context, prompt string) (string, error) {
 	cctx, cancel := context.WithTimeout(ctx, r.Timeout)
 	defer cancel()
 
@@ -79,31 +95,28 @@ func (r *ClaudeRunner) runOnce(ctx context.Context, prompt string) (*BriefingPay
 	if err := cmd.Run(); err != nil {
 		stderrStr := mcp.Redact(strings.TrimSpace(stderr.String()))
 		if errors.Is(cctx.Err(), context.DeadlineExceeded) {
-			return nil, fmt.Errorf("claude timeout after %s: %s", r.Timeout, stderrStr)
+			return "", fmt.Errorf("claude timeout after %s: %s", r.Timeout, stderrStr)
 		}
-		return nil, fmt.Errorf("claude exit: %w: %s", err, stderrStr)
+		return "", fmt.Errorf("claude exit: %w: %s", err, stderrStr)
 	}
 
 	var env claudeEnvelope
 	if err := json.Unmarshal(stdout.Bytes(), &env); err != nil {
-		return nil, fmt.Errorf("claude envelope decode: %w", err)
+		return "", fmt.Errorf("claude envelope decode: %w", err)
 	}
 	if env.IsError || env.Result == "" {
-		return nil, fmt.Errorf("claude returned error envelope")
+		return "", fmt.Errorf("claude returned error envelope")
 	}
+	return strings.TrimSpace(env.Result), nil
+}
 
-	// Result is a string containing JSON. Some models add prose; strip to the
-	// first/last brace just in case.
-	result := strings.TrimSpace(env.Result)
-	if i := strings.Index(result, "{"); i > 0 {
-		if j := strings.LastIndex(result, "}"); j > i {
-			result = result[i : j+1]
+// extractJSONObject trims any prose around a JSON object some models emit,
+// returning the substring from the first `{` to the last `}`.
+func extractJSONObject(s string) string {
+	if i := strings.Index(s, "{"); i >= 0 {
+		if j := strings.LastIndex(s, "}"); j > i {
+			return s[i : j+1]
 		}
 	}
-
-	var payload BriefingPayload
-	if err := json.Unmarshal([]byte(result), &payload); err != nil {
-		return nil, fmt.Errorf("payload decode: %w", err)
-	}
-	return &payload, nil
+	return s
 }
