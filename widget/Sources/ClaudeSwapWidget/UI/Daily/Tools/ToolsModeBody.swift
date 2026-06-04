@@ -17,6 +17,7 @@ struct ToolsModeBody: View {
     @StateObject private var health = SystemHealthChecker()
     @StateObject private var disk = DiskAnalyzer()
     @StateObject private var maintenance = MaintenanceRunner()
+    @StateObject private var backup = BackupRestoreStore()
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -97,6 +98,7 @@ struct ToolsModeBody: View {
         case .disk:        DiskAnalyzerView(store: disk, palette: palette)
         case .health:      SystemHealthView(store: health, palette: palette)
         case .maintenance: MaintenanceView(runner: maintenance, palette: palette)
+        case .backup:      BackupRestoreView(store: backup, palette: palette)
         }
     }
 
