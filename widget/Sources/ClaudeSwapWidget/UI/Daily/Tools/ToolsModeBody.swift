@@ -18,6 +18,7 @@ struct ToolsModeBody: View {
     @StateObject private var disk = DiskAnalyzer()
     @StateObject private var maintenance = MaintenanceRunner()
     @StateObject private var backup = BackupRestoreStore()
+    @StateObject private var agent = ServerAgentStore()
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -30,6 +31,9 @@ struct ToolsModeBody: View {
                 NetbirdModeBody(palette: palette)
                     .opacity(tool == .netbird ? 1 : 0)
                     .allowsHitTesting(tool == .netbird)
+                BackupToolBody(backup: backup, agent: agent, palette: palette)
+                    .opacity(tool == .backup ? 1 : 0)
+                    .allowsHitTesting(tool == .backup)
             }
         }
         .padding(EdgeInsets(top: 2, leading: 10, bottom: 14, trailing: 16))
@@ -98,7 +102,6 @@ struct ToolsModeBody: View {
         case .disk:        DiskAnalyzerView(store: disk, palette: palette)
         case .health:      SystemHealthView(store: health, palette: palette)
         case .maintenance: MaintenanceView(runner: maintenance, palette: palette)
-        case .backup:      BackupRestoreView(store: backup, palette: palette)
         }
     }
 
@@ -113,8 +116,23 @@ struct ToolsModeBody: View {
 enum ToolsTab: String, CaseIterable, Identifiable {
     case app
     case netbird
+    case backup
 
     var id: String { rawValue }
-    var label: String { self == .app ? "App" : "Netbird" }
-    var icon: String { self == .app ? "macwindow.on.rectangle" : "point.3.connected.trianglepath.dotted" }
+
+    var label: String {
+        switch self {
+        case .app:     return "App"
+        case .netbird: return "Netbird"
+        case .backup:  return "Sao lưu"
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .app:     return "macwindow.on.rectangle"
+        case .netbird: return "point.3.connected.trianglepath.dotted"
+        case .backup:  return "externaldrive.badge.timemachine"
+        }
+    }
 }
