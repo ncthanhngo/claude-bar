@@ -28,6 +28,12 @@ final class DiskAnalyzer: ObservableObject {
     @Published var rootPath: String = NSHomeDirectory()
     @Published private(set) var isScanning = false
 
+    /// Deep scan: largest directories at ANY depth under rootPath (vs `dirs`
+    /// which is one level). `deepMode` toggles which list the UI shows.
+    @Published var deepMode = false
+    @Published private(set) var deepDirs: [DirUsage] = []
+    @Published private(set) var isDeepScanning = false
+
     func loadVolumes() {
         let fm = FileManager.default
         let keys: Set<URLResourceKey> = [.volumeNameKey, .volumeTotalCapacityKey,
@@ -51,8 +57,11 @@ final class DiskAnalyzer: ObservableObject {
         p.canChooseFiles = false
         p.allowsMultipleSelection = false
         p.directoryURL = URL(fileURLWithPath: rootPath)
-        if p.runModal() == .OK, let u = p.url { rootPath = u.path; scanDirs() }
+        if p.runModal() == .OK, let u = p.url { rootPath = u.path; rescan() }
     }
+
+    /// Run whichever scan the current mode wants. The toolbar's ↻ calls this.
+    func rescan() { deepMode ? deepScan() : scanDirs() }
 
     func scanDirs() {
         guard !isScanning else { return }
@@ -64,6 +73,54 @@ final class DiskAnalyzer: ObservableObject {
             self.dirs = res
             self.isScanning = false
         }
+    }
+
+    func deepScan() {
+        guard !isDeepScanning else { return }
+        isDeepScanning = true
+        deepDirs = []
+        let root = URL(fileURLWithPath: rootPath)
+        Task {
+            let res = await Task.detached { DiskAnalyzer.largestDirs(under: root) }.value
+            self.deepDirs = res
+            self.isDeepScanning = false
+        }
+    }
+
+    /// Walks the whole subtree ONCE, bottom-up, summing each directory's total
+    /// size as it unwinds — so every folder is sized in a single pass (no
+    /// repeated re-walking). Returns the biggest folders at any depth, the ones
+    /// worth a cleanup look. Skips hidden entries and symlinks (no cycles, no
+    /// double-counting) and prunes anything under `minBytes` so the list stays
+    /// signal. The root itself is dropped (it's just the sum of everything).
+    nonisolated static func largestDirs(under root: URL,
+                                        minBytes: Int64 = 50 * 1024 * 1024,
+                                        limit: Int = 40) -> [DirUsage] {
+        var found: [DirUsage] = []
+        _ = accumulate(root, minBytes: minBytes, into: &found)
+        return Array(found.filter { $0.url.path != root.path }
+            .sorted { $0.sizeBytes > $1.sizeBytes }.prefix(limit))
+    }
+
+    private nonisolated static func accumulate(_ dir: URL, minBytes: Int64,
+                                               into found: inout [DirUsage]) -> Int64 {
+        let fm = FileManager.default
+        let keys: Set<URLResourceKey> = [.isDirectoryKey, .isSymbolicLinkKey,
+            .totalFileAllocatedSizeKey, .fileAllocatedSizeKey]
+        guard let items = try? fm.contentsOfDirectory(at: dir,
+            includingPropertiesForKeys: Array(keys), options: [.skipsHiddenFiles]) else { return 0 }
+        var total: Int64 = 0
+        for u in items {
+            let v = try? u.resourceValues(forKeys: keys)
+            if v?.isSymbolicLink == true { continue }
+            if v?.isDirectory == true {
+                total += accumulate(u, minBytes: minBytes, into: &found)
+            } else {
+                total += Int64(v?.totalFileAllocatedSize ?? v?.fileAllocatedSize ?? 0)
+            }
+        }
+        if total >= minBytes { found.append(DirUsage(url: dir, sizeBytes: total)) }
+        return total
     }
 
     nonisolated static func topChildren(_ root: URL) -> [DirUsage] {
