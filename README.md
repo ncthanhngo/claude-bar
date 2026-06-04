@@ -67,6 +67,7 @@ brew install --cask claude-bar
 - **Session guard** — warns you if Claude is running before a manual switch; option to force-switch anyway
 - **Web-first usage** — each account can link its own embedded claude.ai web profile for usage before falling back to terminal OAuth usage; web sessions sync separately through iCloud Keychain by account email
 - **Local MCP connectors** — share one set of Slack / ClickUp / Google / GitHub / GitLab / Bitwarden tokens across accounts and reach them from Claude Code through a local stdio gateway (see [below](#local-mcp-connectors-optional))
+- **Backup & Restore** (Daily → Tools → Sao lưu) — configure server-side backups of a Docker-deployed app and its database, pushed to SharePoint via rclone. The app SSHes in to install a daily cron/systemd job with grandfather-father-son retention (daily / weekly / monthly / yearly), runs read-only preflight checks, triggers backups on demand, and restores a chosen snapshot. Backup sources are DB-agnostic: a freeform dump command (pg_dump / mysqldump / mongodump), tarred paths, or docker volumes. Every server mutation is previewed in a confirm sheet first; no backup secrets are stored on the Mac (SSH keys live in `~/.ssh`, rclone credentials live on the server)
 - **Themes** — Light, Dark, and Rainbow
 - **Icon color** — 11 preset tint colors for the menu bar icon (Settings → General)
 
