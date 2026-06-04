@@ -18,6 +18,26 @@
     <description>Auto-update feed for AI Bar — the experimental build of the Claude Code menu-bar manager.</description>
     <language>en</language>
     <item>
+      <title>AI Bar 0.5</title>
+      <sparkle:version>0.5</sparkle:version>
+      <sparkle:shortVersionString>0.5</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li>Fix: chat, the server assistant and the AI advisor failed to start ("claude binary not on PATH") when the app was launched from Finder.</li>
+          <li>The Sao lưu server assistant now works — chat with Claude to install and configure a server over SSH.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Thu, 04 Jun 2026 19:02:58 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/aibar-v0.5/AIBar.zip"
+        sparkle:version="0.5"
+        sparkle:shortVersionString="0.5"
+        sparkle:edSignature="9uctQIwd9TFjrQFIBlJhULRP5BHL00EQ6w/RsYC0brzqd7ZcNXuDVffJKKD9+g/1MvWTxbdZtdbgDc/bhz6gCA=="
+        length="11220485"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>AI Bar 0.4</title>
       <sparkle:version>0.4</sparkle:version>
       <sparkle:shortVersionString>0.4</sparkle:shortVersionString>
