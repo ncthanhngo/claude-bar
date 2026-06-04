@@ -18,6 +18,28 @@
     <description>Auto-update feed for AI Bar — the experimental build of the Claude Code menu-bar manager.</description>
     <language>en</language>
     <item>
+      <title>AI Bar 0.4</title>
+      <sparkle:version>0.4</sparkle:version>
+      <sparkle:shortVersionString>0.4</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li>Sao lưu tab — back up a Docker app and database to SharePoint on a daily server-side schedule.</li>
+          <li>Server assistant — chat with Claude to install and configure a server over SSH.</li>
+          <li>Read-only commands run automatically; server changes ask for confirmation first.</li>
+          <li>Sao lưu moved out of the App sidebar into its own top-level Tools tab.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Thu, 04 Jun 2026 15:42:46 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/aibar-v0.4/AIBar.zip"
+        sparkle:version="0.4"
+        sparkle:shortVersionString="0.4"
+        sparkle:edSignature="dTzNbgfofvWFheH0Wh5aE9hZHaPs59+Ax4YNTHYyM7t+Cx5k2m8g/VCd9F51r7H+w0oy++ttGFo5o2YXpjfkAw=="
+        length="11217519"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>AI Bar 0.3</title>
       <sparkle:version>0.3</sparkle:version>
       <sparkle:shortVersionString>0.3</sparkle:shortVersionString>
