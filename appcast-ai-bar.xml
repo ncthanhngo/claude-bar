@@ -18,6 +18,27 @@
     <description>Auto-update feed for AI Bar — the experimental build of the Claude Code menu-bar manager.</description>
     <language>en</language>
     <item>
+      <title>AI Bar 0.6</title>
+      <sparkle:version>0.6</sparkle:version>
+      <sparkle:shortVersionString>0.6</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li>Disk analyzer can now deep-scan — finds the biggest folders at any depth, not just top-level.</li>
+          <li>Each large folder shows its path, so you can see exactly what's eating space.</li>
+          <li>Ask AI for cleanup advice — it flags what's safe to delete (caches, logs, build, node_modules).</li>
+        </ul>
+      ]]></description>
+      <pubDate>Thu, 04 Jun 2026 20:44:42 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/aibar-v0.6/AIBar.zip"
+        sparkle:version="0.6"
+        sparkle:shortVersionString="0.6"
+        sparkle:edSignature="sYqCMj6+I6RAtrXnI3uCziVGimqUWjUdaU8W9Fcp3dfAv1ZaTpk5gU7CY6VAYT/MS2WJO5jS4gtH+OjYkneNBA=="
+        length="11231191"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>AI Bar 0.5</title>
       <sparkle:version>0.5</sparkle:version>
       <sparkle:shortVersionString>0.5</sparkle:shortVersionString>
