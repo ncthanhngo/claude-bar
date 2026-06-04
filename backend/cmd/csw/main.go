@@ -72,6 +72,8 @@ func main() {
 		err = runGate(ctx, args)
 	case "ssh":
 		err = runSSH(ctx, args)
+	case "backup":
+		err = runBackup(ctx, args)
 	case "gitlab":
 		err = runGitLab(ctx, svc, args)
 	case "bw":
@@ -147,6 +149,13 @@ Commands:
                           Upload an encrypted attachment (file bytes on stdin)
   chat search --query Q [--limit N]
                           FTS5 search across the active account's messages
+  backup list|get|save|remove          Manage server backup profiles (save reads JSON on stdin)
+  backup generate|preflight --id ID    Render artifacts / run read-only server checks
+  backup install|run|uninstall --id ID Install schedule / run now / remove schedule (SSH)
+  backup status|snapshots --id ID      Recent run status / available restore points
+  backup restore --id ID --snapshot TIER/FILE          Restore a snapshot (destructive)
+  backup rclone-list-drives --id ID                    List SharePoint drives (token on stdin)
+  backup rclone-create-remote --id ID --remote N --drive-id D   Create rclone remote (token on stdin)
   help                    Show this help
 
 All commands accept --json for machine-readable output.`)
