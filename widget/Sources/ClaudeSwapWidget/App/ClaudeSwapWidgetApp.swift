@@ -45,6 +45,10 @@ struct ClaudeSwapWidgetApp: App {
         // in ~/Library/Logs/ClaudeBar/.
         DiagnosticsLogger.shared.bootstrap()
         CrashHandler.install()
+        // Export CLAUDE_BIN so csw chat/briefing children can find the Claude
+        // CLI even under the GUI's minimal PATH (Finder-launched apps don't
+        // inherit the shell PATH where claude is installed).
+        ClaudeBinaryEnv.ensure()
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
         ClaudeWatchInstaller.install()
         CbarShortcutInstaller.install()
