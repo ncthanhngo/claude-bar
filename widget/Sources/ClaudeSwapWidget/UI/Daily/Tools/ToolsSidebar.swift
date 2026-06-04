@@ -9,7 +9,6 @@ enum ToolsPage: String, CaseIterable, Identifiable {
     case disk
     case health
     case maintenance
-    case backup
 
     var id: String { rawValue }
 
@@ -21,7 +20,6 @@ enum ToolsPage: String, CaseIterable, Identifiable {
         case .disk:        return "Phân tích đĩa"
         case .health:      return "Sức khoẻ máy"
         case .maintenance: return "Bảo trì"
-        case .backup:      return "Sao lưu"
         }
     }
 
@@ -33,7 +31,6 @@ enum ToolsPage: String, CaseIterable, Identifiable {
         case .disk:        return "chart.pie"
         case .health:      return "heart.text.square"
         case .maintenance: return "wrench.and.screwdriver"
-        case .backup:      return "externaldrive.badge.timemachine"
         }
     }
 
@@ -46,7 +43,6 @@ enum ToolsPage: String, CaseIterable, Identifiable {
         case .disk:        return "Ổ đĩa và thư mục ngốn chỗ, trực quan bằng thanh dung lượng."
         case .health:      return "Đĩa · RAM · bảo mật · ổ cứng — chấm điểm, chỉ đọc."
         case .maintenance: return "Tác vụ bảo trì macOS một chạm."
-        case .backup:      return "Sao lưu Docker + DB lên SharePoint qua SSH; lịch chạy hàng ngày trên server."
         }
     }
 }
