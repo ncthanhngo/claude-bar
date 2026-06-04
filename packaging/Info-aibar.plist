@@ -15,13 +15,13 @@
 	<key>CBReleaseChannel</key>
 	<string>Beta</string>
 	<key>CBReleaseHotfixes</key>
-	<string>Fixed chat, server assistant and the AI advisor failing to start with "claude binary not on PATH" when launched from Finder.</string>
+	<string>None — feature-only release.</string>
 	<key>CBReleaseKnownIssues</key>
 	<string>Don't run AI Bar and Claude Bar at the same time — they share the same backend socket and account lock.</string>
 	<key>CBReleaseWhatsNew</key>
-	<string>Server assistant now works — chat with Claude to install and configure a server over SSH.
-Read-only commands run automatically; server changes ask for confirmation first.
-Sao lưu tab backs up a Docker app and database to SharePoint on a daily server-side schedule.</string>
+	<string>Disk analyzer can now deep-scan: finds the biggest folders at any depth, not just top-level.
+Each large folder shows its path so you know exactly what's eating space.
+Ask AI for cleanup advice — it flags what's safe to delete (caches, logs, build, node_modules).</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
@@ -29,7 +29,7 @@ Sao lưu tab backs up a Docker app and database to SharePoint on a daily server-
 	<key>CFBundleExecutable</key>
 	<string>ClaudeSwapWidget</string>
 	<key>CFBundleGetInfoString</key>
-	<string>AI Bar 0.5 — experimental build of the Claude Code menu-bar manager</string>
+	<string>AI Bar 0.6 — experimental build of the Claude Code menu-bar manager</string>
 	<key>CFBundleIconFile</key>
 	<string>AppIcon</string>
 	<key>CFBundleIdentifier</key>
@@ -44,11 +44,11 @@ Sao lưu tab backs up a Docker app and database to SharePoint on a daily server-
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>0.5</string>
+	<string>0.6</string>
 	<key>CFBundleSignature</key>
 	<string>????</string>
 	<key>CFBundleVersion</key>
-	<string>0.5</string>
+	<string>0.6</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>14.0</string>
 	<key>LSUIElement</key>
