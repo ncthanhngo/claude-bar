@@ -6,7 +6,9 @@ struct DiskAnalyzerView: View {
     @ObservedObject var store: DiskAnalyzer
     let palette: BriefingPalette
 
-    private var maxDir: Int64 { store.dirs.map(\.sizeBytes).max() ?? 1 }
+    private var shownDirs: [DirUsage] { store.deepMode ? store.deepDirs : store.dirs }
+    private var maxDir: Int64 { shownDirs.map(\.sizeBytes).max() ?? 1 }
+    private var scanning: Bool { store.deepMode ? store.isDeepScanning : store.isScanning }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -16,7 +18,8 @@ struct DiskAnalyzerView: View {
                     if let (s, p) = aiBuild() {
                         AIChatWindowController.shared.present(palette: palette, title: "AI gợi ý dọn ổ đĩa",
                             system: s, context: p,
-                            suggestions: ["Nên dọn ở đâu?", "Thư mục nào đáng xem?", "Cách giải phóng nhiều nhất?"])
+                            suggestions: ["Thư mục nào an toàn để xoá?", "Cách giải phóng nhiều nhất?",
+                                          "Đường dẫn nào là cache/tạm?"])
                     }
                 }.disabled(aiBuild() == nil)
             }
@@ -31,22 +34,26 @@ struct DiskAnalyzerView: View {
     }
 
     private func aiBuild() -> (system: String, prompt: String)? {
-        guard !store.volumes.isEmpty || !store.dirs.isEmpty else { return nil }
+        let scanned = store.deepMode ? store.deepDirs : store.dirs
+        guard !store.volumes.isEmpty || !scanned.isEmpty else { return nil }
         let system = """
         Bạn là trợ lý phân tích đĩa macOS. Trả lời tiếng Việt, súc tích, gạch đầu dòng. \
         Dựa trên dung lượng ổ đĩa và các thư mục ngốn chỗ, gợi ý nên xem/dọn ở đâu để \
-        giải phóng dung lượng. CHỉ dựa trên số liệu đưa ra, không bịa đường dẫn.
+        giải phóng dung lượng. Chỉ rõ thư mục nào thường an toàn để xoá (cache, log, \
+        build/DerivedData, node_modules, tệp tạm) và thư mục nào cần thận trọng. \
+        CHỈ dựa trên số liệu đưa ra, không bịa đường dẫn.
         """
         let vols = store.volumes.map {
             "- Ổ \($0.name): dùng \(ByteFormat.string($0.used))/\(ByteFormat.string($0.total)), trống \(ByteFormat.string($0.free))"
         }.joined(separator: "\n")
-        let dirs = store.dirs.prefix(20).map {
-            "- \($0.url.lastPathComponent): \(ByteFormat.string($0.sizeBytes)) (\($0.url.path))"
+        let dirs = scanned.prefix(25).map {
+            "- \(ByteFormat.string($0.sizeBytes)) — \($0.url.path)"
         }.joined(separator: "\n")
+        let label = store.deepMode ? "Thư mục lớn (quét sâu)" : "Thư mục ngốn chỗ"
         let body = [vols.isEmpty ? nil : "Ổ đĩa:\n\(vols)",
-                    dirs.isEmpty ? nil : "Thư mục ngốn chỗ:\n\(dirs)"]
+                    dirs.isEmpty ? nil : "\(label):\n\(dirs)"]
             .compactMap { $0 }.joined(separator: "\n\n")
-        return (system, "\(body)\n\nNên dọn ở đâu?")
+        return (system, "\(body)\n\nNên dọn ở đâu để an toàn giải phóng nhiều dung lượng nhất?")
     }
 
     private var volumesSection: some View {
@@ -76,30 +83,58 @@ struct DiskAnalyzerView: View {
                 Text("Thư mục ngốn chỗ").font(.system(size: 14, weight: .semibold)).foregroundColor(palette.ink)
                 Spacer()
                 Text(store.rootPath).font(.system(size: 10, design: .monospaced))
-                    .foregroundColor(palette.ink3).lineLimit(1).truncationMode(.middle).frame(maxWidth: 220, alignment: .trailing)
+                    .foregroundColor(palette.ink3).lineLimit(1).truncationMode(.middle).frame(maxWidth: 180, alignment: .trailing)
                 Button { store.chooseFolder() } label: { Image(systemName: "folder") }.buttonStyle(.plain).foregroundColor(palette.ink2)
-                if store.isScanning { ProgressView().controlSize(.small) }
-                Button { store.scanDirs() } label: { Image(systemName: "arrow.clockwise") }
-                    .buttonStyle(.plain).foregroundColor(palette.ink2).disabled(store.isScanning)
+                if scanning { ProgressView().controlSize(.small) }
+                Button { store.rescan() } label: { Image(systemName: "arrow.clockwise") }
+                    .buttonStyle(.plain).foregroundColor(palette.ink2).disabled(scanning)
             }
-            if store.dirs.isEmpty {
-                Text(store.isScanning ? "Đang quét…" : "Bấm ↻ để phân tích thư mục này.")
+            modePicker
+            if shownDirs.isEmpty {
+                Text(scanning ? (store.deepMode ? "Đang quét sâu… (có thể mất một lúc với thư mục lớn)" : "Đang quét…")
+                              : "Bấm ↻ để \(store.deepMode ? "quét sâu toàn bộ cây thư mục" : "phân tích thư mục này").")
                     .font(.system(size: 11)).foregroundColor(palette.ink3).padding(.vertical, 8)
             } else {
-                ForEach(store.dirs) { d in
-                    VStack(alignment: .leading, spacing: 4) {
-                        HStack {
-                            Image(nsImage: NSWorkspace.shared.icon(forFile: d.url.path)).resizable().frame(width: 16, height: 16)
-                            Text(d.url.lastPathComponent).font(.system(size: 12)).foregroundColor(palette.ink).lineLimit(1)
-                            Spacer()
-                            Text(ByteFormat.string(d.sizeBytes)).font(.system(size: 11, design: .monospaced)).foregroundColor(palette.ink2)
-                        }
-                        bar(fraction: Double(d.sizeBytes) / Double(maxDir), color: palette.gold)
-                    }
-                    .padding(.vertical, 5)
-                }
+                ForEach(shownDirs) { d in dirRow(d) }
             }
         }
+    }
+
+    /// Cấp 1 = top-level children (fast). Quét sâu = largest folders at any
+    /// depth under the root. Switching auto-runs that mode's scan if empty.
+    private var modePicker: some View {
+        Picker("", selection: $store.deepMode) {
+            Text("Cấp 1").tag(false)
+            Text("Quét sâu").tag(true)
+        }
+        .pickerStyle(.segmented)
+        .labelsHidden()
+        .frame(maxWidth: 220)
+        .onChange(of: store.deepMode) { _, _ in if shownDirs.isEmpty && !scanning { store.rescan() } }
+    }
+
+    private func dirRow(_ d: DirUsage) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Image(nsImage: NSWorkspace.shared.icon(forFile: d.url.path)).resizable().frame(width: 16, height: 16)
+                Text(store.deepMode ? rel(d.url) : d.url.lastPathComponent)
+                    .font(.system(size: 12, design: store.deepMode ? .monospaced : .default))
+                    .foregroundColor(palette.ink).lineLimit(1).truncationMode(.middle)
+                    .help(d.url.path)
+                Spacer()
+                Text(ByteFormat.string(d.sizeBytes)).font(.system(size: 11, design: .monospaced)).foregroundColor(palette.ink2)
+            }
+            bar(fraction: Double(d.sizeBytes) / Double(maxDir), color: palette.gold)
+        }
+        .padding(.vertical, 5)
+    }
+
+    /// Path relative to the scanned root, so a deep hit reads as
+    /// "Library/Caches/foo" instead of the full absolute path.
+    private func rel(_ url: URL) -> String {
+        let root = store.rootPath
+        if url.path.hasPrefix(root + "/") { return String(url.path.dropFirst(root.count + 1)) }
+        return url.lastPathComponent
     }
 
     private func bar(fraction: Double, color: Color) -> some View {
