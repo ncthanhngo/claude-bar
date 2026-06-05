@@ -19,6 +19,7 @@ struct ToolsModeBody: View {
     @StateObject private var maintenance = MaintenanceRunner()
     @StateObject private var backup = BackupRestoreStore()
     @StateObject private var agent = ServerAgentStore()
+    @StateObject private var citools = CIToolsStore()
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -34,6 +35,9 @@ struct ToolsModeBody: View {
                 BackupToolBody(backup: backup, agent: agent, palette: palette)
                     .opacity(tool == .backup ? 1 : 0)
                     .allowsHitTesting(tool == .backup)
+                CIToolsBody(store: citools, palette: palette)
+                    .opacity(tool == .ci ? 1 : 0)
+                    .allowsHitTesting(tool == .ci)
             }
         }
         .padding(EdgeInsets(top: 2, leading: 10, bottom: 14, trailing: 16))
@@ -117,6 +121,7 @@ enum ToolsTab: String, CaseIterable, Identifiable {
     case app
     case netbird
     case backup
+    case ci
 
     var id: String { rawValue }
 
@@ -125,6 +130,7 @@ enum ToolsTab: String, CaseIterable, Identifiable {
         case .app:     return "App"
         case .netbird: return "Netbird"
         case .backup:  return "Sao lưu"
+        case .ci:      return "Theo dõi CI"
         }
     }
 
@@ -133,6 +139,7 @@ enum ToolsTab: String, CaseIterable, Identifiable {
         case .app:     return "macwindow.on.rectangle"
         case .netbird: return "point.3.connected.trianglepath.dotted"
         case .backup:  return "externaldrive.badge.timemachine"
+        case .ci:      return "checkmark.seal"
         }
     }
 }

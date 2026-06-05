@@ -68,6 +68,50 @@ extension CswClient {
         _ = try await self.runRaw(["gitlab", "remove", "--id", id])
     }
 
+    // MARK: - CI Tools (Daily → Tools: ci-watch + glpush installer)
+
+    /// Machine-wide install state for the ci-watch/glpush tooling. Mirrors
+    /// the Go `citools.Status` JSON (flat keys).
+    struct CIToolsStatusDTO: Codable, Equatable {
+        let brew: Bool
+        let glab: Bool
+        let gh: Bool
+        let ghAuthed: Bool
+        let ciWatch: Bool
+        let glpush: Bool
+        let instances: Int
+        let hostsAuthed: [String]?
+        let installed: Bool
+    }
+
+    /// `citools install` result — Status fields (embedded, so flat) + a step log.
+    struct CIToolsInstallDTO: Codable, Equatable {
+        let brew: Bool
+        let glab: Bool
+        let gh: Bool
+        let ghAuthed: Bool
+        let ciWatch: Bool
+        let glpush: Bool
+        let instances: Int
+        let hostsAuthed: [String]?
+        let installed: Bool
+        let log: [String]
+
+        var status: CIToolsStatusDTO {
+            CIToolsStatusDTO(brew: brew, glab: glab, gh: gh, ghAuthed: ghAuthed,
+                             ciWatch: ciWatch, glpush: glpush, instances: instances,
+                             hostsAuthed: hostsAuthed, installed: installed)
+        }
+    }
+
+    func citoolsStatus() async throws -> CIToolsStatusDTO {
+        try await self.run(["citools", "status"], decode: CIToolsStatusDTO.self)
+    }
+
+    func citoolsInstall() async throws -> CIToolsInstallDTO {
+        try await self.run(["citools", "install"], decode: CIToolsInstallDTO.self)
+    }
+
     // MARK: - Bitwarden (Phase 9)
 
     struct BWStatusDTO: Codable, Equatable {

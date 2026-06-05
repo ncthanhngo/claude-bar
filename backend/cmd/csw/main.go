@@ -76,6 +76,8 @@ func main() {
 		err = runBackup(ctx, args)
 	case "gitlab":
 		err = runGitLab(ctx, svc, args)
+	case "citools":
+		err = runCITools(ctx, args)
 	case "bw":
 		err = runBW(ctx, args)
 	case "audit":
