@@ -18,6 +18,27 @@
     <description>Auto-update feed for AI Bar — the experimental build of the Claude Code menu-bar manager.</description>
     <language>en</language>
     <item>
+      <title>AI Bar 0.7</title>
+      <sparkle:version>0.7</sparkle:version>
+      <sparkle:shortVersionString>0.7</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li>New “Theo dõi CI” tool in Daily → Tools: one-click install of ci-watch + glpush.</li>
+          <li>After every git push, your GitLab/GitHub pipeline is watched in the background and you're notified when it finishes.</li>
+          <li>GitLab auth reuses your saved MCP GitLab token; an inline form lets you fill it in Tools if none is set yet.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Fri, 05 Jun 2026 17:08:56 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/aibar-v0.7/AIBar.zip"
+        sparkle:version="0.7"
+        sparkle:shortVersionString="0.7"
+        sparkle:edSignature="hBIVMiikjvimQztaf6pmBNhPfvTfzHv4VI7TpYgnZq2SNlYEJHvuLV7D5CwD04jWX3QaN19KRSm4fZ5pjRPeCw=="
+        length="11305312"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>AI Bar 0.6</title>
       <sparkle:version>0.6</sparkle:version>
       <sparkle:shortVersionString>0.6</sparkle:shortVersionString>
