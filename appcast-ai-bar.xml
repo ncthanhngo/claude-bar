@@ -18,6 +18,27 @@
     <description>Auto-update feed for AI Bar — the experimental build of the Claude Code menu-bar manager.</description>
     <language>en</language>
     <item>
+      <title>AI Bar 0.9</title>
+      <sparkle:version>0.9</sparkle:version>
+      <sparkle:shortVersionString>0.9</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li>Netbird group roles, colors, notes, and the people directory now sync across your Macs via iCloud Drive.</li>
+          <li>Open the app on a new Mac and the access matrix appears with the same dev/server columns you set up on the original.</li>
+          <li>Fixes the missing matrix on a second Mac caused by per-machine UserDefaults.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Mon, 08 Jun 2026 00:08:39 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/aibar-v0.9/AIBar.zip"
+        sparkle:version="0.9"
+        sparkle:shortVersionString="0.9"
+        sparkle:edSignature="XQLfKgwgtyS/yFOF7tSeFeXKocg4auUzhZj52pW3SrXKX8jsJ7On8RpnTzo8nUQqsROSwV60+Z94ACbuhpAcCA=="
+        length="11107295"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>AI Bar 0.8</title>
       <sparkle:version>0.8</sparkle:version>
       <sparkle:shortVersionString>0.8</sparkle:shortVersionString>
