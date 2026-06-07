@@ -7,7 +7,7 @@
 	<key>CBAuthorName</key>
 	<string>Thanh Ngô</string>
 	<key>CBBuildDate</key>
-	<string>2026-06-07</string>
+	<string>2026-06-08</string>
 	<key>CBHomepageURL</key>
 	<string>https://github.com/ncthanhngo/claude-bar</string>
 	<key>CBLicense</key>
@@ -15,12 +15,12 @@
 	<key>CBReleaseChannel</key>
 	<string>Beta</string>
 	<key>CBReleaseHotfixes</key>
-	<string>Fixes silent "ambiguous gitlab instance" errors when two instances pointed at the same self-host.</string>
+	<string>Fixes the missing Netbird access matrix on a second Mac caused by per-machine UserDefaults.</string>
 	<key>CBReleaseKnownIssues</key>
 	<string>Don’t run AI Bar and Claude Bar at the same time — they share one backend socket and account lock.</string>
 	<key>CBReleaseWhatsNew</key>
-	<string>Adding a GitLab MCP instance now rejects URLs that duplicate an existing one.
-Normalization ignores case, trailing slash, and a trailing /api/v4 when matching.</string>
+	<string>Netbird group tagging (roles, colors, notes, people directory) now syncs across your Macs via iCloud Drive.
+Open the app on a new Mac and the access matrix appears with the same dev/server columns you set up on the original.</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
@@ -28,7 +28,7 @@ Normalization ignores case, trailing slash, and a trailing /api/v4 when matching
 	<key>CFBundleExecutable</key>
 	<string>ClaudeSwapWidget</string>
 	<key>CFBundleGetInfoString</key>
-	<string>AI Bar 0.8 — experimental build of the Claude Code menu-bar manager</string>
+	<string>AI Bar 0.9 — experimental build of the Claude Code menu-bar manager</string>
 	<key>CFBundleIconFile</key>
 	<string>AppIcon</string>
 	<key>CFBundleIdentifier</key>
@@ -43,11 +43,11 @@ Normalization ignores case, trailing slash, and a trailing /api/v4 when matching
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>0.8</string>
+	<string>0.9</string>
 	<key>CFBundleSignature</key>
 	<string>????</string>
 	<key>CFBundleVersion</key>
-	<string>0.8</string>
+	<string>0.9</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>14.0</string>
 	<key>LSUIElement</key>
