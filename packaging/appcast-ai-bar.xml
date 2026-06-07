@@ -18,6 +18,27 @@
     <description>Auto-update feed for AI Bar — the experimental build of the Claude Code menu-bar manager.</description>
     <language>en</language>
     <item>
+      <title>AI Bar 0.8</title>
+      <sparkle:version>0.8</sparkle:version>
+      <sparkle:shortVersionString>0.8</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li>Adding a GitLab MCP instance now rejects URLs that duplicate an existing one.</li>
+          <li>Duplicate detection normalizes case, trailing slash, and a trailing <code>/api/v4</code>.</li>
+          <li>Fixes silent “ambiguous gitlab instance” errors from the MCP tool surface.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Sun, 07 Jun 2026 23:48:42 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/aibar-v0.8/AIBar.zip"
+        sparkle:version="0.8"
+        sparkle:shortVersionString="0.8"
+        sparkle:edSignature="5UOsAdZUBybN7hFE/3LLo/aUuzS67cJTkZ2d5dpt3Wu6BoxXerObOtuh3FCwJ5+FMFNhxpiv+CxwlDMl60CdCA=="
+        length="11107557"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>AI Bar 0.7</title>
       <sparkle:version>0.7</sparkle:version>
       <sparkle:shortVersionString>0.7</sparkle:shortVersionString>

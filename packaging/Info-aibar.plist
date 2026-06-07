@@ -7,7 +7,7 @@
 	<key>CBAuthorName</key>
 	<string>Thanh Ngô</string>
 	<key>CBBuildDate</key>
-	<string>2026-06-05</string>
+	<string>2026-06-07</string>
 	<key>CBHomepageURL</key>
 	<string>https://github.com/ncthanhngo/claude-bar</string>
 	<key>CBLicense</key>
@@ -15,14 +15,12 @@
 	<key>CBReleaseChannel</key>
 	<string>Beta</string>
 	<key>CBReleaseHotfixes</key>
-	<string>None — feature-only release.</string>
+	<string>Fixes silent "ambiguous gitlab instance" errors when two instances pointed at the same self-host.</string>
 	<key>CBReleaseKnownIssues</key>
-	<string>Open a new terminal after installing before the glpush command is available.
-Don’t run AI Bar and Claude Bar at the same time — they share one backend socket and account lock.</string>
+	<string>Don’t run AI Bar and Claude Bar at the same time — they share one backend socket and account lock.</string>
 	<key>CBReleaseWhatsNew</key>
-	<string>New “Theo dõi CI” tool in Daily → Tools: one-click install of ci-watch + glpush.
-After every git push it watches the GitLab/GitHub pipeline and notifies you when it finishes.
-Reuses your saved MCP GitLab token; fill it right in Tools if none is set yet.</string>
+	<string>Adding a GitLab MCP instance now rejects URLs that duplicate an existing one.
+Normalization ignores case, trailing slash, and a trailing /api/v4 when matching.</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
@@ -30,7 +28,7 @@ Reuses your saved MCP GitLab token; fill it right in Tools if none is set yet.</
 	<key>CFBundleExecutable</key>
 	<string>ClaudeSwapWidget</string>
 	<key>CFBundleGetInfoString</key>
-	<string>AI Bar 0.7 — experimental build of the Claude Code menu-bar manager</string>
+	<string>AI Bar 0.8 — experimental build of the Claude Code menu-bar manager</string>
 	<key>CFBundleIconFile</key>
 	<string>AppIcon</string>
 	<key>CFBundleIdentifier</key>
@@ -45,11 +43,11 @@ Reuses your saved MCP GitLab token; fill it right in Tools if none is set yet.</
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>0.7</string>
+	<string>0.8</string>
 	<key>CFBundleSignature</key>
 	<string>????</string>
 	<key>CFBundleVersion</key>
-	<string>0.7</string>
+	<string>0.8</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>14.0</string>
 	<key>LSUIElement</key>
