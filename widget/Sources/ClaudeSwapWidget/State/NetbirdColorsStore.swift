@@ -3,8 +3,13 @@ import Foundation
 /// Per-group accent colors (groupName → 0xRRGGBB). Lets the admin color-code
 /// dev groups and server clusters for quick visual distinction. Persisted in
 /// UserDefaults; non-secret. Colors are chosen from a fixed editorial palette.
+///
+/// Stored as a JSON-string under `netbird.groupColors.v1.json` so the
+/// PreferencesCloudSync whitelist (string-only) carries it across Macs. Legacy
+/// dict at `netbird.groupColors.v1` is read once for migration.
 enum NetbirdColorsStore {
-    private static let key = "netbird.groupColors.v1"
+    private static let key = "netbird.groupColors.v1.json"
+    private static let legacyKey = "netbird.groupColors.v1"
 
     /// Curated swatch palette offered in the picker.
     static let swatches: [UInt32] = [
@@ -13,11 +18,20 @@ enum NetbirdColorsStore {
     ]
 
     static func load() -> [String: UInt32] {
-        guard let raw = UserDefaults.standard.dictionary(forKey: key) as? [String: Int] else { return [:] }
-        return raw.mapValues { UInt32(truncatingIfNeeded: $0) }
+        if let s = UserDefaults.standard.string(forKey: key),
+           let data = s.data(using: .utf8),
+           let raw = try? JSONDecoder().decode([String: UInt32].self, from: data) {
+            return raw
+        }
+        guard let raw = UserDefaults.standard.dictionary(forKey: legacyKey) as? [String: Int] else { return [:] }
+        let migrated = raw.mapValues { UInt32(truncatingIfNeeded: $0) }
+        save(migrated) // write-back so iCloud sync picks up legacy data on first launch
+        return migrated
     }
 
     static func save(_ colors: [String: UInt32]) {
-        UserDefaults.standard.set(colors.mapValues { Int($0) }, forKey: key)
+        guard let data = try? JSONEncoder().encode(colors),
+              let s = String(data: data, encoding: .utf8) else { return }
+        UserDefaults.standard.set(s, forKey: key)
     }
 }

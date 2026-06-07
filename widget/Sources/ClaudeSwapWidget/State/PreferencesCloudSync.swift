@@ -354,4 +354,10 @@ private let syncedKeys: [SyncedKey] = [
     .init(id: "briefingNewsFetchesPerDay",              kind: .int),
     .init(id: "briefingScheduleTimes",                  kind: .string),
     .init(id: "briefingUserPrompt",                     kind: .string),
+
+    // Daily → Netbird (group metadata, JSON-encoded dicts as strings)
+    .init(id: "netbird.groupRoles.v1.json",  kind: .string),
+    .init(id: "netbird.groupColors.v1.json", kind: .string),
+    .init(id: "netbird.groupNotes.v1.json",  kind: .string),
+    .init(id: "netbird.people.v1.json",      kind: .string),
 ]

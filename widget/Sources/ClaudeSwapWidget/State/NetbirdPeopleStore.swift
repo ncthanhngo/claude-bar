@@ -23,21 +23,30 @@ struct NetbirdPerson: Codable, Identifiable, Hashable {
     }
 }
 
-/// On-disk registry of enrollment recipients. Stored as a JSON blob in
-/// UserDefaults to match the other local NetBird metadata stores (colors,
-/// notes, roles) — non-secret, machine-local.
+/// On-disk registry of enrollment recipients. Stored as a JSON-string under
+/// `netbird.people.v1.json` so the PreferencesCloudSync whitelist (string-only)
+/// carries it across Macs. Legacy Data blob at `netbird.people.v1` is read once
+/// for migration.
 enum NetbirdPeopleStore {
-    private static let key = "netbird.people.v1"
+    private static let key = "netbird.people.v1.json"
+    private static let legacyKey = "netbird.people.v1"
 
     static func load() -> [NetbirdPerson] {
-        guard let data = UserDefaults.standard.data(forKey: key),
+        if let s = UserDefaults.standard.string(forKey: key),
+           let data = s.data(using: .utf8),
+           let people = try? JSONDecoder().decode([NetbirdPerson].self, from: data) {
+            return people
+        }
+        guard let data = UserDefaults.standard.data(forKey: legacyKey),
               let people = try? JSONDecoder().decode([NetbirdPerson].self, from: data)
         else { return [] }
+        save(people) // write-back so iCloud sync picks up legacy data on first launch
         return people
     }
 
     static func save(_ people: [NetbirdPerson]) {
-        guard let data = try? JSONEncoder().encode(people) else { return }
-        UserDefaults.standard.set(data, forKey: key)
+        guard let data = try? JSONEncoder().encode(people),
+              let s = String(data: data, encoding: .utf8) else { return }
+        UserDefaults.standard.set(s, forKey: key)
     }
 }
