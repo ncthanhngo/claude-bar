@@ -95,11 +95,21 @@ enum ClaudeWebUsageAPI {
     /// the decode tries the documented Claude Code Max plan shape first
     /// (`five_hour` + `seven_day` periods with `utilization` + `resets_at`),
     /// falls through alternates we observed during reverse-engineering.
-    private static func decode(data: Data) throws -> UsageDTO {
+    static func decode(data: Data) throws -> UsageDTO {
         let decoder = JSONDecoder()
-        // Anthropic mixes "Z" timestamps and timezone-offset; the .iso8601
-        // strategy handles both.
-        decoder.dateDecodingStrategy = .iso8601
+        // Anthropic returns `resets_at` with fractional seconds AND a timezone
+        // offset (e.g. "2026-06-08T17:00:00.246364+00:00"). The plain .iso8601
+        // strategy uses .withInternetDateTime only, which rejects fractional
+        // seconds — so decode the string ourselves, trying the fractional
+        // formatter first and falling back to the plain one.
+        decoder.dateDecodingStrategy = .custom { dec in
+            let container = try dec.singleValueContainer()
+            let s = try container.decode(String.self)
+            if let d = usageISOFractional.date(from: s) { return d }
+            if let d = usageISOPlain.date(from: s) { return d }
+            throw DecodingError.dataCorruptedError(
+                in: container, debugDescription: "unparseable resets_at: \(s)")
+        }
         if let resp = try? decoder.decode(WireV1.self, from: data) {
             return resp.usage
         }
@@ -190,3 +200,20 @@ enum ClaudeWebUsageAPI {
         }
     }
 }
+
+/// ISO8601 with fractional seconds — Anthropic's current `resets_at` form
+/// (e.g. "2026-06-08T17:00:00.246364+00:00"). File-scoped (not actor-isolated)
+/// so the `.custom` Sendable decode closure can reference it without an
+/// actor-isolation warning. `date(from:)` is thread-safe.
+private nonisolated(unsafe) let usageISOFractional: ISO8601DateFormatter = {
+    let f = ISO8601DateFormatter()
+    f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+    return f
+}()
+
+/// ISO8601 without fractional seconds — older / "Z" timestamp form.
+private nonisolated(unsafe) let usageISOPlain: ISO8601DateFormatter = {
+    let f = ISO8601DateFormatter()
+    f.formatOptions = [.withInternetDateTime]
+    return f
+}()
