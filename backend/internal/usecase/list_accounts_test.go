@@ -88,10 +88,11 @@ func (r *listTestTokenRefresher) Refresh(context.Context, string) (*domain.OAuth
 	return r.fresh, r.err
 }
 
-func TestListAccountsUsesBackupTokenForUsageFetch(t *testing.T) {
-	// The usage fetch must use the BACKUP token (not the live token) for
-	// active accounts. Live is read for liveness inspection but the token
-	// passed to Usage.Fetch must come from the backup store.
+func TestListAccountsUsesLiveTokenForActiveUsageFetch(t *testing.T) {
+	// The usage fetch must use the LIVE token (kept fresh by Claude Code) for
+	// active accounts — NOT the backup token. Refreshing the active backup
+	// would rotate the shared single-use refresh token and invalidate the live
+	// credential, forcing a daily re-login.
 	liveBlob := credentialBlob("live-token", "live-refresh", time.Now().Add(time.Hour))
 	live := &listTestLiveStore{blob: liveBlob}
 	backup := &listTestBackupStore{
@@ -123,13 +124,19 @@ func TestListAccountsUsesBackupTokenForUsageFetch(t *testing.T) {
 	if len(res.Accounts) != 1 || !res.Accounts[0].IsActive || res.Accounts[0].Usage == nil {
 		t.Fatalf("unexpected account view: %+v", res.Accounts)
 	}
-	// The backup token must be used for usage — NOT the live token.
-	if len(usage.tokens) < 1 || usage.tokens[0] != "active-token" {
-		t.Fatalf("usage token = %v, want backup token 'active-token'", usage.tokens)
+	// The live token must be used for usage — never the backup token.
+	if len(usage.tokens) < 1 {
+		t.Fatalf("usage was not fetched: %v", usage.tokens)
 	}
-	// Live is read once for the liveness check (intentional by design).
-	if live.readCount != 1 {
-		t.Fatalf("live read count = %d, want exactly 1 (liveness check)", live.readCount)
+	for _, tok := range usage.tokens {
+		if tok != "live-token" {
+			t.Fatalf("usage token = %v, want only live token 'live-token'", usage.tokens)
+		}
+	}
+	// Live is read twice: once in fillUsage (for the usage probe token) and
+	// once in inspectActiveCredential (the liveness check).
+	if live.readCount != 2 {
+		t.Fatalf("live read count = %d, want 2 (usage + liveness)", live.readCount)
 	}
 }
 
@@ -232,9 +239,11 @@ func TestListAccountsShowsConfigActiveAccountWhenRegistryDrifts(t *testing.T) {
 	}
 }
 
-func TestListAccountsRefreshesExpiredActiveBackupUsesLiveForInspect(t *testing.T) {
-	// Live is read for liveness inspection even when the backup is expired and
-	// needs refreshing. The backup token is still used for the usage fetch.
+func TestListAccountsDoesNotRefreshExpiredActiveBackup(t *testing.T) {
+	// An expired backup copy of the ACTIVE account must NOT be refreshed: doing
+	// so consumes the shared single-use refresh token server-side and kills the
+	// live credential Claude Code reads next start. Usage falls back to the live
+	// token (kept fresh by Claude Code) instead.
 	liveBlob := credentialBlob("live-token", "live-refresh", time.Now().Add(time.Hour))
 	live := &listTestLiveStore{blob: liveBlob}
 	backup := &listTestBackupStore{
@@ -269,27 +278,25 @@ func TestListAccountsRefreshesExpiredActiveBackupUsesLiveForInspect(t *testing.T
 	if _, err := svc.ListAccounts(context.Background()); err != nil {
 		t.Fatalf("ListAccounts returned error: %v", err)
 	}
-	// Live IS read now (liveness check) — exactly once.
-	if live.readCount != 1 {
-		t.Fatalf("live read count = %d, want 1", live.readCount)
+	// Live is read twice: fillUsage (usage token) + inspectActiveCredential.
+	if live.readCount != 2 {
+		t.Fatalf("live read count = %d, want 2", live.readCount)
 	}
-	if refresh.calls != 1 {
-		t.Fatalf("refresh calls = %d, want 1", refresh.calls)
+	// The active account's refresh token must never be exercised here.
+	if refresh.calls != 0 {
+		t.Fatalf("refresh calls = %d, want 0 (active backup must not refresh)", refresh.calls)
 	}
-	if _, ok := backup.writes[1]; !ok {
-		t.Fatal("expired active backup was not persisted after refresh")
+	if _, ok := backup.writes[1]; ok {
+		t.Fatal("active backup must not be written — refresh must not run")
 	}
-	// fillUsage fetches with the refreshed backup token; inspectActiveCredential
-	// probes with the live token. Both should appear.
-	found := false
+	// Usage is probed with the live token, never the expired backup token.
+	if len(usage.tokens) < 1 {
+		t.Fatalf("usage was not fetched: %v", usage.tokens)
+	}
 	for _, tok := range usage.tokens {
-		if tok == "fresh-token" {
-			found = true
-			break
+		if tok != "live-token" {
+			t.Fatalf("usage token = %v, want only live token 'live-token'", usage.tokens)
 		}
-	}
-	if !found {
-		t.Fatalf("usage tokens = %v, want refreshed backup token 'fresh-token' among them", usage.tokens)
 	}
 }
 
