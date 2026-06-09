@@ -18,6 +18,27 @@
     <description>Auto-update feed for AI Bar — the experimental build of the Claude Code menu-bar manager.</description>
     <language>en</language>
     <item>
+      <title>AI Bar 0.11</title>
+      <sparkle:version>0.11</sparkle:version>
+      <sparkle:shortVersionString>0.11</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li>Fixes a stuck red "Sign in" usage badge on an account that's actually working — it's the web-usage source, not your CLI login.</li>
+          <li>Root cause: claude.ai's usage API started returning timestamps with fractional seconds the app couldn't parse, so usage reads kept failing.</li>
+          <li>The badge only clears on a successful read, so signing in via Safari didn't help until this fix.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Tue, 09 Jun 2026 15:49:53 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/aibar-v0.11/AIBar.zip"
+        sparkle:version="0.11"
+        sparkle:shortVersionString="0.11"
+        sparkle:edSignature="QNE82AAHeEMw+Ljy2pZFv/QCFv61dYzMV6G0fxywjQ4ToSa2UE/Y3oe89/5gI+8qgfY+P6bN21QFsznWtAIYAw=="
+        length="11306877"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>AI Bar 0.10</title>
       <sparkle:version>0.10</sparkle:version>
       <sparkle:shortVersionString>0.10</sparkle:shortVersionString>
