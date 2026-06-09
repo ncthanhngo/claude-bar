@@ -18,6 +18,27 @@
     <description>Auto-update feed for AI Bar — the experimental build of the Claude Code menu-bar manager.</description>
     <language>en</language>
     <item>
+      <title>AI Bar 0.10</title>
+      <sparkle:version>0.10</sparkle:version>
+      <sparkle:shortVersionString>0.10</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li>No more signing in every morning — the active account's sign-in token is no longer invalidated overnight by background refresh.</li>
+          <li>Active account usage now reads from the live token Claude Code keeps fresh, instead of the app refreshing and rotating it.</li>
+          <li>Under the hood: AI Bar never refreshes the active account's tokens — Claude Code owns that cycle.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Tue, 09 Jun 2026 09:38:52 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/aibar-v0.10/AIBar.zip"
+        sparkle:version="0.10"
+        sparkle:shortVersionString="0.10"
+        sparkle:edSignature="Wp4PrwWQJ5rGUGv7kynUPI9OrseSNca6axD8BV2SZoAkZYHCkM9Jo6rxjuYs7NvJJpzu8ZHW3YsiZ+gB65o2DA=="
+        length="11306425"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>AI Bar 0.9</title>
       <sparkle:version>0.9</sparkle:version>
       <sparkle:shortVersionString>0.9</sparkle:shortVersionString>
