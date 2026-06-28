@@ -38,8 +38,8 @@ struct TokenSummaryStripView: View {
                 // Hidden on older backends that report 0.
                 if bucket.costEquivalentTokens > 0 {
                     Text("≈\(TokenFormatters.compact(bucket.costEquivalentTokens)) cost-eq")
-                        .font(.system(size: 9, design: .monospaced))
-                        .foregroundColor(tint.opacity(0.9))
+                        .font(.system(size: 9, weight: .medium, design: .monospaced))
+                        .foregroundColor(.secondary)
                 }
                 Text("\(bucket.requests) req")
                     .font(.system(size: 9, design: .monospaced))
