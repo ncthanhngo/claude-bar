@@ -23,21 +23,27 @@ struct TokenSummaryStripView: View {
             RoundedRectangle(cornerRadius: 1.5)
                 .fill(tint)
                 .frame(width: 3)
-            // Tokens (hero) over request count. Dollar estimates were dropped
-            // — subscription accounts don't pay per token, so the USD figure
-            // was misleading rather than informative.
+            // Cost-equivalent (billable weight) is the hero — it answers "how
+            // much did I actually use", whereas the raw total is dominated by
+            // cheap cache reads. Raw total drops to a reference subline.
+            // Dollar estimates were dropped — subscription accounts don't pay
+            // per token, so the USD figure was misleading.
             VStack(alignment: .leading, spacing: 3) {
                 Text(title)
                     .font(.system(size: 10, weight: .medium))
                     .foregroundColor(.secondary)
                     .lineLimit(1)
-                Text(TokenFormatters.compact(bucket.totalTokens))
+                // Hero = cost-equivalent. Fall back to raw total only when an
+                // older backend doesn't emit it (reports 0).
+                Text(TokenFormatters.compact(
+                    bucket.costEquivalentTokens > 0
+                        ? bucket.costEquivalentTokens
+                        : bucket.totalTokens))
                     .font(.system(size: 14, weight: .semibold, design: .monospaced))
                     .foregroundColor(.primary)
-                // Billable-weight equivalent (cache reads counted at 0.1×).
-                // Hidden on older backends that report 0.
+                // Raw total — all tokens processed, for reference.
                 if bucket.costEquivalentTokens > 0 {
-                    Text("≈\(TokenFormatters.compact(bucket.costEquivalentTokens)) cost-eq")
+                    Text("\(TokenFormatters.compact(bucket.totalTokens)) total")
                         .font(.system(size: 9, weight: .medium, design: .monospaced))
                         .foregroundColor(.secondary)
                 }
