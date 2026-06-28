@@ -29,10 +29,11 @@ type TimedBucket struct {
 
 // UsageBucket is a single calendar window's totals.
 //
-// TotalTokens excludes cache reads on purpose: cache reads are billed at ~10%
-// of input and dominate the raw count for any long-running session, which
-// makes the "total" number unreadable as a usage signal. Cache reads are kept
-// in their own field so users still see them in the breakdown.
+// TotalTokens is the complete count of tokens processed: input + output +
+// cache_creation + cache_read. Every token Anthropic reports in a message's
+// usage block is included so the figure matches the true volume consumed
+// (same total ccusage reports). The four components remain in their own
+// fields for the breakdown.
 //
 // EstimatedCostUsd is retained for JSON-contract stability but is no longer
 // populated — it always serialises as 0. Dollar estimates were dropped because
@@ -53,7 +54,7 @@ func (b *UsageBucket) Add(input, output, cacheCreate, cacheRead int64) {
 	b.OutputTokens += output
 	b.CacheCreationTokens += cacheCreate
 	b.CacheReadTokens += cacheRead
-	// Cache reads excluded from TotalTokens — see type doc.
-	b.TotalTokens += input + output + cacheCreate
+	// All four components included — total = complete tokens processed.
+	b.TotalTokens += input + output + cacheCreate + cacheRead
 	b.Requests++
 }
