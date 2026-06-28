@@ -7,7 +7,7 @@
 	<key>CBAuthorName</key>
 	<string>Thanh Ngô</string>
 	<key>CBBuildDate</key>
-	<string>2026-06-09</string>
+	<string>2026-06-28</string>
 	<key>CBHomepageURL</key>
 	<string>https://github.com/ncthanhngo/claude-bar</string>
 	<key>CBLicense</key>
@@ -15,12 +15,12 @@
 	<key>CBReleaseChannel</key>
 	<string>Beta</string>
 	<key>CBReleaseHotfixes</key>
-	<string>The usage API now parses timestamps with fractional seconds, so reads stop failing and clear the stuck badge.</string>
+	<string>None</string>
 	<key>CBReleaseKnownIssues</key>
 	<string>Don’t run AI Bar and Claude Bar at the same time — they share one backend socket and account lock.</string>
 	<key>CBReleaseWhatsNew</key>
-	<string>Fixes a stuck red “Sign in” usage badge on a working account — the app could no longer read claude.ai usage after an API timestamp change.
-Open the app on a new Mac and the access matrix appears with the same dev/server columns you set up on the original.</string>
+	<string>Token usage totals now count every component — input, output, and cache reads — so the number reflects all tokens processed.
+Stats still cover Claude Code (terminal + IDE) only.</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
@@ -28,7 +28,7 @@ Open the app on a new Mac and the access matrix appears with the same dev/server
 	<key>CFBundleExecutable</key>
 	<string>ClaudeSwapWidget</string>
 	<key>CFBundleGetInfoString</key>
-	<string>AI Bar 0.11 — experimental build of the Claude Code menu-bar manager</string>
+	<string>AI Bar 0.12 — experimental build of the Claude Code menu-bar manager</string>
 	<key>CFBundleIconFile</key>
 	<string>AppIcon</string>
 	<key>CFBundleIdentifier</key>
@@ -43,11 +43,11 @@ Open the app on a new Mac and the access matrix appears with the same dev/server
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>0.11</string>
+	<string>0.12</string>
 	<key>CFBundleSignature</key>
 	<string>????</string>
 	<key>CFBundleVersion</key>
-	<string>0.11</string>
+	<string>0.12</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>14.0</string>
 	<key>LSUIElement</key>
