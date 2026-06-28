@@ -69,10 +69,10 @@ func TestScanner_BucketsByCalendarWindow(t *testing.T) {
 	if r.Today.Requests != 1 || r.Today.InputTokens != 100 || r.Today.OutputTokens != 50 {
 		t.Fatalf("Today bucket = %+v, want one request 100/50", r.Today)
 	}
-	// TotalTokens excludes cache reads on purpose (see UsageBucket doc).
-	if r.Today.TotalTokens != 100+50+200 {
-		t.Fatalf("Today.TotalTokens = %d, want %d (input+output+cache_write, NO cache_read)",
-			r.Today.TotalTokens, 100+50+200)
+	// TotalTokens is the complete count: input+output+cache_write+cache_read.
+	if r.Today.TotalTokens != 100+50+200+1000 {
+		t.Fatalf("Today.TotalTokens = %d, want %d (input+output+cache_write+cache_read)",
+			r.Today.TotalTokens, 100+50+200+1000)
 	}
 	if r.Today.CacheReadTokens != 1000 {
 		t.Fatalf("Today.CacheReadTokens = %d, want 1000", r.Today.CacheReadTokens)
