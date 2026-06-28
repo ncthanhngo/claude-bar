@@ -18,6 +18,27 @@
     <description>Auto-update feed for AI Bar — the experimental build of the Claude Code menu-bar manager.</description>
     <language>en</language>
     <item>
+      <title>AI Bar 0.13</title>
+      <sparkle:version>0.13</sparkle:version>
+      <sparkle:shortVersionString>0.13</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li>Each usage card (Today / This week / This month) now shows a <b>cost-equivalent</b> figure under the raw total — tokens weighted by Anthropic's per-flow price ratios (output 5×, cache write 1.25×, cache read 0.1×). Reflects billable weight, not raw volume that cache reads dominate.</li>
+          <li>Ratios are identical across the Claude model lineup, so the figure is exact regardless of model mix — no dollar price table needed.</li>
+          <li>Hover a card for the full per-component breakdown including the cost-equivalent.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Sun, 28 Jun 2026 21:32:48 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/aibar-v0.13/AIBar.zip"
+        sparkle:version="0.13"
+        sparkle:shortVersionString="0.13"
+        sparkle:edSignature="KejSOxoRzFwC+QfoyUKvovKEVtR+UvITZqaqrVU0B3OORHQZmUO4FIVOgX24Dbmb2n/QJubBcRt8N0HleQ4oBQ=="
+        length="11107550"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>AI Bar 0.12</title>
       <sparkle:version>0.12</sparkle:version>
       <sparkle:shortVersionString>0.12</sparkle:shortVersionString>
