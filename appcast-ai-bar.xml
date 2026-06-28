@@ -18,6 +18,27 @@
     <description>Auto-update feed for AI Bar — the experimental build of the Claude Code menu-bar manager.</description>
     <language>en</language>
     <item>
+      <title>AI Bar 0.12</title>
+      <sparkle:version>0.12</sparkle:version>
+      <sparkle:shortVersionString>0.12</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li>Token usage totals now count every component — input, output, cache writes, and cache reads — so the figure reflects all tokens processed (matches ccusage). Previously cache reads were excluded, undercounting heavy sessions.</li>
+          <li>Per-component breakdown (input / output / cache write / cache read) still shown in the tooltip.</li>
+          <li>Note: stats cover Claude Code usage (terminal CLI + IDE extension) only — web claude.ai and direct API calls aren't in the local logs.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Sun, 28 Jun 2026 21:03:51 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/aibar-v0.12/AIBar.zip"
+        sparkle:version="0.12"
+        sparkle:shortVersionString="0.12"
+        sparkle:edSignature="r7N9N6xhjnX1PgS8k1GEqBJWiYLyuE3becy2rKuAdwjxZLc4g7gvPD0zxOW+gKLd0vN9mHQPPEtsvYuBL8owCA=="
+        length="11107652"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>AI Bar 0.11</title>
       <sparkle:version>0.11</sparkle:version>
       <sparkle:shortVersionString>0.11</sparkle:shortVersionString>
