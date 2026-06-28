@@ -15,12 +15,12 @@
 	<key>CBReleaseChannel</key>
 	<string>Beta</string>
 	<key>CBReleaseHotfixes</key>
-	<string>None</string>
+	<string>Fixed the header icons (theme / quit / settings) still sitting too close to the popover edge.</string>
 	<key>CBReleaseKnownIssues</key>
 	<string>Don’t run AI Bar and Claude Bar at the same time — they share one backend socket and account lock.</string>
 	<key>CBReleaseWhatsNew</key>
-	<string>Popover polish: usage percentages now share one traffic-light color with their bars; blue is reserved for controls.
-The usage chart now matches the cards’ cost-equivalent scale, and header icons sit clear of the edge.</string>
+	<string>Header icons now sit comfortably clear of the popover edge.
+Builds on the popover polish from 0.16 (unified usage colors, cost-equivalent chart).</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
@@ -28,7 +28,7 @@ The usage chart now matches the cards’ cost-equivalent scale, and header icons
 	<key>CFBundleExecutable</key>
 	<string>ClaudeSwapWidget</string>
 	<key>CFBundleGetInfoString</key>
-	<string>AI Bar 0.16 — experimental build of the Claude Code menu-bar manager</string>
+	<string>AI Bar 0.17 — experimental build of the Claude Code menu-bar manager</string>
 	<key>CFBundleIconFile</key>
 	<string>AppIcon</string>
 	<key>CFBundleIdentifier</key>
@@ -43,11 +43,11 @@ The usage chart now matches the cards’ cost-equivalent scale, and header icons
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>0.16</string>
+	<string>0.17</string>
 	<key>CFBundleSignature</key>
 	<string>????</string>
 	<key>CFBundleVersion</key>
-	<string>0.16</string>
+	<string>0.17</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>14.0</string>
 	<key>LSUIElement</key>
