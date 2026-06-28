@@ -19,12 +19,12 @@ struct UsageBar: View {
             Text(window.percentInt < 1 ? "<1%" : "\(window.percentInt)%")
                 .font(.system(size: 12, weight: .bold))
                 .monospacedDigit()
-                .foregroundColor(UsagePalette.percentText)
+                .foregroundColor(UsagePalette.color(for: window.percentInt))
                 .frame(width: 34, alignment: .trailing)
             Text(window.resetLabel())
                 .font(.system(size: 11, weight: .medium))
                 .monospacedDigit()
-                .foregroundColor(.primary.opacity(0.55))
+                .foregroundColor(.primary.opacity(0.68))
                 .frame(width: 52, alignment: .trailing)
         }
     }
@@ -56,14 +56,6 @@ enum UsagePalette {
         default:     return Color(red: 0.94, green: 0.27, blue: 0.27)   // red #EF4444
         }
     }
-
-    /// Single shared colour for every "X%" number across all three popover
-    /// layouts. The bar fill still uses `color(for:)` so quota tier stays
-    /// readable at a glance, but the numeric value itself is rendered in
-    /// blue so its weight reads consistently regardless of value — the
-    /// previous palette-tinted digits faded into the bar at low values and
-    /// glared at high ones. One colour, every layout.
-    static let percentText: Color = Color(red: 0.10, green: 0.52, blue: 0.96)  // #1A85F5
 }
 
 /// Static placeholder shown when usage exists but this window is missing
