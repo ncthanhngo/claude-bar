@@ -77,13 +77,15 @@ private struct UsageChart: View {
         }
     }
 
-    // Y value per bucket — raw compute tokens. Bars stay sized relative to the
-    // series so the axis is meaningful even when totals are tiny.
+    // Y value per bucket — cost-equivalent tokens, matching the headline figure
+    // on the KPI cards below so the chart and cards read on the same scale
+    // instead of the chart showing billions while the cards lead with millions.
+    // Falls back to the raw total for older backends that don't emit cost-eq.
     private func yValue(_ b: UsageBucketDTO) -> Double {
-        Double(b.totalTokens)
+        Double(b.costEquivalentTokens > 0 ? b.costEquivalentTokens : b.totalTokens)
     }
 
-    private let yAxisLabel = "Tokens"
+    private let yAxisLabel = "Cost-eq"
 
     private var hasData: Bool {
         series.contains { yValue($0.bucket) > 0 }
