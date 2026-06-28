@@ -18,6 +18,28 @@
     <description>Auto-update feed for AI Bar — the experimental build of the Claude Code menu-bar manager.</description>
     <language>en</language>
     <item>
+      <title>AI Bar 0.16</title>
+      <sparkle:version>0.16</sparkle:version>
+      <sparkle:shortVersionString>0.16</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li><b>Unified usage color:</b> percentage numbers now share one traffic-light scale (green → amber → red) with their bars, instead of blue digits. Blue is reserved for interactive controls (slider, Switch) so each color carries one meaning.</li>
+          <li><b>Chart matches the cards:</b> the usage chart now plots the cost-equivalent scale, so it no longer shows billions while the KPI cards lead with millions.</li>
+          <li><b>Header spacing:</b> the right-side chrome icons (theme / quit / settings) no longer sit flush against the popover edge.</li>
+          <li><b>Contrast:</b> account reset-time labels are slightly darker for legibility.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Sun, 28 Jun 2026 22:35:34 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/aibar-v0.16/AIBar.zip"
+        sparkle:version="0.16"
+        sparkle:shortVersionString="0.16"
+        sparkle:edSignature="SVBJbjvZsCV3fTMEBNW2Hg6wfJ5EhjzPP4wlmsPewRUp4Rul4Md1Zribeu7c1qZGqgg02W/BlHaCR4d6hCl3BA=="
+        length="11108893"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>AI Bar 0.15</title>
       <sparkle:version>0.15</sparkle:version>
       <sparkle:shortVersionString>0.15</sparkle:shortVersionString>
