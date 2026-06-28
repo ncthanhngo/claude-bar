@@ -18,6 +18,25 @@
     <description>Auto-update feed for AI Bar — the experimental build of the Claude Code menu-bar manager.</description>
     <language>en</language>
     <item>
+      <title>AI Bar 0.14</title>
+      <sparkle:version>0.14</sparkle:version>
+      <sparkle:shortVersionString>0.14</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li>Fixed the cost-equivalent figure on the usage cards rendering too dim to read — it now uses readable secondary contrast on both light and dark menu bars.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Sun, 28 Jun 2026 22:11:29 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/aibar-v0.14/AIBar.zip"
+        sparkle:version="0.14"
+        sparkle:shortVersionString="0.14"
+        sparkle:edSignature="bZNWkeILmnJo8+/+5AhdSmaeS5IVC3905fP+U14P2qJalVIhWQe2zwlv/h+0BgEitaiyy5DJ5z0nuTXNIJaXAw=="
+        length="11110028"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>AI Bar 0.13</title>
       <sparkle:version>0.13</sparkle:version>
       <sparkle:shortVersionString>0.13</sparkle:shortVersionString>
