@@ -388,11 +388,33 @@ struct UsageBucketDTO: Codable, Hashable {
     let outputTokens: Int64
     let cacheCreationTokens: Int64
     let cacheReadTokens: Int64
-    /// Sum of input + output + cache_write. Cache reads are tracked separately
-    /// because they would otherwise dominate the headline number.
+    /// Complete count of tokens processed: input + output + cache_write +
+    /// cache_read. Matches what the API reports as tokens used.
     let totalTokens: Int64
+    /// Token count normalised to input-token equivalents by Anthropic's
+    /// per-flow price ratios (output 5×, cache write 1.25×, cache read 0.1×).
+    /// Reflects billable weight — far below totalTokens because cache reads
+    /// are cheap. Defaults to 0 for older backends that don't emit it.
+    let costEquivalentTokens: Int64
     /// Estimated dollar cost at Anthropic's published per-model rates,
     /// computed across all four token flows (including cache reads).
     let estimatedCostUsd: Double
     let requests: Int
+
+    enum CodingKeys: String, CodingKey {
+        case inputTokens, outputTokens, cacheCreationTokens, cacheReadTokens
+        case totalTokens, costEquivalentTokens, estimatedCostUsd, requests
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        inputTokens = try c.decode(Int64.self, forKey: .inputTokens)
+        outputTokens = try c.decode(Int64.self, forKey: .outputTokens)
+        cacheCreationTokens = try c.decode(Int64.self, forKey: .cacheCreationTokens)
+        cacheReadTokens = try c.decode(Int64.self, forKey: .cacheReadTokens)
+        totalTokens = try c.decode(Int64.self, forKey: .totalTokens)
+        costEquivalentTokens = try c.decodeIfPresent(Int64.self, forKey: .costEquivalentTokens) ?? 0
+        estimatedCostUsd = try c.decodeIfPresent(Double.self, forKey: .estimatedCostUsd) ?? 0
+        requests = try c.decode(Int.self, forKey: .requests)
+    }
 }

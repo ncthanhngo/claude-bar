@@ -77,6 +77,11 @@ func TestScanner_BucketsByCalendarWindow(t *testing.T) {
 	if r.Today.CacheReadTokens != 1000 {
 		t.Fatalf("Today.CacheReadTokens = %d, want 1000", r.Today.CacheReadTokens)
 	}
+	// Cost-equiv: input + output·5 + cache_write·1.25 + cache_read·0.1
+	// = 100 + 250 + 250 + 100 = 700.
+	if r.Today.CostEquivalentTokens != 100+50*5+200*5/4+1000/10 {
+		t.Fatalf("Today.CostEquivalentTokens = %d, want 700", r.Today.CostEquivalentTokens)
+	}
 
 	// Week bucket = today + week.
 	if r.ThisWeek.Requests != 2 || r.ThisWeek.InputTokens != 110 {
