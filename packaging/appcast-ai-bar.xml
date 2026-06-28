@@ -18,6 +18,26 @@
     <description>Auto-update feed for AI Bar — the experimental build of the Claude Code menu-bar manager.</description>
     <language>en</language>
     <item>
+      <title>AI Bar 0.17</title>
+      <sparkle:version>0.17</sparkle:version>
+      <sparkle:shortVersionString>0.17</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li>Fixed the header chrome icons (theme / quit / settings) still sitting too close to the popover's rounded edge — increased the right inset so they have comfortable clearance.</li>
+          <li>Builds on the popover polish from 0.16 (unified usage colors, cost-equivalent chart scale).</li>
+        </ul>
+      ]]></description>
+      <pubDate>Sun, 28 Jun 2026 22:53:20 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/aibar-v0.17/AIBar.zip"
+        sparkle:version="0.17"
+        sparkle:shortVersionString="0.17"
+        sparkle:edSignature="OWoa5VJ2KIQaqXGgilziAfBJPMrE2YOTxxOIUH5dzx+zQLnAvyZQvmvwiAieLwqbFyiZ9atD8V6OjYWpaqAMBA=="
+        length="11108882"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>AI Bar 0.16</title>
       <sparkle:version>0.16</sparkle:version>
       <sparkle:shortVersionString>0.16</sparkle:shortVersionString>
