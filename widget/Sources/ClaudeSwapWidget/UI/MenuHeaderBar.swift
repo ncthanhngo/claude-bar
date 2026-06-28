@@ -84,9 +84,9 @@ struct MenuHeaderBar: View {
             }
         }
         .padding(.leading, 14)
-        // Keep the right-most chrome icon clear of the popover edge — at 14pt
-        // the gear sat visually flush against the rounded corner.
-        .padding(.trailing, 18)
+        // Keep the right-most chrome icon clear of the popover's rounded
+        // corner — 14/18pt still left the gear visually flush against the edge.
+        .padding(.trailing, 24)
         .padding(.vertical, 6)
     }
 
