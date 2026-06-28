@@ -15,11 +15,11 @@
 	<key>CBReleaseChannel</key>
 	<string>Beta</string>
 	<key>CBReleaseHotfixes</key>
-	<string>None</string>
+	<string>Fixed the cost-equivalent line rendering too dim to read on the usage cards.</string>
 	<key>CBReleaseKnownIssues</key>
 	<string>Don’t run AI Bar and Claude Bar at the same time — they share one backend socket and account lock.</string>
 	<key>CBReleaseWhatsNew</key>
-	<string>Each usage card now shows a “cost-equivalent” figure — tokens weighted by price (cache reads count 0.1×) so you see billable weight, not just raw volume.
+	<string>Cost-equivalent figure on the usage cards is now legible — readable contrast on both light and dark menu bars.
 Hover a card for the full per-component breakdown.</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
@@ -28,7 +28,7 @@ Hover a card for the full per-component breakdown.</string>
 	<key>CFBundleExecutable</key>
 	<string>ClaudeSwapWidget</string>
 	<key>CFBundleGetInfoString</key>
-	<string>AI Bar 0.13 — experimental build of the Claude Code menu-bar manager</string>
+	<string>AI Bar 0.14 — experimental build of the Claude Code menu-bar manager</string>
 	<key>CFBundleIconFile</key>
 	<string>AppIcon</string>
 	<key>CFBundleIdentifier</key>
@@ -43,11 +43,11 @@ Hover a card for the full per-component breakdown.</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>0.13</string>
+	<string>0.14</string>
 	<key>CFBundleSignature</key>
 	<string>????</string>
 	<key>CFBundleVersion</key>
-	<string>0.13</string>
+	<string>0.14</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>14.0</string>
 	<key>LSUIElement</key>
