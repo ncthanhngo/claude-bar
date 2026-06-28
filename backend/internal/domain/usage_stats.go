@@ -44,8 +44,15 @@ type UsageBucket struct {
 	CacheCreationTokens int64   `json:"cacheCreationTokens"`
 	CacheReadTokens     int64   `json:"cacheReadTokens"`
 	TotalTokens         int64   `json:"totalTokens"`
-	EstimatedCostUsd    float64 `json:"estimatedCostUsd"`
-	Requests            int     `json:"requests"`
+	// CostEquivalentTokens normalises the four flows to input-token equivalents
+	// using Anthropic's per-flow price ratios — output 5×, cache write 1.25×,
+	// cache read 0.1× input. These ratios are identical across the Claude model
+	// lineup, so the figure is exact regardless of model mix and needs no dollar
+	// price table. It answers "how heavy was this in billable terms", which the
+	// raw TotalTokens overstates because cache reads (0.1× price) dominate it.
+	CostEquivalentTokens int64   `json:"costEquivalentTokens"`
+	EstimatedCostUsd     float64 `json:"estimatedCostUsd"`
+	Requests             int     `json:"requests"`
 }
 
 // Add merges one assistant message's usage into the bucket.
@@ -56,5 +63,11 @@ func (b *UsageBucket) Add(input, output, cacheCreate, cacheRead int64) {
 	b.CacheReadTokens += cacheRead
 	// All four components included — total = complete tokens processed.
 	b.TotalTokens += input + output + cacheCreate + cacheRead
+	// Recompute from the running totals (not per-message) so the two integer
+	// divisions round once against the aggregate, not 1000× against each line.
+	b.CostEquivalentTokens = b.InputTokens +
+		b.OutputTokens*5 +
+		b.CacheCreationTokens*5/4 +
+		b.CacheReadTokens/10
 	b.Requests++
 }

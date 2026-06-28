@@ -34,6 +34,13 @@ struct TokenSummaryStripView: View {
                 Text(TokenFormatters.compact(bucket.totalTokens))
                     .font(.system(size: 14, weight: .semibold, design: .monospaced))
                     .foregroundColor(.primary)
+                // Billable-weight equivalent (cache reads counted at 0.1×).
+                // Hidden on older backends that report 0.
+                if bucket.costEquivalentTokens > 0 {
+                    Text("≈\(TokenFormatters.compact(bucket.costEquivalentTokens)) cost-eq")
+                        .font(.system(size: 9, design: .monospaced))
+                        .foregroundColor(tint.opacity(0.9))
+                }
                 Text("\(bucket.requests) req")
                     .font(.system(size: 9, design: .monospaced))
                     .foregroundColor(.secondary.opacity(0.8))
@@ -46,7 +53,7 @@ struct TokenSummaryStripView: View {
             RoundedRectangle(cornerRadius: 8, style: .continuous)
                 .fill(Color.primary.opacity(0.05))
         )
-        .help("\(bucket.requests) req · in \(TokenFormatters.compact(bucket.inputTokens)) · out \(TokenFormatters.compact(bucket.outputTokens)) · cache_w \(TokenFormatters.compact(bucket.cacheCreationTokens)) · cache_r \(TokenFormatters.compact(bucket.cacheReadTokens))")
+        .help("\(bucket.requests) req · in \(TokenFormatters.compact(bucket.inputTokens)) · out \(TokenFormatters.compact(bucket.outputTokens)) · cache_w \(TokenFormatters.compact(bucket.cacheCreationTokens)) · cache_r \(TokenFormatters.compact(bucket.cacheReadTokens)) · cost-eq ≈\(TokenFormatters.compact(bucket.costEquivalentTokens)) (input-equiv, out 5× · cache_w 1.25× · cache_r 0.1×)")
     }
 }
 
