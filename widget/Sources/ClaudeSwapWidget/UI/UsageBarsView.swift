@@ -19,7 +19,7 @@ struct UsageBar: View {
             Text(window.percentInt < 1 ? "<1%" : "\(window.percentInt)%")
                 .font(.system(size: 12, weight: .bold))
                 .monospacedDigit()
-                .foregroundColor(UsagePalette.color(for: window.percentInt))
+                .foregroundColor(UsagePalette.textColor(for: window.percentInt))
                 .frame(width: 34, alignment: .trailing)
             Text(window.resetLabel())
                 .font(.system(size: 11, weight: .medium))
@@ -55,6 +55,14 @@ enum UsagePalette {
         case ..<85:  return Color(red: 0.92, green: 0.70, blue: 0.03)   // amber #EAB308
         default:     return Color(red: 0.94, green: 0.27, blue: 0.27)   // red #EF4444
         }
+    }
+
+    // Text variant of the palette. The colored bar already signals the tier,
+    // so for the safe range we drop to plain primary — green numerals read
+    // poorly on the dark popover. Amber/red are kept: there the color is an
+    // intentional warning and both contrast far better than green.
+    static func textColor(for percent: Int) -> Color {
+        percent < 60 ? .primary : color(for: percent)
     }
 }
 
