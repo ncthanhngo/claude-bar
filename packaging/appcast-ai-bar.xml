@@ -18,6 +18,26 @@
     <description>Auto-update feed for AI Bar — the experimental build of the Claude Code menu-bar manager.</description>
     <language>en</language>
     <item>
+      <title>AI Bar 0.18</title>
+      <sparkle:version>0.18</sparkle:version>
+      <sparkle:shortVersionString>0.18</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li>Usage % numbers in the safe range now use a high-contrast color instead of low-contrast green — easy to read on the dark popover.</li>
+          <li>The colored bar still signals safe / warn / critical; amber &amp; red numbers stay for warnings.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Tue, 30 Jun 2026 16:19:26 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/aibar-v0.18/AIBar.zip"
+        sparkle:version="0.18"
+        sparkle:shortVersionString="0.18"
+        sparkle:edSignature="fxKzz+HgMeLLgdLiBgFObUZPLF14bRv2fGKGYg/wsyGalC2H0eUGpeVtV/eszDEjfjBsn95bDfJebE9i2Y9HAw=="
+        length="11310281"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>AI Bar 0.17</title>
       <sparkle:version>0.17</sparkle:version>
       <sparkle:shortVersionString>0.17</sparkle:shortVersionString>
