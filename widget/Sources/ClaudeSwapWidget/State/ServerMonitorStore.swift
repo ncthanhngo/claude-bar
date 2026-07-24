@@ -222,6 +222,38 @@ final class ServerMonitorStore: ObservableObject {
         } catch { lastError = "\(error)" }
     }
 
+    /// Export every tracked host to an encrypted `.cbssh` file at `path`,
+    /// protected by `passphrase` (age scrypt). Metadata only — private keys and
+    /// SSH passwords never leave this Mac. Returns true on success.
+    @discardableResult
+    func exportBundle(toPath path: String, passphrase: String) async -> Bool {
+        do {
+            try await client.sshExportBundle(toPath: path, passphrase: passphrase)
+            lastError = nil
+            return true
+        } catch {
+            lastError = "\(error)"
+            return false
+        }
+    }
+
+    /// Import hosts from a `.cbssh` file. `merge` true adds/updates alongside
+    /// existing hosts (default, non-destructive); false replaces the whole list.
+    /// Reloads the roster + re-probes on success. Returns true on success.
+    @discardableResult
+    func importBundle(fromPath path: String, passphrase: String, merge: Bool) async -> Bool {
+        do {
+            try await client.sshImportBundle(fromPath: path, passphrase: passphrase, merge: merge)
+            await loadHosts()
+            await refreshNow()
+            lastError = nil
+            return true
+        } catch {
+            lastError = "\(error)"
+            return false
+        }
+    }
+
     /// Delete a host and clear any monitor state for it.
     func removeHost(name: String) async {
         do {

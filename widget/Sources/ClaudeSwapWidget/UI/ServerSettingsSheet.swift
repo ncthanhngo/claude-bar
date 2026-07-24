@@ -49,6 +49,24 @@ struct ServerSettingsSheet: View {
             HStack {
                 Text("Quản lý server").font(.system(size: 16, weight: .semibold))
                 Spacer()
+                Menu {
+                    Button { exportBundle() } label: {
+                        Label("Xuất ra file…", systemImage: "square.and.arrow.up")
+                    }
+                    .disabled(monitor.hosts.isEmpty)
+                    Button { importBundle(replace: false) } label: {
+                        Label("Nhập từ file (gộp)…", systemImage: "square.and.arrow.down")
+                    }
+                    Button(role: .destructive) { importBundle(replace: true) } label: {
+                        Label("Nhập & thay thế toàn bộ…", systemImage: "arrow.triangle.2.circlepath")
+                    }
+                    .disabled(monitor.hosts.isEmpty)
+                } label: {
+                    Image(systemName: "ellipsis.circle").font(.system(size: 15))
+                }
+                .menuStyle(.borderlessButton)
+                .fixedSize()
+                .help("Xuất / nhập danh sách server (.cbssh mã hoá)")
                 Button { resetForm(); mode = .add } label: {
                     Label("Thêm", systemImage: "plus")
                 }
@@ -252,6 +270,69 @@ struct ServerSettingsSheet: View {
         let ssh = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".ssh")
         if FileManager.default.fileExists(atPath: ssh.path) { panel.directoryURL = ssh }
         if panel.runModal() == .OK, let url = panel.url { fIdentity = url.path }
+    }
+
+    /// Export the tracked-host list to an encrypted `.cbssh` file. Asks for a
+    /// destination path, then a passphrase to protect it.
+    private func exportBundle() {
+        let panel = NSSavePanel()
+        panel.title = "Xuất danh sách server"
+        panel.nameFieldStringValue = "servers.cbssh"
+        panel.canCreateDirectories = true
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        guard let pass = promptPassphrase(
+            title: "Đặt mật khẩu bảo vệ file",
+            message: "File .cbssh được mã hoá bằng mật khẩu này. Máy nhập cần đúng mật khẩu để mở."
+        ) else { return }
+        Task { await monitor.exportBundle(toPath: url.path, passphrase: pass) }
+    }
+
+    /// Import hosts from a `.cbssh` file. Asks for the file, then its passphrase.
+    /// `replace` false merges into the existing list (non-destructive); true
+    /// wipes the current list first and asks for confirmation before doing so.
+    private func importBundle(replace: Bool) {
+        let panel = NSOpenPanel()
+        panel.title = "Chọn file .cbssh"
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = false
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        if replace && !confirmReplace() { return }
+        guard let pass = promptPassphrase(
+            title: "Nhập mật khẩu của file",
+            message: "Nhập mật khẩu đã dùng khi xuất file này."
+        ) else { return }
+        Task { await monitor.importBundle(fromPath: url.path, passphrase: pass, merge: !replace) }
+    }
+
+    /// Destructive-action confirm before wiping the tracked-host list on a
+    /// replace import.
+    private func confirmReplace() -> Bool {
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = "Thay thế toàn bộ danh sách server?"
+        alert.informativeText = "Xoá \(monitor.hosts.count) server hiện có rồi nhập từ file. Không thể hoàn tác."
+        alert.addButton(withTitle: "Thay thế")
+        alert.addButton(withTitle: "Huỷ")
+        return alert.runModal() == .alertFirstButtonReturn
+    }
+
+    /// Modal passphrase prompt (AppKit — the panels above are already modal, so
+    /// a SwiftUI sheet would fight the host NSWindow). Returns nil on cancel or
+    /// empty input.
+    private func promptPassphrase(title: String, message: String) -> String? {
+        let alert = NSAlert()
+        alert.messageText = title
+        alert.informativeText = message
+        alert.addButton(withTitle: "OK")
+        alert.addButton(withTitle: "Huỷ")
+        let field = NSSecureTextField(frame: NSRect(x: 0, y: 0, width: 240, height: 24))
+        field.placeholderString = "Mật khẩu"
+        alert.accessoryView = field
+        alert.window.initialFirstResponder = field
+        guard alert.runModal() == .alertFirstButtonReturn else { return nil }
+        let pass = field.stringValue
+        return pass.isEmpty ? nil : pass
     }
 
     private func save() {
