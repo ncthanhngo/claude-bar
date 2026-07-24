@@ -48,6 +48,14 @@ final class AppSettings: ObservableObject {
     /// Cutoff (%) where we switch from "low" to "high" refresh frequency.
     @AppStorage("adaptiveHighThresholdPct") var adaptiveHighThresholdPct: Int = 80
 
+    // Server monitor (popover Server tab).
+    @AppStorage("serverPollIntervalMinutes") var serverPollIntervalMinutes: Int = 5
+    @AppStorage("serverDiskWarnPct") var serverDiskWarnPct: Int = 85
+    @AppStorage("serverDiskCritPct") var serverDiskCritPct: Int = 90
+    /// When on, a host crossing the crit disk threshold raises a notification
+    /// (default off — disk is display-only unless the user opts in).
+    @AppStorage("serverDiskAlertsEnabled") var serverDiskAlertsEnabled: Bool = false
+
     /// When true, opening the menu-bar popover triggers an immediate refresh
     /// and tightens the polling cadence for ~5 minutes so the chart stays
     /// fresh while in view. Turn off on laptops running on battery if the

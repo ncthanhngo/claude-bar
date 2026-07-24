@@ -184,7 +184,7 @@ struct WidgetTabbedPopover: View {
     private var serverAlertCount: Int {
         serverMonitor.healths.reduce(0) { acc, h in
             if !h.reachable { return acc + 1 }
-            if h.hasDiskReading && h.diskUsedPct >= ServerMonitorStore.diskCritPct { return acc + 1 }
+            if h.hasDiskReading && h.diskUsedPct >= settings.serverDiskCritPct { return acc + 1 }
             return acc
         }
     }

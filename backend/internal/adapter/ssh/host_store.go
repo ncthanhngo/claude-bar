@@ -38,6 +38,9 @@ type TrackedHost struct {
 	// PasswordAuth means a password is stored for this host (in the Keychain,
 	// never here). Exec then tries password first and falls back to the key.
 	PasswordAuth bool `json:"passwordAuth,omitempty"`
+	// CheckPort, when > 0, makes the probe also test that TCP port on the
+	// server's loopback (a "service up?" signal). 0 disables the check.
+	CheckPort int `json:"checkPort,omitempty"`
 }
 
 // HostStore is the on-disk JSON registry of tracked SSH hosts.
