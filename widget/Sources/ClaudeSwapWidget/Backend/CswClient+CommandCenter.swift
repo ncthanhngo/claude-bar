@@ -19,9 +19,12 @@ extension CswClient {
         // Opt-in flags for the server health monitor (absent → false / "").
         let monitor: Bool?
         let diskPath: String?
+        // True when a password is stored (in the Keychain) for this host.
+        let passwordAuth: Bool?
 
         var id: String { name }
         var isMonitored: Bool { monitor == true }
+        var hasPassword: Bool { passwordAuth == true }
         /// UI name: the label when set, else the stable identity.
         var displayName: String {
             if let l = label, !l.isEmpty { return l }
@@ -71,6 +74,13 @@ extension CswClient {
         if let identity { args += ["--identity", identity] }
         if let diskPath { args += ["--disk-path", diskPath] }
         _ = try await self.runRaw(args)
+    }
+
+    /// Store or clear a host's SSH password (Keychain-backed). The password
+    /// travels on stdin, never argv. Empty string clears it. Sets the host's
+    /// passwordAuth flag so Exec attempts password-then-key auth.
+    func sshSetPassword(host: String, password: String) async throws {
+        try await runWithStdin(["ssh", "set-password", "--host", host], stdin: password)
     }
 
     // MARK: - GitLab (Phase 7)

@@ -27,6 +27,9 @@ struct ServerSettingsSheet: View {
     @State private var fPort = ""
     @State private var fIdentity = ""
     @State private var fDiskPath = ""
+    @State private var fPassword = ""
+    @State private var fHadPassword = false   // host already has a stored password
+    @State private var fClearPassword = false // user asked to remove it
     @State private var editingName: String?
 
     var body: some View {
@@ -135,6 +138,7 @@ struct ServerSettingsSheet: View {
                         field("User (tài khoản server)", "vd: root", $fUser)
                         field("Port", "22", $fPort).frame(width: 90)
                     }
+                    passwordField
                     keyField
                     field("Đường dẫn disk theo dõi", "/", $fDiskPath)
                 }
@@ -150,6 +154,28 @@ struct ServerSettingsSheet: View {
                     .disabled(saveDisabled)
             }
             .padding(16)
+        }
+    }
+
+    private var passwordField: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Mật khẩu (tuỳ chọn)").font(.system(size: 11, weight: .medium)).foregroundColor(.secondary)
+            HStack(spacing: 8) {
+                SecureField(fHadPassword ? "(đã lưu — nhập để đổi)" : "Mật khẩu server", text: $fPassword)
+                    .textFieldStyle(.roundedBorder)
+                    .disabled(fClearPassword)
+                if fHadPassword && !fClearPassword {
+                    Button("Xoá") { fClearPassword = true; fPassword = "" }
+                        .help("Xoá mật khẩu đã lưu")
+                }
+                if fClearPassword {
+                    Text("sẽ xoá").font(.system(size: 10)).foregroundColor(.orange)
+                    Button { fClearPassword = false } label: { Image(systemName: "arrow.uturn.backward") }
+                        .buttonStyle(.plain).foregroundColor(.secondary).help("Hoàn tác")
+                }
+            }
+            Text("Có mật khẩu sẽ thử trước; sai hoặc không có thì tự fallback private key. Lưu trong Keychain.")
+                .font(.system(size: 10)).foregroundColor(.secondary)
         }
     }
 
@@ -203,10 +229,19 @@ struct ServerSettingsSheet: View {
         let user = fUser.trimmed
         let identity = fIdentity.trimmed
         let disk = fDiskPath.trimmed
+        let identityName: String
+        switch mode {
+        case .add: identityName = fName.trimmed
+        case .edit(let name): identityName = name
+        case .list: return
+        }
+        // Password isn't trimmed — it may legitimately contain spaces.
+        let password = fPassword
+        let clearPassword = fClearPassword
         Task {
             switch mode {
             case .add:
-                await monitor.addHost(name: fName.trimmed, display: display, host: host,
+                await monitor.addHost(name: identityName, display: display, host: host,
                                       user: user, port: port, identity: identity, diskPath: disk)
             case .edit(let name):
                 await monitor.updateHost(name: name, displayName: display, host: host,
@@ -214,12 +249,19 @@ struct ServerSettingsSheet: View {
             case .list:
                 break
             }
+            // Password applied after the host exists: clear, set, or leave as-is.
+            if clearPassword {
+                await monitor.setPassword(host: identityName, password: "")
+            } else if !password.isEmpty {
+                await monitor.setPassword(host: identityName, password: password)
+            }
             mode = .list
         }
     }
 
     private func resetForm() {
         fName = ""; fDisplay = ""; fHost = ""; fUser = ""; fPort = ""; fIdentity = ""; fDiskPath = ""
+        fPassword = ""; fHadPassword = false; fClearPassword = false
         editingName = nil
     }
 
@@ -231,6 +273,8 @@ struct ServerSettingsSheet: View {
         fPort = h.portOr > 0 ? String(h.portOr) : ""
         fIdentity = h.identityFile ?? ""
         fDiskPath = h.diskPath ?? ""
+        fPassword = ""; fClearPassword = false
+        fHadPassword = h.hasPassword
     }
 }
 
