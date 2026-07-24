@@ -18,6 +18,28 @@
     <description>Auto-update feed for AI Bar — the experimental build of the Claude Code menu-bar manager.</description>
     <language>en</language>
     <item>
+      <title>AI Bar 0.20</title>
+      <sparkle:version>0.20</sparkle:version>
+      <sparkle:shortVersionString>0.20</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li><b>Export / import your servers.</b> Save the Server tab's tracked hosts to an encrypted, passphrase-protected <code>.cbssh</code> file and import them on another Mac.</li>
+          <li>Import either <b>merges</b> into your current list or <b>replaces</b> it entirely, with a confirmation before wiping.</li>
+          <li>Export carries server <b>metadata only</b> — no private keys or passwords; the receiving Mac still needs its own key and password.</li>
+          <li>Fix: imported servers no longer show a saved-password badge for a password the bundle never carries.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Fri, 24 Jul 2026 23:26:08 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/aibar-v0.20/AIBar.zip"
+        sparkle:version="0.20"
+        sparkle:shortVersionString="0.20"
+        sparkle:edSignature="eXC9o4TL5v/+a6rhABB2q7y0QFZzHGWPvtXSowPKWt7wuwRs5snN0b47bRRLTwevuQrO913PWluocm5lSJxZDw=="
+        length="11357960"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>AI Bar 0.19</title>
       <sparkle:version>0.19</sparkle:version>
       <sparkle:shortVersionString>0.19</sparkle:shortVersionString>
