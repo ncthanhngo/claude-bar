@@ -188,8 +188,8 @@ func TestScanner_BuildsHistogramSeriesWithFixedLengths(t *testing.T) {
 		t.Fatalf("Scan error: %v", err)
 	}
 
-	if len(r.Hourly) != 24 || len(r.Daily) != 30 || len(r.Monthly) != 12 {
-		t.Fatalf("series lengths = %d/%d/%d, want 24/30/12",
+	if len(r.Hourly) != 24 || len(r.Daily) != 182 || len(r.Monthly) != 12 {
+		t.Fatalf("series lengths = %d/%d/%d, want 24/182/12",
 			len(r.Hourly), len(r.Daily), len(r.Monthly))
 	}
 
@@ -199,9 +199,9 @@ func TestScanner_BuildsHistogramSeriesWithFixedLengths(t *testing.T) {
 	if r.Hourly[20].Bucket.Requests != 1 || r.Hourly[20].Bucket.InputTokens != 1 {
 		t.Fatalf("Hourly[20] = %+v, want one request 1/2 from 11:00 line", r.Hourly[20])
 	}
-	// Daily slot 24 = 5 days back (today is slot 29).
-	if r.Daily[24].Bucket.Requests != 1 || r.Daily[24].Bucket.InputTokens != 100 {
-		t.Fatalf("Daily[24] = %+v, want one request 100/200", r.Daily[24])
+	// Daily slot 176 = 5 days back (today is slot 181 in the 182-day window).
+	if r.Daily[176].Bucket.Requests != 1 || r.Daily[176].Bucket.InputTokens != 100 {
+		t.Fatalf("Daily[176] = %+v, want one request 100/200", r.Daily[176])
 	}
 	// Monthly final slot (idx 11) carries all three lines (all in current month).
 	if r.Monthly[11].Bucket.Requests != 3 {

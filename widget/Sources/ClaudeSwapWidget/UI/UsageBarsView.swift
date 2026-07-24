@@ -19,7 +19,9 @@ struct UsageBar: View {
             Text(window.percentInt < 1 ? "<1%" : "\(window.percentInt)%")
                 .font(.system(size: 12, weight: .bold))
                 .monospacedDigit()
-                .foregroundColor(UsagePalette.textColor(for: window.percentInt))
+                // The 7d number stays plain (never colour-coded) regardless of %;
+                // the coloured bar already signals its tier. 5h keeps the palette.
+                .foregroundColor(label == "7d" ? .primary : UsagePalette.textColor(for: window.percentInt))
                 .frame(width: 34, alignment: .trailing)
             Text(window.resetLabel())
                 .font(.system(size: 11, weight: .medium))
