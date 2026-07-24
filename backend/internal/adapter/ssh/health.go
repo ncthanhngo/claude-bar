@@ -8,53 +8,67 @@ import (
 	"time"
 )
 
-// HostHealth is one server's reachability + disk snapshot from a monitor
-// probe. DiskUsedPct is 0–100 only when Reachable and the df output parsed;
-// it is -1 otherwise so a consumer can tell "no data" from "0% used".
+// HostHealth is one server's snapshot from a monitor probe. Numeric fields are
+// -1 when unavailable (e.g. a non-Linux server without /proc) so a consumer
+// can tell "no reading" from a real zero.
 type HostHealth struct {
-	Name        string    `json:"name"`
-	Reachable   bool      `json:"reachable"`
-	DiskUsedPct int       `json:"diskUsedPct"`
-	DiskPath    string    `json:"diskPath"`
-	ExitCode    int       `json:"exitCode"`
-	DurationMs  int64     `json:"durationMs"`
-	Error       string    `json:"error,omitempty"`
-	CheckedAt   time.Time `json:"checkedAt"`
+	Name        string `json:"name"`
+	Reachable   bool   `json:"reachable"`
+	DiskUsedPct int    `json:"diskUsedPct"`
+	DiskPath    string `json:"diskPath"` // the worst (fullest) mount when several
+	// Deeper stats (best-effort, Linux /proc based).
+	LoadAvg1   float64 `json:"loadAvg1"`   // 1-min load average, -1 if n/a
+	MemUsedPct int     `json:"memUsedPct"` // -1 if n/a
+	UptimeSecs int64   `json:"uptimeSecs"` // -1 if n/a
+	PortOpen   int     `json:"portOpen"`   // -1 unknown, 0 closed, 1 open
+	// HostKeyChanged is true when ssh reported the remote key no longer matches
+	// known_hosts — a real security signal, surfaced distinctly from "down".
+	HostKeyChanged bool `json:"hostKeyChanged"`
+
+	ExitCode   int       `json:"exitCode"`
+	DurationMs int64     `json:"durationMs"`
+	Error      string    `json:"error,omitempty"`
+	CheckedAt  time.Time `json:"checkedAt"`
 }
 
-// ProbeHealth runs one `df -P <path>` over SSH and interprets the result into
-// a reachability + disk snapshot. It never returns an error: a failure is
-// encoded as Reachable=false with Error set, because "host down" is a normal
-// outcome the monitor renders, not an exceptional one.
-//
-// Reachability semantics follow Exec's exit-code contract: ssh's own failure
-// to connect/auth surfaces as exit 255, a timeout as 124, and a Go error for a
-// true launch failure — all treated as unreachable. Only exit 0 with a parsed
-// capacity column counts as a healthy disk reading.
+const probeSectionMark = "@@CSWSEC@@"
+
+// ProbeHealth runs ONE combined command over SSH and interprets it into a
+// reachability + resource snapshot. It never returns an error: a failure is
+// encoded as Reachable=false with Error set. Reachability follows Exec's
+// exit-code contract (255 connect/auth, 124 timeout → down); once ssh connects,
+// the host is reachable even if an individual sub-command exits non-zero.
 func ProbeHealth(ctx context.Context, host TrackedHost, diskPath string, timeout time.Duration) HostHealth {
-	if diskPath == "" {
-		diskPath = "/"
-	}
+	paths := parseDiskPaths(diskPath)
 	if timeout <= 0 {
 		timeout = 20 * time.Second
 	}
 	h := HostHealth{
 		Name:        host.Name,
-		DiskPath:    diskPath,
+		DiskPath:    strings.Join(paths, ","),
 		DiskUsedPct: -1,
+		LoadAvg1:    -1,
+		MemUsedPct:  -1,
+		UptimeSecs:  -1,
+		PortOpen:    -1,
 		CheckedAt:   time.Now().UTC(),
 	}
 
-	res, err := Exec(ctx, host, "df -P "+shellQuote(diskPath), timeout)
+	res, err := Exec(ctx, host, probeScript(paths, host.CheckPort), timeout)
 	if res != nil {
 		h.ExitCode = res.ExitCode
 		h.DurationMs = res.DurationMs
+		if hostKeyChanged(res.Stderr) {
+			h.HostKeyChanged = true
+		}
 	}
 	if err != nil {
 		h.Error = err.Error()
 		return h
 	}
-	if res.ExitCode != 0 {
+	// 255 = ssh couldn't connect/authenticate, 124 = our timeout. Anything else
+	// means the remote shell actually ran, so the host is reachable.
+	if res.ExitCode == 255 || res.ExitCode == 124 {
 		if s := strings.TrimSpace(res.Stderr); s != "" {
 			h.Error = s
 		} else {
@@ -63,32 +77,156 @@ func ProbeHealth(ctx context.Context, host TrackedHost, diskPath string, timeout
 		return h
 	}
 
-	// df ran (exit 0) → host is reachable even if we fail to parse the number.
 	h.Reachable = true
-	if pct, ok := parseDiskUsedPct(res.Stdout); ok {
-		h.DiskUsedPct = pct
-	} else {
-		h.Error = "could not parse df output"
-	}
+	parseProbeSections(&h, res.Stdout, host.CheckPort)
 	return h
 }
 
-// parseDiskUsedPct pulls the Capacity column (e.g. "63%") out of `df -P`
-// output. It scans data lines from the bottom and returns the first token
-// ending in "%" — robust to the differing header/column widths across Linux
-// and macOS df, and to a wrapped Filesystem column.
-func parseDiskUsedPct(dfOutput string) (int, bool) {
-	lines := strings.Split(strings.TrimSpace(dfOutput), "\n")
-	for i := len(lines) - 1; i >= 0; i-- {
-		for _, f := range strings.Fields(lines[i]) {
+// probeScript joins the sub-probes with a marker so one round-trip gathers disk,
+// load, memory, uptime, and (optionally) a local TCP port check. All resource
+// bits are best-effort — a missing /proc just leaves the field at -1.
+func probeScript(paths []string, checkPort int) string {
+	quoted := make([]string, len(paths))
+	for i, p := range paths {
+		quoted[i] = shellQuote(p)
+	}
+	mark := "echo '" + probeSectionMark + "'"
+	parts := []string{
+		"df -P " + strings.Join(quoted, " "),
+		mark,
+		"cat /proc/loadavg 2>/dev/null",
+		mark,
+		"free -b 2>/dev/null",
+		mark,
+		"cat /proc/uptime 2>/dev/null",
+		mark,
+	}
+	if checkPort > 0 {
+		parts = append(parts, fmt.Sprintf(
+			"timeout 3 bash -c ':</dev/tcp/127.0.0.1/%d' 2>/dev/null && echo PORTOPEN || echo PORTCLOSED",
+			checkPort))
+	}
+	return strings.Join(parts, "; ")
+}
+
+func parseProbeSections(h *HostHealth, stdout string, checkPort int) {
+	secs := strings.Split(stdout, probeSectionMark)
+	if len(secs) > 0 {
+		if pct, path, ok := parseWorstDisk(secs[0]); ok {
+			h.DiskUsedPct = pct
+			h.DiskPath = path
+		}
+	}
+	if len(secs) > 1 {
+		if v, ok := parseLoad1(secs[1]); ok {
+			h.LoadAvg1 = v
+		}
+	}
+	if len(secs) > 2 {
+		if v, ok := parseMemUsedPct(secs[2]); ok {
+			h.MemUsedPct = v
+		}
+	}
+	if len(secs) > 3 {
+		if v, ok := parseUptimeSecs(secs[3]); ok {
+			h.UptimeSecs = v
+		}
+	}
+	if checkPort > 0 && len(secs) > 4 {
+		switch {
+		case strings.Contains(secs[4], "PORTOPEN"):
+			h.PortOpen = 1
+		case strings.Contains(secs[4], "PORTCLOSED"):
+			h.PortOpen = 0
+		}
+	}
+}
+
+func parseDiskPaths(diskPath string) []string {
+	fields := strings.FieldsFunc(diskPath, func(r rune) bool { return r == ',' || r == ' ' || r == '\t' })
+	out := make([]string, 0, len(fields))
+	for _, f := range fields {
+		if f = strings.TrimSpace(f); f != "" {
+			out = append(out, f)
+		}
+	}
+	if len(out) == 0 {
+		return []string{"/"}
+	}
+	return out
+}
+
+// parseWorstDisk returns the highest Capacity% across all df data lines plus its
+// mount point — so a host watching several mounts surfaces the fullest one.
+func parseWorstDisk(dfOutput string) (pct int, mount string, ok bool) {
+	worst := -1
+	for _, line := range strings.Split(strings.TrimSpace(dfOutput), "\n") {
+		fields := strings.Fields(line)
+		for i, f := range fields {
 			if !strings.HasSuffix(f, "%") {
 				continue
 			}
 			n, err := strconv.Atoi(strings.TrimSuffix(f, "%"))
-			if err == nil && n >= 0 && n <= 100 {
-				return n, true
+			if err != nil || n < 0 || n > 100 {
+				continue
 			}
+			if n > worst {
+				worst = n
+				mount = fields[len(fields)-1]
+				if i == len(fields)-1 { // no mount column after %
+					mount = ""
+				}
+			}
+			ok = true
 		}
 	}
+	return worst, mount, ok
+}
+
+func parseLoad1(s string) (float64, bool) {
+	fields := strings.Fields(s)
+	if len(fields) == 0 {
+		return 0, false
+	}
+	v, err := strconv.ParseFloat(fields[0], 64)
+	if err != nil {
+		return 0, false
+	}
+	return v, true
+}
+
+// parseMemUsedPct reads the "Mem:" line of `free -b` (total, used).
+func parseMemUsedPct(s string) (int, bool) {
+	for _, line := range strings.Split(s, "\n") {
+		if !strings.HasPrefix(strings.TrimSpace(line), "Mem:") {
+			continue
+		}
+		f := strings.Fields(line)
+		if len(f) < 3 {
+			return 0, false
+		}
+		total, e1 := strconv.ParseFloat(f[1], 64)
+		used, e2 := strconv.ParseFloat(f[2], 64)
+		if e1 != nil || e2 != nil || total <= 0 {
+			return 0, false
+		}
+		return int((used / total) * 100.0), true
+	}
 	return 0, false
+}
+
+func parseUptimeSecs(s string) (int64, bool) {
+	fields := strings.Fields(s)
+	if len(fields) == 0 {
+		return 0, false
+	}
+	v, err := strconv.ParseFloat(fields[0], 64)
+	if err != nil {
+		return 0, false
+	}
+	return int64(v), true
+}
+
+func hostKeyChanged(stderr string) bool {
+	return strings.Contains(stderr, "IDENTIFICATION HAS CHANGED")
 }

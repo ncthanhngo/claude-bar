@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/soi/claude-swap-widget/backend/internal/adapter"
@@ -180,21 +181,35 @@ func runSSHHealth(ctx context.Context, store *sshadp.HostStore, args []string) e
 		return err
 	}
 	timeout := time.Duration(*timeoutSec) * time.Second
-	out := make([]sshadp.HostHealth, 0, len(hosts))
+
+	var targets []sshadp.TrackedHost
 	for _, h := range hosts {
 		if *hostName != "" {
-			if h.Name != *hostName {
-				continue
+			if h.Name == *hostName {
+				targets = append(targets, h)
 			}
-		} else if !h.Monitor {
-			continue
+		} else if h.Monitor {
+			targets = append(targets, h)
 		}
-		hh := sshadp.ProbeHealth(ctx, h, h.DiskPath, timeout)
-		if hh.Reachable {
-			_ = store.MarkConnected(ctx, h.Name, time.Now().UTC())
-		}
-		out = append(out, hh)
 	}
+
+	// Probe hosts concurrently — one slow/unreachable host must not delay the
+	// others. Results keep host order; MarkConnected is mutex-guarded in the
+	// store so parallel writes are safe.
+	out := make([]sshadp.HostHealth, len(targets))
+	var wg sync.WaitGroup
+	for i, h := range targets {
+		wg.Add(1)
+		go func(i int, h sshadp.TrackedHost) {
+			defer wg.Done()
+			hh := sshadp.ProbeHealth(ctx, h, h.DiskPath, timeout)
+			if hh.Reachable {
+				_ = store.MarkConnected(ctx, h.Name, time.Now().UTC())
+			}
+			out[i] = hh
+		}(i, h)
+	}
+	wg.Wait()
 	return json.NewEncoder(os.Stdout).Encode(out)
 }
 
@@ -213,7 +228,8 @@ func runSSHUpdate(ctx context.Context, store *sshadp.HostStore, args []string) e
 	id := fs.String("identity", "", "private key path")
 	jump := fs.String("jump", "", "proxy jump host")
 	note := fs.String("note", "", "free-text note")
-	diskPath := fs.String("disk-path", "", "filesystem for the disk check")
+	diskPath := fs.String("disk-path", "", "filesystem(s) for the disk check")
+	checkPort := fs.Int("check-port", 0, "TCP port to test on the server loopback (0 = off)")
 	_ = fs.Parse(args)
 	if *name == "" {
 		return errors.New("--name is required")
@@ -248,6 +264,9 @@ func runSSHUpdate(ctx context.Context, store *sshadp.HostStore, args []string) e
 	}
 	if set["disk-path"] {
 		h.DiskPath = *diskPath
+	}
+	if set["check-port"] {
+		h.CheckPort = *checkPort
 	}
 	if err := store.Put(ctx, *h); err != nil {
 		return err
@@ -380,7 +399,8 @@ func runSSHAdd(ctx context.Context, store *sshadp.HostStore, args []string) erro
 	note := fs.String("note", "", "free-text note")
 	display := fs.String("display", "", "display label")
 	monitor := fs.Bool("monitor", false, "opt into the health probe")
-	diskPath := fs.String("disk-path", "", "filesystem for the disk check (default /)")
+	diskPath := fs.String("disk-path", "", "filesystem(s) for the disk check (comma-separated, default /)")
+	checkPort := fs.Int("check-port", 0, "TCP port to test on the server loopback (0 = off)")
 	_ = fs.Parse(args)
 	if *name == "" {
 		return errors.New("--name is required")
@@ -388,7 +408,7 @@ func runSSHAdd(ctx context.Context, store *sshadp.HostStore, args []string) erro
 	return store.Put(ctx, sshadp.TrackedHost{
 		Name: *name, Label: *display, HostName: *hostName, Port: *port,
 		User: *user, IdentityFile: *id, JumpHost: *jump, Note: *note,
-		Monitor: *monitor, DiskPath: *diskPath,
+		Monitor: *monitor, DiskPath: *diskPath, CheckPort: *checkPort,
 		AddedAt: time.Now().UTC(),
 	})
 }

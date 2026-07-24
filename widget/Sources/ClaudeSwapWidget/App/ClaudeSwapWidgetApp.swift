@@ -201,6 +201,7 @@ struct ClaudeSwapWidgetApp: App {
         } label: {
             MenuBarLabelView()
                 .environmentObject(store)
+                .environmentObject(serverMonitor)
                 .onAppear {
                     // Wire coordinators from the LABEL's onAppear — not the
                     // popover content's `.task` (lazy, popover-only) and not

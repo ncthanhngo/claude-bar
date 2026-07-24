@@ -13,6 +13,11 @@ extension CswClient {
         let reachable: Bool
         let diskUsedPct: Int
         let diskPath: String
+        let loadAvg1: Double
+        let memUsedPct: Int
+        let uptimeSecs: Int64
+        let portOpen: Int          // -1 unknown, 0 closed, 1 open
+        let hostKeyChanged: Bool
         let exitCode: Int
         let durationMs: Int64
         let error: String?
@@ -24,6 +29,9 @@ extension CswClient {
         var hasDiskReading: Bool { reachable && diskUsedPct >= 0 }
         /// 0…1 fill for the usage bar; 0 when there's no reading.
         var diskFraction: Double { hasDiskReading ? Double(diskUsedPct) / 100.0 : 0 }
+        var hasLoad: Bool { reachable && loadAvg1 >= 0 }
+        var hasMem: Bool { reachable && memUsedPct >= 0 }
+        var hasUptime: Bool { reachable && uptimeSecs >= 0 }
     }
 
     /// Probe every host with `monitor=true` (one `df` each). Never partial —

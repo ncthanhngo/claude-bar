@@ -18,13 +18,12 @@ final class ServerMonitorStore: ObservableObject {
     @Published private(set) var healths: [CswClient.HostHealth] = []
     @Published private(set) var isRefreshing = false
     @Published private(set) var lastError: String?
+    /// Recent disk% samples per host (oldest→newest, capped) for the sparkline.
+    @Published private(set) var diskHistory: [String: [Int]] = [:]
 
     private let client: CswClient
     private var pollTask: Task<Void, Never>?
-
-    /// Fixed 5-min cadence (mirrors BriefingCoordinator). SSH probes are cheap
-    /// but shouldn't hammer; not adaptive / not user-configurable yet (YAGNI).
-    private let pollIntervalNanos: UInt64 = 300 * 1_000_000_000
+    private let historyCap = 30
 
     /// Consecutive probe failures before a host is declared down — smooths a
     /// single transient failure so we don't cry wolf.
@@ -33,14 +32,28 @@ final class ServerMonitorStore: ObservableObject {
     // Per-host edge state, keyed by host name.
     private var failStreak: [String: Int] = [:]
     private var reportedDown: Set<String> = []
+    private var diskAlerted: Set<String> = []       // crossed crit, awaiting drop below warn
+    private var hostKeyAlerted: Set<String> = []
 
     init(client: CswClient = CswClient()) {
         self.client = client
     }
 
-    /// Disk warn / crit thresholds (percent). Crit turns the bar coral.
-    static let diskWarnPct = 85
-    static let diskCritPct = 90
+    private var settings: AppSettings { AppSettings.shared }
+    var diskWarnPct: Int { settings.serverDiskWarnPct }
+    var diskCritPct: Int { settings.serverDiskCritPct }
+
+    /// True when any monitored host is currently down — used to tighten the
+    /// poll cadence (adaptive backoff) so a recovery is noticed sooner.
+    var anyDown: Bool { healths.contains { !$0.reachable } }
+
+    /// Next sleep, in nanoseconds. Base comes from settings; when a host is
+    /// down we re-check every minute until it recovers.
+    private func nextIntervalNanos() -> UInt64 {
+        let baseMin = max(1, settings.serverPollIntervalMinutes)
+        let secs = anyDown ? min(60, baseMin * 60) : baseMin * 60
+        return UInt64(secs) * 1_000_000_000
+    }
 
     // MARK: - lifecycle (driven by BackgroundWorkController)
 
@@ -51,7 +64,7 @@ final class ServerMonitorStore: ObservableObject {
             await self?.refreshNow()
             while !Task.isCancelled {
                 guard let self else { return }
-                try? await Task.sleep(nanoseconds: self.pollIntervalNanos)
+                try? await Task.sleep(nanoseconds: self.nextIntervalNanos())
                 if Task.isCancelled { return }
                 await self.refreshNow()
             }
@@ -80,10 +93,25 @@ final class ServerMonitorStore: ObservableObject {
             let results = try await client.hostHealth()
             healths = results
             lastError = nil
-            for h in results { evaluateEdge(h) }
+            for h in results {
+                evaluateEdge(h)
+                if h.hasDiskReading { appendDiskSample(host: h.name, pct: h.diskUsedPct) }
+            }
         } catch {
             lastError = "\(error)"
         }
+    }
+
+    private func appendDiskSample(host: String, pct: Int) {
+        var samples = diskHistory[host] ?? []
+        samples.append(pct)
+        if samples.count > historyCap { samples.removeFirst(samples.count - historyCap) }
+        diskHistory[host] = samples
+    }
+
+    /// Open an interactive SSH session to the host in Terminal.app.
+    func connect(_ host: CswClient.SSHHostDTO) {
+        SSHTerminalLauncher.open(host)
     }
 
     /// Turn the health probe on/off for a host, then reconcile local state.
@@ -95,8 +123,7 @@ final class ServerMonitorStore: ObservableObject {
                 await refreshNow()
             } else {
                 // Drop stale edge + health state so the row goes quiet.
-                failStreak[host] = nil
-                reportedDown.remove(host)
+                clearHostState(host)
                 healths.removeAll { $0.name == host }
             }
         } catch {
@@ -113,10 +140,12 @@ final class ServerMonitorStore: ObservableObject {
 
     /// Register a new host with real credentials (key-based auth).
     func addHost(name: String, display: String, host: String, user: String,
-                 port: Int, identity: String, diskPath: String) async {
+                 port: Int, identity: String, diskPath: String,
+                 jump: String, checkPort: Int) async {
         do {
             try await client.sshAdd(name: name, host: host, port: port, user: user,
-                                    identity: identity, display: display, diskPath: diskPath)
+                                    identity: identity, jump: jump, display: display,
+                                    diskPath: diskPath, checkPort: checkPort)
             await loadHosts()
         } catch { lastError = "\(error)" }
     }
@@ -125,10 +154,12 @@ final class ServerMonitorStore: ObservableObject {
     /// `identity` empty drops the key. Re-probes if the host is monitored so
     /// new credentials take effect immediately.
     func updateHost(name: String, displayName: String, host: String,
-                    user: String, port: Int, identity: String, diskPath: String) async {
+                    user: String, port: Int, identity: String, diskPath: String,
+                    jump: String, checkPort: Int) async {
         do {
             try await client.sshUpdate(name: name, displayName: displayName, host: host,
-                                       user: user, port: port, identity: identity, diskPath: diskPath)
+                                       user: user, port: port, identity: identity,
+                                       diskPath: diskPath, jump: jump, checkPort: checkPort)
             await loadHosts()
             if hosts.first(where: { $0.name == name })?.isMonitored == true {
                 await refreshNow()
@@ -152,16 +183,35 @@ final class ServerMonitorStore: ObservableObject {
     func removeHost(name: String) async {
         do {
             try await client.sshRemove(name: name)
-            failStreak[name] = nil
-            reportedDown.remove(name)
+            clearHostState(name)
             healths.removeAll { $0.name == name }
             await loadHosts()
         } catch { lastError = "\(error)" }
     }
 
+    private func clearHostState(_ name: String) {
+        failStreak[name] = nil
+        reportedDown.remove(name)
+        diskAlerted.remove(name)
+        hostKeyAlerted.remove(name)
+        diskHistory[name] = nil
+    }
+
     // MARK: - edge detection → notifications (disconnect only)
 
     private func evaluateEdge(_ h: CswClient.HostHealth) {
+        // Host-key change is a security signal — surface it regardless of
+        // reachability, once per occurrence.
+        if h.hostKeyChanged {
+            if hostKeyAlerted.insert(h.name).inserted {
+                notify(title: "⚠ Khoá máy chủ thay đổi",
+                       body: "\(h.name): host key khác known_hosts — có thể bị giả mạo. Kiểm tra trước khi kết nối.",
+                       id: "csw.server.hostkey.\(h.name)")
+            }
+        } else {
+            hostKeyAlerted.remove(h.name)
+        }
+
         if h.reachable {
             failStreak[h.name] = 0
             if reportedDown.remove(h.name) != nil {
@@ -169,6 +219,7 @@ final class ServerMonitorStore: ObservableObject {
                        body: "\(h.name) phản hồi trở lại.",
                        id: "csw.server.up.\(h.name)")
             }
+            evaluateDisk(h)
             return
         }
         let streak = (failStreak[h.name] ?? 0) + 1
@@ -179,6 +230,22 @@ final class ServerMonitorStore: ObservableObject {
             notify(title: "Server mất kết nối",
                    body: "\(h.name) không phản hồi.\(detail)",
                    id: "csw.server.down.\(h.name)")
+        }
+    }
+
+    /// Disk alert (opt-in). Fires once when crossing the crit threshold; only
+    /// re-arms after the host drops back below the warn threshold (hysteresis),
+    /// so a host hovering at the line doesn't notify every cycle.
+    private func evaluateDisk(_ h: CswClient.HostHealth) {
+        guard settings.serverDiskAlertsEnabled, h.hasDiskReading else { return }
+        if h.diskUsedPct >= diskCritPct {
+            if diskAlerted.insert(h.name).inserted {
+                notify(title: "Disk sắp đầy",
+                       body: "\(h.name): \(h.diskUsedPct)% ở \(h.diskPath).",
+                       id: "csw.server.disk.\(h.name)")
+            }
+        } else if h.diskUsedPct < diskWarnPct {
+            diskAlerted.remove(h.name)
         }
     }
 

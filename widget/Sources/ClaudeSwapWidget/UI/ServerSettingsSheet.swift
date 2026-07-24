@@ -7,6 +7,7 @@ import AppKit
 /// stays fixed — renaming edits the display label only.
 struct ServerSettingsSheet: View {
     @EnvironmentObject private var monitor: ServerMonitorStore
+    @ObservedObject private var settings = AppSettings.shared
     /// Closes the hosting floating window (MenuBarExtra can't keep a `.sheet`
     /// alive — it collapses the popover on focus loss, so this lives in its
     /// own NSWindow via ServerSettingsWindowController).
@@ -30,6 +31,8 @@ struct ServerSettingsSheet: View {
     @State private var fPassword = ""
     @State private var fHadPassword = false   // host already has a stored password
     @State private var fClearPassword = false // user asked to remove it
+    @State private var fJump = ""
+    @State private var fCheckPort = ""
     @State private var editingName: String?
 
     var body: some View {
@@ -53,6 +56,8 @@ struct ServerSettingsSheet: View {
             }
             .padding(16)
             Divider()
+            configStrip
+            Divider()
 
             if monitor.hosts.isEmpty {
                 emptyState
@@ -75,6 +80,29 @@ struct ServerSettingsSheet: View {
             }
             .padding(16)
         }
+    }
+
+    private var configStrip: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 12) {
+                Text("Nhịp kiểm tra").font(.system(size: 11)).foregroundColor(.secondary)
+                Stepper("\(settings.serverPollIntervalMinutes) phút",
+                        value: $settings.serverPollIntervalMinutes, in: 1...60)
+                    .font(.system(size: 11)).fixedSize()
+            }
+            HStack(spacing: 12) {
+                Text("Ngưỡng disk").font(.system(size: 11)).foregroundColor(.secondary)
+                Stepper("cảnh báo \(settings.serverDiskWarnPct)%",
+                        value: $settings.serverDiskWarnPct, in: 50...99).font(.system(size: 11)).fixedSize()
+                Stepper("nguy hiểm \(settings.serverDiskCritPct)%",
+                        value: $settings.serverDiskCritPct, in: 50...100).font(.system(size: 11)).fixedSize()
+            }
+            Toggle(isOn: $settings.serverDiskAlertsEnabled) {
+                Text("Thông báo khi disk vượt ngưỡng nguy hiểm").font(.system(size: 11))
+            }
+            .toggleStyle(.switch).controlSize(.mini)
+        }
+        .padding(.horizontal, 16).padding(.vertical, 10)
     }
 
     private func row(_ h: CswClient.SSHHostDTO) -> some View {
@@ -140,7 +168,11 @@ struct ServerSettingsSheet: View {
                     }
                     passwordField
                     keyField
-                    field("Đường dẫn disk theo dõi", "/", $fDiskPath)
+                    field("ProxyJump / bastion (tuỳ chọn)", "vd: user@bastion", $fJump)
+                    HStack(alignment: .bottom, spacing: 12) {
+                        field("Đường dẫn disk theo dõi", "/ hoặc /,/data", $fDiskPath)
+                        field("Check port", "vd: 443", $fCheckPort).frame(width: 110)
+                    }
                 }
                 .padding(16)
             }
@@ -238,14 +270,18 @@ struct ServerSettingsSheet: View {
         // Password isn't trimmed — it may legitimately contain spaces.
         let password = fPassword
         let clearPassword = fClearPassword
+        let jump = fJump.trimmed
+        let checkPort = Int(fCheckPort.trimmed) ?? 0
         Task {
             switch mode {
             case .add:
                 await monitor.addHost(name: identityName, display: display, host: host,
-                                      user: user, port: port, identity: identity, diskPath: disk)
+                                      user: user, port: port, identity: identity, diskPath: disk,
+                                      jump: jump, checkPort: checkPort)
             case .edit(let name):
                 await monitor.updateHost(name: name, displayName: display, host: host,
-                                         user: user, port: port, identity: identity, diskPath: disk)
+                                         user: user, port: port, identity: identity, diskPath: disk,
+                                         jump: jump, checkPort: checkPort)
             case .list:
                 break
             }
@@ -262,6 +298,7 @@ struct ServerSettingsSheet: View {
     private func resetForm() {
         fName = ""; fDisplay = ""; fHost = ""; fUser = ""; fPort = ""; fIdentity = ""; fDiskPath = ""
         fPassword = ""; fHadPassword = false; fClearPassword = false
+        fJump = ""; fCheckPort = ""
         editingName = nil
     }
 
@@ -275,6 +312,8 @@ struct ServerSettingsSheet: View {
         fDiskPath = h.diskPath ?? ""
         fPassword = ""; fClearPassword = false
         fHadPassword = h.hasPassword
+        fJump = h.jumpHost ?? ""
+        fCheckPort = (h.checkPort ?? 0) > 0 ? String(h.checkPort!) : ""
     }
 }
 
