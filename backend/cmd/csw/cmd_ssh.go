@@ -389,6 +389,11 @@ func runSSHImportBundle(ctx context.Context, store *sshadp.HostStore, args []str
 	}
 	added := 0
 	for _, h := range b.Hosts {
+		// The bundle never carries the SSH password (it lives only in the
+		// Keychain, per host). Clear the flag so an imported host doesn't
+		// advertise a stored password that isn't there — auth falls back to
+		// the key until the user re-enters the password on this Mac.
+		h.PasswordAuth = false
 		if err := store.Put(ctx, h); err == nil {
 			added++
 		}
