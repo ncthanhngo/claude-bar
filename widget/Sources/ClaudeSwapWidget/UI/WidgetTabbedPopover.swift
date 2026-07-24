@@ -58,9 +58,6 @@ struct WidgetTabbedPopover: View {
     private static let badgeRowExtra: CGFloat = 17
     /// The Claude|Server segmented row inserted under the header.
     private static let tabBarHeight: CGFloat = 44
-    /// Total popover frame height while on the Server tab — header + tab bar +
-    /// the host list (which scrolls internally past this).
-    private static let serverTabHeight: CGFloat = 460
 
     var body: some View {
         ZStack {
@@ -98,13 +95,10 @@ struct WidgetTabbedPopover: View {
     }
 
     private var popoverHeight: CGFloat {
-        switch tab {
-        case .server:
-            return Self.serverTabHeight
-        case .claude:
-            let base = Self.shellHeight + visibleAccountsHeight + Self.tabBarHeight
-            return settings.showTokenUsageInFullPopover ? base : base - Self.tokenUsageSectionHeight
-        }
+        // Both tabs share the Claude tab's height so switching never resizes the
+        // popover — the Server tab's content just scrolls within the same frame.
+        let base = Self.shellHeight + visibleAccountsHeight + Self.tabBarHeight
+        return settings.showTokenUsageInFullPopover ? base : base - Self.tokenUsageSectionHeight
     }
 
     /// Height the account list actually consumes — capped at three
