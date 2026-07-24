@@ -2,37 +2,27 @@ package ssh
 
 import "testing"
 
-func TestParseWorstDisk(t *testing.T) {
-	cases := []struct {
-		name    string
-		in      string
-		wantPct int
-		wantOK  bool
-	}{
-		{
-			name: "linux single mount",
-			in: "Filesystem     1024-blocks     Used Available Capacity Mounted on\n" +
-				"/dev/sda1         41251136  8765432  30384704      23% /",
-			wantPct: 23, wantOK: true,
-		},
-		{
-			name: "several mounts → worst",
-			in: "Filesystem 1024-blocks Used Available Capacity Mounted on\n" +
-				"/dev/sda1  100 23 77 23% /\n" +
-				"/dev/sdb1  100 91 9  91% /data\n" +
-				"/dev/sdc1  100 40 60 40% /var",
-			wantPct: 91, wantOK: true,
-		},
-		{name: "empty", in: "", wantPct: -1, wantOK: false},
-		{name: "header only", in: "Filesystem 1024-blocks Used Available Capacity Mounted on", wantPct: -1, wantOK: false},
+func TestParseDiskMounts(t *testing.T) {
+	in := "Filesystem 1024-blocks Used Available Capacity Mounted on\n" +
+		"/dev/sda1  100 23 77 23% /\n" +
+		"/dev/sdb1  100 91 9  91% /data\n" +
+		"/dev/sdc1  100 40 60 40% /var"
+	mounts := parseDiskMounts(in)
+	if len(mounts) != 3 {
+		t.Fatalf("got %d mounts, want 3: %+v", len(mounts), mounts)
 	}
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			pct, _, ok := parseWorstDisk(c.in)
-			if ok != c.wantOK || (ok && pct != c.wantPct) {
-				t.Fatalf("parseWorstDisk = (%d,%v), want (%d,%v)", pct, ok, c.wantPct, c.wantOK)
-			}
-		})
+	if mounts[1].Path != "/data" || mounts[1].UsedPct != 91 {
+		t.Fatalf("mounts[1] = %+v, want {/data 91}", mounts[1])
+	}
+	worst, ok := worstMount(mounts)
+	if !ok || worst.UsedPct != 91 || worst.Path != "/data" {
+		t.Fatalf("worst = %+v (%v), want {/data 91}", worst, ok)
+	}
+	if len(parseDiskMounts("")) != 0 {
+		t.Fatal("empty df → no mounts")
+	}
+	if _, ok := worstMount(nil); ok {
+		t.Fatal("no mounts → worstMount ok=false")
 	}
 }
 
