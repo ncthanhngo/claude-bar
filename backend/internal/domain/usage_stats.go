@@ -12,7 +12,7 @@ type UsageStatsReport struct {
 	ThisWeek           UsageBucket    `json:"thisWeek"`
 	ThisMonth          UsageBucket    `json:"thisMonth"`
 	Hourly             []TimedBucket  `json:"hourly"`  // last 24 hours, hour-aligned, oldest first
-	Daily              []TimedBucket  `json:"daily"`   // last 30 days, day-aligned, oldest first
+	Daily              []TimedBucket  `json:"daily"`   // last 182 days (~26 weeks), day-aligned, oldest first
 	Monthly            []TimedBucket  `json:"monthly"` // last 12 months, month-aligned, oldest first
 	Pricing            []ModelPricing `json:"pricing"`
 	PricingReference   string         `json:"pricingReference"`

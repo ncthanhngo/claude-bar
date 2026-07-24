@@ -110,13 +110,20 @@ func buildHourlySlots(now time.Time) []domain.TimedBucket {
 	return slots
 }
 
-// buildDailySlots returns 30 day-aligned slots ending with today.
+// dailySlotCount is the length of the daily histogram: 182 days (~26 weeks)
+// so the popover's calendar-heatmap view can render a full 6-month
+// contribution grid. The 13-month maxFileAge already covers this window, so
+// widening it costs nothing extra to scan. The Wave chart's "Day" view still
+// plots only the last 7 of these.
+const dailySlotCount = 182
+
+// buildDailySlots returns dailySlotCount day-aligned slots ending with today.
 func buildDailySlots(now time.Time) []domain.TimedBucket {
 	loc := now.Location()
 	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, loc)
-	slots := make([]domain.TimedBucket, 30)
+	slots := make([]domain.TimedBucket, dailySlotCount)
 	for i := range slots {
-		offset := -(29 - i)
+		offset := -(dailySlotCount - 1 - i)
 		slots[i] = domain.TimedBucket{Start: today.AddDate(0, 0, offset)}
 	}
 	return slots
