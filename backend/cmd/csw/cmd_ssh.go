@@ -21,7 +21,7 @@ import (
 // no token is required because data lives under the user's macOS account.
 func runSSH(ctx context.Context, args []string) error {
 	if len(args) == 0 {
-		return errors.New("usage: csw ssh <list|add|remove|import|classify|exec|monitor|health>")
+		return errors.New("usage: csw ssh <list|add|update|remove|import|classify|exec|monitor|health>")
 	}
 	sub, rest := args[0], args[1:]
 	store := sshHostStoreLazy()
@@ -46,6 +46,8 @@ func runSSH(ctx context.Context, args []string) error {
 		return runSSHMonitor(ctx, store, rest)
 	case "health":
 		return runSSHHealth(ctx, store, rest)
+	case "update":
+		return runSSHUpdate(ctx, store, rest)
 	default:
 		return fmt.Errorf("unknown ssh subcommand: %s", sub)
 	}
@@ -194,6 +196,63 @@ func runSSHHealth(ctx context.Context, store *sshadp.HostStore, args []string) e
 	return json.NewEncoder(os.Stdout).Encode(out)
 }
 
+// runSSHUpdate edits an existing tracked host in place, applying ONLY the
+// flags actually passed (detected via fs.Visit) so untouched fields — and the
+// monitor flag, addedAt, and lastConnected the caller never sees — are
+// preserved. Renaming happens through --display (Label); the Name identity is
+// immutable here on purpose (backup profiles / assistant reference it).
+func runSSHUpdate(ctx context.Context, store *sshadp.HostStore, args []string) error {
+	fs := flag.NewFlagSet("ssh-update", flag.ExitOnError)
+	name := fs.String("name", "", "host name (identity, required)")
+	display := fs.String("display", "", "display label")
+	hostName := fs.String("host", "", "hostname or IP")
+	user := fs.String("user", "", "ssh user")
+	port := fs.Int("port", 0, "ssh port")
+	id := fs.String("identity", "", "private key path")
+	jump := fs.String("jump", "", "proxy jump host")
+	note := fs.String("note", "", "free-text note")
+	diskPath := fs.String("disk-path", "", "filesystem for the disk check")
+	_ = fs.Parse(args)
+	if *name == "" {
+		return errors.New("--name is required")
+	}
+	set := map[string]bool{}
+	fs.Visit(func(f *flag.Flag) { set[f.Name] = true })
+
+	h, err := store.Get(ctx, *name)
+	if err != nil {
+		return err
+	}
+	if set["display"] {
+		h.Label = *display
+	}
+	if set["host"] {
+		h.HostName = *hostName
+	}
+	if set["user"] {
+		h.User = *user
+	}
+	if set["port"] {
+		h.Port = *port
+	}
+	if set["identity"] {
+		h.IdentityFile = *id
+	}
+	if set["jump"] {
+		h.JumpHost = *jump
+	}
+	if set["note"] {
+		h.Note = *note
+	}
+	if set["disk-path"] {
+		h.DiskPath = *diskPath
+	}
+	if err := store.Put(ctx, *h); err != nil {
+		return err
+	}
+	return json.NewEncoder(os.Stdout).Encode(h)
+}
+
 func runSSHExportBundle(ctx context.Context, store *sshadp.HostStore, args []string) error {
 	fs := flag.NewFlagSet("ssh-export-bundle", flag.ExitOnError)
 	out := fs.String("out", "", "output .cbssh path")
@@ -278,6 +337,7 @@ func runSSHAdd(ctx context.Context, store *sshadp.HostStore, args []string) erro
 	id := fs.String("identity", "", "identity file path")
 	jump := fs.String("jump", "", "proxy jump host")
 	note := fs.String("note", "", "free-text note")
+	display := fs.String("display", "", "display label")
 	monitor := fs.Bool("monitor", false, "opt into the health probe")
 	diskPath := fs.String("disk-path", "", "filesystem for the disk check (default /)")
 	_ = fs.Parse(args)
@@ -285,7 +345,7 @@ func runSSHAdd(ctx context.Context, store *sshadp.HostStore, args []string) erro
 		return errors.New("--name is required")
 	}
 	return store.Put(ctx, sshadp.TrackedHost{
-		Name: *name, HostName: *hostName, Port: *port,
+		Name: *name, Label: *display, HostName: *hostName, Port: *port,
 		User: *user, IdentityFile: *id, JumpHost: *jump, Note: *note,
 		Monitor: *monitor, DiskPath: *diskPath,
 		AddedAt: time.Now().UTC(),

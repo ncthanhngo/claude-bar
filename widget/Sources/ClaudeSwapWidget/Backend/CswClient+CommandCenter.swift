@@ -7,6 +7,7 @@ extension CswClient {
 
     struct SSHHostDTO: Codable, Identifiable, Equatable {
         let name: String
+        let label: String?
         let hostName: String?
         let port: Int?
         let user: String?
@@ -21,6 +22,11 @@ extension CswClient {
 
         var id: String { name }
         var isMonitored: Bool { monitor == true }
+        /// UI name: the label when set, else the stable identity.
+        var displayName: String {
+            if let l = label, !l.isEmpty { return l }
+            return name
+        }
     }
 
     func sshList() async throws -> [SSHHostDTO] {
@@ -36,14 +42,34 @@ extension CswClient {
     }
 
     func sshAdd(name: String, host: String, port: Int, user: String,
-                identity: String = "", jump: String = "", note: String = "") async throws {
+                identity: String = "", jump: String = "", note: String = "",
+                display: String = "", diskPath: String = "") async throws {
         var args = ["ssh", "add", "--name", name]
+        if !display.isEmpty { args += ["--display", display] }
         if !host.isEmpty { args += ["--host", host] }
         if port > 0 { args += ["--port", String(port)] }
         if !user.isEmpty { args += ["--user", user] }
         if !identity.isEmpty { args += ["--identity", identity] }
         if !jump.isEmpty { args += ["--jump", jump] }
         if !note.isEmpty { args += ["--note", note] }
+        if !diskPath.isEmpty { args += ["--disk-path", diskPath] }
+        _ = try await self.runRaw(args)
+    }
+
+    /// Edit an existing host in place. Only non-nil fields are sent; the
+    /// backend preserves everything else (monitor flag, addedAt, …). Pass an
+    /// empty string to clear a field (e.g. `identity: ""` drops the key,
+    /// `displayName: ""` reverts to the identity name).
+    func sshUpdate(name: String, displayName: String? = nil, host: String? = nil,
+                   user: String? = nil, port: Int? = nil, identity: String? = nil,
+                   diskPath: String? = nil) async throws {
+        var args = ["ssh", "update", "--name", name]
+        if let displayName { args += ["--display", displayName] }
+        if let host { args += ["--host", host] }
+        if let user { args += ["--user", user] }
+        if let port { args += ["--port", String(port)] }
+        if let identity { args += ["--identity", identity] }
+        if let diskPath { args += ["--disk-path", diskPath] }
         _ = try await self.runRaw(args)
     }
 

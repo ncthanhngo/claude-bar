@@ -109,6 +109,44 @@ final class ServerMonitorStore: ObservableObject {
         healths.first { $0.name == name }
     }
 
+    // MARK: - host management (from the Server settings sheet)
+
+    /// Register a new host with real credentials (key-based auth).
+    func addHost(name: String, display: String, host: String, user: String,
+                 port: Int, identity: String, diskPath: String) async {
+        do {
+            try await client.sshAdd(name: name, host: host, port: port, user: user,
+                                    identity: identity, display: display, diskPath: diskPath)
+            await loadHosts()
+        } catch { lastError = "\(error)" }
+    }
+
+    /// Edit an existing host. `displayName` empty reverts to the identity name;
+    /// `identity` empty drops the key. Re-probes if the host is monitored so
+    /// new credentials take effect immediately.
+    func updateHost(name: String, displayName: String, host: String,
+                    user: String, port: Int, identity: String, diskPath: String) async {
+        do {
+            try await client.sshUpdate(name: name, displayName: displayName, host: host,
+                                       user: user, port: port, identity: identity, diskPath: diskPath)
+            await loadHosts()
+            if hosts.first(where: { $0.name == name })?.isMonitored == true {
+                await refreshNow()
+            }
+        } catch { lastError = "\(error)" }
+    }
+
+    /// Delete a host and clear any monitor state for it.
+    func removeHost(name: String) async {
+        do {
+            try await client.sshRemove(name: name)
+            failStreak[name] = nil
+            reportedDown.remove(name)
+            healths.removeAll { $0.name == name }
+            await loadHosts()
+        } catch { lastError = "\(error)" }
+    }
+
     // MARK: - edge detection → notifications (disconnect only)
 
     private func evaluateEdge(_ h: CswClient.HostHealth) {

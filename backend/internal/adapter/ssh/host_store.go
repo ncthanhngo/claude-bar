@@ -16,7 +16,11 @@ import (
 // matches the SSH config Host stanza; the optional fields override config
 // values when set.
 type TrackedHost struct {
-	Name          string    `json:"name"`
+	Name string `json:"name"`
+	// Label is an optional display name shown in the UI. Name stays the
+	// stable identity/key (referenced by backup profiles, the assistant, and
+	// the SSH config stanza); renaming in the UI edits Label only.
+	Label         string    `json:"label,omitempty"`
 	HostName      string    `json:"hostName,omitempty"`
 	Port          int       `json:"port,omitempty"`
 	User          string    `json:"user,omitempty"`
