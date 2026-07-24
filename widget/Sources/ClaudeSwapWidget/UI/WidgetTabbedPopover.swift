@@ -57,7 +57,7 @@ struct WidgetTabbedPopover: View {
     /// as a single ~14pt HStack stacked into the usage VStack (spacing 3).
     private static let badgeRowExtra: CGFloat = 17
     /// The Claude|Server segmented row inserted under the header.
-    private static let tabBarHeight: CGFloat = 36
+    private static let tabBarHeight: CGFloat = 44
     /// Total popover frame height while on the Server tab — header + tab bar +
     /// the host list (which scrolls internally past this).
     private static let serverTabHeight: CGFloat = 460
@@ -165,11 +165,15 @@ struct WidgetTabbedPopover: View {
             }
             .foregroundColor(selected ? .primary : .secondary)
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 5)
+            .padding(.vertical, 9)
             .background(
-                RoundedRectangle(cornerRadius: 7, style: .continuous)
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
                     .fill(selected ? Color.primary.opacity(0.10) : Color.clear)
             )
+            // Make the WHOLE padded frame clickable — without this the clear
+            // (unselected) background is transparent and only the text glyphs
+            // are hit-testable, so the tab is hard to tap.
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
     }
