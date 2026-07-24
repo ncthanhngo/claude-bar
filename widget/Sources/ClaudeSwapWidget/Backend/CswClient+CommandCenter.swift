@@ -15,8 +15,12 @@ extension CswClient {
         let note: String?
         let addedAt: Date?
         let lastConnected: Date?
+        // Opt-in flags for the server health monitor (absent → false / "").
+        let monitor: Bool?
+        let diskPath: String?
 
         var id: String { name }
+        var isMonitored: Bool { monitor == true }
     }
 
     func sshList() async throws -> [SSHHostDTO] {

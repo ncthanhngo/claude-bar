@@ -25,6 +25,12 @@ type TrackedHost struct {
 	Note          string    `json:"note,omitempty"`
 	AddedAt       time.Time `json:"addedAt"`
 	LastConnected time.Time `json:"lastConnected,omitempty"`
+	// Monitor opts this host into the periodic reachability + disk health
+	// probe (see health.go). Absent in older hosts.json → false.
+	Monitor bool `json:"monitor,omitempty"`
+	// DiskPath is the filesystem the disk probe runs `df -P` against. Empty
+	// means the root "/".
+	DiskPath string `json:"diskPath,omitempty"`
 }
 
 // HostStore is the on-disk JSON registry of tracked SSH hosts.
