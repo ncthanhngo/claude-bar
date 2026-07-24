@@ -21,7 +21,7 @@ import (
 // no token is required because data lives under the user's macOS account.
 func runSSH(ctx context.Context, args []string) error {
 	if len(args) == 0 {
-		return errors.New("usage: csw ssh <list|add|update|remove|import|classify|exec|monitor|health>")
+		return errors.New("usage: csw ssh <list|add|update|remove|import|classify|exec|monitor|health|set-password>")
 	}
 	sub, rest := args[0], args[1:]
 	store := sshHostStoreLazy()
@@ -48,6 +48,8 @@ func runSSH(ctx context.Context, args []string) error {
 		return runSSHHealth(ctx, store, rest)
 	case "update":
 		return runSSHUpdate(ctx, store, rest)
+	case "set-password":
+		return runSSHSetPassword(ctx, store, rest)
 	default:
 		return fmt.Errorf("unknown ssh subcommand: %s", sub)
 	}
@@ -253,6 +255,45 @@ func runSSHUpdate(ctx context.Context, store *sshadp.HostStore, args []string) e
 	return json.NewEncoder(os.Stdout).Encode(h)
 }
 
+// runSSHSetPassword stores (or clears) a host's SSH password. The password is
+// read from stdin — never argv/shell history — and kept in the Keychain, not
+// hosts.json. Empty stdin clears it. Toggles the host's PasswordAuth flag so
+// Exec knows whether to attempt password auth (with key fallback).
+func runSSHSetPassword(ctx context.Context, store *sshadp.HostStore, args []string) error {
+	fs := flag.NewFlagSet("ssh-set-password", flag.ExitOnError)
+	hostName := fs.String("host", "", "tracked host name")
+	_ = fs.Parse(args)
+	if *hostName == "" {
+		return errors.New("--host is required")
+	}
+	host, err := store.Get(ctx, *hostName)
+	if err != nil {
+		return err
+	}
+	raw, err := io.ReadAll(os.Stdin)
+	if err != nil {
+		return err
+	}
+	// Trim only a trailing newline the pipe may append — passwords can contain
+	// spaces, so don't strip those.
+	pw := strings.TrimRight(string(raw), "\r\n")
+	if pw == "" {
+		if err := sshadp.DeletePassword(ctx, host.Name); err != nil {
+			return err
+		}
+		host.PasswordAuth = false
+	} else {
+		if err := sshadp.WritePassword(ctx, host.Name, pw); err != nil {
+			return err
+		}
+		host.PasswordAuth = true
+	}
+	if err := store.Put(ctx, *host); err != nil {
+		return err
+	}
+	return json.NewEncoder(os.Stdout).Encode(host)
+}
+
 func runSSHExportBundle(ctx context.Context, store *sshadp.HostStore, args []string) error {
 	fs := flag.NewFlagSet("ssh-export-bundle", flag.ExitOnError)
 	out := fs.String("out", "", "output .cbssh path")
@@ -359,6 +400,8 @@ func runSSHRemove(ctx context.Context, store *sshadp.HostStore, args []string) e
 	if *name == "" {
 		return errors.New("--name is required")
 	}
+	// Drop any stored password so a removed host leaves no Keychain residue.
+	_ = sshadp.DeletePassword(ctx, *name)
 	return store.Delete(ctx, *name)
 }
 

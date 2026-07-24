@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 	"time"
@@ -11,10 +12,10 @@ import (
 
 // ExecResult is the output of a one-shot `ssh host -- <cmd>` call.
 type ExecResult struct {
-	Stdout    string `json:"stdout"`
-	Stderr    string `json:"stderr"`
-	ExitCode  int    `json:"exitCode"`
-	DurationMs int64 `json:"durationMs"`
+	Stdout     string `json:"stdout"`
+	Stderr     string `json:"stderr"`
+	ExitCode   int    `json:"exitCode"`
+	DurationMs int64  `json:"durationMs"`
 }
 
 // ActiveControlMaster, when set, lets Exec reuse a persistent ssh
@@ -35,21 +36,44 @@ func Exec(ctx context.Context, host TrackedHost, cmd string, timeout time.Durati
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
+	// Password auth (if configured): fed non-interactively via SSH_ASKPASS so
+	// the secret never lands in argv. ssh tries password then the key
+	// (PreferredAuthentications below), so a missing/wrong password falls back
+	// to key-based auth automatically.
+	password := ""
+	if host.PasswordAuth {
+		password = ReadPassword(ctx, host.Name)
+	}
+	passwordMode := password != ""
+
 	args := []string{}
-	// Lazily open a ControlMaster so the 1st call eats the auth round-trip
-	// and every subsequent call reuses the same TCP connection.
-	if ActiveControlMaster != nil {
+	// Lazily open a ControlMaster so the 1st call eats the auth round-trip and
+	// every subsequent call reuses the same TCP connection. Skipped in
+	// password mode — the master would open without the askpass env and fail.
+	if ActiveControlMaster != nil && !passwordMode {
 		if sock, err := ActiveControlMaster.Open(ctx, host); err == nil {
 			args = append(args, "-S", sock)
 		}
 	}
-	args = append(args, sshArgs(host)...)
+	args = append(args, sshArgs(host, passwordMode)...)
 	args = append(args, "--", cmd)
 	start := time.Now()
 	cc := exec.CommandContext(ctx, "ssh", args...)
 	var stdout, stderr bytes.Buffer
 	cc.Stdout = &stdout
 	cc.Stderr = &stderr
+	if passwordMode {
+		askpass, cleanup, aerr := writeAskpassScript()
+		if aerr == nil {
+			defer cleanup()
+			cc.Env = append(os.Environ(),
+				"SSH_ASKPASS="+askpass,
+				"SSH_ASKPASS_REQUIRE=force",
+				"DISPLAY=:0",
+				"CSW_SSH_PASSWORD="+password,
+			)
+		}
+	}
 	err := cc.Run()
 	res := &ExecResult{
 		Stdout:     stdout.String(),
@@ -64,7 +88,7 @@ func Exec(ctx context.Context, host TrackedHost, cmd string, timeout time.Durati
 		}
 		if ctx.Err() == context.DeadlineExceeded {
 			res.ExitCode = 124 // GNU timeout convention
-			res.Stderr = strings.TrimSpace(res.Stderr+"\nssh exec timed out")
+			res.Stderr = strings.TrimSpace(res.Stderr + "\nssh exec timed out")
 			return res, nil
 		}
 		return res, fmt.Errorf("ssh exec: %w", err)
@@ -119,12 +143,24 @@ func ReadFile(ctx context.Context, host TrackedHost, path string, maxBytes int) 
 
 // sshArgs builds the standard option set for connecting to a tracked host.
 // Skips features we don't need (X11, agent forwarding) for safety.
-func sshArgs(h TrackedHost) []string {
+//
+// passwordMode drops BatchMode (which would block the askpass prompt) and
+// orders password before publickey so ssh tries the stored password first and
+// falls back to the key when it's absent or rejected.
+func sshArgs(h TrackedHost, passwordMode bool) []string {
 	args := []string{
-		"-o", "BatchMode=yes",
 		"-o", "StrictHostKeyChecking=accept-new",
 		"-o", "ConnectTimeout=10",
 		"-o", "ServerAliveInterval=15",
+	}
+	if passwordMode {
+		args = append(args,
+			"-o", "PreferredAuthentications=password,publickey",
+			"-o", "PubkeyAuthentication=yes",
+			"-o", "NumberOfPasswordPrompts=1",
+		)
+	} else {
+		args = append(args, "-o", "BatchMode=yes")
 	}
 	if h.Port > 0 {
 		args = append(args, "-p", fmt.Sprintf("%d", h.Port))
@@ -144,6 +180,27 @@ func sshArgs(h TrackedHost) []string {
 	}
 	args = append(args, target)
 	return args
+}
+
+// writeAskpassScript drops a tiny 0700 helper that prints $CSW_SSH_PASSWORD.
+// The script holds NO secret — the password travels only in the ssh child's
+// environment — so a stray copy on disk leaks nothing. Caller must run cleanup.
+func writeAskpassScript() (path string, cleanup func(), err error) {
+	f, err := os.CreateTemp("", "csw-askpass-*.sh")
+	if err != nil {
+		return "", nil, err
+	}
+	if _, err := f.WriteString("#!/bin/sh\nprintf '%s\\n' \"$CSW_SSH_PASSWORD\"\n"); err != nil {
+		f.Close()
+		os.Remove(f.Name())
+		return "", nil, err
+	}
+	f.Close()
+	if err := os.Chmod(f.Name(), 0o700); err != nil {
+		os.Remove(f.Name())
+		return "", nil, err
+	}
+	return f.Name(), func() { os.Remove(f.Name()) }, nil
 }
 
 func shellQuote(s string) string {

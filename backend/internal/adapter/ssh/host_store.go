@@ -35,6 +35,9 @@ type TrackedHost struct {
 	// DiskPath is the filesystem the disk probe runs `df -P` against. Empty
 	// means the root "/".
 	DiskPath string `json:"diskPath,omitempty"`
+	// PasswordAuth means a password is stored for this host (in the Keychain,
+	// never here). Exec then tries password first and falls back to the key.
+	PasswordAuth bool `json:"passwordAuth,omitempty"`
 }
 
 // HostStore is the on-disk JSON registry of tracked SSH hosts.

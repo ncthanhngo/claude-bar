@@ -136,6 +136,18 @@ final class ServerMonitorStore: ObservableObject {
         } catch { lastError = "\(error)" }
     }
 
+    /// Store or clear a host's SSH password (empty = clear). Re-probes if the
+    /// host is monitored so the new auth takes effect immediately.
+    func setPassword(host: String, password: String) async {
+        do {
+            try await client.sshSetPassword(host: host, password: password)
+            await loadHosts()
+            if hosts.first(where: { $0.name == host })?.isMonitored == true {
+                await refreshNow()
+            }
+        } catch { lastError = "\(error)" }
+    }
+
     /// Delete a host and clear any monitor state for it.
     func removeHost(name: String) async {
         do {
