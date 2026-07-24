@@ -7,7 +7,10 @@ import AppKit
 /// stays fixed — renaming edits the display label only.
 struct ServerSettingsSheet: View {
     @EnvironmentObject private var monitor: ServerMonitorStore
-    @Environment(\.dismiss) private var dismiss
+    /// Closes the hosting floating window (MenuBarExtra can't keep a `.sheet`
+    /// alive — it collapses the popover on focus loss, so this lives in its
+    /// own NSWindow via ServerSettingsWindowController).
+    let onClose: () -> Void
 
     private enum Mode: Equatable {
         case list
@@ -30,7 +33,7 @@ struct ServerSettingsSheet: View {
         Group {
             if mode == .list { listView } else { formView }
         }
-        .frame(width: 460, height: 520)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     // MARK: - list
@@ -65,7 +68,7 @@ struct ServerSettingsSheet: View {
                     Text(err).font(.system(size: 11)).foregroundColor(.red).lineLimit(2)
                 }
                 Spacer()
-                Button("Xong") { dismiss() }.keyboardShortcut(.defaultAction)
+                Button("Xong") { onClose() }.keyboardShortcut(.defaultAction)
             }
             .padding(16)
         }

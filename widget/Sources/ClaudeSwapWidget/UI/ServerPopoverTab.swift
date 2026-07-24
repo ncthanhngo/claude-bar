@@ -7,16 +7,12 @@ import SwiftUI
 /// surface. Uses the popover's system-color idiom (not the Daily palette).
 struct ServerPopoverTab: View {
     @EnvironmentObject private var monitor: ServerMonitorStore
-    @State private var showSettings = false
 
     var body: some View {
         VStack(spacing: 0) {
             header
             Divider().opacity(0.3)
             content
-        }
-        .sheet(isPresented: $showSettings) {
-            ServerSettingsSheet().environmentObject(monitor)
         }
         .onAppear {
             // Cheap local host-list read + a probe so the tab shows fresh
@@ -43,7 +39,7 @@ struct ServerPopoverTab: View {
             .buttonStyle(.plain)
             .foregroundColor(.secondary)
             .help("Kiểm tra lại ngay")
-            Button { showSettings = true } label: {
+            Button { ServerSettingsWindowController.shared.present(monitor: monitor) } label: {
                 Image(systemName: "gearshape").font(.system(size: 11))
             }
             .buttonStyle(.plain)
