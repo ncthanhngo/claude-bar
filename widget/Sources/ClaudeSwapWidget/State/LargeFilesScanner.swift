@@ -42,35 +42,29 @@ final class LargeFilesScanner: ObservableObject {
         if p.runModal() == .OK, let u = p.url { rootPath = u.path }
     }
 
+    /// `mo analyze --json <root>` returns the folder's largest files — mole is
+    /// the engine. The `≥ minMB` stepper is applied client-side so the existing
+    /// threshold UI still filters the result.
     func scan() {
         guard !isScanning else { return }
         isScanning = true
         files = []
-        let root = URL(fileURLWithPath: rootPath)
+        let root = rootPath
         let minBytes = Int64(minMB) * 1_048_576
         Task {
-            let found = await Task.detached { LargeFilesScanner.walk(root, minBytes: minBytes) }.value
+            let found = await Task.detached { LargeFilesScanner.moleLargeFiles(root, minBytes: minBytes) }.value
             self.files = found
             self.isScanning = false
         }
     }
 
-    /// Synchronous walk (enumerator iteration isn't async-safe under Swift 6).
-    /// Skips hidden files and package internals; caps results at 300 by size.
-    nonisolated static func walk(_ root: URL, minBytes: Int64) -> [LargeFile] {
-        let fm = FileManager.default
-        let keys: Set<URLResourceKey> = [.totalFileAllocatedSizeKey, .fileAllocatedSizeKey, .isRegularFileKey, .contentModificationDateKey]
-        guard let en = fm.enumerator(at: root, includingPropertiesForKeys: Array(keys),
-                                     options: [.skipsHiddenFiles, .skipsPackageDescendants]) else { return [] }
-        var out: [LargeFile] = []
-        while let f = en.nextObject() as? URL {
-            guard let v = try? f.resourceValues(forKeys: keys), v.isRegularFile == true else { continue }
-            let size = Int64(v.totalFileAllocatedSize ?? v.fileAllocatedSize ?? 0)
-            if size >= minBytes {
-                out.append(LargeFile(url: f, sizeBytes: size, modified: v.contentModificationDate))
-            }
-        }
-        return Array(out.sorted { $0.sizeBytes > $1.sizeBytes }.prefix(300))
+    nonisolated static func moleLargeFiles(_ path: String, minBytes: Int64) -> [LargeFile] {
+        guard let r = try? Mole.analyze(path: path) else { return [] }
+        return Array(r.largeFiles
+            .filter { $0.size >= minBytes }
+            .sorted { $0.size > $1.size }
+            .prefix(300)
+            .map { LargeFile(url: URL(fileURLWithPath: $0.path), sizeBytes: $0.size, modified: nil) })
     }
 
     @discardableResult

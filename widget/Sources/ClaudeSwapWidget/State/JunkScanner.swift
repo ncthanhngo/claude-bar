@@ -20,45 +20,29 @@ final class JunkScanner: ObservableObject {
 
     private let fm = FileManager.default
 
-    /// (path relative to home, label, category, safety). Everything is a
-    /// cache/log/derived dir that rebuilds; `caution` marks the few that hold
-    /// window state or cost a noticeable re-download/re-index.
-    private let targets: [(String, String, String, CleanupSafety)] = [
-        ("Library/Caches", "Cache ứng dụng", "Cache", .safe),
-        ("Library/Logs", "Log", "Log", .safe),
-        ("Library/Saved Application State", "Trạng thái cửa sổ đã lưu", "State", .caution),
-        ("Library/Developer/Xcode/DerivedData", "Xcode DerivedData", "Xcode", .safe),
-        ("Library/Developer/Xcode/iOS DeviceSupport", "iOS DeviceSupport", "Xcode", .caution),
-        ("Library/Developer/CoreSimulator/Caches", "Simulator caches", "Xcode", .safe),
-        (".npm/_cacache", "npm cache", "Dev", .safe),
-        (".cache", "~/.cache", "Dev", .caution),
-        (".gradle/caches", "Gradle caches", "Dev", .safe),
-        ("Library/Caches/Homebrew", "Homebrew cache", "Dev", .safe),
-        ("Library/Caches/go-build", "Go build cache", "Dev", .safe),
-        (".cocoapods/repos", "CocoaPods repos", "Dev", .caution),
-        ("Library/Caches/pip", "pip cache", "Dev", .safe),
-        (".bun/install/cache", "Bun cache", "Dev", .safe),
-    ]
-
     var total: Int64 { items.map(\.sizeBytes).reduce(0, +) }
 
+    /// `mo analyze --json` (overview mode) surfaces the entries mole marks
+    /// `cleanable` — its curated cache/log/build-artifact set, richer than a
+    /// hardcoded list. Discovery is mole's; the actual removal below stays
+    /// native (Trash, recoverable).
     func scan() {
         guard !isScanning else { return }
         isScanning = true
         items = []
-        let home = URL(fileURLWithPath: NSHomeDirectory())
-        let targets = self.targets
         Task {
-            var found: [JunkItem] = []
-            for (rel, label, cat, safety) in targets {
-                let url = home.appendingPathComponent(rel)
-                guard FileManager.default.fileExists(atPath: url.path) else { continue }
-                let size = await Task.detached { InstalledAppsStore.directorySize(url) }.value
-                if size > 0 { found.append(JunkItem(url: url, label: label, category: cat, safety: safety, sizeBytes: size)) }
-            }
+            let found = await Task.detached { JunkScanner.moleJunk() }.value
             self.items = found.sorted { $0.sizeBytes > $1.sizeBytes }
             self.isScanning = false
         }
+    }
+
+    nonisolated static func moleJunk() -> [JunkItem] {
+        guard let r = try? Mole.analyze(path: nil) else { return [] }
+        return r.entries
+            .filter { $0.cleanable && $0.size > 0 }
+            .map { JunkItem(url: URL(fileURLWithPath: $0.path), label: $0.name,
+                            category: "mole", safety: .safe, sizeBytes: $0.size) }
     }
 
     @discardableResult

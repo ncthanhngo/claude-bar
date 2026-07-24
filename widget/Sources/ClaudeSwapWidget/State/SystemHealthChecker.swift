@@ -23,8 +23,8 @@ final class SystemHealthChecker: ObservableObject {
         isRunning = true
         Task {
             let result = await Task.detached { SystemHealthChecker.gather() }.value
-            self.checks = result
-            self.score = SystemHealthChecker.scoreOf(result)
+            self.checks = result.checks
+            self.score = result.score
             self.isRunning = false
         }
     }
@@ -46,7 +46,44 @@ final class SystemHealthChecker: ObservableObject {
         return Int(s.rounded())
     }
 
-    nonisolated static func gather() -> [HealthCheck] {
+    /// mole's `status --json` supplies the authoritative 0–100 score plus
+    /// hardware/CPU/RAM/swap rows; the native security checks below cover what
+    /// mole doesn't (SIP · FileVault · Gatekeeper · SMART · disk free). When
+    /// mole is absent the score falls back to `scoreOf` over the native rows.
+    nonisolated static func gather() -> (checks: [HealthCheck], score: Int) {
+        var out: [HealthCheck] = []
+        var score = 0
+
+        if let s = try? Mole.status() {
+            score = s.healthScore
+            if let hw = s.hardware {
+                if let m = hw.model, !m.isEmpty { out.append(HealthCheck(name: "Máy", detail: m, status: .good)) }
+                if let os = hw.osVersion, !os.isEmpty { out.append(HealthCheck(name: "macOS", detail: os, status: .good)) }
+                if let cpu = hw.cpuModel, !cpu.isEmpty {
+                    let usage = s.cpu?.usage
+                    let detail = usage != nil ? "\(cpu) · \(Int(usage!.rounded()))%" : cpu
+                    out.append(HealthCheck(name: "CPU", detail: detail, status: (usage ?? 0) > 85 ? .warn : .good))
+                }
+            }
+            if let mem = s.memory {
+                let pct = mem.usedPercent ?? 0
+                out.append(HealthCheck(name: "RAM",
+                    detail: "\(ByteFormat.string(Int64(mem.used ?? 0))) / \(ByteFormat.string(Int64(mem.total ?? 0))) (\(Int(pct))%)",
+                    status: pct > 90 ? .warn : .good))
+                let swap = Int64(mem.swapUsed ?? 0)
+                out.append(HealthCheck(name: "Swap đang dùng", detail: ByteFormat.string(swap),
+                    status: swap > 3 * 1_073_741_824 ? .warn : .good))
+            }
+            if let up = s.uptime, !up.isEmpty { out.append(HealthCheck(name: "Uptime", detail: up, status: .good)) }
+        }
+
+        out.append(contentsOf: securityChecks())
+        if score == 0 { score = scoreOf(out) }
+        return (out, score)
+    }
+
+    /// Read-only security/health checks mole doesn't expose. No sudo.
+    nonisolated static func securityChecks() -> [HealthCheck] {
         var out: [HealthCheck] = []
 
         if let v = try? URL(fileURLWithPath: "/").resourceValues(
@@ -57,16 +94,6 @@ final class SystemHealthChecker: ObservableObject {
             let status: HealthCheck.Status = pct > 15 ? .good : (pct > 7 ? .warn : .bad)
             out.append(HealthCheck(name: "Dung lượng đĩa",
                 detail: "\(ByteFormat.string(free)) trống / \(ByteFormat.string(total)) (\(Int(pct))%)", status: status))
-        }
-
-        let ram = Int64(ProcessInfo.processInfo.physicalMemory)
-        out.append(HealthCheck(name: "RAM", detail: ByteFormat.string(ram), status: .good))
-
-        let swap = Shell.sh("sysctl -n vm.swapusage")
-        if let used = swap.components(separatedBy: "used = ").last?.components(separatedBy: " ").first, !used.isEmpty {
-            let mb = Double(used.replacingOccurrences(of: "M", with: "")) ?? 0
-            let heavy = used.hasSuffix("M") && mb > 3072 || used.contains("G")
-            out.append(HealthCheck(name: "Swap đang dùng", detail: used, status: heavy ? .warn : .good))
         }
 
         let sip = Shell.run("/usr/bin/csrutil", ["status"]).lowercased()
@@ -86,12 +113,6 @@ final class SystemHealthChecker: ObservableObject {
         out.append(HealthCheck(name: "SMART (sức khoẻ ổ)",
             detail: verified ? "Verified" : (smart.contains("not supported") ? "Không hỗ trợ" : "—"),
             status: verified ? .good : (smart.contains("failing") ? .bad : .good)))
-
-        let ver = Shell.run("/usr/bin/sw_vers", ["-productVersion"]).trimmingCharacters(in: .whitespacesAndNewlines)
-        out.append(HealthCheck(name: "macOS", detail: ver.isEmpty ? "—" : ver, status: .good))
-
-        let up = Shell.sh("uptime | sed 's/.*up //; s/,[^,]*users.*//'").trimmingCharacters(in: .whitespacesAndNewlines)
-        if !up.isEmpty { out.append(HealthCheck(name: "Uptime", detail: up, status: .good)) }
 
         return out
     }
