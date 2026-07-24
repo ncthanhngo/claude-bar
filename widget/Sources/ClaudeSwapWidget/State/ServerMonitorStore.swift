@@ -35,8 +35,24 @@ final class ServerMonitorStore: ObservableObject {
     private var diskAlerted: Set<String> = []       // crossed crit, awaiting drop below warn
     private var hostKeyAlerted: Set<String> = []
 
+    private let historyDefaultsKey = "serverDiskHistory"
+
     init(client: CswClient = CswClient()) {
         self.client = client
+        loadHistory()
+    }
+
+    private func loadHistory() {
+        guard let data = UserDefaults.standard.data(forKey: historyDefaultsKey),
+              let decoded = try? JSONDecoder().decode([String: [Int]].self, from: data)
+        else { return }
+        diskHistory = decoded
+    }
+
+    private func saveHistory() {
+        if let data = try? JSONEncoder().encode(diskHistory) {
+            UserDefaults.standard.set(data, forKey: historyDefaultsKey)
+        }
     }
 
     private var settings: AppSettings { AppSettings.shared }
@@ -107,6 +123,7 @@ final class ServerMonitorStore: ObservableObject {
         samples.append(pct)
         if samples.count > historyCap { samples.removeFirst(samples.count - historyCap) }
         diskHistory[host] = samples
+        saveHistory()
     }
 
     /// Open an interactive SSH session to the host in Terminal.app.
@@ -195,6 +212,7 @@ final class ServerMonitorStore: ObservableObject {
         diskAlerted.remove(name)
         hostKeyAlerted.remove(name)
         diskHistory[name] = nil
+        saveHistory()
     }
 
     // MARK: - edge detection → notifications (disconnect only)

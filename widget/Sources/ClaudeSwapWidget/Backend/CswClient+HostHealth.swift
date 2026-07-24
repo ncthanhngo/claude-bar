@@ -8,11 +8,20 @@ extension CswClient {
 
     /// One monitored host's snapshot. `diskUsedPct` is 0–100 only when
     /// `reachable` and the df output parsed; -1 means "no reading".
+    struct DiskMount: Decodable, Equatable, Identifiable {
+        let path: String
+        let usedPct: Int
+        var id: String { path }
+    }
+
     struct HostHealth: Decodable, Identifiable, Equatable {
         let name: String
         let reachable: Bool
         let diskUsedPct: Int
         let diskPath: String
+        // Optional so a Go nil slice (JSON null) still decodes — see the
+        // go-nil-slice memory. Use `allMounts` for a non-nil view.
+        let mounts: [DiskMount]?
         let loadAvg1: Double
         let memUsedPct: Int
         let uptimeSecs: Int64
@@ -32,6 +41,7 @@ extension CswClient {
         var hasLoad: Bool { reachable && loadAvg1 >= 0 }
         var hasMem: Bool { reachable && memUsedPct >= 0 }
         var hasUptime: Bool { reachable && uptimeSecs >= 0 }
+        var allMounts: [DiskMount] { mounts ?? [] }
     }
 
     /// Probe every host with `monitor=true` (one `df` each). Never partial —

@@ -12,10 +12,11 @@ import (
 // -1 when unavailable (e.g. a non-Linux server without /proc) so a consumer
 // can tell "no reading" from a real zero.
 type HostHealth struct {
-	Name        string `json:"name"`
-	Reachable   bool   `json:"reachable"`
-	DiskUsedPct int    `json:"diskUsedPct"`
-	DiskPath    string `json:"diskPath"` // the worst (fullest) mount when several
+	Name        string      `json:"name"`
+	Reachable   bool        `json:"reachable"`
+	DiskUsedPct int         `json:"diskUsedPct"` // the worst mount (headline)
+	DiskPath    string      `json:"diskPath"`    // the worst mount's path
+	Mounts      []DiskMount `json:"mounts"`      // every watched mount
 	// Deeper stats (best-effort, Linux /proc based).
 	LoadAvg1   float64 `json:"loadAvg1"`   // 1-min load average, -1 if n/a
 	MemUsedPct int     `json:"memUsedPct"` // -1 if n/a
@@ -29,6 +30,12 @@ type HostHealth struct {
 	DurationMs int64     `json:"durationMs"`
 	Error      string    `json:"error,omitempty"`
 	CheckedAt  time.Time `json:"checkedAt"`
+}
+
+// DiskMount is one filesystem's usage from the probe.
+type DiskMount struct {
+	Path    string `json:"path"`
+	UsedPct int    `json:"usedPct"`
 }
 
 const probeSectionMark = "@@CSWSEC@@"
@@ -112,9 +119,11 @@ func probeScript(paths []string, checkPort int) string {
 func parseProbeSections(h *HostHealth, stdout string, checkPort int) {
 	secs := strings.Split(stdout, probeSectionMark)
 	if len(secs) > 0 {
-		if pct, path, ok := parseWorstDisk(secs[0]); ok {
-			h.DiskUsedPct = pct
-			h.DiskPath = path
+		mounts := parseDiskMounts(secs[0])
+		h.Mounts = mounts
+		if worst, ok := worstMount(mounts); ok {
+			h.DiskUsedPct = worst.UsedPct
+			h.DiskPath = worst.Path
 		}
 	}
 	if len(secs) > 1 {
@@ -156,10 +165,10 @@ func parseDiskPaths(diskPath string) []string {
 	return out
 }
 
-// parseWorstDisk returns the highest Capacity% across all df data lines plus its
-// mount point — so a host watching several mounts surfaces the fullest one.
-func parseWorstDisk(dfOutput string) (pct int, mount string, ok bool) {
-	worst := -1
+// parseDiskMounts returns one DiskMount per df data line — the Capacity% token
+// and the mount point (last field). Header/garbage lines (no %) are skipped.
+func parseDiskMounts(dfOutput string) []DiskMount {
+	var out []DiskMount
 	for _, line := range strings.Split(strings.TrimSpace(dfOutput), "\n") {
 		fields := strings.Fields(line)
 		for i, f := range fields {
@@ -170,17 +179,27 @@ func parseWorstDisk(dfOutput string) (pct int, mount string, ok bool) {
 			if err != nil || n < 0 || n > 100 {
 				continue
 			}
-			if n > worst {
-				worst = n
+			mount := ""
+			if i < len(fields)-1 {
 				mount = fields[len(fields)-1]
-				if i == len(fields)-1 { // no mount column after %
-					mount = ""
-				}
 			}
-			ok = true
+			out = append(out, DiskMount{Path: mount, UsedPct: n})
 		}
 	}
-	return worst, mount, ok
+	return out
+}
+
+// worstMount returns the fullest mount — the one that drives the headline bar.
+func worstMount(mounts []DiskMount) (DiskMount, bool) {
+	worst := DiskMount{UsedPct: -1}
+	found := false
+	for _, m := range mounts {
+		if m.UsedPct > worst.UsedPct {
+			worst = m
+			found = true
+		}
+	}
+	return worst, found
 }
 
 func parseLoad1(s string) (float64, bool) {

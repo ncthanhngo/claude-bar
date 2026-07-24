@@ -49,7 +49,7 @@ struct ServerPopoverTab: View {
         } else {
             ScrollView {
                 VStack(spacing: 6) {
-                    ForEach(monitor.hosts) { host in
+                    ForEach(sortedHosts) { host in
                         ServerHostRow(
                             host: host,
                             health: monitor.health(for: host.name),
@@ -62,6 +62,23 @@ struct ServerPopoverTab: View {
                 .padding(.horizontal, 12).padding(.vertical, 8)
             }
         }
+    }
+
+    /// Problem hosts (offline, then disk-critical) float to the top; the rest
+    /// stay alphabetical.
+    private var sortedHosts: [CswClient.SSHHostDTO] {
+        monitor.hosts.sorted { a, b in
+            let ra = problemRank(a), rb = problemRank(b)
+            if ra != rb { return ra > rb }
+            return a.displayName.localizedCaseInsensitiveCompare(b.displayName) == .orderedAscending
+        }
+    }
+
+    private func problemRank(_ h: CswClient.SSHHostDTO) -> Int {
+        guard h.isMonitored, let hh = monitor.health(for: h.name) else { return 0 }
+        if !hh.reachable { return 2 }
+        if hh.hasDiskReading && hh.diskUsedPct >= AppSettings.shared.serverDiskCritPct { return 1 }
+        return 0
     }
 
     private var emptyState: some View {
@@ -153,8 +170,20 @@ private struct ServerHostRow: View {
                     Sparkline(values: history).frame(width: 44, height: 12).foregroundColor(.secondary)
                 }
             }
-            Text("Disk \(h.diskUsedPct)% · \(h.diskPath)")
-                .font(.system(size: 10)).foregroundColor(.secondary)
+            if h.allMounts.count > 1 {
+                // Per-mount breakdown when several are watched.
+                ForEach(h.allMounts) { m in
+                    HStack(spacing: 6) {
+                        Text(m.path.isEmpty ? "?" : m.path)
+                            .font(.system(size: 9, design: .monospaced)).foregroundColor(.secondary).lineLimit(1)
+                        Spacer()
+                        Text("\(m.usedPct)%").font(.system(size: 9, weight: .medium)).foregroundColor(diskColor(m.usedPct))
+                    }
+                }
+            } else {
+                Text("Disk \(h.diskUsedPct)% · \(h.diskPath)")
+                    .font(.system(size: 10)).foregroundColor(.secondary)
+            }
         }
     }
 
