@@ -37,6 +37,7 @@ struct ClaudeSwapWidgetApp: App {
     @StateObject private var prefsCloudSync = PreferencesCloudSync.shared
     @StateObject private var updateController = UpdateController()
     @StateObject private var gateCoord = GateCoordinator.shared
+    @StateObject private var serverMonitor = ServerMonitorStore()
     @ObservedObject private var settings = AppSettings.shared
 
     init() {
@@ -169,6 +170,7 @@ struct ClaudeSwapWidgetApp: App {
                 .environmentObject(briefingCoord)
                 .environmentObject(updateController)
                 .environmentObject(gateCoord)
+                .environmentObject(serverMonitor)
                 // Write-gate sheet for Low / Medium / ReadSensitive prompts.
                 // Without this, those prompts only render via the
                 // ConfirmGateOverlay inside the popover — invisible when the
@@ -256,7 +258,8 @@ struct ClaudeSwapWidgetApp: App {
             news: newsCoord,
             prefsSync: prefsCloudSync,
             webFallback: webFallback,
-            gate: gateCoord
+            gate: gateCoord,
+            serverMonitor: serverMonitor
         )
         BackgroundWorkController.shared.apply(dormant: settings.dormantModeEnabled)
         BriefingWindowController.shared.attach(

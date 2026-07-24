@@ -21,7 +21,7 @@ import (
 // no token is required because data lives under the user's macOS account.
 func runSSH(ctx context.Context, args []string) error {
 	if len(args) == 0 {
-		return errors.New("usage: csw ssh <list|add|remove|import>")
+		return errors.New("usage: csw ssh <list|add|remove|import|classify|exec|monitor|health>")
 	}
 	sub, rest := args[0], args[1:]
 	store := sshHostStoreLazy()
@@ -42,6 +42,10 @@ func runSSH(ctx context.Context, args []string) error {
 		return runSSHClassify(ctx, rest)
 	case "exec":
 		return runSSHExec(ctx, store, rest)
+	case "monitor":
+		return runSSHMonitor(ctx, store, rest)
+	case "health":
+		return runSSHHealth(ctx, store, rest)
 	default:
 		return fmt.Errorf("unknown ssh subcommand: %s", sub)
 	}
@@ -122,6 +126,72 @@ func runSSHExec(ctx context.Context, store *sshadp.HostStore, args []string) err
 		"durationMs": res.DurationMs,
 		"risk":       riskLabel(sshadp.ClassifyCmd(cmd)),
 	})
+}
+
+// runSSHMonitor toggles the periodic health probe for a host (opt-in per
+// host) and optionally sets which filesystem the disk check runs against.
+// Bool flag: pass `--enabled=true` / `--enabled=false` (the flag package does
+// not consume a separate arg for bools). Prints the updated host as JSON.
+func runSSHMonitor(ctx context.Context, store *sshadp.HostStore, args []string) error {
+	fs := flag.NewFlagSet("ssh-monitor", flag.ExitOnError)
+	hostName := fs.String("host", "", "tracked host name")
+	enabled := fs.Bool("enabled", false, "enable the health probe for this host")
+	diskPath := fs.String("disk-path", "", "filesystem for the disk check (default /)")
+	_ = fs.Parse(args)
+	if *hostName == "" {
+		return errors.New("--host is required")
+	}
+	host, err := store.Get(ctx, *hostName)
+	if err != nil {
+		return err
+	}
+	host.Monitor = *enabled
+	if *diskPath != "" {
+		host.DiskPath = *diskPath
+	}
+	if err := store.Put(ctx, *host); err != nil {
+		return err
+	}
+	return json.NewEncoder(os.Stdout).Encode(host)
+}
+
+// runSSHHealth probes monitored hosts (or a single --host) and prints a
+// []HostHealth JSON array. Reachability + disk% are derived from one `df -P`
+// per host; a reachable host has its lastConnected stamp refreshed. Failures
+// are encoded per-host (reachable=false), so the array is never partial.
+func runSSHHealth(ctx context.Context, store *sshadp.HostStore, args []string) error {
+	fs := flag.NewFlagSet("ssh-health", flag.ExitOnError)
+	hostName := fs.String("host", "", "probe only this host (default: all monitored)")
+	timeoutSec := fs.Int("timeout", 20, "per-host wall-clock cap in seconds (1–120)")
+	_ = fs.Parse(args)
+	if *timeoutSec < 1 {
+		*timeoutSec = 20
+	}
+	if *timeoutSec > 120 {
+		*timeoutSec = 120
+	}
+
+	hosts, err := store.List(ctx)
+	if err != nil {
+		return err
+	}
+	timeout := time.Duration(*timeoutSec) * time.Second
+	out := make([]sshadp.HostHealth, 0, len(hosts))
+	for _, h := range hosts {
+		if *hostName != "" {
+			if h.Name != *hostName {
+				continue
+			}
+		} else if !h.Monitor {
+			continue
+		}
+		hh := sshadp.ProbeHealth(ctx, h, h.DiskPath, timeout)
+		if hh.Reachable {
+			_ = store.MarkConnected(ctx, h.Name, time.Now().UTC())
+		}
+		out = append(out, hh)
+	}
+	return json.NewEncoder(os.Stdout).Encode(out)
 }
 
 func runSSHExportBundle(ctx context.Context, store *sshadp.HostStore, args []string) error {
@@ -208,6 +278,8 @@ func runSSHAdd(ctx context.Context, store *sshadp.HostStore, args []string) erro
 	id := fs.String("identity", "", "identity file path")
 	jump := fs.String("jump", "", "proxy jump host")
 	note := fs.String("note", "", "free-text note")
+	monitor := fs.Bool("monitor", false, "opt into the health probe")
+	diskPath := fs.String("disk-path", "", "filesystem for the disk check (default /)")
 	_ = fs.Parse(args)
 	if *name == "" {
 		return errors.New("--name is required")
@@ -215,6 +287,7 @@ func runSSHAdd(ctx context.Context, store *sshadp.HostStore, args []string) erro
 	return store.Put(ctx, sshadp.TrackedHost{
 		Name: *name, HostName: *hostName, Port: *port,
 		User: *user, IdentityFile: *id, JumpHost: *jump, Note: *note,
+		Monitor: *monitor, DiskPath: *diskPath,
 		AddedAt: time.Now().UTC(),
 	})
 }
