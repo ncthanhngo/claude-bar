@@ -18,6 +18,29 @@
     <description>Auto-update feed for AI Bar — the experimental build of the Claude Code menu-bar manager.</description>
     <language>en</language>
     <item>
+      <title>AI Bar 0.19</title>
+      <sparkle:version>0.19</sparkle:version>
+      <sparkle:shortVersionString>0.19</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li><b>New Server tab</b> in the popover — watch your SSH servers at a glance: online/offline, disk, CPU load, RAM, uptime, with disconnect and disk alerts (plus a menu-bar dot when something's wrong).</li>
+          <li><b>Real server accounts</b> — connect by password or private key (auto-fallback to the key), rename hosts, set a ProxyJump/bastion, and one-click Connect into Terminal.</li>
+          <li>Per-mount disk usage with a history sparkline, an optional TCP port check, adaptive re-checks while a host is down, and a host-key-change security warning you can trust in one click.</li>
+          <li><b>Usage heatmap</b> — a GitHub-style calendar of daily token usage alongside the Wave chart.</li>
+          <li>The App scan tools (Disk · Large files · Junk · Health) are now powered by the <b>mole</b> engine.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Fri, 24 Jul 2026 19:42:49 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/aibar-v0.19/AIBar.zip"
+        sparkle:version="0.19"
+        sparkle:shortVersionString="0.19"
+        sparkle:edSignature="o68A+B8s3JAqjMIACf7eFeOUsxtd//D1gzPrC9LQ+eRHtD6Ez+UyTQ6z+iXLNO4s8mcG75dbABeSMEWBvLooAA=="
+        length="11556201"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>AI Bar 0.18</title>
       <sparkle:version>0.18</sparkle:version>
       <sparkle:shortVersionString>0.18</sparkle:shortVersionString>
