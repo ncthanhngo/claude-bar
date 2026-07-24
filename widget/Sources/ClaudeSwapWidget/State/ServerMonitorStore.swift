@@ -131,6 +131,32 @@ final class ServerMonitorStore: ObservableObject {
         SSHTerminalLauncher.open(host)
     }
 
+    /// Trust a host's changed key (drops the stale known_hosts entry), clears
+    /// the warning state, and re-probes.
+    func trustHostKey(host: String) async {
+        do {
+            try await client.sshTrustKey(host: host)
+            hostKeyAlerted.remove(host)
+            await refreshNow()
+        } catch { lastError = "\(error)" }
+    }
+
+    // MARK: - quiet hours (reuses the app's quiet-hours setting)
+
+    private func isQuietNow() -> Bool {
+        guard let s = minutesOfDay(settings.quietHoursStart),
+              let e = minutesOfDay(settings.quietHoursEnd), s != e else { return false }
+        let cal = Calendar.current
+        let now = cal.component(.hour, from: Date()) * 60 + cal.component(.minute, from: Date())
+        return s < e ? (now >= s && now < e) : (now >= s || now < e)
+    }
+
+    private func minutesOfDay(_ hhmm: String) -> Int? {
+        let p = hhmm.split(separator: ":")
+        guard p.count == 2, let h = Int(p[0]), let m = Int(p[1]) else { return nil }
+        return h * 60 + m
+    }
+
     /// Turn the health probe on/off for a host, then reconcile local state.
     func setMonitor(host: String, enabled: Bool) async {
         do {
@@ -257,11 +283,14 @@ final class ServerMonitorStore: ObservableObject {
     private func evaluateDisk(_ h: CswClient.HostHealth) {
         guard settings.serverDiskAlertsEnabled, h.hasDiskReading else { return }
         if h.diskUsedPct >= diskCritPct {
-            if diskAlerted.insert(h.name).inserted {
-                notify(title: "Disk sắp đầy",
-                       body: "\(h.name): \(h.diskUsedPct)% ở \(h.diskPath).",
-                       id: "csw.server.disk.\(h.name)")
-            }
+            if diskAlerted.contains(h.name) { return }
+            // During quiet hours defer (don't mark alerted) so it fires once the
+            // window ends if still critical. Disconnect/host-key stay unmuted.
+            if isQuietNow() { return }
+            diskAlerted.insert(h.name)
+            notify(title: "Disk sắp đầy",
+                   body: "\(h.name): \(h.diskUsedPct)% ở \(h.diskPath).",
+                   id: "csw.server.disk.\(h.name)")
         } else if h.diskUsedPct < diskWarnPct {
             diskAlerted.remove(h.name)
         }

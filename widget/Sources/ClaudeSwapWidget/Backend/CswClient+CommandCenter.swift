@@ -88,6 +88,12 @@ extension CswClient {
         try await runWithStdin(["ssh", "set-password", "--host", host], stdin: password)
     }
 
+    /// Drop the host's stale known_hosts entry (trust its new key) so the next
+    /// probe re-pins it.
+    func sshTrustKey(host: String) async throws {
+        _ = try await self.runRaw(["ssh", "trust-key", "--host", host])
+    }
+
     // MARK: - GitLab (Phase 7)
 
     struct GitLabInstanceDTO: Codable, Identifiable, Equatable {

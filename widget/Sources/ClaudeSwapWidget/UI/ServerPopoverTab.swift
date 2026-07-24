@@ -55,7 +55,8 @@ struct ServerPopoverTab: View {
                             health: monitor.health(for: host.name),
                             history: monitor.diskHistory[host.name] ?? [],
                             onToggle: { on in Task { await monitor.setMonitor(host: host.name, enabled: on) } },
-                            onConnect: { monitor.connect(host) }
+                            onConnect: { monitor.connect(host) },
+                            onTrustKey: { Task { await monitor.trustHostKey(host: host.name) } }
                         )
                     }
                 }
@@ -100,6 +101,7 @@ private struct ServerHostRow: View {
     let history: [Int]
     let onToggle: (Bool) -> Void
     let onConnect: () -> Void
+    let onTrustKey: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -112,6 +114,11 @@ private struct ServerHostRow: View {
                             Image(systemName: "exclamationmark.shield.fill")
                                 .font(.system(size: 10)).foregroundColor(.orange)
                                 .help("Host key thay đổi — có thể bị giả mạo")
+                            Button("Tin khoá", action: onTrustKey)
+                                .buttonStyle(.plain)
+                                .font(.system(size: 9, weight: .semibold))
+                                .foregroundColor(.orange)
+                                .help("Chấp nhận khoá mới (xoá known_hosts cũ)")
                         }
                     }
                     if let sub = subtitle {

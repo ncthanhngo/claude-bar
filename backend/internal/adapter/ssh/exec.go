@@ -182,6 +182,20 @@ func sshArgs(h TrackedHost, passwordMode bool) []string {
 	return args
 }
 
+// RemoveKnownHost drops a host's entry from the local ~/.ssh/known_hosts via
+// `ssh-keygen -R`. After a host-key change this lets StrictHostKeyChecking=
+// accept-new re-pin the new key on the next connection — the in-app "trust the
+// new key" action. Local-only; touches no remote.
+func RemoveKnownHost(ctx context.Context, target string) error {
+	cmd := exec.CommandContext(ctx, "ssh-keygen", "-R", target)
+	var errOut bytes.Buffer
+	cmd.Stderr = &errOut
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("ssh-keygen -R %s: %w: %s", target, err, strings.TrimSpace(errOut.String()))
+	}
+	return nil
+}
+
 // writeAskpassScript drops a tiny 0700 helper that prints $CSW_SSH_PASSWORD.
 // The script holds NO secret — the password travels only in the ssh child's
 // environment — so a stray copy on disk leaks nothing. Caller must run cleanup.

@@ -22,7 +22,7 @@ import (
 // no token is required because data lives under the user's macOS account.
 func runSSH(ctx context.Context, args []string) error {
 	if len(args) == 0 {
-		return errors.New("usage: csw ssh <list|add|update|remove|import|classify|exec|monitor|health|set-password>")
+		return errors.New("usage: csw ssh <list|add|update|remove|import|classify|exec|monitor|health|set-password|trust-key>")
 	}
 	sub, rest := args[0], args[1:]
 	store := sshHostStoreLazy()
@@ -51,6 +51,8 @@ func runSSH(ctx context.Context, args []string) error {
 		return runSSHUpdate(ctx, store, rest)
 	case "set-password":
 		return runSSHSetPassword(ctx, store, rest)
+	case "trust-key":
+		return runSSHTrustKey(ctx, store, rest)
 	default:
 		return fmt.Errorf("unknown ssh subcommand: %s", sub)
 	}
@@ -311,6 +313,29 @@ func runSSHSetPassword(ctx context.Context, store *sshadp.HostStore, args []stri
 		return err
 	}
 	return json.NewEncoder(os.Stdout).Encode(host)
+}
+
+// runSSHTrustKey drops the host's stale known_hosts entry so the next probe
+// re-pins its current key — the in-app resolution for a host-key-change alert.
+func runSSHTrustKey(ctx context.Context, store *sshadp.HostStore, args []string) error {
+	fs := flag.NewFlagSet("ssh-trust-key", flag.ExitOnError)
+	hostName := fs.String("host", "", "tracked host name")
+	_ = fs.Parse(args)
+	if *hostName == "" {
+		return errors.New("--host is required")
+	}
+	host, err := store.Get(ctx, *hostName)
+	if err != nil {
+		return err
+	}
+	target := host.HostName
+	if target == "" {
+		target = host.Name
+	}
+	if err := sshadp.RemoveKnownHost(ctx, target); err != nil {
+		return err
+	}
+	return json.NewEncoder(os.Stdout).Encode(map[string]any{"ok": true, "host": target})
 }
 
 func runSSHExportBundle(ctx context.Context, store *sshadp.HostStore, args []string) error {
