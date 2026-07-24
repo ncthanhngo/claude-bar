@@ -101,10 +101,10 @@ struct ToolsModeBody: View {
     @ViewBuilder private var appContent: some View {
         switch page {
         case .uninstall:   AppManagementView(store: apps, palette: palette)
-        case .junk:        SystemJunkView(store: junk, palette: palette)
-        case .largeFiles:  LargeFilesView(store: large, palette: palette)
-        case .disk:        DiskAnalyzerView(store: disk, palette: palette)
-        case .health:      SystemHealthView(store: health, palette: palette)
+        case .junk:        MoleInstallGate(palette: palette) { SystemJunkView(store: junk, palette: palette) }
+        case .largeFiles:  MoleInstallGate(palette: palette) { LargeFilesView(store: large, palette: palette) }
+        case .disk:        MoleInstallGate(palette: palette) { DiskAnalyzerView(store: disk, palette: palette) }
+        case .health:      MoleInstallGate(palette: palette) { SystemHealthView(store: health, palette: palette) }
         case .maintenance: MaintenanceView(runner: maintenance, palette: palette)
         }
     }

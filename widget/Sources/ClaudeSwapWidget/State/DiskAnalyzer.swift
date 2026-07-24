@@ -63,16 +63,26 @@ final class DiskAnalyzer: ObservableObject {
     /// Run whichever scan the current mode wants. The toolbar's ↻ calls this.
     func rescan() { deepMode ? deepScan() : scanDirs() }
 
+    /// Level-1 breakdown: `mo analyze --json <root>` returns the folder's
+    /// immediate children (files + dirs) with sizes — mole is the engine here.
     func scanDirs() {
         guard !isScanning else { return }
         isScanning = true
         dirs = []
-        let root = URL(fileURLWithPath: rootPath)
+        let root = rootPath
         Task {
-            let res = await Task.detached { DiskAnalyzer.topChildren(root) }.value
+            let res = await Task.detached { DiskAnalyzer.moleChildren(root) }.value
             self.dirs = res
             self.isScanning = false
         }
+    }
+
+    nonisolated static func moleChildren(_ path: String) -> [DirUsage] {
+        guard let r = try? Mole.analyze(path: path) else { return [] }
+        return r.entries
+            .filter { $0.size > 0 }
+            .sorted { $0.size > $1.size }
+            .map { DirUsage(url: URL(fileURLWithPath: $0.path), sizeBytes: $0.size) }
     }
 
     func deepScan() {
@@ -121,19 +131,5 @@ final class DiskAnalyzer: ObservableObject {
         }
         if total >= minBytes { found.append(DirUsage(url: dir, sizeBytes: total)) }
         return total
-    }
-
-    nonisolated static func topChildren(_ root: URL) -> [DirUsage] {
-        let fm = FileManager.default
-        guard let items = try? fm.contentsOfDirectory(at: root,
-            includingPropertiesForKeys: [.isDirectoryKey, .totalFileAllocatedSizeKey], options: [.skipsHiddenFiles]) else { return [] }
-        var out: [DirUsage] = []
-        for u in items {
-            let isDir = (try? u.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory ?? false
-            let size = isDir ? InstalledAppsStore.directorySize(u)
-                : Int64((try? u.resourceValues(forKeys: [.totalFileAllocatedSizeKey]))?.totalFileAllocatedSize ?? 0)
-            if size > 0 { out.append(DirUsage(url: u, sizeBytes: size)) }
-        }
-        return out.sorted { $0.sizeBytes > $1.sizeBytes }
     }
 }
