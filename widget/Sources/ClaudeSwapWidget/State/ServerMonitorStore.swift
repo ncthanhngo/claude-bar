@@ -257,10 +257,27 @@ final class ServerMonitorStore: ObservableObject {
         return await runAction(host: host, command: cmd)
     }
 
-    /// Recent system journal (last 200 lines).
-    func systemLog(host: String) async -> String {
-        await runAction(host: host, command:
-            "journalctl --no-pager -n 200 2>&1 || sudo -n journalctl --no-pager -n 200 2>&1")
+    /// System journal. `since` (e.g. "today", "7 days ago") filters by time; nil
+    /// returns the last 200 lines. Time-ranged views are capped at 500 lines so
+    /// a busy server never ships a huge blob over SSH.
+    func systemLog(host: String, since: String? = nil) async -> String {
+        let base: String
+        if let since {
+            base = "journalctl --since '\(since)' -n 500 --no-pager 2>&1"
+        } else {
+            base = "journalctl -n 200 --no-pager 2>&1"
+        }
+        return await runAction(host: host, command: "\(base) || sudo -n \(base)")
+    }
+
+    /// Free server disk by removing archived journal older than `days`. Needs
+    /// root, so sudo -n is tried first. Destructive — callers must confirm.
+    /// Re-probes afterwards since disk% may drop.
+    func vacuumLogs(host: String, days: Int) async -> String {
+        let out = await runAction(host: host, command:
+            "sudo -n journalctl --vacuum-time=\(days)d 2>&1 || journalctl --vacuum-time=\(days)d 2>&1")
+        await refreshNow()
+        return out
     }
 
     /// Journal from the PREVIOUS boot — the post-mortem view after a crash/reboot
