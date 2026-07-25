@@ -18,6 +18,28 @@
     <description>Auto-update feed for AI Bar — the experimental build of the Claude Code menu-bar manager.</description>
     <language>en</language>
     <item>
+      <title>AI Bar 0.21</title>
+      <sparkle:version>0.21</sparkle:version>
+      <sparkle:shortVersionString>0.21</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li><b>Server hardware at a glance</b> — each host shows its CPU model, core count and total RAM, with CPU / RAM / Disk as color-filled metric chips (plus uptime and a port check on the same row).</li>
+          <li><b>Service &amp; container health</b> — watch systemd units or docker containers per host; each shows an up/down pill, and a reboot-required badge flags a pending restart.</li>
+          <li><b>Quick actions per server</b> — a ⋯ menu to view top processes, check pending updates, restart a service (with confirm), and pull log snapshots: system journal, previous-boot (post-crash), kernel dmesg, and per-service logs.</li>
+          <li>Fix: the import/export file pickers and passphrase prompts no longer open hidden behind the menu-bar popover.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Sat, 25 Jul 2026 16:58:26 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/aibar-v0.21/AIBar.zip"
+        sparkle:version="0.21"
+        sparkle:shortVersionString="0.21"
+        sparkle:edSignature="KLjGr7VbVvWvI5sI8Ga5vJrROUBD7yXe3X9f7APssh+y8c/1T0JgxCf1B3AAprErQlbUvQOnbmuX0Xu7MG+/Cw=="
+        length="11412431"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>AI Bar 0.20</title>
       <sparkle:version>0.20</sparkle:version>
       <sparkle:shortVersionString>0.20</sparkle:shortVersionString>
