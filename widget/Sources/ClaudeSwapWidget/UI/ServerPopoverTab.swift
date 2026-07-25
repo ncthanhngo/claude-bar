@@ -3,7 +3,10 @@ import SwiftUI
 /// Which log snapshot a quick-action requests.
 enum ServerLogKind {
     case service(String)   // journalctl -u / docker logs
-    case system            // recent system journal
+    case system            // recent system journal (last 200)
+    case today             // journalctl --since today
+    case week              // --since "7 days ago"
+    case month             // --since "30 days ago"
     case previousBoot      // journalctl -b -1 (post-crash)
     case kernel            // dmesg
 }
@@ -76,7 +79,8 @@ struct ServerPopoverTab: View {
                                 }
                             },
                             onRestart: { svc in restartService(host: host, service: svc) },
-                            onLog: { kind in openLog(host: host, kind: kind) }
+                            onLog: { kind in openLog(host: host, kind: kind) },
+                            onVacuum: { days in vacuumLogs(host: host, days: days) }
                         )
                     }
                 }
@@ -115,6 +119,18 @@ struct ServerPopoverTab: View {
             ServerActionWindow.present(title: "Log hệ thống · \(name)") {
                 await monitor.systemLog(host: host.name)
             }
+        case .today:
+            ServerActionWindow.present(title: "Log hôm nay · \(name)") {
+                await monitor.systemLog(host: host.name, since: "today")
+            }
+        case .week:
+            ServerActionWindow.present(title: "Log 7 ngày · \(name)") {
+                await monitor.systemLog(host: host.name, since: "7 days ago")
+            }
+        case .month:
+            ServerActionWindow.present(title: "Log 30 ngày · \(name)") {
+                await monitor.systemLog(host: host.name, since: "30 days ago")
+            }
         case .previousBoot:
             ServerActionWindow.present(title: "Log sau crash (boot trước) · \(name)") {
                 await monitor.previousBootLog(host: host.name)
@@ -123,6 +139,18 @@ struct ServerPopoverTab: View {
             ServerActionWindow.present(title: "Kernel (dmesg) · \(name)") {
                 await monitor.kernelLog(host: host.name)
             }
+        }
+    }
+
+    /// Confirm, then vacuum journald logs older than `days` and show the result.
+    private func vacuumLogs(host: CswClient.SSHHostDTO, days: Int) {
+        guard ServerActionWindow.confirm(
+            title: "Dọn log cũ hơn \(days) ngày?",
+            message: "Xoá vĩnh viễn journal cũ hơn \(days) ngày trên \(host.displayName) để giải phóng đĩa. Mất khả năng khám nghiệm các sự cố cũ đó.",
+            confirmTitle: "Dọn log"
+        ) else { return }
+        ServerActionWindow.present(title: "Dọn log >\(days)d · \(host.displayName)") {
+            await monitor.vacuumLogs(host: host.name, days: days)
         }
     }
 
@@ -163,6 +191,7 @@ private struct ServerHostRow: View {
     let onUpdates: () -> Void
     let onRestart: (String) -> Void
     let onLog: (ServerLogKind) -> Void
+    let onVacuum: (Int) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 7) {
@@ -236,9 +265,19 @@ private struct ServerHostRow: View {
             Button { onUpdates() } label: { Label("Kiểm tra cập nhật", systemImage: "shippingbox") }
             Divider()
             Menu {
-                Button { onLog(.system) } label: { Label("Log hệ thống gần đây", systemImage: "list.bullet.rectangle") }
-                Button { onLog(.previousBoot) } label: { Label("Log sau crash (boot trước)", systemImage: "exclamationmark.arrow.circlepath") }
+                Button { onLog(.system) } label: { Label("Gần đây (200 dòng)", systemImage: "list.bullet.rectangle") }
+                Button { onLog(.today) } label: { Label("Hôm nay", systemImage: "calendar") }
+                Button { onLog(.week) } label: { Label("7 ngày", systemImage: "calendar") }
+                Button { onLog(.month) } label: { Label("30 ngày", systemImage: "calendar") }
+                Divider()
+                Button { onLog(.previousBoot) } label: { Label("Sau crash (boot trước)", systemImage: "exclamationmark.arrow.circlepath") }
                 Button { onLog(.kernel) } label: { Label("Kernel (dmesg)", systemImage: "cpu") }
+                Divider()
+                Menu {
+                    Button(role: .destructive) { onVacuum(7) } label: { Text("Cũ hơn 7 ngày") }
+                    Button(role: .destructive) { onVacuum(30) } label: { Text("Cũ hơn 30 ngày") }
+                    Button(role: .destructive) { onVacuum(90) } label: { Text("Cũ hơn 90 ngày") }
+                } label: { Label("Dọn log cũ…", systemImage: "trash") }
             } label: { Label("Xem log", systemImage: "doc.text.magnifyingglass") }
             if !(health?.watchedServices.isEmpty ?? true) {
                 Divider()
