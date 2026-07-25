@@ -41,6 +41,9 @@ type TrackedHost struct {
 	// CheckPort, when > 0, makes the probe also test that TCP port on the
 	// server's loopback (a "service up?" signal). 0 disables the check.
 	CheckPort int `json:"checkPort,omitempty"`
+	// Services is a comma/space list of systemd units or "docker:<container>"
+	// tokens the probe reports up/down state for. Empty = none watched.
+	Services string `json:"services,omitempty"`
 }
 
 // HostStore is the on-disk JSON registry of tracked SSH hosts.

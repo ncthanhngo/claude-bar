@@ -23,6 +23,8 @@ extension CswClient {
         let passwordAuth: Bool?
         // TCP port probed on the server loopback (0/absent = off).
         let checkPort: Int?
+        // Comma/space list of systemd units / docker:<name> tokens to watch.
+        let services: String?
 
         var id: String { name }
         var isMonitored: Bool { monitor == true }
@@ -48,7 +50,8 @@ extension CswClient {
 
     func sshAdd(name: String, host: String, port: Int, user: String,
                 identity: String = "", jump: String = "", note: String = "",
-                display: String = "", diskPath: String = "", checkPort: Int = 0) async throws {
+                display: String = "", diskPath: String = "", checkPort: Int = 0,
+                services: String = "") async throws {
         var args = ["ssh", "add", "--name", name]
         if !display.isEmpty { args += ["--display", display] }
         if !host.isEmpty { args += ["--host", host] }
@@ -59,6 +62,7 @@ extension CswClient {
         if !note.isEmpty { args += ["--note", note] }
         if !diskPath.isEmpty { args += ["--disk-path", diskPath] }
         if checkPort > 0 { args += ["--check-port", String(checkPort)] }
+        if !services.isEmpty { args += ["--services", services] }
         _ = try await self.runRaw(args)
     }
 
@@ -68,7 +72,8 @@ extension CswClient {
     /// `displayName: ""` reverts to the identity name).
     func sshUpdate(name: String, displayName: String? = nil, host: String? = nil,
                    user: String? = nil, port: Int? = nil, identity: String? = nil,
-                   diskPath: String? = nil, jump: String? = nil, checkPort: Int? = nil) async throws {
+                   diskPath: String? = nil, jump: String? = nil, checkPort: Int? = nil,
+                   services: String? = nil) async throws {
         var args = ["ssh", "update", "--name", name]
         if let displayName { args += ["--display", displayName] }
         if let host { args += ["--host", host] }
@@ -78,6 +83,7 @@ extension CswClient {
         if let diskPath { args += ["--disk-path", diskPath] }
         if let jump { args += ["--jump", jump] }
         if let checkPort { args += ["--check-port", String(checkPort)] }
+        if let services { args += ["--services", services] }
         _ = try await self.runRaw(args)
     }
 

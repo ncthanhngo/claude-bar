@@ -232,6 +232,7 @@ func runSSHUpdate(ctx context.Context, store *sshadp.HostStore, args []string) e
 	note := fs.String("note", "", "free-text note")
 	diskPath := fs.String("disk-path", "", "filesystem(s) for the disk check")
 	checkPort := fs.Int("check-port", 0, "TCP port to test on the server loopback (0 = off)")
+	services := fs.String("services", "", "systemd units / docker:<name> to watch (comma-separated)")
 	_ = fs.Parse(args)
 	if *name == "" {
 		return errors.New("--name is required")
@@ -269,6 +270,9 @@ func runSSHUpdate(ctx context.Context, store *sshadp.HostStore, args []string) e
 	}
 	if set["check-port"] {
 		h.CheckPort = *checkPort
+	}
+	if set["services"] {
+		h.Services = *services
 	}
 	if err := store.Put(ctx, *h); err != nil {
 		return err
@@ -431,6 +435,7 @@ func runSSHAdd(ctx context.Context, store *sshadp.HostStore, args []string) erro
 	monitor := fs.Bool("monitor", false, "opt into the health probe")
 	diskPath := fs.String("disk-path", "", "filesystem(s) for the disk check (comma-separated, default /)")
 	checkPort := fs.Int("check-port", 0, "TCP port to test on the server loopback (0 = off)")
+	services := fs.String("services", "", "systemd units / docker:<name> to watch (comma-separated)")
 	_ = fs.Parse(args)
 	if *name == "" {
 		return errors.New("--name is required")
@@ -439,7 +444,8 @@ func runSSHAdd(ctx context.Context, store *sshadp.HostStore, args []string) erro
 		Name: *name, Label: *display, HostName: *hostName, Port: *port,
 		User: *user, IdentityFile: *id, JumpHost: *jump, Note: *note,
 		Monitor: *monitor, DiskPath: *diskPath, CheckPort: *checkPort,
-		AddedAt: time.Now().UTC(),
+		Services: *services,
+		AddedAt:  time.Now().UTC(),
 	})
 }
 

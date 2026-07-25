@@ -184,11 +184,11 @@ final class ServerMonitorStore: ObservableObject {
     /// Register a new host with real credentials (key-based auth).
     func addHost(name: String, display: String, host: String, user: String,
                  port: Int, identity: String, diskPath: String,
-                 jump: String, checkPort: Int) async {
+                 jump: String, checkPort: Int, services: String) async {
         do {
             try await client.sshAdd(name: name, host: host, port: port, user: user,
                                     identity: identity, jump: jump, display: display,
-                                    diskPath: diskPath, checkPort: checkPort)
+                                    diskPath: diskPath, checkPort: checkPort, services: services)
             await loadHosts()
         } catch { lastError = "\(error)" }
     }
@@ -198,16 +198,106 @@ final class ServerMonitorStore: ObservableObject {
     /// new credentials take effect immediately.
     func updateHost(name: String, displayName: String, host: String,
                     user: String, port: Int, identity: String, diskPath: String,
-                    jump: String, checkPort: Int) async {
+                    jump: String, checkPort: Int, services: String) async {
         do {
             try await client.sshUpdate(name: name, displayName: displayName, host: host,
                                        user: user, port: port, identity: identity,
-                                       diskPath: diskPath, jump: jump, checkPort: checkPort)
+                                       diskPath: diskPath, jump: jump, checkPort: checkPort,
+                                       services: services)
             await loadHosts()
             if hosts.first(where: { $0.name == name })?.isMonitored == true {
                 await refreshNow()
             }
         } catch { lastError = "\(error)" }
+    }
+
+    // MARK: - on-demand actions (reuse `ssh exec`)
+
+    /// Run a read-only command on a host and return its combined output. Used by
+    /// the quick-action viewers (top processes, pending updates). Never throws —
+    /// failures come back as a readable string.
+    private func runAction(host: String, command: String, timeout: Int = 45) async -> String {
+        do {
+            let r = try await client.sshExec(host: host, command: command, timeoutSeconds: timeout)
+            let out = r.combinedOutput.trimmingCharacters(in: .whitespacesAndNewlines)
+            return out.isEmpty ? "(không có output, exit \(r.exitCode))" : out
+        } catch {
+            return "Lỗi: \(error)"
+        }
+    }
+
+    /// Top processes by CPU, then memory.
+    func topProcesses(host: String) async -> String {
+        await runAction(host: host, command:
+            "LC_ALL=C ps -eo pid,pcpu,pmem,rss,comm --sort=-pcpu 2>/dev/null | head -n 15", timeout: 45)
+    }
+
+    /// Count of pending package updates (apt or dnf). Slower — on demand only.
+    func pendingUpdates(host: String) async -> String {
+        await runAction(host: host, command:
+            "if command -v apt-get >/dev/null 2>&1; then " +
+            "n=$(apt-get -s upgrade 2>/dev/null | grep -c '^Inst'); echo \"$n gói cần cập nhật (apt)\"; " +
+            "apt-get -s upgrade 2>/dev/null | grep '^Inst' | awk '{print $2}' | head -n 30; " +
+            "elif command -v dnf >/dev/null 2>&1; then " +
+            "dnf -q check-update 2>/dev/null | grep -cE '^[a-zA-Z0-9]' | sed 's/$/ gói cần cập nhật (dnf)/'; " +
+            "else echo 'Không nhận diện được trình quản lý gói'; fi", timeout: 90)
+    }
+
+    /// Last 200 log lines for a watched service — journalctl for a systemd unit,
+    /// `docker logs` for a "docker:<name>" token.
+    func serviceLog(host: String, service: String) async -> String {
+        let cmd: String
+        if service.hasPrefix("docker:") {
+            let name = String(service.dropFirst("docker:".count))
+            cmd = "docker logs --tail 200 \(shArg(name)) 2>&1"
+        } else {
+            cmd = "journalctl -u \(shArg(service)) --no-pager -n 200 2>&1 || " +
+                  "sudo -n journalctl -u \(shArg(service)) --no-pager -n 200 2>&1"
+        }
+        return await runAction(host: host, command: cmd)
+    }
+
+    /// Recent system journal (last 200 lines).
+    func systemLog(host: String) async -> String {
+        await runAction(host: host, command:
+            "journalctl --no-pager -n 200 2>&1 || sudo -n journalctl --no-pager -n 200 2>&1")
+    }
+
+    /// Journal from the PREVIOUS boot — the post-mortem view after a crash/reboot
+    /// (needs persistent journald, default on most distros).
+    func previousBootLog(host: String) async -> String {
+        await runAction(host: host, command:
+            "journalctl -b -1 --no-pager -n 300 2>&1 || " +
+            "sudo -n journalctl -b -1 --no-pager -n 300 2>&1 || " +
+            "echo 'Không có log boot trước (journald không lưu trữ liên tục?)'")
+    }
+
+    /// Kernel ring buffer — catches OOM-killer, hardware faults, filesystem errors.
+    func kernelLog(host: String) async -> String {
+        await runAction(host: host, command:
+            "dmesg -T 2>/dev/null | tail -n 200 || sudo -n dmesg -T 2>/dev/null | tail -n 200 || " +
+            "echo 'Không đọc được dmesg (cần quyền root)'")
+    }
+
+    /// Restart a watched service (systemd unit or "docker:<name>"). Mutating —
+    /// callers must confirm first. Re-probes so the status pill updates.
+    func restartService(host: String, service: String) async -> String {
+        let cmd: String
+        if service.hasPrefix("docker:") {
+            let name = String(service.dropFirst("docker:".count))
+            cmd = "docker restart \(shArg(name)) 2>&1"
+        } else {
+            cmd = "sudo -n systemctl restart \(shArg(service)) 2>&1 || systemctl restart \(shArg(service)) 2>&1"
+        }
+        let out = await runAction(host: host, command: cmd)
+        await refreshNow()
+        return out
+    }
+
+    /// Minimal single-quote shell escaping for a service name echoed into a
+    /// command string. Service tokens are user config, so quote defensively.
+    private func shArg(_ s: String) -> String {
+        "'" + s.replacingOccurrences(of: "'", with: "'\\''") + "'"
     }
 
     /// Store or clear a host's SSH password (empty = clear). Re-probes if the
