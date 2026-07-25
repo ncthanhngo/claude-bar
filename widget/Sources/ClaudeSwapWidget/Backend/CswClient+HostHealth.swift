@@ -14,6 +14,18 @@ extension CswClient {
         var id: String { path }
     }
 
+    /// One watched service's up/down state (systemd unit or docker container).
+    struct ServiceStatus: Decodable, Equatable, Identifiable {
+        let name: String
+        let state: String
+        let active: Bool
+        var id: String { name }
+        /// "docker:api" → "api" for display; systemd units shown as-is.
+        var shortName: String {
+            name.hasPrefix("docker:") ? String(name.dropFirst("docker:".count)) : name
+        }
+    }
+
     struct HostHealth: Decodable, Identifiable, Equatable {
         let name: String
         let reachable: Bool
@@ -26,6 +38,13 @@ extension CswClient {
         let memUsedPct: Int
         let uptimeSecs: Int64
         let portOpen: Int          // -1 unknown, 0 closed, 1 open
+        // Static hardware config. Optional/negative-sentinel so an older probe
+        // that never set them still decodes.
+        let cpuModel: String?
+        let cpuCores: Int?
+        let memTotalBytes: Int64?
+        let rebootRequired: Bool?
+        let services: [ServiceStatus]?
         let hostKeyChanged: Bool
         let exitCode: Int
         let durationMs: Int64
@@ -42,6 +61,32 @@ extension CswClient {
         var hasMem: Bool { reachable && memUsedPct >= 0 }
         var hasUptime: Bool { reachable && uptimeSecs >= 0 }
         var allMounts: [DiskMount] { mounts ?? [] }
+
+        /// Logical core count when known (> 0).
+        var cores: Int? { (cpuCores ?? -1) > 0 ? cpuCores : nil }
+        /// Total RAM in GiB (rounded), when known.
+        var ramGiB: Int? {
+            guard let b = memTotalBytes, b > 0 else { return nil }
+            return Int((Double(b) / 1_073_741_824.0).rounded())
+        }
+        /// Trimmed CPU model when non-empty.
+        var cpu: String? {
+            guard let m = cpuModel?.trimmingCharacters(in: .whitespacesAndNewlines), !m.isEmpty else { return nil }
+            return m
+        }
+        var hasSpecs: Bool { reachable && (cores != nil || ramGiB != nil || cpu != nil) }
+
+        /// Load normalized to % of cores (100% = fully busy). Needs both a load
+        /// reading and a known core count; nil otherwise so the UI falls back to
+        /// the raw load number.
+        var loadPct: Int? {
+            guard hasLoad, let c = cores, c > 0 else { return nil }
+            return Int((loadAvg1 / Double(c) * 100).rounded())
+        }
+        var needsReboot: Bool { reachable && (rebootRequired ?? false) }
+        var watchedServices: [ServiceStatus] { reachable ? (services ?? []) : [] }
+        /// Count of watched services currently down — drives the row badge.
+        var servicesDown: Int { watchedServices.filter { !$0.active }.count }
     }
 
     /// Probe every host with `monitor=true` (one `df` each). Never partial —

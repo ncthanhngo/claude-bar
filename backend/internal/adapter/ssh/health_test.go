@@ -35,15 +35,54 @@ func TestParseLoad1(t *testing.T) {
 	}
 }
 
-func TestParseMemUsedPct(t *testing.T) {
+func TestParseMem(t *testing.T) {
 	free := "              total        used        free      shared  buff/cache   available\n" +
 		"Mem:    8000000000  6000000000  1000000000    10000  1000000000  1900000000\n" +
 		"Swap:   2000000000           0  2000000000"
-	if v, ok := parseMemUsedPct(free); !ok || v != 75 {
-		t.Fatalf("mem = (%d,%v), want (75,true)", v, ok)
+	if used, total, ok := parseMem(free); !ok || used != 75 || total != 8000000000 {
+		t.Fatalf("mem = (%d,%d,%v), want (75,8000000000,true)", used, total, ok)
 	}
-	if _, ok := parseMemUsedPct("no mem here"); ok {
+	if _, _, ok := parseMem("no mem here"); ok {
 		t.Fatal("missing Mem: line should fail")
+	}
+}
+
+func TestParseCPU(t *testing.T) {
+	model, cores := parseCPU("Intel(R) Xeon(R) CPU E5-2680 v4 @ 2.40GHz\n8")
+	if model != "Intel(R) Xeon(R) CPU E5-2680 v4 @ 2.40GHz" || cores != 8 {
+		t.Fatalf("cpu = (%q,%d), want (Xeon…, 8)", model, cores)
+	}
+	// Order-tolerant + empty model line (ARM) still yields the core count.
+	if m, c := parseCPU("\n4"); m != "" || c != 4 {
+		t.Fatalf("cpu = (%q,%d), want (\"\",4)", m, c)
+	}
+}
+
+func TestParseServices(t *testing.T) {
+	got := parseServices("nginx|active\npostgresql|inactive\ndocker:api|running\ndocker:db|missing")
+	want := []ServiceStatus{
+		{Name: "nginx", State: "active", Active: true},
+		{Name: "postgresql", State: "inactive", Active: false},
+		{Name: "docker:api", State: "running", Active: true},
+		{Name: "docker:db", State: "missing", Active: false},
+	}
+	if len(got) != len(want) {
+		t.Fatalf("got %d services, want %d (%+v)", len(got), len(want), got)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("service %d = %+v, want %+v", i, got[i], want[i])
+		}
+	}
+}
+
+func TestParseServiceList(t *testing.T) {
+	got := parseServiceList(" nginx, postgresql  docker:api\n")
+	if len(got) != 3 || got[0] != "nginx" || got[2] != "docker:api" {
+		t.Fatalf("parseServiceList = %v", got)
+	}
+	if len(parseServiceList("")) != 0 {
+		t.Error("empty string should yield no services")
 	}
 }
 

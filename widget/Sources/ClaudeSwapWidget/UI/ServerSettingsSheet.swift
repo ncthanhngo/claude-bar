@@ -33,6 +33,7 @@ struct ServerSettingsSheet: View {
     @State private var fClearPassword = false // user asked to remove it
     @State private var fJump = ""
     @State private var fCheckPort = ""
+    @State private var fServices = ""
     @State private var editingName: String?
 
     var body: some View {
@@ -191,6 +192,11 @@ struct ServerSettingsSheet: View {
                         field("Đường dẫn disk theo dõi", "/ hoặc /,/data", $fDiskPath)
                         field("Check port", "vd: 443", $fCheckPort).frame(width: 110)
                     }
+                    VStack(alignment: .leading, spacing: 4) {
+                        field("Service theo dõi (tuỳ chọn)", "nginx, postgresql, docker:api", $fServices)
+                        Text("systemd unit hoặc docker:<container>, cách nhau bởi dấu phẩy. Hiện trạng thái up/down mỗi lần kiểm tra.")
+                            .font(.system(size: 10)).foregroundColor(.secondary)
+                    }
                 }
                 .padding(16)
             }
@@ -260,6 +266,26 @@ struct ServerSettingsSheet: View {
 
     // MARK: - actions
 
+    /// The settings window floats at popUpMenu+2 to clear the menu-bar popover
+    /// (popUpMenu). Panels/alerts it spawns open at the default level, so they
+    /// land BEHIND the popover and are invisible. Raise them one notch above the
+    /// settings window so every modal it triggers sits on top.
+    private static let modalLevel = NSWindow.Level(rawValue: NSWindow.Level.popUpMenu.rawValue + 3)
+
+    /// Run a save/open panel above the popover. Panel window level must be set
+    /// after the window exists (touched here) but before `runModal`.
+    private func runPanelModal(_ panel: NSSavePanel) -> NSApplication.ModalResponse {
+        NSApp.activate(ignoringOtherApps: true)
+        panel.level = Self.modalLevel
+        return panel.runModal()
+    }
+
+    private func runAlertModal(_ alert: NSAlert) -> NSApplication.ModalResponse {
+        NSApp.activate(ignoringOtherApps: true)
+        alert.window.level = Self.modalLevel
+        return alert.runModal()
+    }
+
     private func pickKey() {
         let panel = NSOpenPanel()
         panel.canChooseFiles = true
@@ -269,7 +295,7 @@ struct ServerSettingsSheet: View {
         panel.title = "Chọn private key"
         let ssh = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".ssh")
         if FileManager.default.fileExists(atPath: ssh.path) { panel.directoryURL = ssh }
-        if panel.runModal() == .OK, let url = panel.url { fIdentity = url.path }
+        if runPanelModal(panel) == .OK, let url = panel.url { fIdentity = url.path }
     }
 
     /// Export the tracked-host list to an encrypted `.cbssh` file. Asks for a
@@ -279,7 +305,7 @@ struct ServerSettingsSheet: View {
         panel.title = "Xuất danh sách server"
         panel.nameFieldStringValue = "servers.cbssh"
         panel.canCreateDirectories = true
-        guard panel.runModal() == .OK, let url = panel.url else { return }
+        guard runPanelModal(panel) == .OK, let url = panel.url else { return }
         guard let pass = promptPassphrase(
             title: "Đặt mật khẩu bảo vệ file",
             message: "File .cbssh được mã hoá bằng mật khẩu này. Máy nhập cần đúng mật khẩu để mở."
@@ -296,7 +322,7 @@ struct ServerSettingsSheet: View {
         panel.canChooseFiles = true
         panel.canChooseDirectories = false
         panel.allowsMultipleSelection = false
-        guard panel.runModal() == .OK, let url = panel.url else { return }
+        guard runPanelModal(panel) == .OK, let url = panel.url else { return }
         if replace && !confirmReplace() { return }
         guard let pass = promptPassphrase(
             title: "Nhập mật khẩu của file",
@@ -314,7 +340,7 @@ struct ServerSettingsSheet: View {
         alert.informativeText = "Xoá \(monitor.hosts.count) server hiện có rồi nhập từ file. Không thể hoàn tác."
         alert.addButton(withTitle: "Thay thế")
         alert.addButton(withTitle: "Huỷ")
-        return alert.runModal() == .alertFirstButtonReturn
+        return runAlertModal(alert) == .alertFirstButtonReturn
     }
 
     /// Modal passphrase prompt (AppKit — the panels above are already modal, so
@@ -330,7 +356,7 @@ struct ServerSettingsSheet: View {
         field.placeholderString = "Mật khẩu"
         alert.accessoryView = field
         alert.window.initialFirstResponder = field
-        guard alert.runModal() == .alertFirstButtonReturn else { return nil }
+        guard runAlertModal(alert) == .alertFirstButtonReturn else { return nil }
         let pass = field.stringValue
         return pass.isEmpty ? nil : pass
     }
@@ -353,16 +379,17 @@ struct ServerSettingsSheet: View {
         let clearPassword = fClearPassword
         let jump = fJump.trimmed
         let checkPort = Int(fCheckPort.trimmed) ?? 0
+        let services = fServices.trimmed
         Task {
             switch mode {
             case .add:
                 await monitor.addHost(name: identityName, display: display, host: host,
                                       user: user, port: port, identity: identity, diskPath: disk,
-                                      jump: jump, checkPort: checkPort)
+                                      jump: jump, checkPort: checkPort, services: services)
             case .edit(let name):
                 await monitor.updateHost(name: name, displayName: display, host: host,
                                          user: user, port: port, identity: identity, diskPath: disk,
-                                         jump: jump, checkPort: checkPort)
+                                         jump: jump, checkPort: checkPort, services: services)
             case .list:
                 break
             }
@@ -379,7 +406,7 @@ struct ServerSettingsSheet: View {
     private func resetForm() {
         fName = ""; fDisplay = ""; fHost = ""; fUser = ""; fPort = ""; fIdentity = ""; fDiskPath = ""
         fPassword = ""; fHadPassword = false; fClearPassword = false
-        fJump = ""; fCheckPort = ""
+        fJump = ""; fCheckPort = ""; fServices = ""
         editingName = nil
     }
 
@@ -395,6 +422,7 @@ struct ServerSettingsSheet: View {
         fHadPassword = h.hasPassword
         fJump = h.jumpHost ?? ""
         fCheckPort = (h.checkPort ?? 0) > 0 ? String(h.checkPort!) : ""
+        fServices = h.services ?? ""
     }
 }
 
