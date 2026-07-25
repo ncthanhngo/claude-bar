@@ -18,6 +18,27 @@
     <description>Auto-update feed for AI Bar — the experimental build of the Claude Code menu-bar manager.</description>
     <language>en</language>
     <item>
+      <title>AI Bar 0.22</title>
+      <sparkle:version>0.22</sparkle:version>
+      <sparkle:shortVersionString>0.22</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li><b>Server logs by time</b> — view today, the last 7 days, or the last 30 days of the system journal, alongside the recent / previous-boot / kernel snapshots.</li>
+          <li><b>Clean old logs</b> — free server disk by vacuuming journald older than 7, 30, or 90 days, behind a confirmation.</li>
+          <li>Time-ranged views are capped at 500 lines so a busy server never ships a huge blob over SSH.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Sat, 25 Jul 2026 18:50:04 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/aibar-v0.22/AIBar.zip"
+        sparkle:version="0.22"
+        sparkle:shortVersionString="0.22"
+        sparkle:edSignature="MvrZYnjsE0FpwSg6h4ur1jkMFoL1X13E+4X2hqwjKaMpQwAjHfknl7sKWCNsXYo++ODZ5jFS0Fw1kD33mLzyDQ=="
+        length="11419837"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>AI Bar 0.21</title>
       <sparkle:version>0.21</sparkle:version>
       <sparkle:shortVersionString>0.21</sparkle:shortVersionString>
