@@ -7,7 +7,7 @@
 	<key>CBAuthorName</key>
 	<string>Thanh Ngô</string>
 	<key>CBBuildDate</key>
-	<string>2026-07-24</string>
+	<string>2026-07-25</string>
 	<key>CBHomepageURL</key>
 	<string>https://github.com/ncthanhngo/claude-bar</string>
 	<key>CBLicense</key>
@@ -15,13 +15,14 @@
 	<key>CBReleaseChannel</key>
 	<string>Beta</string>
 	<key>CBReleaseHotfixes</key>
-	<string>Imported servers no longer show a saved-password badge for a password the bundle never carries.</string>
+	<string>Import/export file pickers and prompts no longer open hidden behind the menu-bar popover.</string>
 	<key>CBReleaseKnownIssues</key>
-	<string>Export carries server metadata only — no private keys or passwords; the receiving Mac still needs its own key.
+	<string>When a server is fully down you can’t pull live logs — use the “previous boot” log after it reboots.
 Don’t run AI Bar and Claude Bar at the same time — they share one backend socket and account lock.</string>
 	<key>CBReleaseWhatsNew</key>
-	<string>Export your tracked servers to an encrypted, passphrase-protected .cbssh file and import them on another Mac.
-Import either merges into your current list or replaces it entirely, with a confirmation before wiping.</string>
+	<string>Server tab now shows each host’s hardware — CPU model, cores, total RAM — with CPU/RAM/Disk as color chips.
+Watch systemd units and docker containers per host with up/down pills and a reboot-required badge.
+Quick actions per server: top processes, pending updates, restart a service, and log snapshots (system, previous boot, kernel).</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
@@ -29,7 +30,7 @@ Import either merges into your current list or replaces it entirely, with a conf
 	<key>CFBundleExecutable</key>
 	<string>ClaudeSwapWidget</string>
 	<key>CFBundleGetInfoString</key>
-	<string>AI Bar 0.20 — experimental build of the Claude Code menu-bar manager</string>
+	<string>AI Bar 0.21 — experimental build of the Claude Code menu-bar manager</string>
 	<key>CFBundleIconFile</key>
 	<string>AppIcon</string>
 	<key>CFBundleIdentifier</key>
@@ -44,11 +45,11 @@ Import either merges into your current list or replaces it entirely, with a conf
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>0.20</string>
+	<string>0.21</string>
 	<key>CFBundleSignature</key>
 	<string>????</string>
 	<key>CFBundleVersion</key>
-	<string>0.20</string>
+	<string>0.21</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>14.0</string>
 	<key>LSUIElement</key>
