@@ -6,6 +6,7 @@ import CoreImage.CIFilterBuiltins
 struct MenuBarLabelView: View {
     @EnvironmentObject var store: AppStore
     @EnvironmentObject private var serverMonitor: ServerMonitorStore
+    @EnvironmentObject private var claudeStatus: ClaudeStatusStore
     @ObservedObject private var settings = AppSettings.shared
 
     var body: some View {
@@ -17,6 +18,14 @@ struct MenuBarLabelView: View {
                     if serverHasAlert {
                         Circle().fill(Color.red).frame(width: 5, height: 5)
                             .offset(x: 1, y: -1)
+                    }
+                }
+                // Severity dot when Claude itself has a major+ outage — kept at
+                // the opposite corner so it can't be mistaken for the server dot.
+                .overlay(alignment: .topLeading) {
+                    if claudeStatus.shouldBadge {
+                        Circle().fill(claudeStatus.tint).frame(width: 5, height: 5)
+                            .offset(x: -1, y: -1)
                     }
                 }
             if settings.menuBarStyle != .iconOnly, let text = labelText {
