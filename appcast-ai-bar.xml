@@ -18,6 +18,27 @@
     <description>Auto-update feed for AI Bar — the experimental build of the Claude Code menu-bar manager.</description>
     <language>en</language>
     <item>
+      <title>AI Bar 0.23</title>
+      <sparkle:version>0.23</sparkle:version>
+      <sparkle:shortVersionString>0.23</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li><b>Claude outage alerts</b> — AI Bar now watches <code>status.claude.com</code> and notifies you when Claude itself hits a major or worse incident.</li>
+          <li><b>At-a-glance status</b> — a coloured dot on the menu-bar icon and a banner in the Server tab show Claude's live service status; click through to the status page.</li>
+          <li>Alerts respect your quiet-hours window and can be switched off in Server settings. Status polling uses a tiny ETag-cached endpoint, so the background cost is near zero.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Thu, 30 Jul 2026 15:05:26 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/aibar-v0.23/AIBar.zip"
+        sparkle:version="0.23"
+        sparkle:shortVersionString="0.23"
+        sparkle:edSignature="yFhwN0O+eGf4SHe0JO6UiMNecBn5mOPouh/2T0d3KuRF7MC+fnRyjSh8VSta5EXOhjoik8zmzeMAJ8CB3I8nCw=="
+        length="11656236"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>AI Bar 0.22</title>
       <sparkle:version>0.22</sparkle:version>
       <sparkle:shortVersionString>0.22</sparkle:shortVersionString>
