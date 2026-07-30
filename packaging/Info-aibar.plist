@@ -7,7 +7,7 @@
 	<key>CBAuthorName</key>
 	<string>Thanh Ngô</string>
 	<key>CBBuildDate</key>
-	<string>2026-07-25</string>
+	<string>2026-07-30</string>
 	<key>CBHomepageURL</key>
 	<string>https://github.com/ncthanhngo/claude-bar</string>
 	<key>CBLicense</key>
@@ -15,13 +15,13 @@
 	<key>CBReleaseChannel</key>
 	<string>Beta</string>
 	<key>CBReleaseHotfixes</key>
-	<string>Time-ranged log views are capped at 500 lines so a busy server never ships a huge blob over SSH.</string>
+	<string>Status polling hits a ~200-byte endpoint with ETag caching, so the extra background network cost is near zero.</string>
 	<key>CBReleaseKnownIssues</key>
-	<string>Cleaning old logs is permanent — you lose the ability to inspect incidents older than the cutoff.
+	<string>Claude status is checked only while AI Bar is open — it is not a 24/7 watch.
 Don’t run AI Bar and Claude Bar at the same time — they share one backend socket and account lock.</string>
 	<key>CBReleaseWhatsNew</key>
-	<string>View server logs by time — today, last 7 days, or last 30 days — alongside the recent, boot, and kernel views.
-Clean old logs to free disk: vacuum journald older than 7 / 30 / 90 days, with a confirmation first.</string>
+	<string>Claude outage alerts: AI Bar watches status.claude.com and notifies you on a major or worse incident.
+A coloured menu-bar dot and a Server-tab banner show Claude’s live status at a glance; toggle it off in Server settings.</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
@@ -29,7 +29,7 @@ Clean old logs to free disk: vacuum journald older than 7 / 30 / 90 days, with a
 	<key>CFBundleExecutable</key>
 	<string>ClaudeSwapWidget</string>
 	<key>CFBundleGetInfoString</key>
-	<string>AI Bar 0.22 — experimental build of the Claude Code menu-bar manager</string>
+	<string>AI Bar 0.23 — experimental build of the Claude Code menu-bar manager</string>
 	<key>CFBundleIconFile</key>
 	<string>AppIcon</string>
 	<key>CFBundleIdentifier</key>
@@ -44,11 +44,11 @@ Clean old logs to free disk: vacuum journald older than 7 / 30 / 90 days, with a
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>0.22</string>
+	<string>0.23</string>
 	<key>CFBundleSignature</key>
 	<string>????</string>
 	<key>CFBundleVersion</key>
-	<string>0.22</string>
+	<string>0.23</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>14.0</string>
 	<key>LSUIElement</key>
