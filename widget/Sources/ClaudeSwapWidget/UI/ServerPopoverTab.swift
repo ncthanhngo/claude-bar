@@ -17,9 +17,11 @@ enum ServerLogKind {
 /// one-click Connect. Uses the popover's system-color idiom (not the Daily palette).
 struct ServerPopoverTab: View {
     @EnvironmentObject private var monitor: ServerMonitorStore
+    @EnvironmentObject private var claudeStatus: ClaudeStatusStore
 
     var body: some View {
         VStack(spacing: 0) {
+            ClaudeStatusBanner(status: claudeStatus)
             header
             Divider().opacity(0.3)
             content
@@ -464,6 +466,41 @@ private struct MetricChip: View {
         }
         .padding(.horizontal, 7).padding(.vertical, 3)
         .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(color))
+    }
+}
+
+/// Slim banner at the top of the Server tab reflecting Claude's own service
+/// status (status.claude.com). Hidden while everything is operational so the
+/// tab stays quiet; on any degradation it shows a coloured dot + the page
+/// summary and opens the status page on click.
+private struct ClaudeStatusBanner: View {
+    @ObservedObject var status: ClaudeStatusStore
+
+    var body: some View {
+        if status.level != .none {
+            Button(action: open) {
+                HStack(spacing: 7) {
+                    Circle().fill(status.tint).frame(width: 7, height: 7)
+                    Text(status.summary.isEmpty ? "Claude đang gặp sự cố" : status.summary)
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(.primary.opacity(0.85))
+                        .lineLimit(1)
+                    Spacer(minLength: 4)
+                    Image(systemName: "arrow.up.right.square")
+                        .font(.system(size: 10)).foregroundColor(.secondary)
+                }
+                .padding(.horizontal, 14).padding(.vertical, 7)
+                .background(status.tint.opacity(0.12))
+            }
+            .buttonStyle(.plain)
+            .help("Mở status.claude.com")
+        }
+    }
+
+    private func open() {
+        if let url = URL(string: "https://status.claude.com") {
+            NSWorkspace.shared.open(url)
+        }
     }
 }
 

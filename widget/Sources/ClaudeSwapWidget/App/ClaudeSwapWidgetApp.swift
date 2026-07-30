@@ -38,6 +38,7 @@ struct ClaudeSwapWidgetApp: App {
     @StateObject private var updateController = UpdateController()
     @StateObject private var gateCoord = GateCoordinator.shared
     @StateObject private var serverMonitor = ServerMonitorStore()
+    @StateObject private var claudeStatus = ClaudeStatusStore()
     @ObservedObject private var settings = AppSettings.shared
 
     init() {
@@ -171,6 +172,7 @@ struct ClaudeSwapWidgetApp: App {
                 .environmentObject(updateController)
                 .environmentObject(gateCoord)
                 .environmentObject(serverMonitor)
+                .environmentObject(claudeStatus)
                 // Write-gate sheet for Low / Medium / ReadSensitive prompts.
                 // Without this, those prompts only render via the
                 // ConfirmGateOverlay inside the popover — invisible when the
@@ -202,6 +204,7 @@ struct ClaudeSwapWidgetApp: App {
             MenuBarLabelView()
                 .environmentObject(store)
                 .environmentObject(serverMonitor)
+                .environmentObject(claudeStatus)
                 .onAppear {
                     // Wire coordinators from the LABEL's onAppear — not the
                     // popover content's `.task` (lazy, popover-only) and not
@@ -260,7 +263,8 @@ struct ClaudeSwapWidgetApp: App {
             prefsSync: prefsCloudSync,
             webFallback: webFallback,
             gate: gateCoord,
-            serverMonitor: serverMonitor
+            serverMonitor: serverMonitor,
+            claudeStatus: claudeStatus
         )
         BackgroundWorkController.shared.apply(dormant: settings.dormantModeEnabled)
         BriefingWindowController.shared.attach(

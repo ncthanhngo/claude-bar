@@ -25,6 +25,7 @@ final class BackgroundWorkController {
     private weak var webFallback: WebFallbackCoordinator?
     private weak var gate: GateCoordinator?
     private weak var serverMonitor: ServerMonitorStore?
+    private weak var claudeStatus: ClaudeStatusStore?
 
     func register(
         store: AppStore,
@@ -33,7 +34,8 @@ final class BackgroundWorkController {
         prefsSync: PreferencesCloudSync,
         webFallback: WebFallbackCoordinator,
         gate: GateCoordinator,
-        serverMonitor: ServerMonitorStore
+        serverMonitor: ServerMonitorStore,
+        claudeStatus: ClaudeStatusStore
     ) {
         self.store = store
         self.briefing = briefing
@@ -42,6 +44,7 @@ final class BackgroundWorkController {
         self.webFallback = webFallback
         self.gate = gate
         self.serverMonitor = serverMonitor
+        self.claudeStatus = claudeStatus
     }
 
     /// Pause when `dormant`, otherwise resume. Idempotent — each underlying
@@ -63,6 +66,7 @@ final class BackgroundWorkController {
         webFallback?.resumeKeepAlive()
         gate?.start()
         serverMonitor?.start()
+        claudeStatus?.start()
     }
 
     /// Tear down every periodic loop, release App Nap, and stop the gate
@@ -75,5 +79,6 @@ final class BackgroundWorkController {
         webFallback?.stop()
         gate?.stop()
         serverMonitor?.stop()
+        claudeStatus?.stop()
     }
 }

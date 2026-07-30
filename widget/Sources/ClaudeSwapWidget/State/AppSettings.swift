@@ -56,6 +56,14 @@ final class AppSettings: ObservableObject {
     /// (default off — disk is display-only unless the user opts in).
     @AppStorage("serverDiskAlertsEnabled") var serverDiskAlertsEnabled: Bool = false
 
+    // Claude status monitor (status.claude.com). Notifies every user on a
+    // major+ Anthropic outage. Default ON — that's the point of the feature;
+    // the toggle lets a user who finds it noisy opt out.
+    @AppStorage("claudeStatusAlertsEnabled") var claudeStatusAlertsEnabled: Bool = true
+    /// Poll cadence for the status page; tightened to 1 min automatically while
+    /// an outage is live (see ClaudeStatusStore).
+    @AppStorage("claudeStatusPollMinutes") var claudeStatusPollMinutes: Int = 5
+
     /// When true, opening the menu-bar popover triggers an immediate refresh
     /// and tightens the polling cadence for ~5 minutes so the chart stays
     /// fresh while in view. Turn off on laptops running on battery if the

@@ -120,6 +120,10 @@ struct ServerSettingsSheet: View {
                 Text("Thông báo khi disk vượt ngưỡng nguy hiểm").font(.system(size: 11))
             }
             .toggleStyle(.switch).controlSize(.mini)
+            Toggle(isOn: $settings.claudeStatusAlertsEnabled) {
+                Text("Thông báo khi Claude gặp sự cố (status.claude.com)").font(.system(size: 11))
+            }
+            .toggleStyle(.switch).controlSize(.mini)
         }
         .padding(.horizontal, 16).padding(.vertical, 10)
     }
