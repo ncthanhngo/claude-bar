@@ -7,7 +7,7 @@
 	<key>CBAuthorName</key>
 	<string>Thanh Ngô</string>
 	<key>CBBuildDate</key>
-	<string>2026-07-30</string>
+	<string>2026-07-31</string>
 	<key>CBHomepageURL</key>
 	<string>https://github.com/ncthanhngo/claude-bar</string>
 	<key>CBLicense</key>
@@ -15,13 +15,14 @@
 	<key>CBReleaseChannel</key>
 	<string>Beta</string>
 	<key>CBReleaseHotfixes</key>
-	<string>Status polling hits a ~200-byte endpoint with ETag caching, so the extra background network cost is near zero.</string>
+	<string>Timed-out SSH health probes were shown as online with an empty readout; they now correctly report the host as down.
+A hung network or FUSE mount no longer freezes a host’s whole health check — disk stats are capped at 5s.</string>
 	<key>CBReleaseKnownIssues</key>
 	<string>Claude status is checked only while AI Bar is open — it is not a 24/7 watch.
 Don’t run AI Bar and Claude Bar at the same time — they share one backend socket and account lock.</string>
 	<key>CBReleaseWhatsNew</key>
-	<string>Claude outage alerts: AI Bar watches status.claude.com and notifies you on a major or worse incident.
-A coloured menu-bar dot and a Server-tab banner show Claude’s live status at a glance; toggle it off in Server settings.</string>
+	<string>Server monitor reliability: a stuck host now shows red instead of a misleading green dot with no data.
+Health checks stay responsive even when a disk mount stalls, so the rest of a host’s stats still load.</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
@@ -29,7 +30,7 @@ A coloured menu-bar dot and a Server-tab banner show Claude’s live status at a
 	<key>CFBundleExecutable</key>
 	<string>ClaudeSwapWidget</string>
 	<key>CFBundleGetInfoString</key>
-	<string>AI Bar 0.23 — experimental build of the Claude Code menu-bar manager</string>
+	<string>AI Bar 0.24 — experimental build of the Claude Code menu-bar manager</string>
 	<key>CFBundleIconFile</key>
 	<string>AppIcon</string>
 	<key>CFBundleIdentifier</key>
@@ -44,11 +45,11 @@ A coloured menu-bar dot and a Server-tab banner show Claude’s live status at a
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>0.23</string>
+	<string>0.24</string>
 	<key>CFBundleSignature</key>
 	<string>????</string>
 	<key>CFBundleVersion</key>
-	<string>0.23</string>
+	<string>0.24</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>14.0</string>
 	<key>LSUIElement</key>
