@@ -135,7 +135,10 @@ func probeScript(paths []string, checkPort int, services []string) string {
 		"LC_ALL=C lscpu 2>/dev/null | grep -m1 'Model name'; } | sed -e 's/^[^:]*: *//'; " +
 		"nproc 2>/dev/null || grep -c '^processor' /proc/cpuinfo 2>/dev/null"
 	parts := []string{
-		"df -P " + strings.Join(quoted, " "),
+		// timeout-guarded: df blocks indefinitely on a hung network/FUSE mount,
+		// which would stall the whole probe until the SSH deadline. Capping it
+		// leaves disk% unavailable but keeps every other section readable.
+		"timeout 5 df -P " + strings.Join(quoted, " "),
 		mark,
 		"cat /proc/loadavg 2>/dev/null",
 		mark,

@@ -82,13 +82,17 @@ func Exec(ctx context.Context, host TrackedHost, cmd string, timeout time.Durati
 		ExitCode:   0,
 	}
 	if err != nil {
-		if ee, ok := err.(*exec.ExitError); ok {
-			res.ExitCode = ee.ExitCode()
-			return res, nil
-		}
+		// Deadline first: killing the child on timeout delivers an
+		// *exec.ExitError (signalled, ExitCode -1), so the ExitError branch below
+		// would otherwise swallow the timeout and hand callers a bogus exit code
+		// that health-probing then reads as "reachable".
 		if ctx.Err() == context.DeadlineExceeded {
 			res.ExitCode = 124 // GNU timeout convention
 			res.Stderr = strings.TrimSpace(res.Stderr + "\nssh exec timed out")
+			return res, nil
+		}
+		if ee, ok := err.(*exec.ExitError); ok {
+			res.ExitCode = ee.ExitCode()
 			return res, nil
 		}
 		return res, fmt.Errorf("ssh exec: %w", err)
