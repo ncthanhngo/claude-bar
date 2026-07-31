@@ -18,6 +18,26 @@
     <description>Auto-update feed for AI Bar — the experimental build of the Claude Code menu-bar manager.</description>
     <language>en</language>
     <item>
+      <title>AI Bar 0.24</title>
+      <sparkle:version>0.24</sparkle:version>
+      <sparkle:shortVersionString>0.24</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li><b>Reliable server status</b> — a timed-out SSH health probe now correctly shows the host as <b>down</b> instead of a misleading green dot with no data.</li>
+          <li><b>No more stalled checks</b> — a hung network or FUSE mount no longer freezes a host's whole health readout; disk stats are capped at 5s so everything else still loads.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Fri, 31 Jul 2026 09:22:26 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/aibar-v0.24/AIBar.zip"
+        sparkle:version="0.24"
+        sparkle:shortVersionString="0.24"
+        sparkle:edSignature="ySZimXu6T36DooAj2uQJyotbBdnHrvVmpIpSOLElcOZUIf5A/qSLJOgLuiFXbctv+lYW4jeVbE5PuGOj2Vu1AA=="
+        length="11447431"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>AI Bar 0.23</title>
       <sparkle:version>0.23</sparkle:version>
       <sparkle:shortVersionString>0.23</sparkle:shortVersionString>
