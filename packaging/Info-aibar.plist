@@ -7,7 +7,7 @@
 	<key>CBAuthorName</key>
 	<string>Thanh Ngô</string>
 	<key>CBBuildDate</key>
-	<string>2026-07-31</string>
+	<string>2026-08-07</string>
 	<key>CBHomepageURL</key>
 	<string>https://github.com/ncthanhngo/claude-bar</string>
 	<key>CBLicense</key>
@@ -15,14 +15,13 @@
 	<key>CBReleaseChannel</key>
 	<string>Beta</string>
 	<key>CBReleaseHotfixes</key>
-	<string>Timed-out SSH health probes were shown as online with an empty readout; they now correctly report the host as down.
-A hung network or FUSE mount no longer freezes a host’s whole health check — disk stats are capped at 5s.</string>
+	<string>No fixes in this release — feature only.</string>
 	<key>CBReleaseKnownIssues</key>
-	<string>Claude status is checked only while AI Bar is open — it is not a 24/7 watch.
+	<string>Only the last 12 months are shown — older logs are pruned, so past years aren’t available.
 Don’t run AI Bar and Claude Bar at the same time — they share one backend socket and account lock.</string>
 	<key>CBReleaseWhatsNew</key>
-	<string>Server monitor reliability: a stuck host now shows red instead of a misleading green dot with no data.
-Health checks stay responsive even when a disk mount stalls, so the rest of a host’s stats still load.</string>
+	<string>The Month tab now breaks token usage down by month: a year-spanning sparkline plus one row per month.
+Each row shows the month’s cost-eq total and its change vs the previous month, newest first.</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
@@ -30,7 +29,7 @@ Health checks stay responsive even when a disk mount stalls, so the rest of a ho
 	<key>CFBundleExecutable</key>
 	<string>ClaudeSwapWidget</string>
 	<key>CFBundleGetInfoString</key>
-	<string>AI Bar 0.24 — experimental build of the Claude Code menu-bar manager</string>
+	<string>AI Bar 0.25 — experimental build of the Claude Code menu-bar manager</string>
 	<key>CFBundleIconFile</key>
 	<string>AppIcon</string>
 	<key>CFBundleIdentifier</key>
@@ -45,11 +44,11 @@ Health checks stay responsive even when a disk mount stalls, so the rest of a ho
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>0.24</string>
+	<string>0.25</string>
 	<key>CFBundleSignature</key>
 	<string>????</string>
 	<key>CFBundleVersion</key>
-	<string>0.24</string>
+	<string>0.25</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>14.0</string>
 	<key>LSUIElement</key>
