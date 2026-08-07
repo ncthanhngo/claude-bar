@@ -39,7 +39,14 @@ struct TokenStatsSection: View {
             if let stats = store.tokenStats {
                 styleBar
                 if chartStyle == .wave {
-                    UsageChart(stats: stats, granularity: granularity)
+                    // Month granularity gets the richer per-month breakdown
+                    // (year-spanning sparkline + newest-first month rows with
+                    // MoM deltas); Hour/Day keep the area chart.
+                    if granularity == .month {
+                        MonthlyBreakdownChart(monthly: stats.monthly)
+                    } else {
+                        UsageChart(stats: stats, granularity: granularity)
+                    }
                 } else {
                     UsageCalendarHeatmap(daily: stats.daily)
                 }
