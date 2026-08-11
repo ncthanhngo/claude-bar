@@ -27,7 +27,14 @@ struct TokenStatsSection: View {
         VStack(alignment: .leading, spacing: 8) {
             if let stats = store.tokenStats {
                 pickerBar
-                UsageChart(stats: stats, granularity: granularity)
+                // Month granularity gets the richer per-month breakdown
+                // (year-spanning sparkline + newest-first month rows with
+                // MoM deltas); Hour/Day keep the area chart.
+                if granularity == .month {
+                    MonthlyBreakdownChart(monthly: stats.monthly)
+                } else {
+                    UsageChart(stats: stats, granularity: granularity)
+                }
                 Divider().opacity(0.3)
                 TokenSummaryStripView(stats: stats)
             } else {
