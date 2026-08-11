@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/soi/claude-swap-widget/backend/internal/adapter/usagehist"
 	"github.com/soi/claude-swap-widget/backend/internal/domain"
 )
 
@@ -28,6 +29,13 @@ func (s *Service) UsageStats(ctx context.Context) (*domain.UsageStatsReport, err
 	report, err := s.UsageLog.Scan(ctx, now)
 	if err != nil {
 		return nil, err
+	}
+	// Backfill the Monthly series from the persisted per-month history so it
+	// keeps a real multi-month record even after Claude Code prunes the older
+	// JSONL logs the live scan reads. Best-effort: a history-file problem must
+	// never take down the usage report.
+	if store, herr := usagehist.NewStore(); herr == nil {
+		_ = store.Merge(report)
 	}
 	// Pricing/cost are no longer computed (subscription accounts don't pay per
 	// token). Ship an EMPTY (non-nil) rate table so the JSON encodes as `[]`,
