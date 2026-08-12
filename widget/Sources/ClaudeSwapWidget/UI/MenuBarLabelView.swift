@@ -5,14 +5,43 @@ import CoreImage.CIFilterBuiltins
 /// The text rendered in the macOS menu bar (top of screen).
 struct MenuBarLabelView: View {
     @EnvironmentObject var store: AppStore
+    @EnvironmentObject var pipelineStore: PipelineStore
     @ObservedObject private var settings = AppSettings.shared
 
     var body: some View {
         HStack(spacing: 4) {
-            menuBarIcon
-            if settings.menuBarStyle != .iconOnly, let text = labelText {
-                Text(text).monospacedDigit()
+            // While any watched GitLab pipeline is running, the bar shows a
+            // pipeline indicator; the instant none are active it reverts to
+            // the default Claude usage label below.
+            if pipelineStore.anyRunning {
+                pipelineIcon
+                if settings.menuBarStyle != .iconOnly, let text = pipelineLabel {
+                    Text(text).monospacedDigit()
+                }
+            } else {
+                menuBarIcon
+                if settings.menuBarStyle != .iconOnly, let text = labelText {
+                    Text(text).monospacedDigit()
+                }
             }
+        }
+    }
+
+    /// Orange spinning-arrows glyph shown while a pipeline is active — the same
+    /// running symbol GitLabBar uses, distinct from the default account icon.
+    private var pipelineIcon: some View {
+        Image(systemName: "arrow.triangle.2.circlepath")
+            .foregroundColor(.orange)
+    }
+
+    /// Running-count text paired with `pipelineIcon`, respecting the menu-bar
+    /// density preference.
+    private var pipelineLabel: String? {
+        let n = pipelineStore.runningCount
+        switch settings.menuBarStyle {
+        case .iconOnly: return nil
+        case .compact:  return "\(n) running"
+        case .full:     return "\(n) pipeline\(n == 1 ? "" : "s") running"
         }
     }
 

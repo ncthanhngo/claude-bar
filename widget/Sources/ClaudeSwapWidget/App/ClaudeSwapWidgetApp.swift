@@ -35,6 +35,7 @@ struct ClaudeSwapWidgetApp: App {
     @StateObject private var prefsCloudSync = PreferencesCloudSync.shared
     @StateObject private var updateController = UpdateController()
     @StateObject private var gateCoord = GateCoordinator.shared
+    @StateObject private var pipelineStore = PipelineStore(client: CswClient())
     @ObservedObject private var settings = AppSettings.shared
 
     init() {
@@ -128,6 +129,7 @@ struct ClaudeSwapWidgetApp: App {
                 .environmentObject(localMCP)
                 .environmentObject(updateController)
                 .environmentObject(gateCoord)
+                .environmentObject(pipelineStore)
                 // Write-gate sheet for Low / Medium / ReadSensitive prompts.
                 // Without this, those prompts only render via the
                 // ConfirmGateOverlay inside the popover — invisible when the
@@ -158,6 +160,7 @@ struct ClaudeSwapWidgetApp: App {
         } label: {
             MenuBarLabelView()
                 .environmentObject(store)
+                .environmentObject(pipelineStore)
                 .onAppear {
                     // Wire coordinators from the LABEL's onAppear — not the
                     // popover content's `.task` (lazy, popover-only) and not
@@ -204,6 +207,7 @@ struct ClaudeSwapWidgetApp: App {
         store.cloudSync = cloudSync
         DiagnosticsLogger.shared.log(.info, subsystem: "launch", "coordinators wired")
         store.start()
+        pipelineStore.start()
         chatStore.bind(to: store)
         DiagnosticsLogger.shared.log(.info, subsystem: "launch", "polling started")
         let storeBind = store

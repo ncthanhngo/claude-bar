@@ -30,7 +30,7 @@ import (
 // `gitlab:<id>` Keychain slot the connector summary doesn't read.
 func runGitLab(ctx context.Context, svc *usecase.Service, args []string) error {
 	if len(args) == 0 {
-		return errors.New("usage: csw gitlab <list|add|remove>")
+		return errors.New("usage: csw gitlab <list|add|remove|pipelines>")
 	}
 	store := mcp.NewGitLabInstanceStore(filepath.Join(adapter.WidgetDataDir(), "gitlab-instances.json"))
 	switch args[0] {
@@ -40,6 +40,8 @@ func runGitLab(ctx context.Context, svc *usecase.Service, args []string) error {
 		return runGitLabAdd(ctx, svc, store, args[1:])
 	case "remove":
 		return runGitLabRemove(ctx, svc, store, args[1:])
+	case "pipelines":
+		return runGitLabPipelines(ctx, store, args[1:])
 	default:
 		return fmt.Errorf("unknown gitlab subcommand: %s", args[0])
 	}
@@ -98,6 +100,28 @@ func runGitLabAdd(ctx context.Context, svc *usecase.Service, store *mcp.GitLabIn
 		mirrorGitLabConnectorEnabled(ctx, svc, saved)
 	}
 	return json.NewEncoder(os.Stdout).Encode(saved)
+}
+
+// runGitLabPipelines handles `csw gitlab pipelines --instance --project [--ref]
+// [--status] [--per-page]`. Read-only passthrough of the GitLab pipelines JSON
+// to stdout — the widget's menu-bar pipeline poller calls this on a loop.
+func runGitLabPipelines(ctx context.Context, store *mcp.GitLabInstanceStore, args []string) error {
+	fs := flag.NewFlagSet("gitlab-pipelines", flag.ExitOnError)
+	instance := fs.String("instance", "", "instance id or name (optional if only one configured)")
+	project := fs.String("project", "", "project path or numeric id, e.g. group/repo")
+	ref := fs.String("ref", "", "branch/tag filter")
+	status := fs.String("status", "", "pipeline status filter, e.g. running")
+	perPage := fs.Int("per-page", 20, "results per page (1-100)")
+	_ = fs.Parse(args)
+	if strings.TrimSpace(*project) == "" {
+		return errors.New("--project is required")
+	}
+	body, err := mcp.ListPipelines(ctx, store, keychain.NewMCPSecretStore(), *instance, *project, *ref, *status, *perPage)
+	if err != nil {
+		return err
+	}
+	_, err = os.Stdout.Write(body)
+	return err
 }
 
 func runGitLabRemove(ctx context.Context, svc *usecase.Service, store *mcp.GitLabInstanceStore, args []string) error {

@@ -12,6 +12,7 @@ import SwiftUI
 struct PopoverRoot: View {
     @ObservedObject private var settings = AppSettings.shared
     @EnvironmentObject private var store: AppStore
+    @EnvironmentObject private var pipelineStore: PipelineStore
 
     var body: some View {
         Group {
@@ -26,6 +27,9 @@ struct PopoverRoot: View {
         // record the popover-open timestamp (boosts polling cadence for a
         // short window) and to trigger an immediate refresh so the user
         // doesn't see a minutes-old snapshot at glance.
-        .onAppear { store.notePopoverOpened() }
+        .onAppear {
+            store.notePopoverOpened()
+            pipelineStore.notePopoverOpened()
+        }
     }
 }

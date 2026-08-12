@@ -8,11 +8,21 @@ import SwiftUI
 //
 // Name kept as `WidgetTabbedPopover` only for git history; the structure has
 // nothing tabbed about it now.
+/// The two panes of the Full popover: the default Claude dashboard and the
+/// new GitLab pipelines pane.
+enum PopoverPane: Hashable {
+    case claude
+    case gitlab
+}
+
 struct WidgetTabbedPopover: View {
     @EnvironmentObject var store: AppStore
     @EnvironmentObject var cloudSync: CloudSyncCoordinator
     @EnvironmentObject private var updateController: UpdateController
+    @EnvironmentObject private var pipelineStore: PipelineStore
     @ObservedObject private var settings = AppSettings.shared
+
+    @State private var pane: PopoverPane = .claude
 
     @AppStorage("lastAutoSyncSuccessAt") private var lastAutoSyncSuccessAt: Double = 0
     @AppStorage("lastAutoSyncError") private var lastAutoSyncError: String = ""
@@ -30,6 +40,12 @@ struct WidgetTabbedPopover: View {
     /// tokens/req vertically (see `TokenSummaryStripView`) and the usage-bar
     /// numeric columns tightened.
     private static let popoverWidth: CGFloat = 300
+    /// Height the Claude|GitLab segmented switcher row consumes (control +
+    /// vertical padding). Added to both panes' frame height.
+    private static let switcherHeight: CGFloat = 36
+    /// Fixed content height for the GitLab pane (header + list area). The list
+    /// scrolls internally beyond this; keeps the popover a stable size.
+    private static let gitlabContentHeight: CGFloat = 372
     /// Re-measured against the rendered shell: header 36 + divider 1 +
     /// accountsHeader 22 + divider 1 + auto-swap title 22 + auto-swap
     /// section 86 + token-usage title 22 + token stats minimum 196
@@ -57,14 +73,21 @@ struct WidgetTabbedPopover: View {
                 MenuHeaderBar()
                     .padding(.top, 6)
                 Divider().opacity(0.5)
-                accountsHeader
-                accountsSection
+                paneSwitcher
                 Divider().opacity(0.4)
-                bottomFixedSection
+                switch pane {
+                case .claude:
+                    accountsHeader
+                    accountsSection
+                    Divider().opacity(0.4)
+                    bottomFixedSection
+                case .gitlab:
+                    GitLabPaneView()
+                }
             }
         }
-        .frame(width: Self.popoverWidth, height: popoverHeight)
-        .animation(.easeInOut(duration: 0.18), value: popoverHeight)
+        .frame(width: Self.popoverWidth, height: currentHeight)
+        .animation(.easeInOut(duration: 0.18), value: currentHeight)
         .background(popoverBackground)
         .background(WindowAppearanceSetter(theme: settings.widgetTheme))
         .background(PopoverWindowCapture())
@@ -86,6 +109,29 @@ struct WidgetTabbedPopover: View {
     private var popoverHeight: CGFloat {
         let base = Self.shellHeight + visibleAccountsHeight
         return settings.showTokenUsageInFullPopover ? base : base - Self.tokenUsageSectionHeight
+    }
+
+    /// Popover frame height for the active pane. The switcher row is added to
+    /// both; the Claude pane keeps its finely-tuned content height while the
+    /// GitLab pane uses a fixed, internally-scrolling height.
+    private var currentHeight: CGFloat {
+        switch pane {
+        case .claude: return Self.switcherHeight + popoverHeight
+        case .gitlab: return Self.switcherHeight + Self.gitlabContentHeight
+        }
+    }
+
+    /// Segmented Claude | GitLab switcher. The GitLab segment gains a dot while
+    /// any watched pipeline is running, echoing the menu-bar indicator.
+    private var paneSwitcher: some View {
+        Picker("", selection: $pane) {
+            Text("Claude").tag(PopoverPane.claude)
+            Text(pipelineStore.anyRunning ? "GitLab ●" : "GitLab").tag(PopoverPane.gitlab)
+        }
+        .pickerStyle(.segmented)
+        .labelsHidden()
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
     }
 
     /// Height the account list actually consumes — capped at three
