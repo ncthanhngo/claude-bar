@@ -1,9 +1,9 @@
 import SwiftUI
 import Charts
 
-// Month-granularity token view: a year-spanning sparkline of token totals on
-// top (with the running yearly total), then one scrollable row per month
-// sorted newest-first — current month at the top. Each row carries a
+// Month-granularity token view: a year-spanning sparkline of cost-equivalent
+// tokens on top (with the running yearly total), then one scrollable row per
+// month sorted newest-first — current month at the top. Each row carries a
 // proportional mini-bar, the compact token figure, and a month-over-month
 // delta chip so the fluctuation reads at a glance.
 //
@@ -39,7 +39,7 @@ struct MonthlyBreakdownChart: View {
                 .font(.system(size: 13, weight: .semibold, design: .monospaced))
                 .foregroundColor(.primary)
             Spacer(minLength: 8)
-            Text("tokens · theo tháng")
+            Text("cost-eq · theo tháng")
                 .font(.system(size: 10))
                 .foregroundColor(.secondary)
         }
@@ -54,7 +54,7 @@ struct MonthlyBreakdownChart: View {
                     .font(.system(size: 16, weight: .semibold, design: .monospaced))
                     .foregroundColor(.primary)
                 Spacer(minLength: 8)
-                Text("tổng cả năm · tokens")
+                Text("tổng cả năm · cost-eq")
                     .font(.system(size: 9.5))
                     .foregroundColor(.secondary)
             }
@@ -232,7 +232,9 @@ private struct MonthlyModel {
     let rangeLabel: String
 
     init(monthly: [TimedBucketDTO]) {
-        func value(_ b: UsageBucketDTO) -> Int64 { b.totalTokens }
+        func value(_ b: UsageBucketDTO) -> Int64 {
+            b.costEquivalentTokens > 0 ? b.costEquivalentTokens : b.totalTokens
+        }
 
         let values = monthly.map { value($0.bucket) }
         let peak = values.max() ?? 0
@@ -267,7 +269,7 @@ private struct MonthlyModel {
             let current = i == lastIdx
             let frac = peak > 0 ? Double(v) / Double(peak) : 0
             var tip = "\(tipFmt.string(from: b.start)): "
-            tip += empty ? "chưa có" : TokenFormatters.compact(v) + " tokens"
+            tip += empty ? "chưa có" : TokenFormatters.compact(v) + " cost-eq"
             if current && !empty { tip += " · đang chạy" }
             if let d { tip += String(format: " · %@%.0f%% so tháng trước", d > 0 ? "▲" : "▼", abs(d)) }
             return MonthRow(
@@ -285,16 +287,13 @@ private struct MonthlyModel {
         total = sum
         hasData = sum > 0
 
-        // Year of the most recent month — matches the approved design's "2026"
-        // header. The window is a rolling 12 months, but only the current year
-        // carries data here, so the year of the latest bucket reads cleanly.
-        if let last = monthly.last?.start {
-            let yf = DateFormatter()
-            yf.locale = Locale(identifier: "en_US_POSIX")
-            yf.dateFormat = "yyyy"
-            rangeLabel = yf.string(from: last)
+        if let first = monthly.first?.start, let last = monthly.last?.start {
+            let rf = DateFormatter()
+            rf.locale = Locale(identifier: "en_US_POSIX")
+            rf.dateFormat = "MMM ''yy"
+            rangeLabel = "\(rf.string(from: first)) – \(rf.string(from: last))"
         } else {
-            rangeLabel = "—"
+            rangeLabel = "12 tháng"
         }
     }
 }

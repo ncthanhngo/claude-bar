@@ -69,13 +69,18 @@ func TestScanner_BucketsByCalendarWindow(t *testing.T) {
 	if r.Today.Requests != 1 || r.Today.InputTokens != 100 || r.Today.OutputTokens != 50 {
 		t.Fatalf("Today bucket = %+v, want one request 100/50", r.Today)
 	}
-	// TotalTokens excludes cache reads on purpose (see UsageBucket doc).
-	if r.Today.TotalTokens != 100+50+200 {
-		t.Fatalf("Today.TotalTokens = %d, want %d (input+output+cache_write, NO cache_read)",
-			r.Today.TotalTokens, 100+50+200)
+	// TotalTokens is the complete count: input+output+cache_write+cache_read.
+	if r.Today.TotalTokens != 100+50+200+1000 {
+		t.Fatalf("Today.TotalTokens = %d, want %d (input+output+cache_write+cache_read)",
+			r.Today.TotalTokens, 100+50+200+1000)
 	}
 	if r.Today.CacheReadTokens != 1000 {
 		t.Fatalf("Today.CacheReadTokens = %d, want 1000", r.Today.CacheReadTokens)
+	}
+	// Cost-equiv: input + output·5 + cache_write·1.25 + cache_read·0.1
+	// = 100 + 250 + 250 + 100 = 700.
+	if r.Today.CostEquivalentTokens != 100+50*5+200*5/4+1000/10 {
+		t.Fatalf("Today.CostEquivalentTokens = %d, want 700", r.Today.CostEquivalentTokens)
 	}
 
 	// Week bucket = today + week.
@@ -183,8 +188,8 @@ func TestScanner_BuildsHistogramSeriesWithFixedLengths(t *testing.T) {
 		t.Fatalf("Scan error: %v", err)
 	}
 
-	if len(r.Hourly) != 24 || len(r.Daily) != 30 || len(r.Monthly) != 12 {
-		t.Fatalf("series lengths = %d/%d/%d, want 24/30/12",
+	if len(r.Hourly) != 24 || len(r.Daily) != 182 || len(r.Monthly) != 12 {
+		t.Fatalf("series lengths = %d/%d/%d, want 24/182/12",
 			len(r.Hourly), len(r.Daily), len(r.Monthly))
 	}
 
@@ -194,9 +199,9 @@ func TestScanner_BuildsHistogramSeriesWithFixedLengths(t *testing.T) {
 	if r.Hourly[20].Bucket.Requests != 1 || r.Hourly[20].Bucket.InputTokens != 1 {
 		t.Fatalf("Hourly[20] = %+v, want one request 1/2 from 11:00 line", r.Hourly[20])
 	}
-	// Daily slot 24 = 5 days back (today is slot 29).
-	if r.Daily[24].Bucket.Requests != 1 || r.Daily[24].Bucket.InputTokens != 100 {
-		t.Fatalf("Daily[24] = %+v, want one request 100/200", r.Daily[24])
+	// Daily slot 176 = 5 days back (today is slot 181 in the 182-day window).
+	if r.Daily[176].Bucket.Requests != 1 || r.Daily[176].Bucket.InputTokens != 100 {
+		t.Fatalf("Daily[176] = %+v, want one request 100/200", r.Daily[176])
 	}
 	// Monthly final slot (idx 11) carries all three lines (all in current month).
 	if r.Monthly[11].Bucket.Requests != 3 {

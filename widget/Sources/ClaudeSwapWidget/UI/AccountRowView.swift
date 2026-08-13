@@ -198,10 +198,10 @@ struct AccountRowView: View {
                 .lineLimit(1)
         }
         .fixedSize()
-        .foregroundColor(webUsageColor)
+        .foregroundColor(.white)
         .padding(.horizontal, 5)
         .padding(.vertical, 2)
-        .background(webUsageColor.opacity(0.12))
+        .background(webUsageColor)
         .clipShape(Capsule())
         .help(webUsageHelp)
     }

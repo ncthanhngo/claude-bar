@@ -162,14 +162,12 @@ struct AutoSwapSection: View {
         }
         .padding(.horizontal, 7)
         .padding(.vertical, 3)
+        .foregroundColor(.white)
         .background(
             Capsule().fill(sess.safeToSwap
-                ? UsagePalette.color(for: 40).opacity(0.12)
-                : UsagePalette.color(for: 70).opacity(0.15))
+                ? UsagePalette.color(for: 40)
+                : UsagePalette.color(for: 70))
         )
-        .foregroundColor(sess.safeToSwap
-            ? UsagePalette.color(for: 40)
-            : UsagePalette.color(for: 70))
     }
 }
 

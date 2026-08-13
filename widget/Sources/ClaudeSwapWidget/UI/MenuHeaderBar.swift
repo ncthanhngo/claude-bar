@@ -83,7 +83,10 @@ struct MenuHeaderBar: View {
                 settingsButton
             }
         }
-        .padding(.horizontal, 14)
+        .padding(.leading, 14)
+        // Keep the right-most chrome icon clear of the popover's rounded
+        // corner — 14/18pt still left the gear visually flush against the edge.
+        .padding(.trailing, 24)
         .padding(.vertical, 6)
     }
 
@@ -124,7 +127,7 @@ struct MenuHeaderBar: View {
                 .foregroundColor(.secondary)
         }
         .buttonStyle(.borderless)
-        .help("Quit Claude Bar (⌘Q)")
+        .help("Quit \(AppInfo.displayName) (⌘Q)")
         .pointingHandCursor()
         .accessibilityLabel("Quit")
     }

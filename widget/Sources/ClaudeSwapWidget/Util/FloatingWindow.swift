@@ -79,7 +79,7 @@ final class FloatingWindow<Content: View>: NSObject, NSWindowDelegate {
     /// Returns the Settings window if it's currently visible — used by
     /// `show()` to center child sheets on it rather than the screen.
     private func settingsHostWindow() -> NSWindow? {
-        NSApp.windows.first { $0.title == "Claude Bar Settings" && $0.isVisible }
+        NSApp.windows.first { $0.title == AppInfo.settingsWindowTitle && $0.isVisible }
     }
 
     func close() {

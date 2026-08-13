@@ -58,7 +58,7 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
             backing: .buffered,
             defer: false
         )
-        w.title = "Claude Bar Settings"
+        w.title = AppInfo.settingsWindowTitle
         w.contentViewController = host
         w.setContentSize(size)
         w.minSize = NSSize(width: 820, height: 540)

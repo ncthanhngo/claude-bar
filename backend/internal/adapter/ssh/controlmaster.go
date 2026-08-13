@@ -57,7 +57,7 @@ func (m *ControlMaster) Open(ctx context.Context, host TrackedHost) (string, err
 	_ = os.Remove(sock)
 
 	args := []string{"-fN", "-M", "-S", sock}
-	args = append(args, sshArgs(host)...)
+	args = append(args, sshArgs(host, false)...)
 	cctx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
 	cmd := exec.CommandContext(cctx, "ssh", args...)
@@ -78,7 +78,7 @@ func (m *ControlMaster) Close(ctx context.Context, host TrackedHost) error {
 		sock = m.SocketPath(host.Name)
 	}
 	args := []string{"-S", sock, "-O", "exit"}
-	args = append(args, sshArgs(host)...)
+	args = append(args, sshArgs(host, false)...)
 	_ = exec.CommandContext(ctx, "ssh", args...).Run()
 	delete(m.active, host.Name)
 	_ = os.Remove(sock)
@@ -98,7 +98,7 @@ func (m *ControlMaster) isAliveLocked(ctx context.Context, sock string, host Tra
 		return false
 	}
 	args := []string{"-S", sock, "-O", "check"}
-	args = append(args, sshArgs(host)...)
+	args = append(args, sshArgs(host, false)...)
 	cctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 	err := exec.CommandContext(cctx, "ssh", args...).Run()

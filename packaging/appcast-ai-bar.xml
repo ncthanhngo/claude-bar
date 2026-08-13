@@ -1,0 +1,526 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Sparkle appcast for AI Bar — the experimental track. Source of truth. The
+  file published at https://ncthanhngo.github.io/claude-bar/appcast-ai-bar.xml
+  is served from the `gh-pages` branch and is a byte-for-byte copy of this
+  file. When cutting an AI Bar release, prepend the new <item> here and copy
+  across. Separate from appcast.xml (stable Claude Bar) on purpose — AI Bar
+  installs have their own SUFeedURL and only ever see items in this feed.
+
+  Empty until the first AI Bar release. AI Bar ships with
+  SUEnableAutomaticChecks=false so an empty feed does not surface a daily
+  error dialog; the first /rl-aibar release adds an item AND flips that flag.
+-->
+<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <channel>
+    <title>AI Bar</title>
+    <link>https://github.com/ncthanhngo/claude-bar</link>
+    <description>Auto-update feed for AI Bar — the experimental build of the Claude Code menu-bar manager.</description>
+    <language>en</language>
+    <item>
+      <title>AI Bar 0.25</title>
+      <sparkle:version>0.25</sparkle:version>
+      <sparkle:shortVersionString>0.25</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li><b>Month-by-month token breakdown</b> — the <b>Month</b> tab now shows a year-spanning sparkline plus one row per month.</li>
+          <li>Each row lists the month's cost-equivalent total and its change vs the previous month (▲/▼ %), <b>newest first</b>.</li>
+          <li>Built from the rolling last-12-months series; the current month is marked as still in progress.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Fri, 07 Aug 2026 12:00:14 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/aibar-v0.25/AIBar.zip"
+        sparkle:version="0.25"
+        sparkle:shortVersionString="0.25"
+        sparkle:edSignature="mZ2ObuuaepsdYNTt1NGXN0GHEuI1w9JFa0qn2Zq1LEy461e1SpBpPe/GKjShhaKYC5Hqwt0GTLCPPFTK89K3Dw=="
+        length="11689410"
+        type="application/octet-stream"/>
+    </item>
+    <item>
+      <title>AI Bar 0.24</title>
+      <sparkle:version>0.24</sparkle:version>
+      <sparkle:shortVersionString>0.24</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li><b>Reliable server status</b> — a timed-out SSH health probe now correctly shows the host as <b>down</b> instead of a misleading green dot with no data.</li>
+          <li><b>No more stalled checks</b> — a hung network or FUSE mount no longer freezes a host's whole health readout; disk stats are capped at 5s so everything else still loads.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Fri, 31 Jul 2026 09:22:26 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/aibar-v0.24/AIBar.zip"
+        sparkle:version="0.24"
+        sparkle:shortVersionString="0.24"
+        sparkle:edSignature="ySZimXu6T36DooAj2uQJyotbBdnHrvVmpIpSOLElcOZUIf5A/qSLJOgLuiFXbctv+lYW4jeVbE5PuGOj2Vu1AA=="
+        length="11447431"
+        type="application/octet-stream"/>
+    </item>
+    <item>
+      <title>AI Bar 0.23</title>
+      <sparkle:version>0.23</sparkle:version>
+      <sparkle:shortVersionString>0.23</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li><b>Claude outage alerts</b> — AI Bar now watches <code>status.claude.com</code> and notifies you when Claude itself hits a major or worse incident.</li>
+          <li><b>At-a-glance status</b> — a coloured dot on the menu-bar icon and a banner in the Server tab show Claude's live service status; click through to the status page.</li>
+          <li>Alerts respect your quiet-hours window and can be switched off in Server settings. Status polling uses a tiny ETag-cached endpoint, so the background cost is near zero.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Thu, 30 Jul 2026 15:05:26 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/aibar-v0.23/AIBar.zip"
+        sparkle:version="0.23"
+        sparkle:shortVersionString="0.23"
+        sparkle:edSignature="yFhwN0O+eGf4SHe0JO6UiMNecBn5mOPouh/2T0d3KuRF7MC+fnRyjSh8VSta5EXOhjoik8zmzeMAJ8CB3I8nCw=="
+        length="11656236"
+        type="application/octet-stream"/>
+    </item>
+    <item>
+      <title>AI Bar 0.22</title>
+      <sparkle:version>0.22</sparkle:version>
+      <sparkle:shortVersionString>0.22</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li><b>Server logs by time</b> — view today, the last 7 days, or the last 30 days of the system journal, alongside the recent / previous-boot / kernel snapshots.</li>
+          <li><b>Clean old logs</b> — free server disk by vacuuming journald older than 7, 30, or 90 days, behind a confirmation.</li>
+          <li>Time-ranged views are capped at 500 lines so a busy server never ships a huge blob over SSH.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Sat, 25 Jul 2026 18:50:04 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/aibar-v0.22/AIBar.zip"
+        sparkle:version="0.22"
+        sparkle:shortVersionString="0.22"
+        sparkle:edSignature="MvrZYnjsE0FpwSg6h4ur1jkMFoL1X13E+4X2hqwjKaMpQwAjHfknl7sKWCNsXYo++ODZ5jFS0Fw1kD33mLzyDQ=="
+        length="11419837"
+        type="application/octet-stream"/>
+    </item>
+    <item>
+      <title>AI Bar 0.21</title>
+      <sparkle:version>0.21</sparkle:version>
+      <sparkle:shortVersionString>0.21</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li><b>Server hardware at a glance</b> — each host shows its CPU model, core count and total RAM, with CPU / RAM / Disk as color-filled metric chips (plus uptime and a port check on the same row).</li>
+          <li><b>Service &amp; container health</b> — watch systemd units or docker containers per host; each shows an up/down pill, and a reboot-required badge flags a pending restart.</li>
+          <li><b>Quick actions per server</b> — a ⋯ menu to view top processes, check pending updates, restart a service (with confirm), and pull log snapshots: system journal, previous-boot (post-crash), kernel dmesg, and per-service logs.</li>
+          <li>Fix: the import/export file pickers and passphrase prompts no longer open hidden behind the menu-bar popover.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Sat, 25 Jul 2026 16:58:26 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/aibar-v0.21/AIBar.zip"
+        sparkle:version="0.21"
+        sparkle:shortVersionString="0.21"
+        sparkle:edSignature="KLjGr7VbVvWvI5sI8Ga5vJrROUBD7yXe3X9f7APssh+y8c/1T0JgxCf1B3AAprErQlbUvQOnbmuX0Xu7MG+/Cw=="
+        length="11412431"
+        type="application/octet-stream"/>
+    </item>
+    <item>
+      <title>AI Bar 0.20</title>
+      <sparkle:version>0.20</sparkle:version>
+      <sparkle:shortVersionString>0.20</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li><b>Export / import your servers.</b> Save the Server tab's tracked hosts to an encrypted, passphrase-protected <code>.cbssh</code> file and import them on another Mac.</li>
+          <li>Import either <b>merges</b> into your current list or <b>replaces</b> it entirely, with a confirmation before wiping.</li>
+          <li>Export carries server <b>metadata only</b> — no private keys or passwords; the receiving Mac still needs its own key and password.</li>
+          <li>Fix: imported servers no longer show a saved-password badge for a password the bundle never carries.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Fri, 24 Jul 2026 23:26:08 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/aibar-v0.20/AIBar.zip"
+        sparkle:version="0.20"
+        sparkle:shortVersionString="0.20"
+        sparkle:edSignature="eXC9o4TL5v/+a6rhABB2q7y0QFZzHGWPvtXSowPKWt7wuwRs5snN0b47bRRLTwevuQrO913PWluocm5lSJxZDw=="
+        length="11357960"
+        type="application/octet-stream"/>
+    </item>
+    <item>
+      <title>AI Bar 0.19</title>
+      <sparkle:version>0.19</sparkle:version>
+      <sparkle:shortVersionString>0.19</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li><b>New Server tab</b> in the popover — watch your SSH servers at a glance: online/offline, disk, CPU load, RAM, uptime, with disconnect and disk alerts (plus a menu-bar dot when something's wrong).</li>
+          <li><b>Real server accounts</b> — connect by password or private key (auto-fallback to the key), rename hosts, set a ProxyJump/bastion, and one-click Connect into Terminal.</li>
+          <li>Per-mount disk usage with a history sparkline, an optional TCP port check, adaptive re-checks while a host is down, and a host-key-change security warning you can trust in one click.</li>
+          <li><b>Usage heatmap</b> — a GitHub-style calendar of daily token usage alongside the Wave chart.</li>
+          <li>The App scan tools (Disk · Large files · Junk · Health) are now powered by the <b>mole</b> engine.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Fri, 24 Jul 2026 19:42:49 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/aibar-v0.19/AIBar.zip"
+        sparkle:version="0.19"
+        sparkle:shortVersionString="0.19"
+        sparkle:edSignature="o68A+B8s3JAqjMIACf7eFeOUsxtd//D1gzPrC9LQ+eRHtD6Ez+UyTQ6z+iXLNO4s8mcG75dbABeSMEWBvLooAA=="
+        length="11556201"
+        type="application/octet-stream"/>
+    </item>
+    <item>
+      <title>AI Bar 0.18</title>
+      <sparkle:version>0.18</sparkle:version>
+      <sparkle:shortVersionString>0.18</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li>Usage % numbers in the safe range now use a high-contrast color instead of low-contrast green — easy to read on the dark popover.</li>
+          <li>The colored bar still signals safe / warn / critical; amber &amp; red numbers stay for warnings.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Tue, 30 Jun 2026 16:19:26 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/aibar-v0.18/AIBar.zip"
+        sparkle:version="0.18"
+        sparkle:shortVersionString="0.18"
+        sparkle:edSignature="fxKzz+HgMeLLgdLiBgFObUZPLF14bRv2fGKGYg/wsyGalC2H0eUGpeVtV/eszDEjfjBsn95bDfJebE9i2Y9HAw=="
+        length="11310281"
+        type="application/octet-stream"/>
+    </item>
+    <item>
+      <title>AI Bar 0.17</title>
+      <sparkle:version>0.17</sparkle:version>
+      <sparkle:shortVersionString>0.17</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li>Fixed the header chrome icons (theme / quit / settings) still sitting too close to the popover's rounded edge — increased the right inset so they have comfortable clearance.</li>
+          <li>Builds on the popover polish from 0.16 (unified usage colors, cost-equivalent chart scale).</li>
+        </ul>
+      ]]></description>
+      <pubDate>Sun, 28 Jun 2026 22:53:20 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/aibar-v0.17/AIBar.zip"
+        sparkle:version="0.17"
+        sparkle:shortVersionString="0.17"
+        sparkle:edSignature="OWoa5VJ2KIQaqXGgilziAfBJPMrE2YOTxxOIUH5dzx+zQLnAvyZQvmvwiAieLwqbFyiZ9atD8V6OjYWpaqAMBA=="
+        length="11108882"
+        type="application/octet-stream"/>
+    </item>
+    <item>
+      <title>AI Bar 0.16</title>
+      <sparkle:version>0.16</sparkle:version>
+      <sparkle:shortVersionString>0.16</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li><b>Unified usage color:</b> percentage numbers now share one traffic-light scale (green → amber → red) with their bars, instead of blue digits. Blue is reserved for interactive controls (slider, Switch) so each color carries one meaning.</li>
+          <li><b>Chart matches the cards:</b> the usage chart now plots the cost-equivalent scale, so it no longer shows billions while the KPI cards lead with millions.</li>
+          <li><b>Header spacing:</b> the right-side chrome icons (theme / quit / settings) no longer sit flush against the popover edge.</li>
+          <li><b>Contrast:</b> account reset-time labels are slightly darker for legibility.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Sun, 28 Jun 2026 22:35:34 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/aibar-v0.16/AIBar.zip"
+        sparkle:version="0.16"
+        sparkle:shortVersionString="0.16"
+        sparkle:edSignature="SVBJbjvZsCV3fTMEBNW2Hg6wfJ5EhjzPP4wlmsPewRUp4Rul4Md1Zribeu7c1qZGqgg02W/BlHaCR4d6hCl3BA=="
+        length="11108893"
+        type="application/octet-stream"/>
+    </item>
+    <item>
+      <title>AI Bar 0.15</title>
+      <sparkle:version>0.15</sparkle:version>
+      <sparkle:shortVersionString>0.15</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li>Usage cards now lead with the <b>cost-equivalent</b> figure (billable weight, e.g. 150.6M) as the headline number. The raw total — dominated by cheap cache reads — moves to a smaller reference line below (e.g. "1.1B total").</li>
+          <li>Headline is shown clean without truncation; hover a card for the full per-component breakdown.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Sun, 28 Jun 2026 22:22:41 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/aibar-v0.15/AIBar.zip"
+        sparkle:version="0.15"
+        sparkle:shortVersionString="0.15"
+        sparkle:edSignature="k0G2inbGWG864FDDjfydc379SlAyJXS+EYLf+dzd9RGYa0hFIvEuKOZTF76hkwp0RbF9Hc2uJVgZ+43SeE7ZAg=="
+        length="11110037"
+        type="application/octet-stream"/>
+    </item>
+    <item>
+      <title>AI Bar 0.14</title>
+      <sparkle:version>0.14</sparkle:version>
+      <sparkle:shortVersionString>0.14</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li>Fixed the cost-equivalent figure on the usage cards rendering too dim to read — it now uses readable secondary contrast on both light and dark menu bars.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Sun, 28 Jun 2026 22:11:29 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/aibar-v0.14/AIBar.zip"
+        sparkle:version="0.14"
+        sparkle:shortVersionString="0.14"
+        sparkle:edSignature="bZNWkeILmnJo8+/+5AhdSmaeS5IVC3905fP+U14P2qJalVIhWQe2zwlv/h+0BgEitaiyy5DJ5z0nuTXNIJaXAw=="
+        length="11110028"
+        type="application/octet-stream"/>
+    </item>
+    <item>
+      <title>AI Bar 0.13</title>
+      <sparkle:version>0.13</sparkle:version>
+      <sparkle:shortVersionString>0.13</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li>Each usage card (Today / This week / This month) now shows a <b>cost-equivalent</b> figure under the raw total — tokens weighted by Anthropic's per-flow price ratios (output 5×, cache write 1.25×, cache read 0.1×). Reflects billable weight, not raw volume that cache reads dominate.</li>
+          <li>Ratios are identical across the Claude model lineup, so the figure is exact regardless of model mix — no dollar price table needed.</li>
+          <li>Hover a card for the full per-component breakdown including the cost-equivalent.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Sun, 28 Jun 2026 21:32:48 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/aibar-v0.13/AIBar.zip"
+        sparkle:version="0.13"
+        sparkle:shortVersionString="0.13"
+        sparkle:edSignature="KejSOxoRzFwC+QfoyUKvovKEVtR+UvITZqaqrVU0B3OORHQZmUO4FIVOgX24Dbmb2n/QJubBcRt8N0HleQ4oBQ=="
+        length="11107550"
+        type="application/octet-stream"/>
+    </item>
+    <item>
+      <title>AI Bar 0.12</title>
+      <sparkle:version>0.12</sparkle:version>
+      <sparkle:shortVersionString>0.12</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li>Token usage totals now count every component — input, output, cache writes, and cache reads — so the figure reflects all tokens processed (matches ccusage). Previously cache reads were excluded, undercounting heavy sessions.</li>
+          <li>Per-component breakdown (input / output / cache write / cache read) still shown in the tooltip.</li>
+          <li>Note: stats cover Claude Code usage (terminal CLI + IDE extension) only — web claude.ai and direct API calls aren't in the local logs.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Sun, 28 Jun 2026 21:03:51 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/aibar-v0.12/AIBar.zip"
+        sparkle:version="0.12"
+        sparkle:shortVersionString="0.12"
+        sparkle:edSignature="r7N9N6xhjnX1PgS8k1GEqBJWiYLyuE3becy2rKuAdwjxZLc4g7gvPD0zxOW+gKLd0vN9mHQPPEtsvYuBL8owCA=="
+        length="11107652"
+        type="application/octet-stream"/>
+    </item>
+    <item>
+      <title>AI Bar 0.11</title>
+      <sparkle:version>0.11</sparkle:version>
+      <sparkle:shortVersionString>0.11</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li>Fixes a stuck red "Sign in" usage badge on an account that's actually working — it's the web-usage source, not your CLI login.</li>
+          <li>Root cause: claude.ai's usage API started returning timestamps with fractional seconds the app couldn't parse, so usage reads kept failing.</li>
+          <li>The badge only clears on a successful read, so signing in via Safari didn't help until this fix.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Tue, 09 Jun 2026 15:49:53 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/aibar-v0.11/AIBar.zip"
+        sparkle:version="0.11"
+        sparkle:shortVersionString="0.11"
+        sparkle:edSignature="QNE82AAHeEMw+Ljy2pZFv/QCFv61dYzMV6G0fxywjQ4ToSa2UE/Y3oe89/5gI+8qgfY+P6bN21QFsznWtAIYAw=="
+        length="11306877"
+        type="application/octet-stream"/>
+    </item>
+    <item>
+      <title>AI Bar 0.10</title>
+      <sparkle:version>0.10</sparkle:version>
+      <sparkle:shortVersionString>0.10</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li>No more signing in every morning — the active account's sign-in token is no longer invalidated overnight by background refresh.</li>
+          <li>Active account usage now reads from the live token Claude Code keeps fresh, instead of the app refreshing and rotating it.</li>
+          <li>Under the hood: AI Bar never refreshes the active account's tokens — Claude Code owns that cycle.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Tue, 09 Jun 2026 09:38:52 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/aibar-v0.10/AIBar.zip"
+        sparkle:version="0.10"
+        sparkle:shortVersionString="0.10"
+        sparkle:edSignature="Wp4PrwWQJ5rGUGv7kynUPI9OrseSNca6axD8BV2SZoAkZYHCkM9Jo6rxjuYs7NvJJpzu8ZHW3YsiZ+gB65o2DA=="
+        length="11306425"
+        type="application/octet-stream"/>
+    </item>
+    <item>
+      <title>AI Bar 0.9</title>
+      <sparkle:version>0.9</sparkle:version>
+      <sparkle:shortVersionString>0.9</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li>Netbird group roles, colors, notes, and the people directory now sync across your Macs via iCloud Drive.</li>
+          <li>Open the app on a new Mac and the access matrix appears with the same dev/server columns you set up on the original.</li>
+          <li>Fixes the missing matrix on a second Mac caused by per-machine UserDefaults.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Mon, 08 Jun 2026 00:08:39 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/aibar-v0.9/AIBar.zip"
+        sparkle:version="0.9"
+        sparkle:shortVersionString="0.9"
+        sparkle:edSignature="XQLfKgwgtyS/yFOF7tSeFeXKocg4auUzhZj52pW3SrXKX8jsJ7On8RpnTzo8nUQqsROSwV60+Z94ACbuhpAcCA=="
+        length="11107295"
+        type="application/octet-stream"/>
+    </item>
+    <item>
+      <title>AI Bar 0.8</title>
+      <sparkle:version>0.8</sparkle:version>
+      <sparkle:shortVersionString>0.8</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li>Adding a GitLab MCP instance now rejects URLs that duplicate an existing one.</li>
+          <li>Duplicate detection normalizes case, trailing slash, and a trailing <code>/api/v4</code>.</li>
+          <li>Fixes silent “ambiguous gitlab instance” errors from the MCP tool surface.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Sun, 07 Jun 2026 23:48:42 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/aibar-v0.8/AIBar.zip"
+        sparkle:version="0.8"
+        sparkle:shortVersionString="0.8"
+        sparkle:edSignature="5UOsAdZUBybN7hFE/3LLo/aUuzS67cJTkZ2d5dpt3Wu6BoxXerObOtuh3FCwJ5+FMFNhxpiv+CxwlDMl60CdCA=="
+        length="11107557"
+        type="application/octet-stream"/>
+    </item>
+    <item>
+      <title>AI Bar 0.7</title>
+      <sparkle:version>0.7</sparkle:version>
+      <sparkle:shortVersionString>0.7</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li>New “Theo dõi CI” tool in Daily → Tools: one-click install of ci-watch + glpush.</li>
+          <li>After every git push, your GitLab/GitHub pipeline is watched in the background and you're notified when it finishes.</li>
+          <li>GitLab auth reuses your saved MCP GitLab token; an inline form lets you fill it in Tools if none is set yet.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Fri, 05 Jun 2026 17:08:56 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/aibar-v0.7/AIBar.zip"
+        sparkle:version="0.7"
+        sparkle:shortVersionString="0.7"
+        sparkle:edSignature="hBIVMiikjvimQztaf6pmBNhPfvTfzHv4VI7TpYgnZq2SNlYEJHvuLV7D5CwD04jWX3QaN19KRSm4fZ5pjRPeCw=="
+        length="11305312"
+        type="application/octet-stream"/>
+    </item>
+    <item>
+      <title>AI Bar 0.6</title>
+      <sparkle:version>0.6</sparkle:version>
+      <sparkle:shortVersionString>0.6</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li>Disk analyzer can now deep-scan — finds the biggest folders at any depth, not just top-level.</li>
+          <li>Each large folder shows its path, so you can see exactly what's eating space.</li>
+          <li>Ask AI for cleanup advice — it flags what's safe to delete (caches, logs, build, node_modules).</li>
+        </ul>
+      ]]></description>
+      <pubDate>Thu, 04 Jun 2026 20:44:42 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/aibar-v0.6/AIBar.zip"
+        sparkle:version="0.6"
+        sparkle:shortVersionString="0.6"
+        sparkle:edSignature="sYqCMj6+I6RAtrXnI3uCziVGimqUWjUdaU8W9Fcp3dfAv1ZaTpk5gU7CY6VAYT/MS2WJO5jS4gtH+OjYkneNBA=="
+        length="11231191"
+        type="application/octet-stream"/>
+    </item>
+    <item>
+      <title>AI Bar 0.5</title>
+      <sparkle:version>0.5</sparkle:version>
+      <sparkle:shortVersionString>0.5</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li>Fix: chat, the server assistant and the AI advisor failed to start ("claude binary not on PATH") when the app was launched from Finder.</li>
+          <li>The Sao lưu server assistant now works — chat with Claude to install and configure a server over SSH.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Thu, 04 Jun 2026 19:02:58 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/aibar-v0.5/AIBar.zip"
+        sparkle:version="0.5"
+        sparkle:shortVersionString="0.5"
+        sparkle:edSignature="9uctQIwd9TFjrQFIBlJhULRP5BHL00EQ6w/RsYC0brzqd7ZcNXuDVffJKKD9+g/1MvWTxbdZtdbgDc/bhz6gCA=="
+        length="11220485"
+        type="application/octet-stream"/>
+    </item>
+    <item>
+      <title>AI Bar 0.4</title>
+      <sparkle:version>0.4</sparkle:version>
+      <sparkle:shortVersionString>0.4</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li>Sao lưu tab — back up a Docker app and database to SharePoint on a daily server-side schedule.</li>
+          <li>Server assistant — chat with Claude to install and configure a server over SSH.</li>
+          <li>Read-only commands run automatically; server changes ask for confirmation first.</li>
+          <li>Sao lưu moved out of the App sidebar into its own top-level Tools tab.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Thu, 04 Jun 2026 15:42:46 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/aibar-v0.4/AIBar.zip"
+        sparkle:version="0.4"
+        sparkle:shortVersionString="0.4"
+        sparkle:edSignature="dTzNbgfofvWFheH0Wh5aE9hZHaPs59+Ax4YNTHYyM7t+Cx5k2m8g/VCd9F51r7H+w0oy++ttGFo5o2YXpjfkAw=="
+        length="11217519"
+        type="application/octet-stream"/>
+    </item>
+    <item>
+      <title>AI Bar 0.3</title>
+      <sparkle:version>0.3</sparkle:version>
+      <sparkle:shortVersionString>0.3</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li>Tools tab — macOS maintenance utilities right inside the Daily window.</li>
+          <li>Agentic Workspace action inbox to capture and act on items.</li>
+          <li>cbar CLI shortcut; switch accounts by label, nickname or email.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Wed, 03 Jun 2026 17:28:18 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/aibar-v0.3/AIBar.zip"
+        sparkle:version="0.3"
+        sparkle:shortVersionString="0.3"
+        sparkle:edSignature="3GkGvE/GhMlAMq5ig6r8hDW0Ddogj+zD40Ok8C6HYdaUKI4h8pwHE21VsetGFHIdjvHL9NC+3L1TY9CxBR7bAA=="
+        length="9954785"
+        type="application/octet-stream"/>
+    </item>
+    <item>
+      <title>AI Bar 0.2</title>
+      <sparkle:version>0.2</sparkle:version>
+      <sparkle:shortVersionString>0.2</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li>Chat tab in the Daily window — auto-growing composer, slimmer header, more room for the thread.</li>
+          <li>New Netbird mode — manage peers, people, roles, notes and SSH right from Daily.</li>
+          <li>Editorial Plan briefing with a menu-bar tether glow.</li>
+          <li>Pause background activity (dormant) mode to idle the app on demand.</li>
+          <li>Shows the real app name throughout instead of a hardcoded "Claude Bar" label.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Wed, 03 Jun 2026 12:01:33 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/aibar-v0.2/AIBar.zip"
+        sparkle:version="0.2"
+        sparkle:shortVersionString="0.2"
+        sparkle:edSignature="+jo0ZwXEo93otdQcuPb41lNl3z2jw4z3eTGi5CbTpv1iEY7rb2KRp+it6ZyZrj6/DUdNBSAVH1iDLzTV1dDICw=="
+        length="9532083"
+        type="application/octet-stream"/>
+    </item>
+  </channel>
+</rss>

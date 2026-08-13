@@ -43,6 +43,31 @@ func TestGitLabInstanceStoreRejectsHTTPAndMissingName(t *testing.T) {
 	}
 }
 
+func TestGitLabInstanceStoreRejectsDuplicateBaseURL(t *testing.T) {
+	s := NewGitLabInstanceStore(filepath.Join(t.TempDir(), "g.json"))
+	ctx := context.Background()
+	first, err := s.Put(ctx, GitLabInstance{Name: "alpha", BaseURL: "https://gitlab.example.com"})
+	if err != nil {
+		t.Fatalf("put first: %v", err)
+	}
+	// Trailing slash, case, and /api/v4 suffix must all be treated as duplicates.
+	dupes := []string{
+		"https://gitlab.example.com",
+		"https://gitlab.example.com/",
+		"https://GitLab.Example.com",
+		"https://gitlab.example.com/api/v4",
+	}
+	for _, u := range dupes {
+		if _, err := s.Put(ctx, GitLabInstance{Name: "dup", BaseURL: u}); err == nil {
+			t.Errorf("duplicate baseUrl %q should be rejected", u)
+		}
+	}
+	// Updating the same instance (same ID) keeps working.
+	if _, err := s.Put(ctx, GitLabInstance{ID: first.ID, Name: "alpha-renamed", BaseURL: first.BaseURL}); err != nil {
+		t.Errorf("self-update should not collide: %v", err)
+	}
+}
+
 func TestGitLabInstanceStoreResolve(t *testing.T) {
 	s := NewGitLabInstanceStore(filepath.Join(t.TempDir(), "g.json"))
 	ctx := context.Background()
@@ -72,5 +97,20 @@ func TestGitLabInstanceStoreSingleInstanceImplicitResolve(t *testing.T) {
 	g, err := s.Resolve(ctx, "")
 	if err != nil || g.Name != "solo" {
 		t.Errorf("single instance + empty ref should resolve to that one: %v %+v", err, g)
+	}
+}
+
+func TestGitLabAPIRoot(t *testing.T) {
+	cases := map[string]string{
+		"https://gitlab.evselab.com":          "https://gitlab.evselab.com/api/v4",
+		"https://gitlab.evselab.com/":         "https://gitlab.evselab.com/api/v4",
+		"https://gitlab.evselab.com/api/v4":   "https://gitlab.evselab.com/api/v4",
+		"https://gitlab.evselab.com/api/v4/":  "https://gitlab.evselab.com/api/v4",
+		"https://self.host/gitlab":            "https://self.host/gitlab/api/v4",
+	}
+	for in, want := range cases {
+		if got := gitlabAPIRoot(in); got != want {
+			t.Errorf("gitlabAPIRoot(%q) = %q, want %q", in, got, want)
+		}
 	}
 }

@@ -1,0 +1,83 @@
+#!/usr/bin/env bash
+# Claude Bar backup job — generated, do not hand-edit.
+# Captures the configured sources, bundles them into a timestamped archive,
+# pushes to an rclone remote, then keeps grandfather-father-son tiers pruned.
+# Runs unattended on the server (cron/systemd); stdout/stderr go to backup.log.
+set -euo pipefail
+
+WORKDIR={{.WorkDirQ}}
+REMOTE={{.RemoteQ}}
+INSTALLDIR={{.InstallDirQ}}
+NAME={{.NameQ}}
+RETAIN_DAILY={{.Retention.Daily}}
+RETAIN_WEEKLY={{.Retention.Weekly}}
+RETAIN_MONTHLY={{.Retention.Monthly}}
+RETAIN_YEARLY={{.Retention.Yearly}}
+
+STAMP="$(date +%Y%m%dT%H%M%S)"
+STAGE="$WORKDIR/staging/$STAMP"
+LOG="$INSTALLDIR/backup.log"
+STATUS="$INSTALLDIR/status.json"
+ARCHIVE="$WORKDIR/daily/$NAME-$STAMP.tar.gz"
+START_EPOCH="$(date +%s)"
+
+mkdir -p "$STAGE" "$WORKDIR/daily" "$WORKDIR/weekly" "$WORKDIR/monthly" "$WORKDIR/yearly" "$INSTALLDIR"
+
+log() { echo "[$(date -Is)] $*" | tee -a "$LOG" >&2; }
+
+emit_status() { # $1 ok(true/false)  $2 stage  $3 error
+  local bytes=0 dur
+  [ -f "$ARCHIVE" ] && bytes="$(wc -c < "$ARCHIVE" | tr -d ' ')"
+  dur=$(( ($(date +%s) - START_EPOCH) * 1000 ))
+  printf '{"ts":"%s","ok":%s,"stamp":"%s","bytes":%s,"durationMs":%s,"stage":"%s","error":"%s"}\n' \
+    "$(date -Is)" "$1" "$STAMP" "$bytes" "$dur" "$2" "$3" >> "$STATUS"
+}
+
+on_err() { log "FAILED at line $1"; emit_status false "line:$1" "see backup.log"; }
+trap 'on_err $LINENO' ERR
+
+log "backup start $STAMP"
+
+# --- capture sources ---
+{{.DumpBlock}}
+# --- bundle + push the daily archive ---
+tar -czf "$ARCHIVE" -C "$STAGE" .
+rm -rf "$STAGE"
+log "bundled $ARCHIVE"
+rclone copy "$ARCHIVE" "$REMOTE/daily/" --no-traverse
+log "pushed daily"
+
+# --- grandfather-father-son promotion on calendar boundaries ---
+promote() { # $1 tier
+  cp "$ARCHIVE" "$WORKDIR/$1/"
+  rclone copyto "$ARCHIVE" "$REMOTE/$1/$NAME-$STAMP.tar.gz" --no-traverse
+  log "promoted to $1"
+}
+[ "$(date +%u)" = "7" ]  && promote weekly  || true   # Sunday
+[ "$(date +%d)" = "01" ] && promote monthly || true   # 1st of month
+[ "$(date +%j)" = "001" ] && promote yearly || true   # Jan 1
+
+# --- prune each tier to its retained count (timestamped names sort by age) ---
+prune_remote() { # $1 tier  $2 keep
+  [ "$2" -le 0 ] && return 0
+  mapfile -t files < <(rclone lsf --files-only "$REMOTE/$1/" 2>/dev/null | sort) || return 0
+  local n=${#files[@]}
+  if [ "$n" -gt "$2" ]; then
+    local del=$(( n - $2 )) i
+    for (( i=0; i<del; i++ )); do
+      [ -n "${files[$i]}" ] && rclone deletefile "$REMOTE/$1/${files[$i]}" || true
+    done
+  fi
+}
+prune_local() { # $1 tier  $2 keep
+  [ "$2" -le 0 ] && return 0
+  ls -1t "$WORKDIR/$1"/*.tar.gz 2>/dev/null | tail -n +"$(( $2 + 1 ))" | while read -r f; do rm -f "$f"; done || true
+}
+for spec in "daily $RETAIN_DAILY" "weekly $RETAIN_WEEKLY" "monthly $RETAIN_MONTHLY" "yearly $RETAIN_YEARLY"; do
+  set -- $spec
+  prune_local "$1" "$2"
+  prune_remote "$1" "$2"
+done
+
+emit_status true "done" ""
+log "backup complete $STAMP"

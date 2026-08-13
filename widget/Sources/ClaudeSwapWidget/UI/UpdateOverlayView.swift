@@ -53,7 +53,7 @@ struct UpdateOverlayView: View {
             VStack(alignment: .leading, spacing: 12) {
                 Text("Update available")
                     .font(.title3.weight(.semibold))
-                Text("Claude Bar \(version) is ready to install.")
+                Text("\(AppInfo.displayName) \(version) is ready to install.")
                     .foregroundStyle(.secondary)
                 if let notes, !notes.isEmpty {
                     ScrollView {
@@ -104,7 +104,7 @@ struct UpdateOverlayView: View {
             VStack(alignment: .leading, spacing: 12) {
                 Text("Ready to install")
                     .font(.title3.weight(.semibold))
-                Text("Claude Bar will restart to finish the update.")
+                Text("\(AppInfo.displayName) will restart to finish the update.")
                     .foregroundStyle(.secondary)
                 HStack {
                     Spacer()
@@ -120,7 +120,7 @@ struct UpdateOverlayView: View {
             VStack(spacing: 12) {
                 ProgressView().controlSize(.large)
                 Text("Installing update…").font(.headline)
-                Text("Claude Bar will restart in a moment.")
+                Text("\(AppInfo.displayName) will restart in a moment.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -132,7 +132,7 @@ struct UpdateOverlayView: View {
                     .foregroundStyle(.green)
                 Text("You're up to date")
                     .font(.title3.weight(.semibold))
-                Text("Claude Bar is running the latest version.")
+                Text("\(AppInfo.displayName) is running the latest version.")
                     .foregroundStyle(.secondary)
                 Button("OK") { driver.userTappedAcknowledge() }
                     .keyboardShortcut(.defaultAction)

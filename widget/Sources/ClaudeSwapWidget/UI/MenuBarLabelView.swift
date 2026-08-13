@@ -5,14 +5,38 @@ import CoreImage.CIFilterBuiltins
 /// The text rendered in the macOS menu bar (top of screen).
 struct MenuBarLabelView: View {
     @EnvironmentObject var store: AppStore
+    @EnvironmentObject private var serverMonitor: ServerMonitorStore
+    @EnvironmentObject private var claudeStatus: ClaudeStatusStore
     @ObservedObject private var settings = AppSettings.shared
 
     var body: some View {
         HStack(spacing: 4) {
             menuBarIcon
+                // Red dot when a monitored server is offline or past the disk
+                // crit threshold — a glanceable alert without opening the popover.
+                .overlay(alignment: .topTrailing) {
+                    if serverHasAlert {
+                        Circle().fill(Color.red).frame(width: 5, height: 5)
+                            .offset(x: 1, y: -1)
+                    }
+                }
+                // Severity dot when Claude itself has a major+ outage — kept at
+                // the opposite corner so it can't be mistaken for the server dot.
+                .overlay(alignment: .topLeading) {
+                    if claudeStatus.shouldBadge {
+                        Circle().fill(claudeStatus.tint).frame(width: 5, height: 5)
+                            .offset(x: -1, y: -1)
+                    }
+                }
             if settings.menuBarStyle != .iconOnly, let text = labelText {
                 Text(text).monospacedDigit()
             }
+        }
+    }
+
+    private var serverHasAlert: Bool {
+        serverMonitor.healths.contains { h in
+            !h.reachable || (h.hasDiskReading && h.diskUsedPct >= settings.serverDiskCritPct)
         }
     }
 
