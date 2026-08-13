@@ -11,7 +11,6 @@ struct WidgetTabbedPopover: View {
     @EnvironmentObject var cloudSync: CloudSyncCoordinator
     @EnvironmentObject private var updateController: UpdateController
     @EnvironmentObject private var serverMonitor: ServerMonitorStore
-    @EnvironmentObject private var pipelineStore: PipelineStore
     @ObservedObject private var settings = AppSettings.shared
 
     /// Selected tab. Defaults to Claude on every open (not persisted).
@@ -69,10 +68,10 @@ struct WidgetTabbedPopover: View {
                 Divider().opacity(0.5)
                 tabBar
                 Divider().opacity(0.4)
-                switch tab {
-                case .claude: claudeTabBody
-                case .server: ServerPopoverTab()
-                case .gitlab: GitLabPaneView()
+                if tab == .claude {
+                    claudeTabBody
+                } else {
+                    ServerPopoverTab()
                 }
             }
         }
@@ -138,7 +137,6 @@ struct WidgetTabbedPopover: View {
         HStack(spacing: 6) {
             tabButton(.claude)
             tabButton(.server)
-            tabButton(.gitlab)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
@@ -158,10 +156,6 @@ struct WidgetTabbedPopover: View {
                         .padding(.horizontal, 5)
                         .padding(.vertical, 1)
                         .background(Capsule().fill(Color.red))
-                }
-                // Orange dot on the GitLab tab while any watched pipeline runs.
-                if t == .gitlab && pipelineStore.anyRunning {
-                    Circle().fill(Color.orange).frame(width: 6, height: 6)
                 }
             }
             .foregroundColor(selected ? .primary : .secondary)

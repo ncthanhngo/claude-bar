@@ -16,7 +16,6 @@ struct LocalMCPSettingsView: View {
     // clicking into a field doesn't collapse the popover that owns the state.
     @State private var connectWindow = FloatingWindow<AnyView>()
     @State private var gdriveWindow = FloatingWindow<AnyView>()
-    @State private var gitlabWindow = FloatingWindow<AnyView>()
 
     private struct PendingDisconnect: Identifiable {
         let id = UUID()
@@ -62,13 +61,6 @@ struct LocalMCPSettingsView: View {
                 presentGDriveWindow(target)
             } else {
                 gdriveWindow.close()
-            }
-        }
-        .onChange(of: coordinator.gitlabSheet?.id) { _, _ in
-            if coordinator.gitlabSheet != nil {
-                presentGitLabWindow()
-            } else {
-                gitlabWindow.close()
             }
         }
         .confirmationDialog(
@@ -163,7 +155,7 @@ struct LocalMCPSettingsView: View {
             Toggle(isOn: $settings.autoApproveSlackPostMessage) {
                 SettingsToggleLabel(
                     title: "Auto-approve Slack post message",
-                    detail: "Skips the popover for cb_slack_post_message only. Slack thread replies, ClickUp, Google, GitHub, GitLab, and SSH writes still require approval."
+                    detail: "Skips the popover for cb_slack_post_message only. Slack thread replies, ClickUp, Google, GitHub, and SSH writes still require approval."
                 )
             }
             .toggleStyle(.switch)
@@ -850,35 +842,6 @@ struct LocalMCPSettingsView: View {
         }
     }
 
-    private func presentGitLabWindow() {
-        gitlabWindow.close()
-        gitlabWindow.onClose = { [coordinator] in coordinator.gitlabSheet = nil }
-        let window = gitlabWindow
-        let coord = coordinator
-        let client = coordinator.client
-        gitlabWindow.show(title: "Add GitLab self-host instance", size: NSSize(width: 560, height: 420)) {
-            AnyView(
-                GitLabAddSheet(
-                    onSubmit: { name, baseURL, note, pat in
-                        // Sheet awaits this throw — sheet shows the error
-                        // inline if it propagates, or shows a success
-                        // confirmation before invoking onDismiss below.
-                        try await client.gitlabAdd(name: name, baseURL: baseURL, note: note, pat: pat)
-                        // Refresh BEFORE the sheet flips to "success" so
-                        // the MCP connectors list shows GitLab as
-                        // connected the moment the user looks back at
-                        // the panel.
-                        await coord.refresh()
-                    },
-                    onDismiss: {
-                        coord.gitlabSheet = nil
-                        window.close()
-                    }
-                )
-            )
-        }
-    }
-
     private func presentGDriveWindow(_ target: LocalMCPCoordinator.GDriveSheetTarget) {
         gdriveWindow.close()
         gdriveWindow.onClose = { [coordinator] in coordinator.gdriveSheet = nil }
@@ -903,10 +866,6 @@ struct LocalMCPSettingsView: View {
         switch service {
         case "gdrive":
             coordinator.gdriveSheet = .init(accountNumber: account, resetBeforeConnect: resetBeforeConnect)
-        case "gitlab":
-            // GitLab is multi-instance + needs a base URL, so it has its own
-            // sheet rather than the generic single-token paste flow.
-            coordinator.gitlabSheet = .init()
         default:
             coordinator.connectSheet = .init(accountNumber: account, service: service, serviceLabel: label)
         }
@@ -916,13 +875,8 @@ struct LocalMCPSettingsView: View {
     /// `csw mcp connectors reconnect` first. If it verifies, the row
     /// flips back to enabled without showing any sheet. If not, fall
     /// through to the normal sheet so the user can paste a fresh
-    /// credential. GitLab is multi-instance and doesn't have a
-    /// reconnect path yet — go straight to the sheet for it.
+    /// credential.
     private func reconnectOrPrompt(account: Int, service: String, label: String) async {
-        if service == "gitlab" {
-            presentConnect(account: account, service: service, label: label)
-            return
-        }
         if service == "gdrive" {
             presentConnect(account: account, service: service, label: label, resetBeforeConnect: true)
             return

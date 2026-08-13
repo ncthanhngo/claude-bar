@@ -127,10 +127,6 @@ func runMCPServe(ctx context.Context, svc *usecase.Service) error {
 	_, _ = cm.Sweep(ctx)
 	sshadp.ActiveControlMaster = cm
 
-	// GitLab instance registry — Phase 7. PATs live in Keychain under
-	// the multi-token format (claude-bar-mcp:shared:gitlab:<instanceId>).
-	gw.GitLabInstances = mcp.NewGitLabInstanceStore(filepath.Join(adapter.WidgetDataDir(), "gitlab-instances.json"))
-
 	// Bitwarden session — Phase 9. 15-minute idle auto-lock. The widget
 	// unlock command writes the session token to a per-user file 0600 so
 	// the MCP server (a different process) can read it on boot. Reload
@@ -468,7 +464,7 @@ func runMCPConnectorsForget(ctx context.Context, svc *usecase.Service, args []st
 	fs := flag.NewFlagSet("connectors-forget", flag.ExitOnError)
 	account := fs.Int("account", -1, "account number")
 	shared := fs.Bool("shared", false, "forget the shared connector")
-	service := fs.String("service", "", "slack | clickup | gdrive | github | gitlab | bitwarden")
+	service := fs.String("service", "", "slack | clickup | gdrive | github | bitwarden")
 	_ = fs.Parse(args)
 	targetAccount, err := mcpTargetAccount(*account, *shared)
 	if err != nil {
@@ -497,7 +493,7 @@ func runMCPTools(ctx context.Context, svc *usecase.Service, args []string) error
 
 func runMCPToolsList(ctx context.Context, svc *usecase.Service, args []string) error {
 	fs := flag.NewFlagSet("tools-list", flag.ExitOnError)
-	service := fs.String("service", "", "slack | clickup | gdrive | github | gitlab | bitwarden")
+	service := fs.String("service", "", "slack | clickup | gdrive | github | bitwarden")
 	asJSON := fs.Bool("json", false, "machine-readable output")
 	_ = fs.Parse(args)
 	if *service == "" {
@@ -535,7 +531,7 @@ func runMCPConnectorsSetEnabled(ctx context.Context, svc *usecase.Service, args 
 	fs := flag.NewFlagSet("connectors-set-enabled", flag.ExitOnError)
 	account := fs.Int("account", -1, "account number")
 	shared := fs.Bool("shared", false, "target the shared connector")
-	service := fs.String("service", "", "slack | clickup | gdrive | github | gitlab | bitwarden")
+	service := fs.String("service", "", "slack | clickup | gdrive | github | bitwarden")
 	enabled := fs.Bool("enabled", true, "true to enable, false to disable")
 	_ = fs.Parse(args)
 	targetAccount, err := mcpTargetAccount(*account, *shared)

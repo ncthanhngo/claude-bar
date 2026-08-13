@@ -5,7 +5,6 @@ import Foundation
 enum PopoverTab: String, CaseIterable, Identifiable {
     case claude
     case server
-    case gitlab
 
     var id: String { rawValue }
 
@@ -13,7 +12,6 @@ enum PopoverTab: String, CaseIterable, Identifiable {
         switch self {
         case .claude: return "Claude"
         case .server: return "Server"
-        case .gitlab: return "GitLab"
         }
     }
 }

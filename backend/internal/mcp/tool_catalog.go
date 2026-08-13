@@ -120,27 +120,6 @@ var AllTools = []ToolMeta{
 	{ID: "cb_github_add_labels", Service: domain.MCPServiceGitHub, Label: "Add labels", Description: "Add labels to an issue or PR. Gated.", Category: "Writes", Priority: ToolPriorityAdvanced},
 	{ID: "cb_github_remove_label", Service: domain.MCPServiceGitHub, Label: "Remove label", Description: "Remove a single label. Gated.", Category: "Writes", Priority: ToolPriorityAdvanced},
 
-	// ────────────────────────────── GitLab
-	{ID: "cb_gitlab_list_mrs", Service: domain.MCPServiceGitLab, Label: "List MRs", Description: "Merge requests in a project with state filters.", Category: "MRs", Priority: ToolPriorityEssential},
-	{ID: "cb_gitlab_get_mr", Service: domain.MCPServiceGitLab, Label: "Get MR", Description: "Merge request detail.", Category: "MRs", Priority: ToolPriorityEssential},
-	{ID: "cb_gitlab_get_mr_diff", Service: domain.MCPServiceGitLab, Label: "MR diff", Description: "Unified diff for an MR.", Category: "MRs", Priority: ToolPriorityEssential},
-	{ID: "cb_gitlab_list_mr_changes", Service: domain.MCPServiceGitLab, Label: "MR changes", Description: "Files changed with diff per file.", Category: "MRs", Priority: ToolPriorityCommon},
-	{ID: "cb_gitlab_list_mr_notes", Service: domain.MCPServiceGitLab, Label: "MR notes", Description: "Comments / system notes on an MR.", Category: "MRs", Priority: ToolPriorityCommon},
-	{ID: "cb_gitlab_list_issues", Service: domain.MCPServiceGitLab, Label: "List issues", Description: "Issues in a project.", Category: "Issues", Priority: ToolPriorityEssential},
-	{ID: "cb_gitlab_get_issue", Service: domain.MCPServiceGitLab, Label: "Get issue", Description: "One issue with state and labels.", Category: "Issues", Priority: ToolPriorityCommon},
-	{ID: "cb_gitlab_list_issue_notes", Service: domain.MCPServiceGitLab, Label: "Issue notes", Description: "Comments on a GitLab issue.", Category: "Issues", Priority: ToolPriorityCommon},
-	{ID: "cb_gitlab_get_file", Service: domain.MCPServiceGitLab, Label: "Read file", Description: "File contents at a ref.", Category: "Repo", Priority: ToolPriorityEssential},
-	{ID: "cb_gitlab_list_commits", Service: domain.MCPServiceGitLab, Label: "List commits", Description: "Project commits on a ref.", Category: "Repo", Priority: ToolPriorityCommon},
-	{ID: "cb_gitlab_list_branches", Service: domain.MCPServiceGitLab, Label: "List branches", Description: "Project branches.", Category: "Repo", Priority: ToolPriorityCommon},
-	{ID: "cb_gitlab_list_pipelines", Service: domain.MCPServiceGitLab, Label: "List pipelines", Description: "CI pipeline runs.", Category: "CI", Priority: ToolPriorityCommon},
-	{ID: "cb_gitlab_comment_mr", Service: domain.MCPServiceGitLab, Label: "Comment on MR", Description: "Add a note to an MR. Gated.", Category: "Writes", Priority: ToolPriorityCommon},
-	{ID: "cb_gitlab_approve_mr", Service: domain.MCPServiceGitLab, Label: "Approve MR", Description: "Approve a merge request. Gated.", Category: "Writes", Priority: ToolPriorityCommon},
-	{ID: "cb_gitlab_create_mr", Service: domain.MCPServiceGitLab, Label: "Open MR", Description: "Create a new merge request. Gated.", Category: "Writes", Priority: ToolPriorityCommon},
-	{ID: "cb_gitlab_merge_mr", Service: domain.MCPServiceGitLab, Label: "Merge MR", Description: "Merge a merge request. Destructive — surfaces a modal gate.", Category: "Writes", Priority: ToolPriorityAdvanced},
-	{ID: "cb_gitlab_create_issue", Service: domain.MCPServiceGitLab, Label: "Open issue", Description: "Create a new GitLab issue. Gated.", Category: "Writes", Priority: ToolPriorityCommon},
-	{ID: "cb_gitlab_update_issue", Service: domain.MCPServiceGitLab, Label: "Edit issue", Description: "Modify title / description / labels / state. Gated.", Category: "Writes", Priority: ToolPriorityAdvanced},
-	{ID: "cb_gitlab_close_issue", Service: domain.MCPServiceGitLab, Label: "Close issue", Description: "Close or reopen an issue. Gated.", Category: "Writes", Priority: ToolPriorityAdvanced},
-
 	// SSH tools (cb_ssh_*) are intentionally absent. They're not gated by
 	// an MCPService connector — they run against the local SSH registry,
 	// not a remote provider — so per-tool toggles don't fit the current

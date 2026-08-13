@@ -1,8 +1,11 @@
 // Package citools installs the machine-wide CI-watch tooling: a `ci-watch`
 // CLI (GitLab + GitHub pipeline watcher) into ~/.local/bin and a `glpush`
-// zsh function into ~/.zshrc. GitLab auth is bootstrapped from the PATs the
-// app already stores for its MCP GitLab instances (Keychain) — so the user
-// never re-enters a token. Applies to every git repo on the machine.
+// zsh function into ~/.zshrc. Applies to every git repo on the machine.
+//
+// The app's own MCP GitLab connector was removed; ci-watch/glab auth for
+// GitLab hosts is no longer auto-bootstrapped from app-managed Keychain
+// state. Users who watch GitLab pipelines authenticate `glab` themselves
+// (`glab auth login`) — ci-watch.sh still supports that provider.
 package citools
 
 import (
@@ -10,16 +13,10 @@ import (
 	"context"
 	_ "embed"
 	"fmt"
-	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
-
-	"github.com/soi/claude-swap-widget/backend/internal/adapter"
-	"github.com/soi/claude-swap-widget/backend/internal/adapter/keychain"
-	"github.com/soi/claude-swap-widget/backend/internal/domain"
-	"github.com/soi/claude-swap-widget/backend/internal/mcp"
 )
 
 //go:embed ci-watch.sh
@@ -34,15 +31,13 @@ const zshrcMarker = "# ci-watch & các CLI cá nhân"
 
 // Status reports what is installed/configured on this machine.
 type Status struct {
-	Brew        bool     `json:"brew"`
-	Glab        bool     `json:"glab"`
-	Gh          bool     `json:"gh"`
-	GhAuthed    bool     `json:"ghAuthed"`
-	CiWatch     bool     `json:"ciWatch"` // ~/.local/bin/ci-watch present & up-to-date
-	Glpush      bool     `json:"glpush"`  // glpush block present in ~/.zshrc
-	Instances   int      `json:"instances"`
-	HostsAuthed []string `json:"hostsAuthed"` // GitLab hosts glab is logged in to
-	Installed   bool     `json:"installed"`   // ci-watch + glpush + (≥1 gitlab host || gh authed)
+	Brew      bool `json:"brew"`
+	Glab      bool `json:"glab"`
+	Gh        bool `json:"gh"`
+	GhAuthed  bool `json:"ghAuthed"`
+	CiWatch   bool `json:"ciWatch"`   // ~/.local/bin/ci-watch present & up-to-date
+	Glpush    bool `json:"glpush"`    // glpush block present in ~/.zshrc
+	Installed bool `json:"installed"` // ci-watch + glpush + gh authed
 }
 
 // InstallResult is Status plus a human-readable step log.
@@ -114,23 +109,6 @@ func run(ctx context.Context, stdin, name string, args ...string) (string, error
 	return strings.TrimSpace(buf.String()), err
 }
 
-func hostFromBaseURL(base string) string {
-	u, err := url.Parse(base)
-	if err != nil || u.Host == "" {
-		return ""
-	}
-	return u.Hostname()
-}
-
-func instances(ctx context.Context) ([]mcp.GitLabInstance, error) {
-	store := mcp.NewGitLabInstanceStore(filepath.Join(adapter.WidgetDataDir(), "gitlab-instances.json"))
-	insts, err := store.List(ctx)
-	if err != nil {
-		return nil, err
-	}
-	return insts, nil
-}
-
 // Inspect reports what is installed/configured without changing anything.
 func Inspect(ctx context.Context) Status {
 	var s Status
@@ -148,21 +126,7 @@ func Inspect(ctx context.Context) Status {
 	if b, err := os.ReadFile(zshrcPath()); err == nil {
 		s.Glpush = strings.Contains(string(b), zshrcMarker)
 	}
-	if insts, err := instances(ctx); err == nil {
-		s.Instances = len(insts)
-		if s.Glab {
-			for _, in := range insts {
-				h := hostFromBaseURL(in.BaseURL)
-				if h == "" {
-					continue
-				}
-				if _, err := run(ctx, "", "glab", "auth", "status", "--hostname", h); err == nil {
-					s.HostsAuthed = append(s.HostsAuthed, h)
-				}
-			}
-		}
-	}
-	s.Installed = s.CiWatch && s.Glpush && (len(s.HostsAuthed) > 0 || s.GhAuthed)
+	s.Installed = s.CiWatch && s.Glpush && s.GhAuthed
 	return s
 }
 
@@ -206,34 +170,9 @@ func Install(ctx context.Context) InstallResult {
 		add("✅ glpush + PATH trong ~/.zshrc")
 	}
 
-	// 4. Bootstrap glab auth for each MCP GitLab instance from its stored PAT.
-	if resolveBin("glab") == "" {
-		add("⚠️ chưa có glab → bỏ qua auth GitLab (cài glab rồi chạy lại)")
-	} else if insts, err := instances(ctx); err != nil {
-		add("✗ đọc danh sách GitLab instance lỗi: %v", err)
-	} else if len(insts) == 0 {
-		add("⚠️ chưa có GitLab instance/token — điền tại Daily → Tools rồi cài lại")
-	} else {
-		secrets := keychain.NewMCPSecretStore()
-		for _, in := range insts {
-			h := hostFromBaseURL(in.BaseURL)
-			if h == "" {
-				add("⚠️ bỏ qua %q: baseURL không hợp lệ (%s)", in.Name, in.BaseURL)
-				continue
-			}
-			pat, err := secrets.GetShared(ctx, domain.MCPService("gitlab:"+in.ID))
-			if err != nil || strings.TrimSpace(pat) == "" {
-				add("⚠️ %s (%s): không có PAT trong Keychain", in.Name, h)
-				continue
-			}
-			if out, err := run(ctx, strings.TrimSpace(pat), "glab", "auth", "login",
-				"--hostname", h, "--api-protocol", "https", "--git-protocol", "ssh", "--stdin"); err != nil {
-				add("✗ glab auth %s lỗi: %v — %s", h, err, lastLine(out))
-			} else {
-				add("✅ glab auth: %s", h)
-			}
-		}
-	}
+	// 4. GitLab auth (glab) is no longer app-managed — the app's MCP GitLab
+	// connector was removed, so there is no stored PAT to bootstrap from.
+	// Users watching GitLab pipelines run `glab auth login` themselves.
 
 	st := Inspect(ctx)
 	if st.Installed {

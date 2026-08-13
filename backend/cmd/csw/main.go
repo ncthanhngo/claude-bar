@@ -64,8 +64,6 @@ func main() {
 		err = runGate(ctx, args)
 	case "ssh":
 		err = runSSH(ctx, args)
-	case "gitlab":
-		err = runGitLab(ctx, svc, args)
 	case "citools":
 		err = runCITools(ctx, args)
 	case "bw":
@@ -119,7 +117,7 @@ Commands:
   mcp connectors disconnect --account N --service slack|clickup|gdrive|github     (soft — keeps saved credential)
   mcp connectors reconnect --account N --service slack|clickup|gdrive|github      (verify+enable saved credential)
   mcp connectors forget --account N --service slack|clickup|gdrive|github         (hard delete — wipes Keychain payload)
-  mcp connectors set-enabled --account N --service slack|clickup|gdrive|github|gitlab --enabled=true|false
+  mcp connectors set-enabled --account N --service slack|clickup|gdrive|github --enabled=true|false
   help                    Show this help
 
 All commands accept --json for machine-readable output.`)

@@ -54,10 +54,6 @@ type Gateway struct {
 	// ssh-binary runner when SSHStore is set.
 	SSHRunner SSHExec
 
-	// GitLabInstances is the registry of self-hosted GitLab instances. nil
-	// disables GitLab tools.
-	GitLabInstances *GitLabInstanceStore
-
 	// BWSession is the Bitwarden in-memory session holder. nil disables BW.
 	BWSession *BitwardenSession
 
@@ -119,9 +115,6 @@ func (g *Gateway) BuildServer() *server.MCPServer {
 	if enabled[domain.MCPServiceGitHub] {
 		g.registerGitHubTools(srv)
 		g.registerGitHubWriteTools(srv)
-	}
-	if enabled[domain.MCPServiceGitLab] {
-		g.registerGitLabTools(srv)
 	}
 	if enabled[domain.MCPServiceBitwarden] {
 		g.registerBitwardenTools(srv)

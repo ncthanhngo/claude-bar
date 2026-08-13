@@ -3,8 +3,6 @@ package usecase
 import (
 	"context"
 	"fmt"
-	"os"
-	"path/filepath"
 	"sort"
 	"time"
 
@@ -87,18 +85,6 @@ func (s *Service) connectorSummaryRows(ctx context.Context, accountNum int, meta
 			return nil, fmt.Errorf("read mcp secret %s/%d: %w", svc, accountNum, err)
 		}
 		row.HasSecret = payload != ""
-		// GitLab stores PATs per self-hosted instance under
-		// `gitlab:<instanceID>` Keychain slots, NOT the bare `gitlab`
-		// slot the loop above checked. Without this fallback, the row
-		// reads `HasSecret == false` even after the user successfully
-		// adds an instance — UI shows "off" forever while the registry
-		// flag is `enabled: true`. We can't reach the gitlab-instance
-		// store from usecase, so we trust the registry mirror: an entry
-		// here only gets `Enabled=true` after a successful `Put` + PAT
-		// save in `cmd_gitlab.go`.
-		if svc == domain.MCPServiceGitLab && !row.HasSecret && row.Enabled {
-			row.HasSecret = true
-		}
 		if accountNum != 0 && !row.HasSecret {
 			if sharedMeta, ok := fallback[svc]; ok && sharedMeta != nil && sharedMeta.Enabled {
 				sharedPayload, err := s.MCPSecrets.Read(ctx, 0, svc)
@@ -314,24 +300,13 @@ func (s *Service) ListMCPTools(ctx context.Context, service domain.MCPService) (
 // is cheap (~tens of ms) but doing it on every Settings open would be
 // wasteful — schemas don't change between Sparkle builds.
 //
-// The measurement gateway is wired with stub stores for GitLab and
-// Bitwarden so those tools register and contribute their schema bytes
-// to the catalog. Production `mcp serve` wires the real instances
-// (`gw.GitLabInstances`, `gw.BWSession`) from cmd_mcp.go; the early
-// `if g.GitLabInstances == nil { return }` guard inside
-// `registerGitLabTools` would otherwise skip the whole connector when
-// measuring, leaving the widget's tool-cost column showing 0 across
-// every GitLab row.
+// The measurement gateway is wired with a stub store for Bitwarden so its
+// tools register and contribute their schema bytes to the catalog.
+// Production `mcp serve` wires the real instance (`gw.BWSession`) from
+// cmd_mcp.go.
 func (s *Service) mcpToolCosts() map[string]int {
 	s.mcpToolCostsOnce.Do(func() {
 		gw := mcp.New(s.Registry, s.MCPSecrets, "internal")
-		// Throw-away store paths under the OS temp dir — measurement
-		// only reads `List` (which returns an empty slice on a missing
-		// file) and never writes. The constructor is non-nil-safe so
-		// `registerGitLabTools` walks past its nil-check.
-		gw.GitLabInstances = mcp.NewGitLabInstanceStore(
-			filepath.Join(os.TempDir(), "claude-bar-measure-gitlab.json"),
-		)
 		gw.BWSession = mcp.NewBitwardenSession(time.Minute)
 		s.mcpToolCostsCache = gw.MeasureToolCosts()
 	})
