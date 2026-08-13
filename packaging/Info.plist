@@ -13,9 +13,9 @@
     <key>CFBundleIdentifier</key>
     <string>dev.ncthanhngo.claude-bar</string>
     <key>CFBundleVersion</key>
-    <string>13.2</string>
+    <string>13.3</string>
     <key>CFBundleShortVersionString</key>
-    <string>13.2</string>
+    <string>13.3</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleSignature</key>
@@ -35,7 +35,7 @@
     <key>NSHumanReadableCopyright</key>
     <string>Copyright © 2026 Thanh Ngô. Licensed under MIT.</string>
     <key>CFBundleGetInfoString</key>
-    <string>Claude Bar 13.2 — menu-bar manager for multiple Claude Code accounts</string>
+    <string>Claude Bar 13.3 — menu-bar manager for multiple Claude Code accounts</string>
     <key>CBAuthorName</key>
     <string>Thanh Ngô</string>
     <key>CBAuthorEmail</key>
@@ -45,13 +45,18 @@
     <key>CBLicense</key>
     <string>MIT</string>
     <key>CBBuildDate</key>
-    <string>2026-06-02</string>
+    <string>2026-08-13</string>
     <key>CBReleaseChannel</key>
     <string>Beta</string>
     <key>CBReleaseWhatsNew</key>
-    <string>Full-popover account rows now keep their badges on one line; long account names truncate instead of pushing things around.</string>
+    <string>Lower idle CPU and energy use — the menu-bar app polls more efficiently.
+Usage: GitHub-style daily heatmap plus a month-by-month token breakdown.
+New Server tab — monitor SSH hosts: health, stats, alerts, history, logs.
+New Backup &amp; Restore (Sao lưu) with an AI assistant for setting up hosts.
+Slimmer app, Claude service-outage alerts, and fewer surprise re-logins.</string>
     <key>CBReleaseHotfixes</key>
-    <string>Fixed the "ACTIVE" badge wrapping onto two lines in the Full popover when an account name was long.</string>
+    <string>Fixed a daily re-login prompt caused by refreshing the active account's backup token.
+Fixed web re-login giving up after 5s instead of waiting for the login to finish.</string>
     <key>CBReleaseKnownIssues</key>
     <string>None.</string>
     <key>CFBundleDevelopmentRegion</key>
