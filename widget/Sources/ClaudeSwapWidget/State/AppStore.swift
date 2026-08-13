@@ -408,10 +408,13 @@ final class AppStore: ObservableObject {
         isRefreshing = true
         defer { isRefreshing = false }
         do {
-            async let sessionsAsync = client.sessions()
-            async let tokenStatsAsync = client.usageStats()
-            let metadata = try await client.list(includeUsage: false)
-                .preservingUsageState(from: snapshot)
+            // Single process for the whole cycle: account metadata + sessions
+            // report + token stats arrive from one `csw refresh-bundle` fork
+            // instead of three concurrent ones. Metadata + sessions are
+            // required (a failure throws and preserves the last snapshot);
+            // token stats stay best-effort below.
+            let bundle = try await client.refreshBundle()
+            let metadata = bundle.list.preservingUsageState(from: snapshot)
             let webUsages = await webUsageProvider?(metadata.accounts) ?? [:]
             // Per-account rule: web is the source of truth whenever it returns
             // anything for that account. OAuth (the "terminal" path) only
@@ -479,16 +482,16 @@ final class AppStore: ObservableObject {
             let list = metadata
                 .mergingUsageRows(fallback)
                 .replacingUsage(webUsages)
-            let sess = try await sessionsAsync
+            let sess = bundle.report
             self.snapshot = list
             // Clear any terminal needs-manual-sign-in flag for accounts that
             // are healthy again (e.g. after the user completed an interactive
             // re-login) so the popover "Log in" button disappears promptly.
             recovery?.reconcile(list)
             self.sessions = sess
-            // Token-stats failure is non-fatal — keep the last good value so
-            // the UI doesn't blank out on a transient scan error.
-            if let stats = try? await tokenStatsAsync {
+            // Token-stats failure is non-fatal — the backend omits the field
+            // on a transient scan error, so keep the last good value.
+            if let stats = bundle.usageStats {
                 self.tokenStats = stats
             }
             self.lastError = nil

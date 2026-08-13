@@ -67,6 +67,22 @@ actor CswClient {
         return w.report
     }
 
+    /// One process for the whole poll cycle. Collapses the three concurrent
+    /// forks the refresh loop used to spawn — `list --metadata-only`,
+    /// `sessions`, `usage-stats` — into a single `csw refresh-bundle` call,
+    /// cutting steady-state process spawns per refresh by ~66%. `usageStats`
+    /// is optional: the backend omits it when its scan fails so a transient
+    /// token-log error doesn't blank the panel (matches the previous `try?`).
+    struct RefreshBundleDTO: Decodable {
+        let list: ListAccountsDTO
+        let report: SessionReportDTO
+        let usageStats: UsageStatsDTO?
+    }
+
+    func refreshBundle() async throws -> RefreshBundleDTO {
+        try await run(["refresh-bundle", "--json"], decode: RefreshBundleDTO.self)
+    }
+
     func switchTo(_ num: Int) async throws {
         _ = try await runRaw(["switch", "--json", String(num)])
     }
