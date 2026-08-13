@@ -176,6 +176,12 @@ final class AppSettings: ObservableObject {
     @AppStorage("mcpConnectorPromptsJSON")
     var mcpConnectorPromptsJSON: String = "{}"
 
+    /// Watched GitLab projects for the menu-bar pipeline indicator + GitLab
+    /// popover tab. JSON-encoded `[GitLabWatch]`; owned/mutated by
+    /// `PipelineStore`, which keeps its own `@Published` copy in sync.
+    @AppStorage("gitlabWatchesJSON")
+    var gitlabWatchesJSON: String = "[]"
+
     /// When true, `cb_slack_post_message` skips the local write approval
     /// popover. Other Slack write tools and all non-Slack write tools stay
     /// gated. Defaults to `true`; user can opt out via Local MCP settings.

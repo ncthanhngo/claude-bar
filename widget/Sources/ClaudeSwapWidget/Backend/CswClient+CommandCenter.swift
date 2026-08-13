@@ -125,6 +125,17 @@ extension CswClient {
         _ = try await self.runRaw(["gitlab", "remove", "--id", id])
     }
 
+    /// Fetch recent pipelines for a watched project. Drives the GitLab tab and
+    /// the menu-bar pipeline indicator. `instance` may be nil/empty when only
+    /// one GitLab instance is configured. Newest first (GitLab default order).
+    func gitlabListPipelines(instance: String?, project: String, ref: String? = nil, status: String? = nil, perPage: Int = 5) async throws -> [Pipeline] {
+        var args = ["gitlab", "pipelines", "--project", project, "--per-page", String(perPage)]
+        if let instance, !instance.isEmpty { args += ["--instance", instance] }
+        if let ref, !ref.isEmpty { args += ["--ref", ref] }
+        if let status, !status.isEmpty { args += ["--status", status] }
+        return try await self.run(args, decode: [Pipeline].self)
+    }
+
     // MARK: - CI Tools (Daily → Tools: ci-watch + glpush installer)
 
     /// Machine-wide install state for the ci-watch/glpush tooling. Mirrors
