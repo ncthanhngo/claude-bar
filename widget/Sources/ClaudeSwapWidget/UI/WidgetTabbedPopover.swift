@@ -1,18 +1,20 @@
 import SwiftUI
 
-// Menu-bar popover root. One scrollable surface, no top tabs, no footer.
-// All global actions (Add account, Verify all, Force refresh, Health
-// check, Theme, Quit, Settings) live as icons in the header bar — Settings
-// pinned to the top-right corner. The body is just status header → account
-// list → auto-swap → token usage.
-//
-// Name kept as `WidgetTabbedPopover` only for git history; the structure has
-// nothing tabbed about it now.
+// Menu-bar popover root. Two tabs under the header bar: **Claude** (status
+// header → account list → auto-swap → token usage) and **Server** (SSH host
+// health monitor). Global actions (Add account, Verify all, Force refresh,
+// Health check, Theme, Quit, Settings) live as icons in the header bar —
+// Settings pinned to the top-right corner. The `WidgetTabbedPopover` name is
+// finally accurate again.
 struct WidgetTabbedPopover: View {
     @EnvironmentObject var store: AppStore
     @EnvironmentObject var cloudSync: CloudSyncCoordinator
     @EnvironmentObject private var updateController: UpdateController
+    @EnvironmentObject private var serverMonitor: ServerMonitorStore
     @ObservedObject private var settings = AppSettings.shared
+
+    /// Selected tab. Defaults to Claude on every open (not persisted).
+    @State private var tab: PopoverTab = .claude
 
     @AppStorage("lastAutoSyncSuccessAt") private var lastAutoSyncSuccessAt: Double = 0
     @AppStorage("lastAutoSyncError") private var lastAutoSyncError: String = ""
@@ -29,17 +31,21 @@ struct WidgetTabbedPopover: View {
     /// 400pt; everything below reflows to fit — the KPI cards stack their
     /// tokens/req vertically (see `TokenSummaryStripView`) and the usage-bar
     /// numeric columns tightened.
-    private static let popoverWidth: CGFloat = 300
+    private static let popoverWidth: CGFloat = 360
     /// Re-measured against the rendered shell: header 36 + divider 1 +
     /// accountsHeader 22 + divider 1 + auto-swap title 22 + auto-swap
     /// section 86 + token-usage title 22 + token stats minimum 196
     /// + outer paddings ~22 = 408pt. The KPI cards stack title / tokens /
     /// req (no dollar line), the same height as the old inline strip.
-    private static let shellHeight: CGFloat = 408
+    /// Token stats reserve a taller minimum: a Wave/Calendar style switcher row
+    /// (~28) sits above either the 150pt area chart or the calendar heatmap +
+    /// summary cards. title 22 + switcher 28 + chart/heatmap + KPI cards ~262
+    /// = 312pt for the token block, bringing the shell to ~502pt.
+    private static let shellHeight: CGFloat = 502
     /// Height saved when the Token-usage section is hidden — title 22 +
-    /// chart + KPI cards ~196 = 218pt. The popover frame subtracts this
-    /// when `settings.showTokenUsageInFullPopover` is false.
-    private static let tokenUsageSectionHeight: CGFloat = 218
+    /// switcher 28 + chart + KPI cards ~262 = 312pt. The popover frame
+    /// subtracts this when `settings.showTokenUsageInFullPopover` is false.
+    private static let tokenUsageSectionHeight: CGFloat = 312
     /// One AccountRowView at its minimum — avatar + name + email + 5h bar
     /// + 7d bar, no extra badges. Rows with the "Needs login" credential
     /// chip or a usage-error badge are taller; `estimatedRowHeight(for:)`
@@ -50,6 +56,8 @@ struct WidgetTabbedPopover: View {
     /// "Needs login" credential chip and the usage-error chip both render
     /// as a single ~14pt HStack stacked into the usage VStack (spacing 3).
     private static let badgeRowExtra: CGFloat = 17
+    /// The Claude|Server segmented row inserted under the header.
+    private static let tabBarHeight: CGFloat = 44
 
     var body: some View {
         ZStack {
@@ -57,10 +65,13 @@ struct WidgetTabbedPopover: View {
                 MenuHeaderBar()
                     .padding(.top, 6)
                 Divider().opacity(0.5)
-                accountsHeader
-                accountsSection
+                tabBar
                 Divider().opacity(0.4)
-                bottomFixedSection
+                if tab == .claude {
+                    claudeTabBody
+                } else {
+                    ServerPopoverTab()
+                }
             }
         }
         .frame(width: Self.popoverWidth, height: popoverHeight)
@@ -84,7 +95,9 @@ struct WidgetTabbedPopover: View {
     }
 
     private var popoverHeight: CGFloat {
-        let base = Self.shellHeight + visibleAccountsHeight
+        // Both tabs share the Claude tab's height so switching never resizes the
+        // popover — the Server tab's content just scrolls within the same frame.
+        let base = Self.shellHeight + visibleAccountsHeight + Self.tabBarHeight
         return settings.showTokenUsageInFullPopover ? base : base - Self.tokenUsageSectionHeight
     }
 
@@ -115,6 +128,69 @@ struct WidgetTabbedPopover: View {
         if view.credentialState == "needs_login" { h += badgeRowExtra }
         if view.error != nil { h += badgeRowExtra }
         return h
+    }
+
+    // MARK: - Tabs
+
+    private var tabBar: some View {
+        HStack(spacing: 6) {
+            tabButton(.claude)
+            tabButton(.server)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
+    }
+
+    @ViewBuilder
+    private func tabButton(_ t: PopoverTab) -> some View {
+        let selected = tab == t
+        Button { tab = t } label: {
+            HStack(spacing: 5) {
+                Text(t.label)
+                    .font(.system(size: 12, weight: selected ? .semibold : .regular))
+                if t == .server && serverAlertCount > 0 {
+                    Text("\(serverAlertCount)")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 1)
+                        .background(Capsule().fill(Color.red))
+                }
+            }
+            .foregroundColor(selected ? .primary : .secondary)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 9)
+            .background(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(selected ? Color.primary.opacity(0.10) : Color.clear)
+            )
+            // Make the WHOLE padded frame clickable — without this the clear
+            // (unselected) background is transparent and only the text glyphs
+            // are hit-testable, so the tab is hard to tap.
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    /// Monitored hosts that are offline or past the disk crit threshold —
+    /// drives the red badge on the Server tab so a problem is visible even
+    /// while the user is on the Claude tab.
+    private var serverAlertCount: Int {
+        serverMonitor.healths.reduce(0) { acc, h in
+            if !h.reachable { return acc + 1 }
+            if h.hasDiskReading && h.diskUsedPct >= settings.serverDiskCritPct { return acc + 1 }
+            return acc
+        }
+    }
+
+    /// The original popover content — accounts + auto-swap + token usage.
+    private var claudeTabBody: some View {
+        VStack(spacing: 0) {
+            accountsHeader
+            accountsSection
+            Divider().opacity(0.4)
+            bottomFixedSection
+        }
     }
 
     @ViewBuilder

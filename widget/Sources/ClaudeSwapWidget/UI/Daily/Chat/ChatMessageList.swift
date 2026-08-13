@@ -23,8 +23,9 @@ struct ChatMessageList: View {
                     Color.clear.frame(height: 1).id(bottomAnchorID)
                 }
                 .padding(.horizontal, 36)
-                .padding(.vertical, 24)
-                .frame(maxWidth: 760, alignment: .leading)
+                .padding(.top, 20)
+                .padding(.bottom, 10)
+                .frame(maxWidth: 860, alignment: .leading)
                 .frame(maxWidth: .infinity, alignment: .center)
             }
             .background(palette.paper)

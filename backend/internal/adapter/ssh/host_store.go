@@ -16,7 +16,11 @@ import (
 // matches the SSH config Host stanza; the optional fields override config
 // values when set.
 type TrackedHost struct {
-	Name          string    `json:"name"`
+	Name string `json:"name"`
+	// Label is an optional display name shown in the UI. Name stays the
+	// stable identity/key (referenced by backup profiles, the assistant, and
+	// the SSH config stanza); renaming in the UI edits Label only.
+	Label         string    `json:"label,omitempty"`
 	HostName      string    `json:"hostName,omitempty"`
 	Port          int       `json:"port,omitempty"`
 	User          string    `json:"user,omitempty"`
@@ -25,6 +29,21 @@ type TrackedHost struct {
 	Note          string    `json:"note,omitempty"`
 	AddedAt       time.Time `json:"addedAt"`
 	LastConnected time.Time `json:"lastConnected,omitempty"`
+	// Monitor opts this host into the periodic reachability + disk health
+	// probe (see health.go). Absent in older hosts.json → false.
+	Monitor bool `json:"monitor,omitempty"`
+	// DiskPath is the filesystem the disk probe runs `df -P` against. Empty
+	// means the root "/".
+	DiskPath string `json:"diskPath,omitempty"`
+	// PasswordAuth means a password is stored for this host (in the Keychain,
+	// never here). Exec then tries password first and falls back to the key.
+	PasswordAuth bool `json:"passwordAuth,omitempty"`
+	// CheckPort, when > 0, makes the probe also test that TCP port on the
+	// server's loopback (a "service up?" signal). 0 disables the check.
+	CheckPort int `json:"checkPort,omitempty"`
+	// Services is a comma/space list of systemd units or "docker:<container>"
+	// tokens the probe reports up/down state for. Empty = none watched.
+	Services string `json:"services,omitempty"`
 }
 
 // HostStore is the on-disk JSON registry of tracked SSH hosts.

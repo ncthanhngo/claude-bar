@@ -81,6 +81,18 @@ final class PreferencesCloudSync: ObservableObject {
         Task { await self.pullIfNewer() }
     }
 
+    /// Tears down the 60s poll timer, any pending push, and both
+    /// NotificationCenter observers so no iCloud preference work happens while
+    /// the app is paused. `start()` re-installs all of them on resume.
+    func stop() {
+        pollTimer?.invalidate()
+        pollTimer = nil
+        pushTask?.cancel()
+        pushTask = nil
+        observers.forEach { NotificationCenter.default.removeObserver($0) }
+        observers.removeAll()
+    }
+
     func syncNow() async {
         await pullIfNewer()
         await pushNow()
@@ -342,4 +354,10 @@ private let syncedKeys: [SyncedKey] = [
     .init(id: "briefingNewsFetchesPerDay",              kind: .int),
     .init(id: "briefingScheduleTimes",                  kind: .string),
     .init(id: "briefingUserPrompt",                     kind: .string),
+
+    // Daily → Netbird (group metadata, JSON-encoded dicts as strings)
+    .init(id: "netbird.groupRoles.v1.json",  kind: .string),
+    .init(id: "netbird.groupColors.v1.json", kind: .string),
+    .init(id: "netbird.groupNotes.v1.json",  kind: .string),
+    .init(id: "netbird.people.v1.json",      kind: .string),
 ]

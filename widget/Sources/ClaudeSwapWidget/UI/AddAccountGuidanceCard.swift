@@ -80,8 +80,8 @@ struct AddAccountGuidanceCard: View {
                      : "KHÔNG cần `/logout` tài khoản hiện tại trước.")
                     .font(.system(size: 12, weight: .semibold))
                 Text(lang == .en
-                     ? "Claude Bar snapshots the active account's credentials before the new login overwrites them. Logging out first throws those tokens away and forces a re-login later."
-                     : "Claude Bar tự sao lưu credentials của tài khoản đang dùng trước khi login mới ghi đè. Logout trước sẽ xóa token đang sống và bắt bạn đăng nhập lại sau này.")
+                     ? "\(AppInfo.displayName) snapshots the active account's credentials before the new login overwrites them. Logging out first throws those tokens away and forces a re-login later."
+                     : "\(AppInfo.displayName) tự sao lưu credentials của tài khoản đang dùng trước khi login mới ghi đè. Logout trước sẽ xóa token đang sống và bắt bạn đăng nhập lại sau này.")
                     .font(.system(size: 11))
                     .foregroundColor(.secondary)
                     .fixedSize(horizontal: false, vertical: true)

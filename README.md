@@ -67,6 +67,9 @@ brew install --cask claude-bar
 - **Session guard** — warns you if Claude is running before a manual switch; option to force-switch anyway
 - **Web-first usage** — each account can link its own embedded claude.ai web profile for usage before falling back to terminal OAuth usage; web sessions sync separately through iCloud Keychain by account email
 - **Local MCP connectors** — share one set of Slack / ClickUp / Google / GitHub / GitLab / Bitwarden tokens across accounts and reach them from Claude Code through a local stdio gateway (see [below](#local-mcp-connectors-optional))
+- **Sao lưu** (Daily → Tools → Sao lưu) — a top-level Tools tab (alongside App and Netbird) with two panes:
+  - **Hồ sơ** — configure server-side backups of a Docker-deployed app and its database, pushed to SharePoint via rclone. The app SSHes in to install a daily cron/systemd job with grandfather-father-son retention (daily / weekly / monthly / yearly), runs read-only preflight checks, triggers backups on demand, and restores a chosen snapshot. Backup sources are DB-agnostic: a freeform dump command (pg_dump / mysqldump / mongodump), tarred paths, or docker volumes. Every server mutation is previewed in a confirm sheet first; no backup secrets are stored on the Mac (SSH keys live in `~/.ssh`, rclone credentials live on the server)
+  - **Trợ lý máy chủ** — chat with the active Claude account as a server-ops assistant against a tracked SSH host. It proposes shell commands to install/configure/inspect the server; read-only commands run automatically while anything that mutates the server gates behind a confirm sheet (commands are risk-classified by the same server-side classifier the MCP gateway uses). Command output is fed back so the assistant continues the job end to end
 - **Themes** — Light, Dark, and Rainbow
 - **Icon color** — 11 preset tint colors for the menu bar icon (Settings → General)
 
@@ -150,6 +153,21 @@ If all inactive accounts are also above the threshold → notification **"All ac
 
 ---
 
+## Command line
+
+Claude Bar installs a `cbar` shortcut on launch — a symlink to its bundled `csw` backend, placed in the first writable `/opt/homebrew/bin` or `/usr/local/bin`. Use it from any terminal, SSH session, or script to switch accounts by number **or** label:
+
+```bash
+cbar list                 # accounts + usage
+cbar switch 2             # by number
+cbar switch work          # by nickname / email (substring match ok)
+cbar switch work --json   # machine-readable output
+```
+
+The shortcut points into the app bundle, so it stops working once the app is removed (clean it up with the [uninstall](#uninstall) steps). Building from source? The same binary is at `backend/bin/csw` after `make backend`.
+
+---
+
 ## Update
 
 ```bash
@@ -166,11 +184,12 @@ Or manually: download the latest `ClaudeBar.zip` from [Releases](https://github.
 brew uninstall --cask claude-bar
 ```
 
-To also remove all data (accounts, settings, claude-watch script):
+To also remove all data (accounts, settings, claude-watch script, `cbar` shortcut):
 
 ```bash
 rm -rf "$HOME/Library/Application Support/claude-bar"
 defaults delete dev.ncthanhngo.claude-bar 2>/dev/null
+rm -f /opt/homebrew/bin/cbar /usr/local/bin/cbar    # the cbar CLI shortcut
 # Remove shell alias if you added it
 sed -i '' '/alias claude="claude-watch"/d' ~/.zshrc
 ```

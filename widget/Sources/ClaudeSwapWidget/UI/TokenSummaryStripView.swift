@@ -23,17 +23,30 @@ struct TokenSummaryStripView: View {
             RoundedRectangle(cornerRadius: 1.5)
                 .fill(tint)
                 .frame(width: 3)
-            // Tokens (hero) over request count. Dollar estimates were dropped
-            // — subscription accounts don't pay per token, so the USD figure
-            // was misleading rather than informative.
+            // Cost-equivalent (billable weight) is the hero — it answers "how
+            // much did I actually use", whereas the raw total is dominated by
+            // cheap cache reads. Raw total drops to a reference subline.
+            // Dollar estimates were dropped — subscription accounts don't pay
+            // per token, so the USD figure was misleading.
             VStack(alignment: .leading, spacing: 3) {
                 Text(title)
                     .font(.system(size: 10, weight: .medium))
                     .foregroundColor(.secondary)
                     .lineLimit(1)
-                Text(TokenFormatters.compact(bucket.totalTokens))
+                // Hero = cost-equivalent. Fall back to raw total only when an
+                // older backend doesn't emit it (reports 0).
+                Text(TokenFormatters.compact(
+                    bucket.costEquivalentTokens > 0
+                        ? bucket.costEquivalentTokens
+                        : bucket.totalTokens))
                     .font(.system(size: 14, weight: .semibold, design: .monospaced))
                     .foregroundColor(.primary)
+                // Raw total — all tokens processed, for reference.
+                if bucket.costEquivalentTokens > 0 {
+                    Text("\(TokenFormatters.compact(bucket.totalTokens)) total")
+                        .font(.system(size: 9, weight: .medium, design: .monospaced))
+                        .foregroundColor(.secondary)
+                }
                 Text("\(bucket.requests) req")
                     .font(.system(size: 9, design: .monospaced))
                     .foregroundColor(.secondary.opacity(0.8))
@@ -46,7 +59,7 @@ struct TokenSummaryStripView: View {
             RoundedRectangle(cornerRadius: 8, style: .continuous)
                 .fill(Color.primary.opacity(0.05))
         )
-        .help("\(bucket.requests) req · in \(TokenFormatters.compact(bucket.inputTokens)) · out \(TokenFormatters.compact(bucket.outputTokens)) · cache_w \(TokenFormatters.compact(bucket.cacheCreationTokens)) · cache_r \(TokenFormatters.compact(bucket.cacheReadTokens))")
+        .help("\(bucket.requests) req · in \(TokenFormatters.compact(bucket.inputTokens)) · out \(TokenFormatters.compact(bucket.outputTokens)) · cache_w \(TokenFormatters.compact(bucket.cacheCreationTokens)) · cache_r \(TokenFormatters.compact(bucket.cacheReadTokens)) · cost-eq ≈\(TokenFormatters.compact(bucket.costEquivalentTokens)) (input-equiv, out 5× · cache_w 1.25× · cache_r 0.1×)")
     }
 }
 

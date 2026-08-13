@@ -66,6 +66,6 @@ enum PopoverModal {
     private static func settingsWindow() -> NSWindow? {
         // Title-match is good enough — SettingsWindowController is the only
         // window with this title and only ever exists once.
-        NSApp.windows.first { $0.title == "Claude Bar Settings" && $0.isVisible }
+        NSApp.windows.first { $0.title == AppInfo.settingsWindowTitle && $0.isVisible }
     }
 }

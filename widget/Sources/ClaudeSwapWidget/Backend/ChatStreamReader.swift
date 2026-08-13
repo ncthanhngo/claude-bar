@@ -69,6 +69,13 @@ enum ChatStreamReader {
             // is captured up-front and the stream itself runs nonisolated.
             var env = ProcessInfo.processInfo.environment
             env["CB_CHAT_TOOL_MODE"] = ChatStreamReader.currentToolMode().rawValue
+            // Propagate the launch-resolved Claude CLI path explicitly — the
+            // GUI's minimal PATH can't find `claude` otherwise (see
+            // ClaudeBinaryEnv). getenv reflects the setenv done at startup even
+            // if the ProcessInfo snapshot above predates it.
+            if let claudeBin = getenv("CLAUDE_BIN") {
+                env["CLAUDE_BIN"] = String(cString: claudeBin)
+            }
             task.environment = env
 
             let stdin = Pipe()

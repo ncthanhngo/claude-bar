@@ -9,6 +9,17 @@ final class AppSettings: ObservableObject {
     @AppStorage("autoSwapEnabled") var autoSwapEnabled: Bool = false
     @AppStorage("thresholdPct") var thresholdPct: Int = 90
 
+    /// Master "pause" switch. When true the app stays in the menu bar and
+    /// remains fully interactive (manual refresh, account switch, settings)
+    /// but every background loop and helper process is torn down: usage
+    /// polling, the 6-hour token refresh, auto-swap, the briefing scheduler,
+    /// web cookie keep-alive, iCloud preference sync, and the gate-proxy
+    /// subprocess. App Nap is allowed to re-engage too, so a paused app is as
+    /// quiet as it was before it was installed. Persisted — a paused app
+    /// relaunches paused until the user flips it back. Coordinated centrally
+    /// by `BackgroundWorkController`.
+    @AppStorage("dormantModeEnabled") var dormantModeEnabled: Bool = false
+
     /// Auto-recover a dead active credential without user action: swap to a
     /// healthy account (then silently repair the broken one) or, when no
     /// target is available, run a hidden re-login. Defaults on — recovering a
@@ -36,6 +47,22 @@ final class AppSettings: ObservableObject {
 
     /// Cutoff (%) where we switch from "low" to "high" refresh frequency.
     @AppStorage("adaptiveHighThresholdPct") var adaptiveHighThresholdPct: Int = 80
+
+    // Server monitor (popover Server tab).
+    @AppStorage("serverPollIntervalMinutes") var serverPollIntervalMinutes: Int = 5
+    @AppStorage("serverDiskWarnPct") var serverDiskWarnPct: Int = 85
+    @AppStorage("serverDiskCritPct") var serverDiskCritPct: Int = 90
+    /// When on, a host crossing the crit disk threshold raises a notification
+    /// (default off — disk is display-only unless the user opts in).
+    @AppStorage("serverDiskAlertsEnabled") var serverDiskAlertsEnabled: Bool = false
+
+    // Claude status monitor (status.claude.com). Notifies every user on a
+    // major+ Anthropic outage. Default ON — that's the point of the feature;
+    // the toggle lets a user who finds it noisy opt out.
+    @AppStorage("claudeStatusAlertsEnabled") var claudeStatusAlertsEnabled: Bool = true
+    /// Poll cadence for the status page; tightened to 1 min automatically while
+    /// an outage is live (see ClaudeStatusStore).
+    @AppStorage("claudeStatusPollMinutes") var claudeStatusPollMinutes: Int = 5
 
     /// When true, opening the menu-bar popover triggers an immediate refresh
     /// and tightens the polling cadence for ~5 minutes so the chart stays
@@ -84,10 +111,62 @@ final class AppSettings: ObservableObject {
     /// that most users don't need glance-able. Toggled from General → UI.
     @AppStorage("showTokenUsageInFullPopover") var showTokenUsageInFullPopover: Bool = false
 
-    /// Active body of the Daily window. Only the chat mode survives; kept
-    /// as an enum-backed AppStorage so a future feature can re-introduce
-    /// alternative modes without a settings migration.
-    @AppStorage("dailyMode") var dailyMode: String = DailyMode.chat.rawValue
+    /// Active body of the Daily window: "plan" (editorial briefing) or "chat"
+    /// (OAuth-bound conversation thread). Persisted so the window opens in
+    /// whichever mode the user last used.
+    @AppStorage("dailyMode") var dailyMode: String = DailyMode.plan.rawValue
+
+    /// On-screen footprint of the Daily window: Max (near-fullscreen, the
+    /// original behaviour), Medium, or Small. Read by `BriefingWindowController`
+    /// when it computes the open frame.
+    @AppStorage("dailyWindowSize") var dailyWindowSize: DailyWindowSize = .max
+
+    // MARK: - Daily Briefing scheduler + quiet hours
+
+    @AppStorage("briefingScheduleMode") var briefingScheduleMode: String = "cron"
+    @AppStorage("briefingIntervalMinutes") var briefingIntervalMinutes: Int = 15
+    @AppStorage("quietHoursStart") var quietHoursStart: String = "22:00"
+    @AppStorage("quietHoursEnd") var quietHoursEnd: String = "07:00"
+
+    // MARK: - Daily Briefing hotkeys (Carbon key codes + modifier bitmask)
+
+    @AppStorage("briefingHotkeyOpenAppKeyCode")
+    var briefingHotkeyOpenAppKeyCode: Int = 6   // kVK_ANSI_Z
+
+    @AppStorage("briefingHotkeyOpenAppModifiers")
+    var briefingHotkeyOpenAppModifiers: Int = 2048 // optionKey
+
+    @AppStorage("briefingHotkeyOpenBriefingKeyCode")
+    var briefingHotkeyOpenBriefingKeyCode: Int = 7  // kVK_ANSI_X
+
+    @AppStorage("briefingHotkeyOpenBriefingModifiers")
+    var briefingHotkeyOpenBriefingModifiers: Int = 2048 // optionKey
+
+    // MARK: - News feeds (JSON-encoded list of NewsFeedConfig)
+
+    @AppStorage("briefingNewsFeedsJSON")
+    var briefingNewsFeedsJSON: String = "[]"
+
+    /// "08:00" — fetch news at this local time. Empty disables auto fetch.
+    @AppStorage("briefingNewsFetchTime")
+    var briefingNewsFetchTime: String = "08:00"
+
+    /// How many times per day to refresh news. 1 = once at fetch time.
+    @AppStorage("briefingNewsFetchesPerDay")
+    var briefingNewsFetchesPerDay: Int = 1
+
+    /// Comma-separated "HH:mm" times at which the briefing auto-runs.
+    /// Persisted in addition to the cron expression so the Settings UI can
+    /// show a friendly time-picker; cron is regenerated from this on save.
+    @AppStorage("briefingScheduleTimes")
+    var briefingScheduleTimes: String = "08:33"
+
+    /// Free-form markdown the user pastes to steer the briefing summariser
+    /// — e.g. "tập trung vào việc kỹ thuật, bỏ qua marketing". Persisted
+    /// to a file the Go briefing runner reads so Claude's prompt sees it
+    /// as a "# Ưu tiên người dùng" section.
+    @AppStorage("briefingUserPrompt")
+    var briefingUserPrompt: String = ""
 
     /// Tool-permission level for the in-app chat ("Hỏi gì đó với Claude…").
     /// Read by `ChatStreamReader` and forwarded to the Go chat client via the

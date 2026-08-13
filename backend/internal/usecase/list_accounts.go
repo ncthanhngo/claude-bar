@@ -226,11 +226,25 @@ func (s *Service) fillUsage(ctx context.Context, v *AccountView) {
 	v.SubscriptionType = payload.SubscriptionType
 	access := payload.AccessToken
 
-	// Token expired -> refresh only the backup copy. Claude Code still owns the
-	// live active credential; this avoids keychain prompts during menu polling.
-	// Mutex serialises this per-account so concurrent callers don't race on
-	// the same refresh token when the provider rotates on first use.
-	if payload.RefreshToken != "" && oauth.IsExpired(payload.ExpiresAt) {
+	if v.IsActive {
+		// The active account's refresh_token is single-use-rotating and owned by
+		// Claude Code, which keeps the LIVE credential fresh while it runs.
+		// Refreshing the backup copy here would consume that shared refresh
+		// token server-side and invalidate the live token Claude Code reads on
+		// its next start — the cause of a daily forced re-login after the live
+		// access token expires overnight. So never refresh from here; probe
+		// usage with the live access token (kept fresh by Claude Code) instead.
+		if s.Live != nil {
+			if liveBlob, liveErr := s.Live.Read(ctx); liveErr == nil && liveBlob != "" {
+				if livePayload, exErr := liveBlob.Extract(); exErr == nil && livePayload.AccessToken != "" {
+					access = livePayload.AccessToken
+				}
+			}
+		}
+	} else if payload.RefreshToken != "" && oauth.IsExpired(payload.ExpiresAt) {
+		// Inactive account: refresh only the backup copy. Mutex serialises this
+		// per-account so concurrent callers don't race on the same refresh token
+		// when the provider rotates on first use.
 		var freshAccess, credErr string
 		func() {
 			unlock := s.lockBackupRefresh(v.Account.Number)
@@ -245,7 +259,7 @@ func (s *Service) fillUsage(ctx context.Context, v *AccountView) {
 			}
 			freshAccess = fresh.AccessToken
 		}()
-		if credErr != "" && !v.IsActive {
+		if credErr != "" {
 			v.CredentialState = "needs_login"
 			v.CredentialError = credErr
 		} else if freshAccess != "" {

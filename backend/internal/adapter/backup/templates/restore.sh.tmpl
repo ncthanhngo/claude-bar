@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+# Claude Bar restore helper — generated, do not hand-edit.
+#   restore.sh --list                       JSON of available snapshots per tier
+#   restore.sh --snapshot TIER/FILE         dry run (prints what would happen)
+#   restore.sh --snapshot TIER/FILE --yes   actually restore (overwrites live data)
+set -euo pipefail
+
+WORKDIR={{.WorkDirQ}}
+REMOTE={{.RemoteQ}}
+NAME={{.NameQ}}
+
+MODE=""; SNAP=""; YES=0
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --list) MODE=list ;;
+    --snapshot) SNAP="${2:-}"; shift ;;
+    --yes) YES=1 ;;
+    *) echo "unknown arg: $1" >&2; exit 2 ;;
+  esac
+  shift
+done
+
+if [ "$MODE" = "list" ]; then
+  printf '{'
+  first=1
+  for tier in daily weekly monthly yearly; do
+    [ $first -eq 1 ] || printf ','; first=0
+    printf '"%s":[' "$tier"
+    inner=1
+    while read -r f; do
+      [ -z "$f" ] && continue
+      [ $inner -eq 1 ] || printf ','; inner=0
+      printf '"%s"' "$f"
+    done < <(rclone lsf --files-only "$REMOTE/$tier/" 2>/dev/null | sort)
+    printf ']'
+  done
+  printf '}\n'
+  exit 0
+fi
+
+[ -z "$SNAP" ] && { echo "need --snapshot TIER/FILE or --list" >&2; exit 2; }
+
+TMP="$(mktemp -d)"
+trap 'rm -rf "$TMP"' EXIT
+echo "downloading $SNAP" >&2
+rclone copyto "$REMOTE/$SNAP" "$TMP/bundle.tar.gz"
+mkdir -p "$TMP/x"
+tar -xzf "$TMP/bundle.tar.gz" -C "$TMP/x"
+
+if [ "$YES" != "1" ]; then
+  echo "DRY RUN — would restore from $SNAP into live targets. Re-run with --yes to apply." >&2
+  ls -la "$TMP/x" >&2
+  exit 0
+fi
+
+echo "restoring from $SNAP (overwriting live data)" >&2
+# --- restore sources ---
+{{.RestoreBlock}}
+echo "restore complete from $SNAP"

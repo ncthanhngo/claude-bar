@@ -134,7 +134,7 @@ struct LocalMCPSettingsView: View {
                 .foregroundColor(.secondary)
                 .font(.system(size: 14))
                 .padding(.top, 1)
-            Text("Tokens live in the macOS Keychain on this Mac. Shared connectors work across every Claude Bar account; account-specific connectors override them. Tool results still flow through your Claude chat history.")
+            Text("Tokens live in the macOS Keychain on this Mac. Shared connectors work across every \(AppInfo.displayName) account; account-specific connectors override them. Tool results still flow through your Claude chat history.")
                 .font(.caption)
                 .foregroundColor(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -295,7 +295,7 @@ struct LocalMCPSettingsView: View {
     }
 
     private var connectorsSection: some View {
-        SettingsGroup("Shared connectors", subtitle: "Connect once here and every Claude Bar account on this Mac uses the same token. Tokens live in the macOS Keychain. The on/off switch hides a connector's tools from Claude (saves ~thousands of context tokens per message) — running `claude` sessions auto-restart so the change takes effect immediately.") {
+        SettingsGroup("Shared connectors", subtitle: "Connect once here and every \(AppInfo.displayName) account on this Mac uses the same token. Tokens live in the macOS Keychain. The on/off switch hides a connector's tools from Claude (saves ~thousands of context tokens per message) — running `claude` sessions auto-restart so the change takes effect immediately.") {
             let shared = coordinator.accounts.first { $0.shared == true }
             if coordinator.accounts.isEmpty {
                 Text(coordinator.isBusy ? "Loading…" : "No accounts yet — add one in the Accounts tab.")

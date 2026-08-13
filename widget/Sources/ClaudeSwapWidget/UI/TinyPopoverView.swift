@@ -230,7 +230,7 @@ private struct UsageChip: View {
         .overlay(Capsule().stroke(palette.opacity(0.30), lineWidth: 0.6))
     }
 
-    private var valueColor: Color { pct == nil ? .secondary : UsagePalette.percentText }
+    private var valueColor: Color { pct == nil ? .secondary : UsagePalette.color(for: pct!) }
 
     private var valueText: String {
         guard let p = pct else { return "—" }

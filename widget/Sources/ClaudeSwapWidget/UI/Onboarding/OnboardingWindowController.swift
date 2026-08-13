@@ -54,7 +54,7 @@ final class OnboardingWindowController: NSObject, NSWindowDelegate {
             backing: .buffered,
             defer: false
         )
-        w.title = "Welcome to Claude Bar"
+        w.title = "Welcome to \(AppInfo.displayName)"
         w.contentViewController = host
         w.setContentSize(size)
         w.level = NSWindow.Level(rawValue: NSWindow.Level.popUpMenu.rawValue + 1)

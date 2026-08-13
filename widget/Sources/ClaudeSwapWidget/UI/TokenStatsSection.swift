@@ -10,6 +10,8 @@ import Charts
 struct TokenStatsSection: View {
     @EnvironmentObject var store: AppStore
     @State private var granularity: ChartGranularity = .day
+    // Persist the chosen chart style so it survives popover reopen.
+    @AppStorage("tokenChartStyle") private var chartStyle: ChartStyle = .wave
 
     enum ChartGranularity: String, CaseIterable, Identifiable {
         case hour, day, month
@@ -23,17 +25,30 @@ struct TokenStatsSection: View {
         }
     }
 
+    // Two mutually-exclusive chart styles the user toggles between. Wave = the
+    // original area chart with an Hour/Day/Month granularity; Calendar = the
+    // GitHub-style 6-month contribution heatmap.
+    enum ChartStyle: String, CaseIterable, Identifiable {
+        case wave, calendar
+        var id: String { rawValue }
+        var label: String { self == .wave ? "Wave" : "Calendar" }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             if let stats = store.tokenStats {
-                pickerBar
-                // Month granularity gets the richer per-month breakdown
-                // (year-spanning sparkline + newest-first month rows with
-                // MoM deltas); Hour/Day keep the area chart.
-                if granularity == .month {
-                    MonthlyBreakdownChart(monthly: stats.monthly)
+                styleBar
+                if chartStyle == .wave {
+                    // Month granularity gets the richer per-month breakdown
+                    // (year-spanning sparkline + newest-first month rows with
+                    // MoM deltas); Hour/Day keep the area chart.
+                    if granularity == .month {
+                        MonthlyBreakdownChart(monthly: stats.monthly)
+                    } else {
+                        UsageChart(stats: stats, granularity: granularity)
+                    }
                 } else {
-                    UsageChart(stats: stats, granularity: granularity)
+                    UsageCalendarHeatmap(daily: stats.daily)
                 }
                 Divider().opacity(0.3)
                 TokenSummaryStripView(stats: stats)
@@ -55,19 +70,39 @@ struct TokenStatsSection: View {
         .frame(maxHeight: .infinity, alignment: .top)
     }
 
-    private var pickerBar: some View {
-        HStack(spacing: 8) {
-            Picker("", selection: $granularity) {
-                ForEach(ChartGranularity.allCases) { g in
-                    Text(g.label).tag(g)
+    // Style switcher on top; the Hour/Day/Month granularity only appears in
+    // Wave mode (the Calendar heatmap has its own fixed 6-month window).
+    private var styleBar: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 8) {
+                Picker("", selection: $chartStyle) {
+                    ForEach(ChartStyle.allCases) { s in
+                        Text(s.label).tag(s)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .frame(maxWidth: 200)
+                .pointingHandCursor()
+
+                Spacer(minLength: 0)
+            }
+
+            if chartStyle == .wave {
+                HStack(spacing: 8) {
+                    Picker("", selection: $granularity) {
+                        ForEach(ChartGranularity.allCases) { g in
+                            Text(g.label).tag(g)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+                    .frame(maxWidth: 200)
+                    .pointingHandCursor()
+
+                    Spacer(minLength: 0)
                 }
             }
-            .pickerStyle(.segmented)
-            .labelsHidden()
-            .frame(maxWidth: 200)
-            .pointingHandCursor()
-
-            Spacer(minLength: 0)
         }
     }
 }
@@ -76,21 +111,28 @@ private struct UsageChart: View {
     let stats: UsageStatsDTO
     let granularity: TokenStatsSection.ChartGranularity
 
+    // Day and Month windows are trimmed to the 7 most-recent buckets so each
+    // point gets enough horizontal room to read in the widened popover — a
+    // week of days, seven months back. Hour keeps its full 24h span. The
+    // backend still emits 30d/12m (KPI cards depend on that); we only narrow
+    // what the chart plots.
     private var series: [TimedBucketDTO] {
         switch granularity {
         case .hour:  return stats.hourly
-        case .day:   return stats.daily
-        case .month: return stats.monthly
+        case .day:   return Array(stats.daily.suffix(7))
+        case .month: return Array(stats.monthly.suffix(7))
         }
     }
 
-    // Y value per bucket — raw compute tokens. Bars stay sized relative to the
-    // series so the axis is meaningful even when totals are tiny.
+    // Y value per bucket — cost-equivalent tokens, matching the headline figure
+    // on the KPI cards below so the chart and cards read on the same scale
+    // instead of the chart showing billions while the cards lead with millions.
+    // Falls back to the raw total for older backends that don't emit cost-eq.
     private func yValue(_ b: UsageBucketDTO) -> Double {
-        Double(b.totalTokens)
+        Double(b.costEquivalentTokens > 0 ? b.costEquivalentTokens : b.totalTokens)
     }
 
-    private let yAxisLabel = "Tokens"
+    private let yAxisLabel = "Cost-eq"
 
     private var hasData: Bool {
         series.contains { yValue($0.bucket) > 0 }
@@ -142,7 +184,7 @@ private struct UsageChart: View {
         // Chart absorbs whatever vertical slack the popover hands down so the
         // KPI strip below it sits flush against the footer instead of leaving
         // a gap when the account list is short.
-        .frame(minHeight: 96, maxHeight: .infinity)
+        .frame(minHeight: 150, maxHeight: .infinity)
         .overlay(alignment: .center) {
             if !hasData {
                 Text("No usage in this window yet.")
@@ -164,13 +206,14 @@ private struct UsageChart: View {
         }
     }
 
-    // X-axis tick density: show ~6 labels regardless of bucket count so the
-    // axis stays readable in a 360-wide popover.
+    // X-axis tick density. Hour keeps ~6 labels across 24h; Day and Month now
+    // plot only 7 buckets each, so label every one — a full week of dates and
+    // seven month names, all readable in the widened popover.
     private var xAxisValues: AxisMarkValues {
         switch granularity {
         case .hour:  return .stride(by: .hour, count: 4)
-        case .day:   return .stride(by: .day, count: 5)
-        case .month: return .stride(by: .month, count: 2)
+        case .day:   return .stride(by: .day, count: 1)
+        case .month: return .stride(by: .month, count: 1)
         }
     }
 

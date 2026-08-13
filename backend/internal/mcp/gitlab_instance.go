@@ -69,6 +69,19 @@ func (s *GitLabInstanceStore) Put(_ context.Context, inst GitLabInstance) (GitLa
 		inst.ID = randomHex(8)
 		inst.AddedAt = time.Now().UTC()
 	}
+	// Reject another instance with the same baseUrl. The MCP layer
+	// errors with `ambiguous gitlab instance` whenever two entries
+	// point at the same self-host, so blocking duplicates at write
+	// time spares the user from a silently-broken tool surface.
+	normIncoming := normalizeBaseURL(inst.BaseURL)
+	for _, e := range insts {
+		if e.ID == inst.ID {
+			continue
+		}
+		if normalizeBaseURL(e.BaseURL) == normIncoming {
+			return inst, fmt.Errorf("gitlab instance: baseUrl already used by %q (id %s)", e.Name, e.ID)
+		}
+	}
 	replaced := false
 	for i, e := range insts {
 		if e.ID == inst.ID {
@@ -127,6 +140,16 @@ func (s *GitLabInstanceStore) Resolve(ctx context.Context, ref string) (*GitLabI
 		}
 	}
 	return nil, fmt.Errorf("gitlab instance %q not found", ref)
+}
+
+// normalizeBaseURL collapses cosmetic differences so dup detection
+// treats `https://gitlab.example.com/`, `HTTPS://gitlab.example.com`,
+// and `https://gitlab.example.com/api/v4` as the same instance.
+func normalizeBaseURL(raw string) string {
+	s := strings.ToLower(strings.TrimSpace(raw))
+	s = strings.TrimRight(s, "/")
+	s = strings.TrimSuffix(s, "/api/v4")
+	return strings.TrimRight(s, "/")
 }
 
 func validateInstance(inst GitLabInstance) error {

@@ -21,8 +21,22 @@ struct DailyTopBar: View {
             DailyModeSwitcher(mode: $mode, palette: palette)
                 .padding(.leading, 4)
 
-            DailyChatSubBar(palette: palette, isReady: true, onNewChat: onNewChat)
-                .padding(.leading, 6)
+            Group {
+                switch mode {
+                case .plan:
+                    DailyMetaStrip(
+                        palette: palette,
+                        dateLabel: dateLabel,
+                        lastGenerated: lastGenerated,
+                        nextRun: nextRun
+                    )
+                case .tools:
+                    EmptyView()
+                case .chat:
+                    DailyChatSubBar(palette: palette, isReady: true, onNewChat: onNewChat)
+                }
+            }
+            .padding(.leading, 6)
 
             Spacer(minLength: 12)
 

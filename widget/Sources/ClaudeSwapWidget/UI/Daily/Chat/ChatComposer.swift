@@ -14,15 +14,22 @@ struct ChatComposer: View {
     @Binding var pendingAttachments: [AttachmentDTO]
     @FocusState private var focused: Bool
     @State private var pendingQuotaConfirm: Bool = false
+    /// Live height of the textarea, driven by its content. Starts at one line
+    /// and grows with the draft so an empty composer barely intrudes on the
+    /// thread above it.
+    @State private var editorHeight: CGFloat = Self.minEditorHeight
+
+    private static let minEditorHeight: CGFloat = 36
+    private static let maxEditorHeight: CGFloat = 200
 
     var body: some View {
-        VStack(spacing: 10) {
+        VStack(spacing: 8) {
             ChatErrorBanner(palette: palette, onRetry: retryLastSend)
             card
         }
         .padding(.horizontal, 32)
-        .padding(.bottom, 24)
-        .padding(.top, 4)
+        .padding(.bottom, 16)
+        .padding(.top, 2)
         .confirmationDialog(
             "Quota 5h đang ở \(currentQuotaPctText). Có thể trigger auto-swap. Vẫn gửi?",
             isPresented: $pendingQuotaConfirm,
@@ -34,20 +41,20 @@ struct ChatComposer: View {
     }
 
     @ViewBuilder private var card: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: 7) {
             ChatComposerAttachments(items: $pendingAttachments, palette: palette)
             textArea
             actionsRow
         }
-        .padding(.horizontal, 18)
-        .padding(.vertical, 14)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 11)
         .background(palette.raisedSurface)
         .overlay(
             RoundedRectangle(cornerRadius: 18).stroke(palette.line, lineWidth: 1)
         )
         .clipShape(RoundedRectangle(cornerRadius: 18))
         .shadow(color: palette.cardShadow, radius: 12, x: 0, y: 3)
-        .frame(maxWidth: 760)
+        .frame(maxWidth: 860)
         .frame(maxWidth: .infinity)
         .onDrop(of: ["public.file-url"], isTargeted: nil, perform: handleDrop(providers:))
     }
@@ -57,9 +64,14 @@ struct ChatComposer: View {
             text: $draft,
             palette: palette,
             placeholder: "Ask Claude anything…",
+            minHeight: Self.minEditorHeight,
+            maxHeight: Self.maxEditorHeight,
+            onHeightChange: { h in
+                withAnimation(.easeOut(duration: 0.12)) { editorHeight = h }
+            },
             onSend: { handleReturn() }
         )
-        .frame(minHeight: 84, maxHeight: 220)
+        .frame(height: editorHeight)
         .overlay(alignment: .topLeading) {
             if draft.isEmpty {
                 Text("Ask Claude anything…")

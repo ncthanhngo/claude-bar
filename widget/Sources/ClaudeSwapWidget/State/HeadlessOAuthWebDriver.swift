@@ -103,11 +103,19 @@ final class HeadlessOAuthWebDriver: NSObject, WKNavigationDelegate {
         schedulePoll(webView)
     }
 
-    /// Runs up to 20 × 250ms polls (5s window) after each navigation:
+    /// Polls every 250ms until a terminal signal, then stops:
     /// 1. Auto-click Authorize if the consent button is present.
     /// 2. Scan for the `code#state` string — report via `onCode` and stop.
     /// 3. After the first navigation with no code, check for a login form;
     ///    if confirmed, report via `onNeedsManualSignIn` and stop.
+    ///
+    /// The loop runs for as long as the WebView is alive rather than a fixed
+    /// window: the consent page is a JS-heavy SPA whose Authorize button often
+    /// hydrates several seconds after `didFinish` — an offscreen WebView is
+    /// slower still — so a short window would close before the button appears
+    /// and the poll would never re-arm (no further navigation fires). It exits
+    /// on `fired` (a callback emitted), task cancellation (the coordinator's
+    /// 30s timeout calls `cancel()`), or a fresh navigation replacing this task.
     ///
     /// Cancels any previous poll first so consecutive navigations don't stack
     /// up parallel polls that could emit duplicate callbacks.
@@ -116,8 +124,7 @@ final class HeadlessOAuthWebDriver: NSObject, WKNavigationDelegate {
         let navIndex = navigationCount
         pollTask = Task { @MainActor [weak self] in
             guard let self else { return }
-            for _ in 0..<20 {
-                guard !Task.isCancelled, !self.fired else { return }
+            while !Task.isCancelled, !self.fired {
 
                 // Attempt auto-authorize (no-op on non-authorize pages).
                 self.tryAutoAuthorize(webView)
