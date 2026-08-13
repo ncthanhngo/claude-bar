@@ -117,7 +117,7 @@ func (s *Service) buildLocalBundle(ctx context.Context, passphrase string) (*clo
 	// credentials (CredentialBlob) are intentionally NOT pushed. The user
 	// opted out of credential sync, which is specifically the per-account
 	// Claude OAuth that authenticates `claude` CLI sessions. MCP connector
-	// secrets (Slack / ClickUp / Google / GitLab) are convenience tokens
+	// secrets (Slack / ClickUp / Google) are convenience tokens
 	// for third-party services — reconnecting them on every new Mac is
 	// painful enough that they are kept in the synced bundle.
 

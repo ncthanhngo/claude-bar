@@ -6,11 +6,10 @@ import "time"
 type MCPService string
 
 const (
-	MCPServiceSlack    MCPService = "slack"
-	MCPServiceClickUp  MCPService = "clickup"
-	MCPServiceGDrive   MCPService = "gdrive"
-	MCPServiceGitHub   MCPService = "github"
-	MCPServiceGitLab   MCPService = "gitlab"
+	MCPServiceSlack     MCPService = "slack"
+	MCPServiceClickUp   MCPService = "clickup"
+	MCPServiceGDrive    MCPService = "gdrive"
+	MCPServiceGitHub    MCPService = "github"
 	MCPServiceBitwarden MCPService = "bitwarden"
 
 	// MCPServiceNetbird is a Keychain credential slot only — NOT a Claude
@@ -25,7 +24,7 @@ const (
 // AllMCPServices is the registration order used for UI and tools/list.
 var AllMCPServices = []MCPService{
 	MCPServiceSlack, MCPServiceClickUp, MCPServiceGDrive,
-	MCPServiceGitHub, MCPServiceGitLab, MCPServiceBitwarden,
+	MCPServiceGitHub, MCPServiceBitwarden,
 }
 
 // MCPConnector is non-secret metadata for one provider on one Claude Bar

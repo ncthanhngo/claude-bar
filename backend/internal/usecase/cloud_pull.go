@@ -281,7 +281,7 @@ func (s *Service) applyBundle(ctx context.Context, bundle *cloudsync.CloudBundle
 	// CredentialBlob is intentionally NOT restored — the user opted out
 	// of credential sync, so even if an older Mac on the same iCloud
 	// bundle still pushes credentials, we drop them on this side. MCP
-	// connector restore stays so Slack / ClickUp / Google / GitLab don't
+	// connector restore stays so Slack / ClickUp / Google don't
 	// have to be re-paired on every new Mac.
 	restoreMCP := bundle.Version >= 2
 	if restoreMCP {

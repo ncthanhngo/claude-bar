@@ -36,7 +36,6 @@ struct ClaudeSwapWidgetApp: App {
     @StateObject private var gateCoord = GateCoordinator.shared
     @StateObject private var serverMonitor = ServerMonitorStore()
     @StateObject private var claudeStatus = ClaudeStatusStore()
-    @StateObject private var pipelineStore = PipelineStore(client: CswClient())
     @ObservedObject private var settings = AppSettings.shared
 
     init() {
@@ -160,7 +159,6 @@ struct ClaudeSwapWidgetApp: App {
                 .environmentObject(gateCoord)
                 .environmentObject(serverMonitor)
                 .environmentObject(claudeStatus)
-                .environmentObject(pipelineStore)
                 // Write-gate sheet for Low / Medium / ReadSensitive prompts.
                 // Without this, those prompts only render via the
                 // ConfirmGateOverlay inside the popover — invisible when the
@@ -193,7 +191,6 @@ struct ClaudeSwapWidgetApp: App {
                 .environmentObject(store)
                 .environmentObject(serverMonitor)
                 .environmentObject(claudeStatus)
-                .environmentObject(pipelineStore)
                 .onAppear {
                     // Wire coordinators from the LABEL's onAppear — not the
                     // popover content's `.task` (lazy, popover-only) and not
@@ -250,8 +247,7 @@ struct ClaudeSwapWidgetApp: App {
             webFallback: webFallback,
             gate: gateCoord,
             serverMonitor: serverMonitor,
-            claudeStatus: claudeStatus,
-            pipelineStore: pipelineStore
+            claudeStatus: claudeStatus
         )
         BackgroundWorkController.shared.apply(dormant: settings.dormantModeEnabled)
         DiagnosticsLogger.shared.log(.info, subsystem: "launch", "polling started")
@@ -264,7 +260,6 @@ struct ClaudeSwapWidgetApp: App {
         let mcpBind = localMCP
         let updateBind = updateController
         let gateBind = gateCoord
-        let pipelineBind = pipelineStore
         SettingsWindowController.shared.bindEnvironment { content in
             AnyView(
                 content
@@ -277,7 +272,6 @@ struct ClaudeSwapWidgetApp: App {
                     .environmentObject(mcpBind)
                     .environmentObject(updateBind)
                     .environmentObject(gateBind)
-                    .environmentObject(pipelineBind)
             )
         }
         // prefsCloudSync is started/stopped by BackgroundWorkController above.

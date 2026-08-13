@@ -31,7 +31,7 @@ func TestRedactLeavesPlainTextAlone(t *testing.T) {
 	}
 }
 
-func TestRedactGitHubGitLabBitwardenTokens(t *testing.T) {
+func TestRedactGitHubBitwardenTokens(t *testing.T) {
 	cases := []string{
 		"ghp_" + strings.Repeat("a", 36),
 		"github_pat_" + strings.Repeat("b", 82),
@@ -39,8 +39,6 @@ func TestRedactGitHubGitLabBitwardenTokens(t *testing.T) {
 		"ghs_" + strings.Repeat("d", 36),
 		"ghu_" + strings.Repeat("e", 36),
 		"ghr_" + strings.Repeat("f", 36),
-		"glpat-" + strings.Repeat("g", 20),
-		"gloas-" + strings.Repeat("h", 20),
 		`BW_SESSION="` + strings.Repeat("X", 40) + `"`,
 		`{"bw_session":"opaque"}`,
 		`{"session":"opaque"}`,
@@ -65,8 +63,6 @@ func TestRedactCatchesFuzzedTokenShapes(t *testing.T) {
 		{"github_pat_", func(i int) string { return repeatPattern("xY9_", 82+i%6) }},
 		{"gho_", func(i int) string { return repeatPattern("zB1cD2", 40+i%5) }},
 		{"ghs_", func(i int) string { return repeatPattern("qP7eF3", 40+i%5) }},
-		{"glpat-", func(i int) string { return repeatPattern("Mn3-_", 25+i%8) }},
-		{"gloas-", func(i int) string { return repeatPattern("Rt5-_", 25+i%8) }},
 		{"xoxp-", func(i int) string { return "1-" + repeatPattern("aA0._-", 14+i%5) }},
 		{"pk_", func(i int) string { return "1234567_" + repeatPattern("ABCDEF0123456789", 22+i%5) }},
 	}
