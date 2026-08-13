@@ -116,9 +116,37 @@ final class AutoSwapStateMachine: ObservableObject {
 
     private func loop() async {
         while !Task.isCancelled {
-            try? await Task.sleep(nanoseconds: UInt64(settings.sessionPollIntervalSec) * 1_000_000_000)
+            let secs = nextTickIntervalSec()
+            try? await Task.sleep(nanoseconds: UInt64(secs) * 1_000_000_000)
             await tick()
         }
+    }
+
+    /// Coarse cadence used when nothing time-based is pending. The tick only
+    /// reads the in-memory snapshot, which AppStore refreshes every 30–120s —
+    /// so at idle a faster tick just re-evaluates identical data. Backing off
+    /// to this floor cuts idle wakeups without delaying detection: the first
+    /// tick that sees a fresh triggerable snapshot flips `isBusy` true and the
+    /// cadence tightens to the configured interval on the very next loop.
+    private static let idleTickIntervalSec = 30
+
+    /// True while a grace window or credential-recovery action is mid-flight —
+    /// i.e. an armed deadline must fire on time. Cooldown and plain idle are
+    /// deliberately excluded: both are "wait and re-check", where a coarse
+    /// cadence changes nothing the user can observe.
+    private var isBusy: Bool {
+        if case .pendingSwap = state { return true }
+        if credAction != .idle { return true }
+        // Mid-debounce toward the credential-failure threshold — keep ticking
+        // fast so recovery arms as promptly as it did before the backoff.
+        return consecutiveCredFailures.values.contains { $0 > 0 }
+    }
+
+    /// Poll cadence for the next tick: the user's configured interval while a
+    /// deadline is armed, otherwise the idle floor.
+    private func nextTickIntervalSec() -> Int {
+        let fast = max(1, settings.sessionPollIntervalSec)
+        return isBusy ? fast : max(fast, Self.idleTickIntervalSec)
     }
 
     private func tick() async {

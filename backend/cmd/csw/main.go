@@ -60,6 +60,8 @@ func main() {
 		err = runMCP(ctx, svc, args)
 	case "usage-stats":
 		err = runUsageStats(ctx, svc, args)
+	case "refresh-bundle":
+		err = runRefreshBundle(ctx, svc, args)
 	case "gate":
 		err = runGate(ctx, args)
 	case "ssh":
@@ -96,6 +98,8 @@ Commands:
   rename <num> <nickname> Rename an account (empty string clears)
   remove <num>            Remove an account (must not be active)
   sessions                Report live Claude Code sessions
+  refresh-bundle          One-shot poll payload for the widget: account metadata
+                          + sessions report + usage-stats in a single JSON object
   verify                  Verify every account is swap-ready
   refresh-tokens          Refresh OAuth tokens for all inactive accounts
   repair-keychain         Rewrite live Claude Code Keychain item from active backup
