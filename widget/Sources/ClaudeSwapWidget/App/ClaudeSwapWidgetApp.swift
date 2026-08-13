@@ -264,6 +264,7 @@ struct ClaudeSwapWidgetApp: App {
         let mcpBind = localMCP
         let updateBind = updateController
         let gateBind = gateCoord
+        let pipelineBind = pipelineStore
         SettingsWindowController.shared.bindEnvironment { content in
             AnyView(
                 content
@@ -276,6 +277,7 @@ struct ClaudeSwapWidgetApp: App {
                     .environmentObject(mcpBind)
                     .environmentObject(updateBind)
                     .environmentObject(gateBind)
+                    .environmentObject(pipelineBind)
             )
         }
         // prefsCloudSync is started/stopped by BackgroundWorkController above.
