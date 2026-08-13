@@ -19,8 +19,6 @@ final class BackgroundWorkController {
     private init() {}
 
     private weak var store: AppStore?
-    private weak var briefing: BriefingCoordinator?
-    private weak var news: NewsFeedCoordinator?
     private weak var prefsSync: PreferencesCloudSync?
     private weak var webFallback: WebFallbackCoordinator?
     private weak var gate: GateCoordinator?
@@ -29,8 +27,6 @@ final class BackgroundWorkController {
 
     func register(
         store: AppStore,
-        briefing: BriefingCoordinator,
-        news: NewsFeedCoordinator,
         prefsSync: PreferencesCloudSync,
         webFallback: WebFallbackCoordinator,
         gate: GateCoordinator,
@@ -38,8 +34,6 @@ final class BackgroundWorkController {
         claudeStatus: ClaudeStatusStore
     ) {
         self.store = store
-        self.briefing = briefing
-        self.news = news
         self.prefsSync = prefsSync
         self.webFallback = webFallback
         self.gate = gate
@@ -60,8 +54,6 @@ final class BackgroundWorkController {
     /// wake observer; the gate proxy guards against a duplicate spawn.
     private func resume() {
         store?.start()
-        briefing?.start()
-        news?.start()
         prefsSync?.start()
         webFallback?.resumeKeepAlive()
         gate?.start()
@@ -73,8 +65,6 @@ final class BackgroundWorkController {
     /// proxy subprocess. Interactive actions in the UI still function.
     private func pause() {
         store?.stop()
-        briefing?.stop()
-        news?.stop()
         prefsSync?.stop()
         webFallback?.stop()
         gate?.stop()

@@ -3,7 +3,7 @@ import AppKit
 
 /// Holds a weak reference to the menu-bar popover NSWindow once SwiftUI
 /// mounts `WidgetTabbedPopover` for the first time. Lets non-SwiftUI code
-/// (BriefingCoordinator, MenuBarPopoverToggle) ask "is the popover visible?"
+/// (MenuBarPopoverToggle) ask "is the popover visible?"
 /// and "close the popover" without poking at NSStatusBarButton.state, which
 /// SwiftUI's MenuBarExtra does not keep in sync with popover visibility.
 @MainActor

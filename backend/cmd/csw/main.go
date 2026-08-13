@@ -58,22 +58,12 @@ func main() {
 		err = runCloud(ctx, svc, args)
 	case "mcp":
 		err = runMCP(ctx, svc, args)
-	case "briefing":
-		err = runBriefing(ctx, svc, args)
-	case "workspace":
-		err = runWorkspace(ctx, svc, args)
-	case "netbird":
-		err = runNetbird(ctx, svc, args)
-	case "chat":
-		err = runChat(ctx, svc, args)
 	case "usage-stats":
 		err = runUsageStats(ctx, svc, args)
 	case "gate":
 		err = runGate(ctx, args)
 	case "ssh":
 		err = runSSH(ctx, args)
-	case "backup":
-		err = runBackup(ctx, args)
 	case "gitlab":
 		err = runGitLab(ctx, svc, args)
 	case "citools":
@@ -130,34 +120,6 @@ Commands:
   mcp connectors reconnect --account N --service slack|clickup|gdrive|github      (verify+enable saved credential)
   mcp connectors forget --account N --service slack|clickup|gdrive|github         (hard delete — wipes Keychain payload)
   mcp connectors set-enabled --account N --service slack|clickup|gdrive|github|gitlab --enabled=true|false
-  netbird config set --base-url URL --token=-   Save NetBird API credential (token on stdin)
-  netbird config show                           Show base URL + configured state (never the token)
-  netbird overview                              Peers + groups + policies + derived access edges
-  netbird peers                                 List mesh peers (servers + dev machines)
-  netbird grant --src-group dev-X --dst-group srv-Y     Grant access (create policy)
-  netbird revoke --policy ID                    Revoke access (delete policy)
-  netbird setup-key create --name N [--group dev-pending] [--expires-days 7]   Enrollment key
-  netbird peer assign --id ID --group dev-X     Approve a pending machine into a group
-  netbird peer delete --id ID                   Reject/remove a peer
-  briefing run [--force]  Generate today's Daily Briefing (uses MCPs + Claude)
-  briefing show [--date]  Read a cached briefing
-  briefing schedule get|set|check       Manage briefing cron schedule
-  briefing action toggle --id ID --done Mark an action done/undone
-  chat conversations list|create|load|rename|delete <conv-id>
-                          Manage chat conversations for the active account
-  chat send <conv-id>     Stream a reply for the active conversation
-                          (stdin JSON: {"text":"…","attachment_ids":[…]})
-  chat attach <conv-id> --filename F --media-type M
-                          Upload an encrypted attachment (file bytes on stdin)
-  chat search --query Q [--limit N]
-                          FTS5 search across the active account's messages
-  backup list|get|save|remove          Manage server backup profiles (save reads JSON on stdin)
-  backup generate|preflight --id ID    Render artifacts / run read-only server checks
-  backup install|run|uninstall --id ID Install schedule / run now / remove schedule (SSH)
-  backup status|snapshots --id ID      Recent run status / available restore points
-  backup restore --id ID --snapshot TIER/FILE          Restore a snapshot (destructive)
-  backup rclone-list-drives --id ID                    List SharePoint drives (token on stdin)
-  backup rclone-create-remote --id ID --remote N --drive-id D   Create rclone remote (token on stdin)
   help                    Show this help
 
 All commands accept --json for machine-readable output.`)

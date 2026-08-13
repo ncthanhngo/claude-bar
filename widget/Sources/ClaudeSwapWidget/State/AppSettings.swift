@@ -111,16 +111,6 @@ final class AppSettings: ObservableObject {
     /// that most users don't need glance-able. Toggled from General → UI.
     @AppStorage("showTokenUsageInFullPopover") var showTokenUsageInFullPopover: Bool = false
 
-    /// Active body of the Daily window: "plan" (editorial briefing) or "chat"
-    /// (OAuth-bound conversation thread). Persisted so the window opens in
-    /// whichever mode the user last used.
-    @AppStorage("dailyMode") var dailyMode: String = DailyMode.plan.rawValue
-
-    /// On-screen footprint of the Daily window: Max (near-fullscreen, the
-    /// original behaviour), Medium, or Small. Read by `BriefingWindowController`
-    /// when it computes the open frame.
-    @AppStorage("dailyWindowSize") var dailyWindowSize: DailyWindowSize = .max
-
     // MARK: - Daily Briefing scheduler + quiet hours
 
     @AppStorage("briefingScheduleMode") var briefingScheduleMode: String = "cron"

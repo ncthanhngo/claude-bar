@@ -31,9 +31,6 @@ struct ClaudeSwapWidgetApp: App {
     @StateObject private var recovery = CredentialRecoveryCoordinator()
     @StateObject private var cloudSync = CloudSyncCoordinator(client: CswClient())
     @StateObject private var localMCP = LocalMCPCoordinator(client: CswClient())
-    @StateObject private var briefingCoord = BriefingCoordinator(client: CswClient())
-    @StateObject private var newsCoord = NewsFeedCoordinator()
-    @StateObject private var chatStore = ChatStore()
     @StateObject private var prefsCloudSync = PreferencesCloudSync.shared
     @StateObject private var updateController = UpdateController()
     @StateObject private var gateCoord = GateCoordinator.shared
@@ -93,10 +90,7 @@ struct ClaudeSwapWidgetApp: App {
         }
     }
 
-    /// Wire the two global Carbon hotkeys: ⌥Z toggles the menu-bar popover,
-    /// ⌥X toggles the Daily window. The briefing toggle resolves
-    /// `BriefingCoordinator.shared` at call-time so it always hits the live
-    /// SwiftUI-owned instance, not a transient one captured at registration.
+    /// Wire the global Carbon hotkey: ⌥Z toggles the menu-bar popover.
     @MainActor
     static func registerBriefingHotkeys(settings: AppSettings) {
         HotkeyRegistry.shared.register(
@@ -105,13 +99,6 @@ struct ClaudeSwapWidgetApp: App {
             modifiers: UInt32(settings.briefingHotkeyOpenAppModifiers)
         ) {
             MenuBarPopoverToggle.toggle()
-        }
-        HotkeyRegistry.shared.register(
-            name: BriefingHotkeySlot.openBriefing,
-            keyCode: UInt32(settings.briefingHotkeyOpenBriefingKeyCode),
-            modifiers: UInt32(settings.briefingHotkeyOpenBriefingModifiers)
-        ) {
-            BriefingCoordinator.shared?.toggle()
         }
     }
 
@@ -168,7 +155,6 @@ struct ClaudeSwapWidgetApp: App {
                 .environmentObject(recovery)
                 .environmentObject(cloudSync)
                 .environmentObject(localMCP)
-                .environmentObject(briefingCoord)
                 .environmentObject(updateController)
                 .environmentObject(gateCoord)
                 .environmentObject(serverMonitor)
@@ -250,16 +236,13 @@ struct ClaudeSwapWidgetApp: App {
         }
         store.cloudSync = cloudSync
         DiagnosticsLogger.shared.log(.info, subsystem: "launch", "coordinators wired")
-        chatStore.bind(to: store)
-        // All periodic loops (usage polling, briefing, news, iCloud prefs,
-        // web keep-alive) and the gate proxy are driven through one switch so
-        // a persisted pause survives relaunch and the Settings toggle can
-        // flip the whole app dormant. `apply` either starts everything or
-        // leaves it stopped depending on the saved flag.
+        // All periodic loops (usage polling, iCloud prefs, web keep-alive)
+        // and the gate proxy are driven through one switch so a persisted
+        // pause survives relaunch and the Settings toggle can flip the whole
+        // app dormant. `apply` either starts everything or leaves it stopped
+        // depending on the saved flag.
         BackgroundWorkController.shared.register(
             store: store,
-            briefing: briefingCoord,
-            news: newsCoord,
             prefsSync: prefsCloudSync,
             webFallback: webFallback,
             gate: gateCoord,
@@ -267,12 +250,6 @@ struct ClaudeSwapWidgetApp: App {
             claudeStatus: claudeStatus
         )
         BackgroundWorkController.shared.apply(dormant: settings.dormantModeEnabled)
-        BriefingWindowController.shared.attach(
-            coordinator: briefingCoord,
-            store: store,
-            chatStore: chatStore,
-            newsCoord: newsCoord
-        )
         DiagnosticsLogger.shared.log(.info, subsystem: "launch", "polling started")
         let storeBind = store
         let loginBind = loginCoordinator
@@ -281,7 +258,6 @@ struct ClaudeSwapWidgetApp: App {
         let quickBind = quickRelogin
         let cloudBind = cloudSync
         let mcpBind = localMCP
-        let briefBind = briefingCoord
         let updateBind = updateController
         let gateBind = gateCoord
         SettingsWindowController.shared.bindEnvironment { content in
@@ -294,7 +270,6 @@ struct ClaudeSwapWidgetApp: App {
                     .environmentObject(quickBind)
                     .environmentObject(cloudBind)
                     .environmentObject(mcpBind)
-                    .environmentObject(briefBind)
                     .environmentObject(updateBind)
                     .environmentObject(gateBind)
             )
