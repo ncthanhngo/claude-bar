@@ -53,3 +53,6 @@ NOTES.local.md
 .claude/*.log
 CLAUDE.md
 daily-briefing-preview.html
+
+# Local MCP config (machine-specific, absolute paths)
+.mcp.json
