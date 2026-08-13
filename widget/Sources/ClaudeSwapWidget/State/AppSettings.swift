@@ -111,6 +111,11 @@ final class AppSettings: ObservableObject {
     /// that most users don't need glance-able. Toggled from General → UI.
     @AppStorage("showTokenUsageInFullPopover") var showTokenUsageInFullPopover: Bool = false
 
+    /// Token-usage chart style in the Full popover — Wave (area chart) or
+    /// Calendar (GitHub-style heatmap). Chosen in Settings → General; the
+    /// popover renders whichever is selected (no in-popover switcher).
+    @AppStorage("tokenChartStyle") var tokenChartStyle: TokenChartStyle = .wave
+
     // MARK: - Daily Briefing scheduler + quiet hours
 
     @AppStorage("briefingScheduleMode") var briefingScheduleMode: String = "cron"

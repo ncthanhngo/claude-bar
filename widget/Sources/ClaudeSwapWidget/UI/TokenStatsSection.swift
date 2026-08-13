@@ -7,11 +7,21 @@ import Charts
 // ~/.claude/projects/**/*.jsonl session logs (covers terminal CLI + IDE
 // extensions; no per-account attribution since the JSONL never records the
 // OAuth account).
+/// Token-usage chart style for the Full popover. The choice lives in
+/// Settings → General (persisted as `tokenChartStyle`); the popover renders
+/// whichever is selected — there is no in-popover switcher.
+enum TokenChartStyle: String, CaseIterable, Identifiable {
+    case wave, calendar
+    var id: String { rawValue }
+    var label: String { self == .wave ? "Wave" : "Calendar" }
+}
+
 struct TokenStatsSection: View {
     @EnvironmentObject var store: AppStore
     @State private var granularity: ChartGranularity = .day
-    // Persist the chosen chart style so it survives popover reopen.
-    @AppStorage("tokenChartStyle") private var chartStyle: ChartStyle = .wave
+    // The Wave/Calendar choice is a Settings preference; read it here so the
+    // popover reflects the setting (and updates live when it changes).
+    @AppStorage("tokenChartStyle") private var chartStyle: TokenChartStyle = .wave
 
     enum ChartGranularity: String, CaseIterable, Identifiable {
         case hour, day, month
@@ -23,15 +33,6 @@ struct TokenStatsSection: View {
             case .month: return "Month"
             }
         }
-    }
-
-    // Two mutually-exclusive chart styles the user toggles between. Wave = the
-    // original area chart with an Hour/Day/Month granularity; Calendar = the
-    // GitHub-style 6-month contribution heatmap.
-    enum ChartStyle: String, CaseIterable, Identifiable {
-        case wave, calendar
-        var id: String { rawValue }
-        var label: String { self == .wave ? "Wave" : "Calendar" }
     }
 
     var body: some View {
@@ -70,14 +71,16 @@ struct TokenStatsSection: View {
         .frame(maxHeight: .infinity, alignment: .top)
     }
 
-    // Style switcher on top; the Hour/Day/Month granularity only appears in
-    // Wave mode (the Calendar heatmap has its own fixed 6-month window).
+    // Only the Hour/Day/Month granularity appears here, and only in Wave mode
+    // (the Calendar heatmap has its own fixed window). The Wave/Calendar choice
+    // now lives in Settings → General, not an in-popover switcher.
+    @ViewBuilder
     private var styleBar: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        if chartStyle == .wave {
             HStack(spacing: 8) {
-                Picker("", selection: $chartStyle) {
-                    ForEach(ChartStyle.allCases) { s in
-                        Text(s.label).tag(s)
+                Picker("", selection: $granularity) {
+                    ForEach(ChartGranularity.allCases) { g in
+                        Text(g.label).tag(g)
                     }
                 }
                 .pickerStyle(.segmented)
@@ -86,22 +89,6 @@ struct TokenStatsSection: View {
                 .pointingHandCursor()
 
                 Spacer(minLength: 0)
-            }
-
-            if chartStyle == .wave {
-                HStack(spacing: 8) {
-                    Picker("", selection: $granularity) {
-                        ForEach(ChartGranularity.allCases) { g in
-                            Text(g.label).tag(g)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-                    .labelsHidden()
-                    .frame(maxWidth: 200)
-                    .pointingHandCursor()
-
-                    Spacer(minLength: 0)
-                }
             }
         }
     }
