@@ -38,15 +38,16 @@ struct WidgetTabbedPopover: View {
     /// section 86 + token-usage title 22 + token stats minimum 196
     /// + outer paddings ~22 = 408pt. The KPI cards stack title / tokens /
     /// req (no dollar line), the same height as the old inline strip.
-    /// Token stats reserve a taller minimum: a Wave/Calendar style switcher row
-    /// (~28) sits above either the 150pt area chart or the calendar heatmap +
-    /// summary cards. title 22 + switcher 28 + chart/heatmap + KPI cards ~262
-    /// = 312pt for the token block, bringing the shell to ~502pt.
-    private static let shellHeight: CGFloat = 502
+    /// Token stats reserve a minimum for title 22 + chart/heatmap + KPI cards
+    /// ~262 = 284pt for the token block, bringing the shell to ~474pt. The
+    /// Wave/Calendar choice moved to Settings, so there is no in-popover
+    /// switcher row here anymore; Wave still shows its Hour/Day/Month
+    /// granularity picker inside that budget.
+    private static let shellHeight: CGFloat = 474
     /// Height saved when the Token-usage section is hidden — title 22 +
-    /// switcher 28 + chart + KPI cards ~262 = 312pt. The popover frame
-    /// subtracts this when `settings.showTokenUsageInFullPopover` is false.
-    private static let tokenUsageSectionHeight: CGFloat = 312
+    /// chart + KPI cards ~262 = 284pt. The popover frame subtracts this when
+    /// `settings.showTokenUsageInFullPopover` is false.
+    private static let tokenUsageSectionHeight: CGFloat = 284
     /// One AccountRowView at its minimum — avatar + name + email + 5h bar
     /// + 7d bar, no extra badges. Rows with the "Needs login" credential
     /// chip or a usage-error badge are taller; `estimatedRowHeight(for:)`

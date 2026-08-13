@@ -63,6 +63,23 @@ struct GeneralTab: View {
                             .font(.caption)
                             .foregroundColor(.secondary)
                             .fixedSize(horizontal: false, vertical: true)
+
+                        if settings.showTokenUsageInFullPopover {
+                            Picker("Token chart style", selection: $settings.tokenChartStyle) {
+                                ForEach(TokenChartStyle.allCases) { style in
+                                    Text(style.label).tag(style)
+                                }
+                            }
+                            .onChange(of: settings.tokenChartStyle) { _, _ in
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
+                                    MenuBarPopoverToggle.openIfClosedAbove()
+                                }
+                            }
+                            Text("Wave shows an area chart with Hour/Day/Month granularity. Calendar shows a GitHub-style heatmap coloured by daily usage.")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
                     }
                 }
 

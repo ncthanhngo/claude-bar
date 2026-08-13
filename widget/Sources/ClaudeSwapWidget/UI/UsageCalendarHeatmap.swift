@@ -8,18 +8,36 @@ import SwiftUI
 struct UsageCalendarHeatmap: View {
     let daily: [TimedBucketDTO]
 
-    // Mint accent shared with the Wave chart / KPI strip so the two chart
-    // styles read as one family.
+    // Mint accent for the KPI summary cards' left rail.
     private static let accent = Color(red: 0.18, green: 0.80, blue: 0.55)
+
+    // Follows the popover window appearance so the empty-cell shade matches
+    // light vs dark, like GitHub's own contribution graph.
+    @Environment(\.colorScheme) private var scheme
 
     private var model: HeatmapModel { HeatmapModel(daily: daily) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             grid
+            legend
             summaryCards
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    // Less → More key mirroring GitHub's five-step scale.
+    private var legend: some View {
+        HStack(spacing: 4) {
+            Spacer(minLength: 0)
+            Text("Less").font(.system(size: 8)).foregroundColor(.secondary)
+            ForEach(0..<5, id: \.self) { i in
+                RoundedRectangle(cornerRadius: 2, style: .continuous)
+                    .fill(i == 0 ? emptyColor : greenLevel(i))
+                    .frame(width: 9, height: 9)
+            }
+            Text("More").font(.system(size: 8)).foregroundColor(.secondary)
+        }
     }
 
     // MARK: Grid
@@ -72,22 +90,45 @@ struct UsageCalendarHeatmap: View {
             .help(day.map(Self.tooltip) ?? "")
     }
 
+    // GitHub-style intensity: an empty shade for no-activity days, then four
+    // green steps scaled against the window's peak.
     private func fill(for day: HeatmapDay?) -> Color {
-        guard let day, day.value > 0 else {
-            // Empty / no-activity / future cell.
-            return Color.primary.opacity(0.06)
-        }
-        // Five intensity steps like GitHub, scaled against the window's peak.
+        guard let day, day.value > 0 else { return emptyColor }
         let ratio = model.peakValue > 0 ? Double(day.value) / Double(model.peakValue) : 0
-        let level: Double
+        let level: Int
         switch ratio {
-        case ..<0.10: level = 0.30
-        case ..<0.30: level = 0.48
-        case ..<0.55: level = 0.66
-        case ..<0.80: level = 0.83
-        default:      level = 1.0
+        case ..<0.25: level = 1
+        case ..<0.50: level = 2
+        case ..<0.75: level = 3
+        default:      level = 4
         }
-        return Self.accent.opacity(level)
+        return greenLevel(level)
+    }
+
+    // GitHub's contribution palette, light + dark variants (#ebedf0…#216e39
+    // light, #161b22…#39d353 dark).
+    private var emptyColor: Color {
+        scheme == .dark
+            ? Color(red: 0.086, green: 0.106, blue: 0.133)
+            : Color(red: 0.922, green: 0.929, blue: 0.941)
+    }
+
+    private func greenLevel(_ l: Int) -> Color {
+        if scheme == .dark {
+            switch l {
+            case 1:  return Color(red: 0.055, green: 0.267, blue: 0.161)
+            case 2:  return Color(red: 0.0,   green: 0.427, blue: 0.196)
+            case 3:  return Color(red: 0.149, green: 0.651, blue: 0.255)
+            default: return Color(red: 0.224, green: 0.827, blue: 0.325)
+            }
+        } else {
+            switch l {
+            case 1:  return Color(red: 0.608, green: 0.914, blue: 0.659)
+            case 2:  return Color(red: 0.251, green: 0.769, blue: 0.388)
+            case 3:  return Color(red: 0.188, green: 0.631, blue: 0.306)
+            default: return Color(red: 0.129, green: 0.431, blue: 0.224)
+            }
+        }
     }
 
     // MARK: Summary cards
