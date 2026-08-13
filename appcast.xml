@@ -12,6 +12,29 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 13.3</title>
+      <sparkle:version>13.3</sparkle:version>
+      <sparkle:shortVersionString>13.3</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li>Lower idle CPU and energy use — the widget coalesces its per-cycle poll into a single background process and backs off when idle.</li>
+          <li>Usage: GitHub-style daily heatmap and a month-by-month token breakdown in the popover.</li>
+          <li>New Server tab — monitor tracked SSH hosts: health, stats, alerts, history, and log viewers.</li>
+          <li>New Backup &amp; Restore (Sao lưu) with an AI server assistant that installs and configures things over SSH.</li>
+          <li>Slimmer app (removed the Daily window), Claude service-outage alerts via status.claude.com, and fewer surprise re-logins.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Thu, 13 Aug 2026 14:03:09 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v13.3/ClaudeBar.zip"
+        sparkle:version="13.3"
+        sparkle:shortVersionString="13.3"
+        sparkle:edSignature="0icW8UP4ncChxcU/KJKaAaiijOJs9aP7arE5kvfIcl/0emytP72FNk86sTp8PcvqFBm/guQdQoSZ3xL4/2a9Cw=="
+        length="7494765"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 13.2</title>
       <sparkle:version>13.2</sparkle:version>
       <sparkle:shortVersionString>13.2</sparkle:shortVersionString>
