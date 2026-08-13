@@ -7,30 +7,59 @@ struct MenuBarLabelView: View {
     @EnvironmentObject var store: AppStore
     @EnvironmentObject private var serverMonitor: ServerMonitorStore
     @EnvironmentObject private var claudeStatus: ClaudeStatusStore
+    @EnvironmentObject private var pipelineStore: PipelineStore
     @ObservedObject private var settings = AppSettings.shared
 
     var body: some View {
         HStack(spacing: 4) {
-            menuBarIcon
-                // Red dot when a monitored server is offline or past the disk
-                // crit threshold — a glanceable alert without opening the popover.
-                .overlay(alignment: .topTrailing) {
-                    if serverHasAlert {
-                        Circle().fill(Color.red).frame(width: 5, height: 5)
-                            .offset(x: 1, y: -1)
-                    }
+            // While any watched GitLab pipeline is running, the bar shows a
+            // pipeline indicator; the instant none are active it reverts to
+            // the default Claude usage label (with its server/status dots).
+            if pipelineStore.anyRunning {
+                pipelineIcon
+                if settings.menuBarStyle != .iconOnly, let text = pipelineLabel {
+                    Text(text).monospacedDigit()
                 }
-                // Severity dot when Claude itself has a major+ outage — kept at
-                // the opposite corner so it can't be mistaken for the server dot.
-                .overlay(alignment: .topLeading) {
-                    if claudeStatus.shouldBadge {
-                        Circle().fill(claudeStatus.tint).frame(width: 5, height: 5)
-                            .offset(x: -1, y: -1)
+            } else {
+                menuBarIcon
+                    // Red dot when a monitored server is offline or past the disk
+                    // crit threshold — a glanceable alert without opening the popover.
+                    .overlay(alignment: .topTrailing) {
+                        if serverHasAlert {
+                            Circle().fill(Color.red).frame(width: 5, height: 5)
+                                .offset(x: 1, y: -1)
+                        }
                     }
+                    // Severity dot when Claude itself has a major+ outage — kept at
+                    // the opposite corner so it can't be mistaken for the server dot.
+                    .overlay(alignment: .topLeading) {
+                        if claudeStatus.shouldBadge {
+                            Circle().fill(claudeStatus.tint).frame(width: 5, height: 5)
+                                .offset(x: -1, y: -1)
+                        }
+                    }
+                if settings.menuBarStyle != .iconOnly, let text = labelText {
+                    Text(text).monospacedDigit()
                 }
-            if settings.menuBarStyle != .iconOnly, let text = labelText {
-                Text(text).monospacedDigit()
             }
+        }
+    }
+
+    /// Orange spinning-arrows glyph shown while a pipeline is active — distinct
+    /// from the default account icon.
+    private var pipelineIcon: some View {
+        Image(systemName: "arrow.triangle.2.circlepath")
+            .foregroundColor(.orange)
+    }
+
+    /// Running-count text paired with `pipelineIcon`, respecting the menu-bar
+    /// density preference.
+    private var pipelineLabel: String? {
+        let n = pipelineStore.runningCount
+        switch settings.menuBarStyle {
+        case .iconOnly: return nil
+        case .compact:  return "\(n) running"
+        case .full:     return "\(n) pipeline\(n == 1 ? "" : "s") running"
         }
     }
 
