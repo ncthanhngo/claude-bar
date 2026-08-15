@@ -256,17 +256,25 @@ func dedupeItems(items []port.NewsItem) []port.NewsItem {
 }
 
 // classify assigns a best-effort category from keyword heuristics on the
-// item's title+description. Defaults to "dev" — the seed feeds are all
-// developer/AI-focused, so "dev" is the sane fallback rather than "other".
+// item's title+description. Defaults to "other" — an unclassified item is
+// not necessarily a dev-focused one, and "other" keeps the category spread
+// honest rather than lumping everything unmatched into "dev".
 func classify(text string) string {
 	t := strings.ToLower(text)
 	switch {
-	case containsAny(t, "openai", "anthropic", "claude", "gpt", "llm", "machine learning", "artificial intelligence", " ai "):
+	case containsAny(t, "openai", "anthropic", "claude", "gpt", "llm", "machine learning", "artificial intelligence",
+		" ai ", "chatbot", "neural network", "deep learning", "gemini", "copilot", "stable diffusion",
+		"midjourney", "hugging face", "transformer model", "generative ai", "large language model"):
 		return port.CategoryAI
-	case containsAny(t, "iot", "raspberry pi", "arduino", "embedded", "microcontroller"):
+	case containsAny(t, "iot", "raspberry pi", "arduino", "embedded", "microcontroller", "esp32", "smart home",
+		" sensor", "firmware", "3d print", "robotics", "fpga", "home assistant", "zigbee"):
 		return port.CategoryIoT
-	default:
+	case containsAny(t, "programming", "developer", "framework", "open source", "github", "compiler", "database",
+		" api ", "kubernetes", "docker", "golang", " go ", " rust ", "javascript", "typescript", "python",
+		"software engineering", "code review", "debugging", "devops", " cli ", " sdk ", "library", "linux", "terminal"):
 		return port.CategoryDev
+	default:
+		return port.CategoryOther
 	}
 }
 

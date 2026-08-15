@@ -39,6 +39,12 @@ type Service struct {
 	NewsPublisher *news.Publisher
 	NewsPuller    *news.Puller
 
+	// NewsArticles implements on-demand full-article translation
+	// (`csw news article`): fetch + extract the page, translate via the
+	// same provider router the aggregator uses, cache by sha1(url). See
+	// internal/usecase/news/article.go.
+	NewsArticles *news.ArticleService
+
 	// backupRefreshMu serialises per-account token refresh+write so concurrent
 	// callers (list, verify, refresh-all, switch) cannot race on the same backup
 	// when the OAuth provider rotates the refresh token on first use.

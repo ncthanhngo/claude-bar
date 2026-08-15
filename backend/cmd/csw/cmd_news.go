@@ -8,19 +8,22 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"time"
 
 	"github.com/soi/claude-swap-widget/backend/internal/adapter/ollama"
 	"github.com/soi/claude-swap-widget/backend/internal/port"
 	"github.com/soi/claude-swap-widget/backend/internal/usecase"
+	"github.com/soi/claude-swap-widget/backend/internal/usecase/news"
 )
 
-// runNews dispatches `csw news <show|fetch|config|providers|publish|pull>`.
+// runNews dispatches `csw news
+// <show|fetch|config|providers|publish|pull|article|save|unsave|saved>`.
 // Every subcommand always prints JSON (the --json flag is accepted for
 // consistency with the rest of the CLI but the news surface has no
 // human-readable mode — the widget is the only caller).
 func runNews(ctx context.Context, svc *usecase.Service, args []string) error {
 	if len(args) == 0 {
-		return errors.New("usage: csw news <show|fetch|config|providers|publish|pull>")
+		return errors.New("usage: csw news <show|fetch|config|providers|publish|pull|article|save|unsave|saved>")
 	}
 	sub, rest := args[0], args[1:]
 	switch sub {
@@ -36,6 +39,14 @@ func runNews(ctx context.Context, svc *usecase.Service, args []string) error {
 		return runNewsPublish(ctx, svc, rest)
 	case "pull":
 		return runNewsPull(ctx, svc, rest)
+	case "article":
+		return runNewsArticle(ctx, svc, rest)
+	case "save":
+		return runNewsSave(ctx, svc, rest)
+	case "unsave":
+		return runNewsUnsave(ctx, svc, rest)
+	case "saved":
+		return runNewsSaved(ctx, svc, rest)
 	default:
 		return fmt.Errorf("unknown news subcommand: %s", sub)
 	}
@@ -54,10 +65,15 @@ func runNewsShow(ctx context.Context, svc *usecase.Service, args []string) error
 	return json.NewEncoder(os.Stdout).Encode(feed)
 }
 
-// runNewsFetch aggregates now (feeds + repos + AI), persists, and returns
-// the fresh NewsFeed. --force is accepted for CLI-surface parity with the
-// plan but is a no-op today — v1 has no cache to bypass; every fetch is
-// already a live aggregation run.
+// runNewsFetch aggregates now (feeds + repos + AI), MERGES the freshly
+// fetched items into the previously persisted snapshot (dedupe by
+// originalURL, drop anything older than the rolling 30-day retention
+// window), persists, and returns the merged NewsFeed. Repos are always
+// replaced by the fresh fetch — a live trending view, no accumulation.
+// --force is accepted for CLI-surface parity with the plan but is a no-op
+// today — v1 has no aggregation cache to bypass; every fetch already
+// aggregates fresh (article-level caching is a separate, unrelated cache —
+// see `csw news article`).
 func runNewsFetch(ctx context.Context, svc *usecase.Service, args []string) error {
 	fs := flag.NewFlagSet("news-fetch", flag.ExitOnError)
 	_ = fs.Bool("force", false, "ignored — fetch always aggregates fresh (no cache in v1)")
@@ -68,14 +84,30 @@ func runNewsFetch(ctx context.Context, svc *usecase.Service, args []string) erro
 	if err != nil {
 		return fmt.Errorf("load config: %w", err)
 	}
-	feed, err := svc.NewsAggregator.Fetch(ctx, *cfg)
+	fresh, err := svc.NewsAggregator.Fetch(ctx, *cfg)
 	if err != nil {
 		return fmt.Errorf("fetch: %w", err)
 	}
-	if err := svc.NewsStore.SaveFeed(ctx, feed); err != nil {
+
+	prev, err := svc.NewsStore.LoadFeed(ctx)
+	if err != nil {
+		return fmt.Errorf("load previous snapshot: %w", err)
+	}
+	firstSeen, err := svc.NewsStore.LoadRetention(ctx)
+	if err != nil {
+		return fmt.Errorf("load retention state: %w", err)
+	}
+
+	merged, nextFirstSeen := news.MergeRetain(prev.Items, fresh.Items, firstSeen, time.Now().UTC())
+	fresh.Items = merged
+
+	if err := svc.NewsStore.SaveFeed(ctx, fresh); err != nil {
 		return fmt.Errorf("persist: %w", err)
 	}
-	return json.NewEncoder(os.Stdout).Encode(feed)
+	if err := svc.NewsStore.SaveRetention(ctx, nextFirstSeen); err != nil {
+		return fmt.Errorf("persist retention state: %w", err)
+	}
+	return json.NewEncoder(os.Stdout).Encode(fresh)
 }
 
 func runNewsConfig(ctx context.Context, svc *usecase.Service, args []string) error {
@@ -220,4 +252,111 @@ func runNewsPull(ctx context.Context, svc *usecase.Service, args []string) error
 		return err
 	}
 	return json.NewEncoder(os.Stdout).Encode(&feed)
+}
+
+// runNewsArticle fetches (or serves from cache) a full-article Vietnamese
+// translation for one URL. Always exits 0 with ok:false + error on a
+// fetch/translate failure — the CLI's error path is reserved for usage
+// mistakes (missing --url), not remote-page failures the widget needs to
+// display inline.
+func runNewsArticle(ctx context.Context, svc *usecase.Service, args []string) error {
+	fs := flag.NewFlagSet("news-article", flag.ExitOnError)
+	url := fs.String("url", "", "article URL to fetch + translate")
+	force := fs.Bool("force", false, "bypass the cache and re-fetch/translate")
+	_ = fs.Bool("json", false, "machine-readable output (always on for this command)")
+	_ = fs.Parse(args)
+	if *url == "" {
+		return errors.New("--url is required")
+	}
+
+	cfg, err := svc.NewsStore.LoadConfig(ctx)
+	if err != nil {
+		return fmt.Errorf("load config: %w", err)
+	}
+	article, err := svc.NewsArticles.Get(ctx, *url, *force, *cfg)
+	if err != nil {
+		return err
+	}
+	return json.NewEncoder(os.Stdout).Encode(article)
+}
+
+// runNewsSave reads a NewsItem or Repo JSON body on stdin (per --kind) and
+// upserts it into the permanent bookmark store — idempotent by ID.
+func runNewsSave(ctx context.Context, svc *usecase.Service, args []string) error {
+	fs := flag.NewFlagSet("news-save", flag.ExitOnError)
+	kind := fs.String("kind", "", `"item" or "repo"`)
+	_ = fs.Bool("json", false, "machine-readable output (always on for this command)")
+	_ = fs.Parse(args)
+
+	body, err := io.ReadAll(os.Stdin)
+	if err != nil {
+		return fmt.Errorf("read stdin: %w", err)
+	}
+	switch *kind {
+	case "item":
+		var item port.NewsItem
+		if err := json.Unmarshal(body, &item); err != nil {
+			return fmt.Errorf("parse item JSON: %w", err)
+		}
+		if item.ID == "" {
+			return errors.New("item.id is required")
+		}
+		if err := svc.NewsStore.SaveSavedItem(ctx, item); err != nil {
+			return err
+		}
+	case "repo":
+		var repo port.Repo
+		if err := json.Unmarshal(body, &repo); err != nil {
+			return fmt.Errorf("parse repo JSON: %w", err)
+		}
+		if repo.ID == "" {
+			return errors.New("repo.id is required")
+		}
+		if err := svc.NewsStore.SaveSavedRepo(ctx, repo); err != nil {
+			return err
+		}
+	default:
+		return fmt.Errorf(`--kind must be "item" or "repo", got %q`, *kind)
+	}
+	return json.NewEncoder(os.Stdout).Encode(map[string]bool{"ok": true})
+}
+
+// runNewsUnsave removes one saved item/repo by ID — idempotent (no error if
+// already absent).
+func runNewsUnsave(ctx context.Context, svc *usecase.Service, args []string) error {
+	fs := flag.NewFlagSet("news-unsave", flag.ExitOnError)
+	kind := fs.String("kind", "", `"item" or "repo"`)
+	id := fs.String("id", "", "id of the saved item/repo to remove")
+	_ = fs.Bool("json", false, "machine-readable output (always on for this command)")
+	_ = fs.Parse(args)
+	if *id == "" {
+		return errors.New("--id is required")
+	}
+
+	switch *kind {
+	case "item":
+		if err := svc.NewsStore.RemoveSavedItem(ctx, *id); err != nil {
+			return err
+		}
+	case "repo":
+		if err := svc.NewsStore.RemoveSavedRepo(ctx, *id); err != nil {
+			return err
+		}
+	default:
+		return fmt.Errorf(`--kind must be "item" or "repo", got %q`, *kind)
+	}
+	return json.NewEncoder(os.Stdout).Encode(map[string]bool{"ok": true})
+}
+
+// runNewsSaved returns the full permanent bookmark set.
+func runNewsSaved(ctx context.Context, svc *usecase.Service, args []string) error {
+	fs := flag.NewFlagSet("news-saved", flag.ExitOnError)
+	_ = fs.Bool("json", false, "machine-readable output (always on for this command)")
+	_ = fs.Parse(args)
+
+	saved, err := svc.NewsStore.LoadSaved(ctx)
+	if err != nil {
+		return err
+	}
+	return json.NewEncoder(os.Stdout).Encode(saved)
 }

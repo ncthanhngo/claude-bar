@@ -25,6 +25,11 @@ const (
 	// slow on modest hardware, so this is generous relative to the network
 	// calls elsewhere in the CLI.
 	chatTimeout = 60 * time.Second
+	// articleChatTimeout bounds one full-article translation call — the
+	// input can be ~8000 chars and the output a similarly long Vietnamese
+	// translation, which takes local CPU-bound models minutes rather than
+	// seconds; far longer than the short RSS-summary path above.
+	articleChatTimeout = 5 * time.Minute
 )
 
 // Client talks to the Ollama HTTP API. Stateless beyond baseURL — safe for
@@ -130,6 +135,64 @@ func (c *Client) ResolveModel(ctx context.Context, configured string) (string, e
 	}
 	return models[0], nil
 }
+
+// TranslateArticle implements port.ArticleTranslator via POST /api/chat —
+// same transport as Summarize, but with articleTranslatePrompt (full
+// paragraph-preserving translation, no condensing) and a much longer
+// timeout since the input/output are a whole article body rather than a
+// short RSS snippet.
+func (c *Client) TranslateArticle(ctx context.Context, item port.ArticleTranslateInput, opts port.SummarizeOpts) (string, string, error) {
+	model, err := c.ResolveModel(ctx, opts.Model)
+	if err != nil {
+		return "", "", err
+	}
+
+	system, user := port.BuildTranslatePrompt(item)
+	body, err := json.Marshal(chatRequest{
+		Model: model,
+		Messages: []chatMessage{
+			{Role: "system", Content: system},
+			{Role: "user", Content: user},
+		},
+		Stream: false,
+		Format: "json",
+	})
+	if err != nil {
+		return "", "", fmt.Errorf("ollama: encode request: %w", err)
+	}
+
+	callCtx, cancel := context.WithTimeout(ctx, articleChatTimeout)
+	defer cancel()
+	req, err := http.NewRequestWithContext(callCtx, http.MethodPost, c.baseURL+"/api/chat", bytes.NewReader(body))
+	if err != nil {
+		return "", "", fmt.Errorf("ollama: build request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.hc.Do(req)
+	if err != nil {
+		return "", "", fmt.Errorf("ollama: chat request failed (is Ollama running on %s?): %w", c.baseURL, err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 400 {
+		return "", "", fmt.Errorf("ollama: chat status %d", resp.StatusCode)
+	}
+
+	var out chatResponse
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		return "", "", fmt.Errorf("ollama: decode response: %w", err)
+	}
+
+	titleVI, contentVI := port.ParseTranslateJSON(out.Message.Content)
+	if contentVI == "" {
+		return "", "", errors.New("ollama: empty translation response")
+	}
+	return titleVI, contentVI, nil
+}
+
+// Compile-time guard: Client implements the optional article-translate
+// capability too.
+var _ port.ArticleTranslator = (*Client)(nil)
 
 type tagsResponse struct {
 	Models []struct {
