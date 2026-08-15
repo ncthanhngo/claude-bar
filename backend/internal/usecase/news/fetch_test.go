@@ -166,9 +166,13 @@ func TestAggregator_EmptyConfigProducesEmptySlicesNotNil(t *testing.T) {
 
 func TestClassify(t *testing.T) {
 	cases := map[string]string{
-		"OpenAI ships a new GPT model":       port.CategoryAI,
-		"Raspberry Pi project for beginners": port.CategoryIoT,
-		"A new Go concurrency pattern":       port.CategoryDev,
+		"OpenAI ships a new GPT model":            port.CategoryAI,
+		"A new open weights large language model": port.CategoryAI,
+		"Raspberry Pi project for beginners":      port.CategoryIoT,
+		"Building a smart home with Zigbee":       port.CategoryIoT,
+		"A new Go concurrency pattern":            port.CategoryDev,
+		"Kubernetes 1.30 released":                port.CategoryDev,
+		"A recipe for a great weekend brunch":     port.CategoryOther,
 	}
 	for text, want := range cases {
 		if got := classify(text); got != want {

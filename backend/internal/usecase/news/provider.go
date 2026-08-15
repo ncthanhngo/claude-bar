@@ -77,6 +77,73 @@ func (r *ProviderRouter) tryClaude(ctx context.Context, item port.SummarizeInput
 	return ProviderResult{TitleVI: titleVI, SummaryVI: summaryVI, FullVI: fullVI, Provider: "claude"}, nil
 }
 
+// TranslateResult is a full-article translation call's outcome — mirrors
+// ProviderResult but carries ContentVI (the full paragraph-preserving body)
+// instead of the short summary fields.
+type TranslateResult struct {
+	TitleVI   string
+	ContentVI string
+	Provider  string
+}
+
+// Translate mirrors Summarize's primary/fallback routing (same
+// cfg.Provider / cfg.ClaudeFallbackEnabled rules), but for a full on-demand
+// article translation via the optional port.ArticleTranslator capability
+// instead of the short RSS-item summary path.
+func (r *ProviderRouter) Translate(ctx context.Context, item port.ArticleTranslateInput, cfg port.NewsConfig) (TranslateResult, error) {
+	primary := cfg.Provider
+	if primary == "" {
+		primary = "ollama"
+	}
+
+	if primary == "claude" {
+		return r.tryClaudeTranslate(ctx, item)
+	}
+
+	if r.Ollama != nil {
+		result, err := translateVia(ctx, r.Ollama, item, cfg.OllamaModel)
+		if err == nil {
+			result.Provider = "ollama"
+			return result, nil
+		}
+		if !cfg.ClaudeFallbackEnabled {
+			return TranslateResult{}, fmt.Errorf("ollama: %w", err)
+		}
+	} else if !cfg.ClaudeFallbackEnabled {
+		return TranslateResult{}, errors.New("ollama summarizer unavailable and claude fallback disabled")
+	}
+
+	return r.tryClaudeTranslate(ctx, item)
+}
+
+func (r *ProviderRouter) tryClaudeTranslate(ctx context.Context, item port.ArticleTranslateInput) (TranslateResult, error) {
+	if r.Claude == nil {
+		return TranslateResult{}, errors.New("claude summarizer unavailable")
+	}
+	result, err := translateVia(ctx, r.Claude, item, "")
+	if err != nil {
+		return TranslateResult{}, fmt.Errorf("claude: %w", err)
+	}
+	result.Provider = "claude"
+	return result, nil
+}
+
+// translateVia type-asserts s into the optional port.ArticleTranslator
+// capability — both bundled Summarizer implementations (ollama.Client,
+// anthropic.Summarizer) implement it, mirroring the modelResolver/namedModel
+// optional-capability pattern below.
+func translateVia(ctx context.Context, s port.Summarizer, item port.ArticleTranslateInput, model string) (TranslateResult, error) {
+	at, ok := s.(port.ArticleTranslator)
+	if !ok {
+		return TranslateResult{}, errors.New("provider does not support article translation")
+	}
+	titleVI, contentVI, err := at.TranslateArticle(ctx, item, port.SummarizeOpts{Model: model, TargetLang: "vi"})
+	if err != nil {
+		return TranslateResult{}, err
+	}
+	return TranslateResult{TitleVI: titleVI, ContentVI: contentVI}, nil
+}
+
 // modelResolver is the optional capability a port.Summarizer implementation
 // may expose so ResolveModel can report the actual model that ran (e.g. the
 // auto-picked Ollama model from /api/tags) without widening the core

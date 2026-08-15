@@ -18,6 +18,11 @@ const summarizeModel = "claude-haiku-4-5-20251001"
 // needs the chat surface's 4096-token budget.
 const summarizeMaxTokens = 500
 
+// articleTranslateMaxTokens caps a full-article translation response — much
+// larger than summarizeMaxTokens since the source can be ~8000 chars and the
+// Vietnamese translation runs comparably long.
+const articleTranslateMaxTokens = 8192
+
 // Summarizer wraps the existing OAuth-bound ChatClient to satisfy
 // port.Summarizer — the Claude fallback used when Ollama is unavailable or
 // disabled. News aggregation is a machine-wide (not per-account) operation,
@@ -94,5 +99,65 @@ func (s *Summarizer) Summarize(ctx context.Context, item port.SummarizeInput, _ 
 	return titleVI, summaryVI, fullVI, nil
 }
 
+// TranslateArticle implements port.ArticleTranslator, reusing the same
+// OAuth-bound streaming chat path as Summarize but with
+// articleTranslatePrompt (full paragraph-preserving translation) and a
+// larger token budget. opts is ignored — same reasoning as Summarize: this
+// fallback pins its own fixed model.
+func (s *Summarizer) TranslateArticle(ctx context.Context, item port.ArticleTranslateInput, _ port.SummarizeOpts) (string, string, error) {
+	reg, err := s.registry.Load(ctx)
+	if err != nil {
+		return "", "", fmt.Errorf("claude summarizer: load registry: %w", err)
+	}
+	if reg.ActiveAccountNumber == 0 {
+		return "", "", errors.New("claude summarizer: no active account")
+	}
+	accessToken, _, err := s.tokens.GetFresh(ctx, reg.ActiveAccountNumber)
+	if err != nil {
+		return "", "", fmt.Errorf("claude summarizer: token: %w", err)
+	}
+
+	system, user := port.BuildTranslatePrompt(item)
+	req := port.ChatRequest{
+		Model:        summarizeModel,
+		SystemPrompt: system,
+		Messages: []domain.Message{{
+			Role:    domain.RoleUser,
+			Content: []domain.ContentBlock{{Kind: domain.BlockText, Text: user}},
+		}},
+		MaxTokens: articleTranslateMaxTokens,
+		Stream:    true,
+	}
+
+	events, err := s.chat.Stream(ctx, accessToken, req)
+	if err != nil {
+		return "", "", fmt.Errorf("claude summarizer: stream: %w", err)
+	}
+
+	var text strings.Builder
+	var streamErr error
+	for ev := range events {
+		switch ev.Kind {
+		case domain.StreamTextDelta:
+			text.WriteString(ev.Text)
+		case domain.StreamError:
+			streamErr = fmt.Errorf("claude summarizer: %s: %s", ev.ErrorCode, ev.ErrorMessage)
+		}
+	}
+	if streamErr != nil {
+		return "", "", streamErr
+	}
+	if text.Len() == 0 {
+		return "", "", errors.New("claude summarizer: empty response")
+	}
+
+	titleVI, contentVI := port.ParseTranslateJSON(text.String())
+	if contentVI == "" {
+		return "", "", errors.New("claude summarizer: empty translation response")
+	}
+	return titleVI, contentVI, nil
+}
+
 // Compile-time guard.
 var _ port.Summarizer = (*Summarizer)(nil)
+var _ port.ArticleTranslator = (*Summarizer)(nil)

@@ -104,6 +104,32 @@ type NewsConfig struct {
 	GithubQueries         []GitHubQuery `json:"githubQueries"`
 }
 
+// NewsArticle is the payload of `csw news article` — a full article body
+// fetched from its page and translated to Vietnamese, distinct from the
+// short RSS-derived NewsItem.FullVI. Cached verbatim at
+// news/articles/<sha1(url)>.json; served back unless --force. On a
+// fetch/extract/translate failure, OK is false, Error is set, and
+// ContentVI stays "".
+type NewsArticle struct {
+	URL       string `json:"url"`
+	TitleVI   string `json:"titleVI"`
+	ContentVI string `json:"contentVI"`
+	Provider  string `json:"provider"`
+	Model     string `json:"model"`
+	FetchedAt string `json:"fetchedAt"`
+	OK        bool   `json:"ok"`
+	Error     string `json:"error"`
+}
+
+// SavedFeed is the payload of `csw news saved` — permanent bookmarks the
+// user explicitly saved via `csw news save`. Kept forever, independent of
+// the rolling 30-day feed window NewsStore.SaveFeed prunes. Items/Repos
+// must always serialise as [] — never null.
+type SavedFeed struct {
+	Items []NewsItem `json:"items"`
+	Repos []Repo     `json:"repos"`
+}
+
 // NewsAggregator fetches feeds + GitHub repos, summarises/translates each
 // item to Vietnamese via the configured provider, and returns one NewsFeed
 // snapshot. Implementations: usecase/news.Aggregator.
@@ -111,12 +137,32 @@ type NewsAggregator interface {
 	Fetch(ctx context.Context, cfg NewsConfig) (*NewsFeed, error)
 }
 
-// NewsStore persists/reads the last NewsFeed snapshot and the NewsConfig,
-// atomically (temp file → fsync → rename). Implementations:
-// adapter/newsstore.Store.
+// NewsStore persists/reads the last NewsFeed snapshot, the NewsConfig, the
+// permanent saved-bookmark set, the on-demand article-translation cache, and
+// the retention first-seen bookkeeping, atomically (temp file → fsync →
+// rename). Implementations: adapter/news_store.Store.
 type NewsStore interface {
 	LoadFeed(ctx context.Context) (*NewsFeed, error)
 	SaveFeed(ctx context.Context, feed *NewsFeed) error
 	LoadConfig(ctx context.Context) (*NewsConfig, error)
 	SaveConfig(ctx context.Context, cfg *NewsConfig) error
+
+	// LoadRetention/SaveRetention persist the first-seen-timestamp map used
+	// to age out feed items whose PublishedAt is empty/unparseable — see
+	// usecase/news.MergeRetain. Internal bookkeeping only, never part of the
+	// NewsFeed wire contract.
+	LoadRetention(ctx context.Context) (map[string]string, error)
+	SaveRetention(ctx context.Context, firstSeen map[string]string) error
+
+	// Saved bookmarks: permanent, never pruned by retention. Save* is
+	// idempotent (upsert by ID); Remove* is idempotent (no-op if absent).
+	LoadSaved(ctx context.Context) (*SavedFeed, error)
+	SaveSavedItem(ctx context.Context, item NewsItem) error
+	SaveSavedRepo(ctx context.Context, repo Repo) error
+	RemoveSavedItem(ctx context.Context, id string) error
+	RemoveSavedRepo(ctx context.Context, id string) error
+
+	// On-demand full-article translation cache, keyed by sha1(url).
+	LoadArticle(ctx context.Context, url string) (article *NewsArticle, ok bool, err error)
+	SaveArticle(ctx context.Context, article *NewsArticle) error
 }

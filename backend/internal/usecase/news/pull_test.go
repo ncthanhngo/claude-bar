@@ -28,6 +28,10 @@ type fakeNewsStore struct {
 	saved     *port.NewsFeed
 	saveCalls int
 	saveErr   error
+
+	retention map[string]string
+	savedFeed port.SavedFeed
+	articles  map[string]*port.NewsArticle
 }
 
 func (f *fakeNewsStore) LoadFeed(_ context.Context) (*port.NewsFeed, error) { return f.saved, nil }
@@ -44,6 +48,80 @@ func (f *fakeNewsStore) LoadConfig(_ context.Context) (*port.NewsConfig, error) 
 	return &port.NewsConfig{}, nil
 }
 func (f *fakeNewsStore) SaveConfig(_ context.Context, _ *port.NewsConfig) error { return nil }
+
+func (f *fakeNewsStore) LoadRetention(_ context.Context) (map[string]string, error) {
+	if f.retention == nil {
+		return map[string]string{}, nil
+	}
+	return f.retention, nil
+}
+func (f *fakeNewsStore) SaveRetention(_ context.Context, firstSeen map[string]string) error {
+	f.retention = firstSeen
+	return nil
+}
+
+func (f *fakeNewsStore) LoadSaved(_ context.Context) (*port.SavedFeed, error) {
+	cp := f.savedFeed
+	if cp.Items == nil {
+		cp.Items = []port.NewsItem{}
+	}
+	if cp.Repos == nil {
+		cp.Repos = []port.Repo{}
+	}
+	return &cp, nil
+}
+func (f *fakeNewsStore) SaveSavedItem(_ context.Context, item port.NewsItem) error {
+	for i := range f.savedFeed.Items {
+		if f.savedFeed.Items[i].ID == item.ID {
+			f.savedFeed.Items[i] = item
+			return nil
+		}
+	}
+	f.savedFeed.Items = append(f.savedFeed.Items, item)
+	return nil
+}
+func (f *fakeNewsStore) SaveSavedRepo(_ context.Context, repo port.Repo) error {
+	for i := range f.savedFeed.Repos {
+		if f.savedFeed.Repos[i].ID == repo.ID {
+			f.savedFeed.Repos[i] = repo
+			return nil
+		}
+	}
+	f.savedFeed.Repos = append(f.savedFeed.Repos, repo)
+	return nil
+}
+func (f *fakeNewsStore) RemoveSavedItem(_ context.Context, id string) error {
+	out := f.savedFeed.Items[:0]
+	for _, it := range f.savedFeed.Items {
+		if it.ID != id {
+			out = append(out, it)
+		}
+	}
+	f.savedFeed.Items = out
+	return nil
+}
+func (f *fakeNewsStore) RemoveSavedRepo(_ context.Context, id string) error {
+	out := f.savedFeed.Repos[:0]
+	for _, r := range f.savedFeed.Repos {
+		if r.ID != id {
+			out = append(out, r)
+		}
+	}
+	f.savedFeed.Repos = out
+	return nil
+}
+
+func (f *fakeNewsStore) LoadArticle(_ context.Context, url string) (*port.NewsArticle, bool, error) {
+	a, ok := f.articles[url]
+	return a, ok, nil
+}
+func (f *fakeNewsStore) SaveArticle(_ context.Context, article *port.NewsArticle) error {
+	if f.articles == nil {
+		f.articles = map[string]*port.NewsArticle{}
+	}
+	f.articles[article.URL] = article
+	return nil
+}
 
 var _ port.NewsStore = (*fakeNewsStore)(nil)
 

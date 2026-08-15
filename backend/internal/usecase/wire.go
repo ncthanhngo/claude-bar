@@ -59,5 +59,6 @@ func NewMacOSService() *Service {
 		NewsStore:      newsStore,
 		NewsPublisher:  news.NewPublisher(sshHosts),
 		NewsPuller:     news.NewPuller(sshHosts, newsStore),
+		NewsArticles:   news.NewArticleService(newsfetch.NewArticle(), router, newsStore),
 	}
 }

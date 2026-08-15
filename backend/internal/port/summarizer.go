@@ -100,3 +100,61 @@ func truncateRunes(s string, n int) string {
 	}
 	return string(r[:n]) + "…"
 }
+
+// ArticleTranslateInput is the source text for a full on-demand article
+// translation (`csw news article`) — distinct from SummarizeInput because it
+// carries the whole extracted article body (up to ~8000 chars) rather than a
+// short RSS description, and expects a full paragraph-preserving
+// translation instead of a condensed summary.
+type ArticleTranslateInput struct {
+	Title string
+	Body  string
+}
+
+// ArticleTranslator is the optional capability a Summarizer implementation
+// may expose to translate a full article body to Vietnamese, preserving
+// paragraph breaks, rather than condensing it into a short summary.
+// Implementations: adapter/ollama.Client, adapter/anthropic.Summarizer.
+// usecase/news.ProviderRouter type-asserts for it the same way it does for
+// modelResolver/namedModel.
+type ArticleTranslator interface {
+	TranslateArticle(ctx context.Context, item ArticleTranslateInput, opts SummarizeOpts) (titleVI, contentVI string, err error)
+}
+
+// articleTranslatePrompt instructs the model to translate a FULL article
+// body to Vietnamese, preserving every paragraph rather than condensing —
+// the opposite instruction of summarizePrompt above.
+const articleTranslatePrompt = `Bạn là biên dịch viên tin công nghệ. Dịch TOÀN BỘ nội dung bài viết tiếng Anh dưới đây sang tiếng Việt — dịch đầy đủ, không tóm tắt, không bỏ sót đoạn nào, không bịa thêm chi tiết không có trong văn bản. Giữ nguyên cấu trúc đoạn văn của bản gốc. Trả lời DUY NHẤT một đối tượng JSON hợp lệ, mọi giá trị đều bằng tiếng Việt (không lẫn tiếng Anh), với đúng hai khoá, không thêm văn bản nào khác:
+{"titleVI": "tiêu đề bằng tiếng Việt", "contentVI": "toàn bộ nội dung đã dịch sang tiếng Việt; các đoạn văn cách nhau bằng chính xác hai ký tự xuống dòng liên tiếp"}`
+
+// BuildTranslatePrompt renders the (system, user) prompt pair for a full
+// article translation. Shared by both adapters so the JSON-only response
+// contract stays identical regardless of which provider answers it.
+func BuildTranslatePrompt(item ArticleTranslateInput) (system, user string) {
+	var b strings.Builder
+	b.WriteString("Tiêu đề: ")
+	b.WriteString(item.Title)
+	b.WriteString("\nNội dung:\n")
+	b.WriteString(item.Body)
+	return articleTranslatePrompt, b.String()
+}
+
+// ParseTranslateJSON extracts {"titleVI","contentVI"} from a model response
+// that may carry stray whitespace or markdown fencing around the JSON
+// object. Falls back to treating the whole trimmed response as contentVI
+// (titleVI left empty) when no valid JSON object is present — keeps the
+// pipeline resilient to a model that doesn't follow instructions exactly.
+func ParseTranslateJSON(raw string) (titleVI, contentVI string) {
+	trimmed := strings.TrimSpace(raw)
+	if start, end := strings.Index(trimmed, "{"), strings.LastIndex(trimmed, "}"); start >= 0 && end > start {
+		var parsed struct {
+			TitleVI   string `json:"titleVI"`
+			ContentVI string `json:"contentVI"`
+		}
+		if err := json.Unmarshal([]byte(trimmed[start:end+1]), &parsed); err == nil &&
+			(parsed.TitleVI != "" || parsed.ContentVI != "") {
+			return parsed.TitleVI, parsed.ContentVI
+		}
+	}
+	return "", trimmed
+}
