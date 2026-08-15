@@ -142,6 +142,27 @@ final class AppSettings: ObservableObject {
     @AppStorage("briefingNewsFeedsJSON")
     var briefingNewsFeedsJSON: String = "[]"
 
+    // MARK: - News dashboard (⌥X) — machine-local behaviour only.
+    // Provider, model, Claude-fallback, and feed list are Go-owned
+    // aggregation config (`csw news config get|set`, see contract.md's
+    // "Config ownership split") — intentionally NOT duplicated here.
+
+    /// "master" (aggregates + serves) or "client" (pulls from the SSH relay).
+    @AppStorage("newsRole") var newsRole: String = "master"
+
+    /// SSH host id (from the shared `ssh/hosts.json` tracked-host store) the
+    /// Client role pulls `news.json` from. Empty until the user picks one in
+    /// Netbird → SSH. Wired up in Phase 4.
+    @AppStorage("newsRelayHostID") var newsRelayHostID: String = ""
+
+    /// Remote directory on the relay host holding the published news
+    /// snapshot + manifest. Wired up in Phase 4.
+    @AppStorage("newsRelayRemoteDir") var newsRelayRemoteDir: String = ""
+
+    /// How often (hours) the News window re-aggregates in the background, in
+    /// addition to on-open and the manual refresh button.
+    @AppStorage("newsRefreshIntervalHours") var newsRefreshIntervalHours: Int = 6
+
     /// "08:00" — fetch news at this local time. Empty disables auto fetch.
     @AppStorage("briefingNewsFetchTime")
     var briefingNewsFetchTime: String = "08:00"

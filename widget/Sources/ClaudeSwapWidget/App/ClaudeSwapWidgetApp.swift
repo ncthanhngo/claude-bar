@@ -90,7 +90,9 @@ struct ClaudeSwapWidgetApp: App {
         }
     }
 
-    /// Wire the global Carbon hotkey: ⌥Z toggles the menu-bar popover.
+    /// Wire the global Carbon hotkeys: ⌥Z toggles the menu-bar popover, ⌥X
+    /// opens the News dashboard window (singleton — reopening just brings
+    /// the existing window forward, see `NewsWindowController.show()`).
     @MainActor
     static func registerBriefingHotkeys(settings: AppSettings) {
         HotkeyRegistry.shared.register(
@@ -99,6 +101,13 @@ struct ClaudeSwapWidgetApp: App {
             modifiers: UInt32(settings.briefingHotkeyOpenAppModifiers)
         ) {
             MenuBarPopoverToggle.toggle()
+        }
+        HotkeyRegistry.shared.register(
+            name: BriefingHotkeySlot.openBriefing,
+            keyCode: UInt32(settings.briefingHotkeyOpenBriefingKeyCode),
+            modifiers: UInt32(settings.briefingHotkeyOpenBriefingModifiers)
+        ) {
+            NewsWindowController.shared.toggle()
         }
     }
 
@@ -273,6 +282,14 @@ struct ClaudeSwapWidgetApp: App {
                     .environmentObject(updateBind)
                     .environmentObject(gateBind)
             )
+        }
+        // News window lives outside the MenuBarExtra view tree too — bind
+        // the app identity coordinator now so Phase 4 (relay status via
+        // GateCoordinator/ServerMonitorStore) doesn't need to touch this
+        // wiring again. NewsDashboardView itself only needs NewsStore,
+        // which NewsWindowController injects directly in `hostedRoot()`.
+        NewsWindowController.shared.bindEnvironment { content in
+            AnyView(content.environmentObject(storeBind))
         }
         // prefsCloudSync is started/stopped by BackgroundWorkController above.
         Task { @MainActor in
