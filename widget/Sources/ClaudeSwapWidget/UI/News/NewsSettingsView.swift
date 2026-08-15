@@ -116,12 +116,14 @@ struct NewsSettingsView: View {
                     .foregroundColor(.secondary)
             }
 
-            Toggle(isOn: fallbackBinding(for: config)) {
-                SettingsToggleLabel(
-                    title: "Dự phòng Claude khi Ollama lỗi",
-                    detail: "Nếu Ollama không phản hồi (không chạy / model chưa tải), tự chuyển sang Claude cho lượt tổng hợp đó."
-                )
+            Picker("Dự phòng khi Ollama lỗi", selection: fallbackBinding(for: config)) {
+                Text("Không dùng").tag(false)
+                Text("Claude").tag(true)
             }
+            .pickerStyle(.radioGroup)
+            Text("Mặc định không dự phòng: Ollama không phản hồi (không chạy / model chưa tải) thì lượt tổng hợp đó báo lỗi. Chọn Claude để tự chuyển sang tài khoản Claude đang hoạt động cho lượt đó.")
+                .font(.caption2)
+                .foregroundColor(.secondary)
 
             if isSaving {
                 HStack(spacing: 6) {
