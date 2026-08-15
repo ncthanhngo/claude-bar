@@ -13,9 +13,9 @@
     <key>CFBundleIdentifier</key>
     <string>dev.ncthanhngo.claude-bar</string>
     <key>CFBundleVersion</key>
-    <string>13.3</string>
+    <string>13.4</string>
     <key>CFBundleShortVersionString</key>
-    <string>13.3</string>
+    <string>13.4</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleSignature</key>
@@ -35,7 +35,7 @@
     <key>NSHumanReadableCopyright</key>
     <string>Copyright © 2026 Thanh Ngô. Licensed under MIT.</string>
     <key>CFBundleGetInfoString</key>
-    <string>Claude Bar 13.3 — menu-bar manager for multiple Claude Code accounts</string>
+    <string>Claude Bar 13.4 — menu-bar manager for multiple Claude Code accounts</string>
     <key>CBAuthorName</key>
     <string>Thanh Ngô</string>
     <key>CBAuthorEmail</key>
@@ -45,20 +45,18 @@
     <key>CBLicense</key>
     <string>MIT</string>
     <key>CBBuildDate</key>
-    <string>2026-08-13</string>
+    <string>2026-08-15</string>
     <key>CBReleaseChannel</key>
     <string>Beta</string>
     <key>CBReleaseWhatsNew</key>
-    <string>Lower idle CPU and energy use — the menu-bar app polls more efficiently.
-Usage: GitHub-style daily heatmap plus a month-by-month token breakdown.
-New Server tab — monitor SSH hosts: health, stats, alerts, history, logs.
-New Backup &amp; Restore (Sao lưu) with an AI assistant for setting up hosts.
-Slimmer app, Claude service-outage alerts, and fewer surprise re-logins.</string>
+    <string>New News dashboard — press &#8997;X for AI &amp; Claude news in an Aurora Glass window.
+Read articles in-app, grouped by repo and topic, with one-tap save.
+On-demand translation for any article, plus saved bookmarks kept for 30 days.
+Pick your summarizer: local Ollama or Claude.</string>
     <key>CBReleaseHotfixes</key>
-    <string>Fixed a daily re-login prompt caused by refreshing the active account's backup token.
-Fixed web re-login giving up after 5s instead of waiting for the login to finish.</string>
-    <key>CBReleaseKnownIssues</key>
     <string>None.</string>
+    <key>CBReleaseKnownIssues</key>
+    <string>News summaries need a configured Ollama or Claude provider; without one, articles show untranslated.</string>
     <key>CFBundleDevelopmentRegion</key>
     <string>en</string>
     <key>CFBundleLocalizations</key>
