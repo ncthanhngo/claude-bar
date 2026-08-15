@@ -12,6 +12,28 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 13.4</title>
+      <sparkle:version>13.4</sparkle:version>
+      <sparkle:shortVersionString>13.4</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li>New News dashboard — press ⌥X for AI &amp; Claude news in an Aurora Glass window.</li>
+          <li>Read articles in-app, grouped by repo and topic, with one-tap save.</li>
+          <li>On-demand translation for any article, plus saved bookmarks kept for 30 days.</li>
+          <li>Pick your summarizer: a local Ollama model or Claude.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Sat, 15 Aug 2026 20:51:06 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v13.4/ClaudeBar.zip"
+        sparkle:version="13.4"
+        sparkle:shortVersionString="13.4"
+        sparkle:edSignature="seBy6oSJ9z9cRCVxNIKY05Qf7g9wZ9u+yVJ8kvQbtsQxd7mAYTvpyvirGY6XMM8a8ozsDtz+b6pCV42Muc5JDg=="
+        length="8256443"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 13.3</title>
       <sparkle:version>13.3</sparkle:version>
       <sparkle:shortVersionString>13.3</sparkle:shortVersionString>
