@@ -1,0 +1,102 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-08-15T08:00:00Z",
+  "role": "master",
+  "provider": "claude",
+  "model": "claude account",
+  "items": [
+    {
+      "id": "anthropic-claude-opus-4-8",
+      "category": "ai",
+      "title": "Claude Opus 4.8 launches — faster, cheaper for coding agents",
+      "titleVI": "Claude Opus 4.8 — nhanh hơn, rẻ hơn cho coding agent",
+      "sourceLabel": "Anthropic",
+      "sourceFaviconURL": "https://www.google.com/s2/favicons?domain=anthropic.com&sz=64",
+      "imageURL": "https://images.unsplash.com/photo-1620712943543-bcc4688e7485?w=800&q=80",
+      "summaryVI": "Bản Opus mới tối ưu cho agent lập trình chạy dài, giảm độ trễ và chi phí token đầu ra.",
+      "fullVI": "Anthropic phát hành Claude Opus 4.8, tối ưu cho coding agent chạy dài. Độ trễ token đầu tiên giảm khoảng 35%, chi phí đầu ra thấp hơn phiên bản trước, trong khi giữ nguyên chất lượng suy luận trên các bài kiểm tra lập trình. Bản cập nhật có sẵn ngay cho tài khoản hiện tại.",
+      "originalURL": "https://www.anthropic.com/news/claude-opus-4-8",
+      "publishedAt": "2026-08-15T06:00:00Z"
+    },
+    {
+      "id": "openai-gpt-5-5-agent-api",
+      "category": "ai",
+      "title": "GPT-5.5 opens an autonomous multi-step agent API",
+      "titleVI": "GPT-5.5 mở API agent tự chủ nhiều bước",
+      "sourceLabel": "OpenAI",
+      "sourceFaviconURL": "https://www.google.com/s2/favicons?domain=openai.com&sz=64",
+      "imageURL": "https://images.unsplash.com/photo-1677442136019-21780ecad995?w=800&q=80",
+      "summaryVI": "Tự lập kế hoạch, gọi công cụ và tự sửa lỗi qua nhiều lượt — giảm can thiệp thủ công.",
+      "fullVI": "OpenAI ra mắt endpoint \"agent\" cho GPT-5.5, cho phép mô hình lập kế hoạch, gọi công cụ và tự sửa lỗi qua nhiều lượt mà không cần lời nhắc từng bước. Độ trễ giảm 40% so với bản xem trước.",
+      "originalURL": "https://openai.com/index/gpt-5-5-agent-api",
+      "publishedAt": "2026-08-15T04:00:00Z"
+    },
+    {
+      "id": "espressif-esp32-c6-matter",
+      "category": "iot",
+      "title": "ESP32-C6 gets Matter & Thread support directly in the SDK",
+      "titleVI": "ESP32-C6 hỗ trợ Matter & Thread ngay trong SDK",
+      "sourceLabel": "Espressif",
+      "sourceFaviconURL": "https://www.google.com/s2/favicons?domain=espressif.com&sz=64",
+      "imageURL": "https://images.unsplash.com/photo-1518770660439-4636190af475?w=800&q=80",
+      "summaryVI": "Wi-Fi 6 + 802.15.4 nay có thư viện Matter chính thức, rút ngắn làm thiết bị smart home.",
+      "fullVI": "Espressif bổ sung Matter và Thread trong ESP-IDF cho ESP32-C6, cho phép chứng nhận thiết bị nhà thông minh mà không cần stack bên thứ ba.",
+      "originalURL": "https://www.espressif.com/en/news/esp32-c6-matter-thread",
+      "publishedAt": "2026-08-14T09:00:00Z"
+    },
+    {
+      "id": "golang-go-1-24-release",
+      "category": "dev",
+      "title": "Go 1.24 ships generic type aliases and a faster GC",
+      "titleVI": "Go 1.24 phát hành alias kiểu generic và GC nhanh hơn",
+      "sourceLabel": "The Go Blog",
+      "sourceFaviconURL": "https://www.google.com/s2/favicons?domain=go.dev&sz=64",
+      "imageURL": "https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=800&q=80",
+      "summaryVI": "Generic type alias chính thức ổn định, bộ thu gom rác giảm độ trễ đuôi tới 15%.",
+      "fullVI": "Go 1.24 đưa generic type alias ra khỏi giai đoạn thử nghiệm, đồng thời cải tiến bộ thu gom rác để giảm độ trễ đuôi (tail latency) tới 15% trên các dịch vụ nhiều goroutine. Bản phát hành cũng bổ sung công cụ profiling bộ nhớ mới trong `go tool pprof`.",
+      "originalURL": "https://go.dev/blog/go1.24",
+      "publishedAt": "2026-08-13T12:00:00Z"
+    }
+  ],
+  "repos": [
+    {
+      "id": "ollama/ollama",
+      "fullName": "ollama/ollama",
+      "descVI": "Chạy LLM cục bộ với một lệnh — nguồn model cho chế độ Ollama của app.",
+      "language": "Go",
+      "langColor": "#00add8",
+      "stars": 92400,
+      "deltaWeek": 820,
+      "url": "https://github.com/ollama/ollama",
+      "category": "github"
+    },
+    {
+      "id": "charmbracelet/bubbletea",
+      "fullName": "charmbracelet/bubbletea",
+      "descVI": "Framework TUI kiểu Elm cho Go — dựng CLI đẹp, tương tác.",
+      "language": "Go",
+      "langColor": "#00add8",
+      "stars": 27100,
+      "deltaWeek": 190,
+      "url": "https://github.com/charmbracelet/bubbletea",
+      "category": "github"
+    },
+    {
+      "id": "esphome/esphome",
+      "fullName": "esphome/esphome",
+      "descVI": "Firmware ESP32/ESP8266 cấu hình bằng YAML, tích hợp Home Assistant.",
+      "language": "Python",
+      "langColor": "#3572a5",
+      "stars": 8900,
+      "deltaWeek": 140,
+      "url": "https://github.com/esphome/esphome",
+      "category": "github"
+    }
+  ],
+  "sourcesHealth": {
+    "Anthropic": "ok",
+    "OpenAI": "ok",
+    "Espressif": "ok",
+    "The Go Blog": "ok"
+  }
+}
