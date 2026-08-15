@@ -1,18 +1,71 @@
 import SwiftUI
 
+/// Layout weight for `NewsCardView` — the dashboard renders a "Tin chính"
+/// featured area (`.hero` for the single full-width lead item, `.featured`
+/// for the 1-2 runners-up beside it) above the regular "Tin khác" adaptive
+/// grid (`.grid`, the original size).
+enum NewsCardStyle: Equatable {
+    case grid
+    case featured
+    case hero
+
+    var imageHeight: CGFloat {
+        switch self {
+        case .grid: return 150
+        case .featured: return 190
+        case .hero: return 280
+        }
+    }
+
+    var titleFont: Font {
+        switch self {
+        case .grid: return .system(size: 16, weight: .bold)
+        case .featured: return .system(size: 18, weight: .bold)
+        case .hero: return .system(size: 23, weight: .heavy)
+        }
+    }
+
+    var titleLineLimit: Int {
+        switch self {
+        case .grid: return 3
+        case .featured: return 3
+        case .hero: return 4
+        }
+    }
+
+    var summaryLineLimit: Int {
+        self == .hero ? 4 : 3
+    }
+}
+
 /// One news card — port of the mockup's `.card` (image variant): source
 /// image with a category chip, favicon + source + relative time, VN title,
 /// VN one-line summary, and the "✦ AI" badge. Hovering reveals a full-VI
-/// translation overlay (mirrors `.card:hover .trans { opacity:1 }`).
-/// Clicking anywhere on the card opens `originalURL` in the default browser.
+/// translation quick-peek. Clicking anywhere on the card opens the in-app
+/// `NewsDetailView` (via `onOpen`) instead of the browser — "Mở bài gốc"
+/// inside that view is now the only way to leave the app.
+///
+/// When `item.imageURL` is empty this renders a compact text-first layout
+/// instead of an image header — no empty gray box, no floating badge (the
+/// bug this fixes): see `compactBody`.
 struct NewsCardView: View {
     let item: NewsCard
+    var style: NewsCardStyle = .grid
+    let onOpen: (NewsCard) -> Void
+
+    @EnvironmentObject private var store: NewsStore
     @State private var isHovering = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            imageHeader
-            body_
+        Group {
+            if item.imageURL.isEmpty {
+                compactBody
+            } else {
+                VStack(alignment: .leading, spacing: 0) {
+                    imageHeader
+                    body_
+                }
+            }
         }
         .background(NewsAuroraStyle.cardBackground())
         .overlay(alignment: .topLeading) { translationOverlay }
@@ -21,30 +74,30 @@ struct NewsCardView: View {
         .animation(.easeOut(duration: 0.18), value: isHovering)
         .onHover { isHovering = $0 }
         .contentShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-        .onTapGesture { openOriginal() }
+        .onTapGesture { onOpen(item) }
         .pointingHandCursor()
     }
 
-    // MARK: - Image + category chip
+    // MARK: - Image + category chip (image variant)
 
     private var imageHeader: some View {
         ZStack(alignment: .topLeading) {
-            if !item.imageURL.isEmpty, let url = URL(string: item.imageURL) {
-                AsyncImage(url: url) { phase in
-                    switch phase {
-                    case .success(let image):
-                        image.resizable().aspectRatio(contentMode: .fill)
-                    default:
-                        Rectangle().fill(Color.primary.opacity(0.06))
-                    }
+            AsyncImage(url: URL(string: item.imageURL)) { phase in
+                switch phase {
+                case .success(let image):
+                    image.resizable().aspectRatio(contentMode: .fill)
+                default:
+                    Rectangle().fill(Color.primary.opacity(0.06))
                 }
-            } else {
-                Rectangle().fill(Color.primary.opacity(0.06))
             }
-            categoryChip
-                .padding(12)
+            HStack {
+                categoryChip
+                Spacer(minLength: 0)
+                bookmarkButton(tint: .white)
+            }
+            .padding(12)
         }
-        .frame(height: 150)
+        .frame(height: style.imageHeight)
         .clipShape(RoundedCorners(radius: 20, corners: [.topLeft, .topRight]))
     }
 
@@ -61,26 +114,14 @@ struct NewsCardView: View {
             )
     }
 
-    // MARK: - Body
+    // MARK: - Body (image variant)
 
     private var body_: some View {
         VStack(alignment: .leading, spacing: 10) {
             sourceRow
-            Text(item.titleVI.isEmpty ? item.title : item.titleVI)
-                .font(.system(size: 16, weight: .bold))
-                .foregroundColor(NewsAuroraStyle.ink)
-                .lineLimit(3)
-                .fixedSize(horizontal: false, vertical: true)
-            if !item.summaryVI.isEmpty {
-                Text(item.summaryVI)
-                    .font(.system(size: 13))
-                    .foregroundColor(Color(red: 0x3f / 255, green: 0x42 / 255, blue: 0x60 / 255))
-                    .lineLimit(3)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            Text("✦ AI tóm tắt & dịch")
-                .font(.system(size: 11, weight: .heavy))
-                .foregroundColor(NewsAuroraStyle.violet)
+            titleText
+            summaryText
+            aiBadge
         }
         .padding(.horizontal, 16)
         .padding(.top, 15)
@@ -89,6 +130,58 @@ struct NewsCardView: View {
 
     private var sourceRow: some View {
         HStack(spacing: 7) {
+            faviconView
+            Text(item.sourceLabel)
+                .font(.system(size: 11.5, weight: .bold))
+                .foregroundColor(NewsAuroraStyle.muted)
+            Spacer(minLength: 0)
+            relativeTimeText
+        }
+    }
+
+    // MARK: - Compact (no-image) variant — fixes the empty-gray-box bug.
+
+    private var compactBody: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            compactSourceRow
+            titleText
+            summaryText
+            aiBadge
+        }
+        .padding(16)
+    }
+
+    private var compactSourceRow: some View {
+        HStack(spacing: 7) {
+            faviconView
+            Text(item.sourceLabel)
+                .font(.system(size: 11.5, weight: .bold))
+                .foregroundColor(NewsAuroraStyle.muted)
+            inlineCategoryChip
+            Spacer(minLength: 0)
+            relativeTimeText
+            bookmarkButton(tint: NewsAuroraStyle.muted)
+        }
+    }
+
+    /// Small tasteful chip for the no-image layout — replaces the shouty
+    /// uppercase badge that used to float over an empty gray rectangle.
+    private var inlineCategoryChip: some View {
+        let color = item.category.badgeColor
+        return Text(item.category.label)
+            .font(.system(size: 10, weight: .bold))
+            .foregroundColor(Color(red: color.r, green: color.g, blue: color.b))
+            .padding(.horizontal, 8)
+            .padding(.vertical, 3)
+            .background(
+                Capsule().fill(Color(red: color.r, green: color.g, blue: color.b).opacity(0.14))
+            )
+    }
+
+    // MARK: - Shared bits
+
+    private var faviconView: some View {
+        Group {
             if !item.sourceFaviconURL.isEmpty, let url = URL(string: item.sourceFaviconURL) {
                 AsyncImage(url: url) { phase in
                     if case .success(let image) = phase {
@@ -100,11 +193,12 @@ struct NewsCardView: View {
                 .frame(width: 15, height: 15)
                 .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
             }
-            Text(item.sourceLabel)
-                .font(.system(size: 11.5, weight: .bold))
-                .foregroundColor(NewsAuroraStyle.muted)
-            Spacer(minLength: 0)
-            let relative = NewsDateFormatting.relativeLabel(item.publishedAt)
+        }
+    }
+
+    private var relativeTimeText: some View {
+        let relative = NewsDateFormatting.relativeLabel(item.publishedAt)
+        return Group {
             if !relative.isEmpty {
                 Text(relative)
                     .font(.system(size: 11.5, weight: .bold))
@@ -113,7 +207,51 @@ struct NewsCardView: View {
         }
     }
 
-    // MARK: - Hover translation overlay
+    private var titleText: some View {
+        Text(item.titleVI.isEmpty ? item.title : item.titleVI)
+            .font(style.titleFont)
+            .foregroundColor(NewsAuroraStyle.ink)
+            .lineLimit(style.titleLineLimit)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+
+    @ViewBuilder
+    private var summaryText: some View {
+        if !item.summaryVI.isEmpty {
+            Text(item.summaryVI)
+                .font(.system(size: 13))
+                .foregroundColor(Color(red: 0x3f / 255, green: 0x42 / 255, blue: 0x60 / 255))
+                .lineLimit(style.summaryLineLimit)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private var aiBadge: some View {
+        Text("✦ AI tóm tắt & dịch")
+            .font(.system(size: 11, weight: .heavy))
+            .foregroundColor(NewsAuroraStyle.violet)
+    }
+
+    /// Bookmark toggle — placed inline in the source row (compact layout) or
+    /// as a corner overlay on the image (image layout). Stops the card's own
+    /// tap gesture from firing when tapped (Button hit-tests before the
+    /// parent's `.onTapGesture`).
+    private func bookmarkButton(tint: Color) -> some View {
+        let saved = store.isItemSaved(item.id)
+        return Button {
+            Task { await store.toggleSaveItem(item) }
+        } label: {
+            Image(systemName: saved ? "bookmark.fill" : "bookmark")
+                .font(.system(size: 12.5, weight: .semibold))
+                .foregroundColor(saved ? NewsAuroraStyle.violet : tint)
+                .padding(6)
+                .background(Circle().fill(Color.white.opacity(saved ? 0.9 : 0.55)))
+        }
+        .buttonStyle(.plain)
+        .pointingHandCursor()
+    }
+
+    // MARK: - Hover translation overlay (quick-peek)
 
     @ViewBuilder
     private var translationOverlay: some View {
@@ -142,12 +280,8 @@ struct NewsCardView: View {
                     }
                 }
                 .transition(.opacity)
+                .allowsHitTesting(false)
         }
-    }
-
-    private func openOriginal() {
-        guard !item.originalURL.isEmpty, let url = URL(string: item.originalURL) else { return }
-        NSWorkspace.shared.open(url)
     }
 }
 

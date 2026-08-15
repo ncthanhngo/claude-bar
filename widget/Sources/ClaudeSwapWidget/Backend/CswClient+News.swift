@@ -52,6 +52,35 @@ extension CswClient {
     func newsPull(host: String, dir: String) async throws -> NewsFeed {
         try await run(["news", "pull", "--host", host, "--dir", dir, "--json"], decode: NewsFeed.self)
     }
+
+    // MARK: - Iteration 2: reading view + saved items (contract.md "Iteration 2")
+
+    /// On-demand full-article fetch + full VI translation for the in-app
+    /// reading view (`NewsDetailView`). Slow (runs the local model) —
+    /// callers show a loading state. Backend caches at
+    /// `news/articles/<sha1(url)>.json`; `force` bypasses that cache.
+    func newsArticle(url: String, force: Bool = false) async throws -> ArticleDTO {
+        var args = ["news", "article", "--url", url, "--json"]
+        if force { args.append("--force") }
+        return try await run(args, decode: ArticleDTO.self)
+    }
+
+    /// Bookmark a news item or repo. `payloadJSON` is the `NewsCard`/`RepoCard`
+    /// JSON (contract-shaped) on stdin — never argv. Idempotent by `id` on
+    /// the backend.
+    func newsSave(kind: String, payloadJSON: String) async throws {
+        try await runWithStdin(["news", "save", "--kind", kind, "--json"], stdin: payloadJSON)
+    }
+
+    func newsUnsave(kind: String, id: String) async throws {
+        _ = try await runRaw(["news", "unsave", "--kind", kind, "--id", id, "--json"])
+    }
+
+    /// Permanent bookmark store — independent of the feed's rolling 30-day
+    /// retention (contract.md "Retention"), never pruned.
+    func newsSaved() async throws -> SavedFeedDTO {
+        try await run(["news", "saved", "--json"], decode: SavedFeedDTO.self)
+    }
 }
 
 /// Payload of `csw news config get|set`. Go owns aggregation settings
@@ -125,5 +154,57 @@ struct NewsProvidersDTO: Decodable, Equatable {
         ollamaModels = try c.decodeIfPresent([String].self, forKey: .ollamaModels) ?? []
         ollamaAvailable = try c.decodeIfPresent(Bool.self, forKey: .ollamaAvailable) ?? false
         claudeAvailable = try c.decodeIfPresent(Bool.self, forKey: .claudeAvailable) ?? false
+    }
+}
+
+/// Payload of `csw news article --url <URL> --json` (contract.md
+/// "On-demand full-article translation"). `contentVI` paragraphs are
+/// separated by `"\n\n"`. `ok:false` on fetch/extract failure — `error` is
+/// then set and `NewsDetailView` falls back to the feed item's `fullVI`/
+/// `summaryVI` instead of this (possibly empty) `contentVI`.
+struct ArticleDTO: Decodable, Equatable {
+    var url: String
+    var titleVI: String
+    var contentVI: String
+    var provider: String
+    var model: String
+    var fetchedAt: String
+    var ok: Bool
+    var error: String
+
+    enum CodingKeys: String, CodingKey {
+        case url, titleVI, contentVI, provider, model, fetchedAt, ok, error
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        url = try c.decodeIfPresent(String.self, forKey: .url) ?? ""
+        titleVI = try c.decodeIfPresent(String.self, forKey: .titleVI) ?? ""
+        contentVI = try c.decodeIfPresent(String.self, forKey: .contentVI) ?? ""
+        provider = try c.decodeIfPresent(String.self, forKey: .provider) ?? ""
+        model = try c.decodeIfPresent(String.self, forKey: .model) ?? ""
+        fetchedAt = try c.decodeIfPresent(String.self, forKey: .fetchedAt) ?? ""
+        ok = try c.decodeIfPresent(Bool.self, forKey: .ok) ?? false
+        error = try c.decodeIfPresent(String.self, forKey: .error) ?? ""
+    }
+}
+
+/// Payload of `csw news saved --json` — the permanent bookmark store
+/// (contract.md "Saved items"), independent of the feed's 30-day retention.
+struct SavedFeedDTO: Decodable, Equatable {
+    var items: [NewsCard]
+    var repos: [RepoCard]
+
+    enum CodingKeys: String, CodingKey { case items, repos }
+
+    init(items: [NewsCard] = [], repos: [RepoCard] = []) {
+        self.items = items
+        self.repos = repos
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        items = try c.decodeIfPresent([NewsCard].self, forKey: .items) ?? []
+        repos = try c.decodeIfPresent([RepoCard].self, forKey: .repos) ?? []
     }
 }
