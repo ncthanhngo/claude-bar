@@ -51,7 +51,15 @@ enum NewsAuroraStyle {
 struct NewsDashboardView: View {
     @EnvironmentObject private var store: NewsStore
     /// `nil` == "Tất cả" (no filter) — matches the mockup's first tab.
+    /// Ignored while `showingSaved` is true.
     @State private var selectedCategory: NewsCategory?
+    /// "Đã lưu" pill — a separate mode rather than a `NewsCategory` case
+    /// since saved items span every category and live outside the normal
+    /// feed/retention lifecycle.
+    @State private var showingSaved = false
+    /// Non-nil while the in-app reading view is open (tapping a card sets
+    /// this instead of opening the browser).
+    @State private var detailItem: NewsCard?
 
     private let gridColumns = [GridItem(.adaptive(minimum: 320, maximum: 420), spacing: 18)]
 
@@ -68,16 +76,26 @@ struct NewsDashboardView: View {
                         if let error = store.error {
                             errorBanner(error)
                         }
-                        newsSection
-                        repoSection
+                        if showingSaved {
+                            savedSection
+                        } else {
+                            featuredSection
+                            secondarySection
+                            repoSection
+                        }
                     }
                     .padding(.horizontal, 20)
                     .padding(.top, 18)
                     .padding(.bottom, 32)
                 }
             }
+
+            if let detailItem {
+                NewsDetailView(item: detailItem, onClose: { self.detailItem = nil })
+            }
         }
         .frame(minWidth: 760, minHeight: 540)
+        .animation(.easeOut(duration: 0.16), value: detailItem?.id)
         .task {
             // Only auto-load if the window opened with an empty feed (avoids
             // re-fetching every time this view re-materializes while the
@@ -86,6 +104,7 @@ struct NewsDashboardView: View {
                 await store.refresh()
             }
         }
+        .task { await store.loadSaved() }
     }
 
     // MARK: - Category tabs
@@ -93,16 +112,22 @@ struct NewsDashboardView: View {
     private var categoryTabs: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 9) {
-                tabPill(title: "Tất cả", isSelected: selectedCategory == nil) {
+                tabPill(title: "Tất cả", isSelected: !showingSaved && selectedCategory == nil) {
+                    showingSaved = false
                     selectedCategory = nil
                 }
                 ForEach(NewsCategory.allCases.filter { $0 != .other }) { category in
-                    tabPill(title: category.label, isSelected: selectedCategory == category) {
+                    tabPill(title: category.label, isSelected: !showingSaved && selectedCategory == category) {
+                        showingSaved = false
                         selectedCategory = category
                     }
                 }
-                tabPill(title: NewsCategory.other.label, isSelected: selectedCategory == .other) {
+                tabPill(title: NewsCategory.other.label, isSelected: !showingSaved && selectedCategory == .other) {
+                    showingSaved = false
                     selectedCategory = .other
+                }
+                tabPill(title: "★ Đã lưu", isSelected: showingSaved) {
+                    showingSaved = true
                 }
             }
         }
@@ -133,24 +158,93 @@ struct NewsDashboardView: View {
         return store.feed.items.filter { $0.category == selectedCategory }
     }
 
-    private var newsSection: some View {
+    /// First 1-3 items of the filtered set — the "Tin chính" hero + runners-up.
+    private var featuredItems: [NewsCard] {
+        Array(filteredItems.prefix(3))
+    }
+
+    /// Everything after the featured slice — the regular "Tin khác" grid.
+    private var secondaryItems: [NewsCard] {
+        Array(filteredItems.dropFirst(featuredItems.count))
+    }
+
+    private func openDetail(_ item: NewsCard) {
+        detailItem = item
+    }
+
+    private var featuredSection: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack(alignment: .firstTextBaseline, spacing: 12) {
-                Text("Tin nổi bật")
+                Text("Tin chính")
                     .font(.system(size: 19, weight: .bold))
                     .foregroundColor(NewsAuroraStyle.ink)
-                Text("· di chuột vào thẻ để xem bản dịch đầy đủ")
+                Text("· di chuột vào thẻ để xem bản dịch đầy đủ, bấm để đọc toàn bộ")
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundColor(NewsAuroraStyle.muted)
             }
-            if store.isLoading && filteredItems.isEmpty {
+            if store.isLoading && featuredItems.isEmpty {
                 loadingPlaceholder
-            } else if filteredItems.isEmpty {
+            } else if featuredItems.isEmpty {
                 emptyState(text: "Chưa có tin nào trong mục này.")
             } else {
+                VStack(spacing: 18) {
+                    NewsCardView(item: featuredItems[0], style: .hero, onOpen: openDetail)
+                    if featuredItems.count > 1 {
+                        HStack(alignment: .top, spacing: 18) {
+                            ForEach(featuredItems.dropFirst()) { item in
+                                NewsCardView(item: item, style: .featured, onOpen: openDetail)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private var secondarySection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            if !secondaryItems.isEmpty || (!store.isLoading && !featuredItems.isEmpty) {
+                Text("Tin khác")
+                    .font(.system(size: 19, weight: .bold))
+                    .foregroundColor(NewsAuroraStyle.ink)
+            }
+            if !secondaryItems.isEmpty {
                 LazyVGrid(columns: gridColumns, alignment: .leading, spacing: 18) {
-                    ForEach(filteredItems) { item in
-                        NewsCardView(item: item)
+                    ForEach(secondaryItems) { item in
+                        NewsCardView(item: item, onOpen: openDetail)
+                    }
+                }
+            }
+        }
+    }
+
+    private var savedSection: some View {
+        VStack(alignment: .leading, spacing: 28) {
+            VStack(alignment: .leading, spacing: 16) {
+                Text("Tin đã lưu")
+                    .font(.system(size: 19, weight: .bold))
+                    .foregroundColor(NewsAuroraStyle.ink)
+                if store.savedItems.isEmpty {
+                    emptyState(text: "Chưa lưu tin nào — bấm biểu tượng bookmark trên thẻ tin để lưu.")
+                } else {
+                    LazyVGrid(columns: gridColumns, alignment: .leading, spacing: 18) {
+                        ForEach(store.savedItems) { item in
+                            NewsCardView(item: item, onOpen: openDetail)
+                        }
+                    }
+                }
+            }
+            VStack(alignment: .leading, spacing: 16) {
+                Text("Repo đã lưu")
+                    .font(.system(size: 19, weight: .bold))
+                    .foregroundColor(NewsAuroraStyle.ink)
+                if store.savedRepos.isEmpty {
+                    emptyState(text: "Chưa lưu repo nào — bấm biểu tượng bookmark trên thẻ repo để lưu.")
+                } else {
+                    LazyVGrid(columns: gridColumns, alignment: .leading, spacing: 18) {
+                        ForEach(store.savedRepos) { repo in
+                            RepoCardView(repo: repo)
+                        }
                     }
                 }
             }

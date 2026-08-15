@@ -13,6 +13,14 @@ final class NewsStore: ObservableObject {
     @Published private(set) var isLoading = false
     @Published private(set) var error: String?
 
+    /// Permanent bookmark store (contract.md "Saved items") — loaded once on
+    /// window open via `loadSaved()`, kept in sync locally by `toggleSaveItem`/
+    /// `toggleSaveRepo` (optimistic update + rollback on a failed round-trip).
+    @Published private(set) var savedItems: [NewsCard] = []
+    @Published private(set) var savedRepos: [RepoCard] = []
+    private var savedItemIDs: Set<String> = []
+    private var savedRepoIDs: Set<String> = []
+
     private let client: CswClient
     private let settings: AppSettings
     private var autoRefreshTask: Task<Void, Never>?
@@ -113,6 +121,75 @@ final class NewsStore: ObservableObject {
         guard let generated = NewsDateFormatting.parse(feed.generatedAt) else { return true }
         let intervalHours = max(1, settings.newsRefreshIntervalHours)
         return -generated.timeIntervalSinceNow >= Double(intervalHours) * 3600
+    }
+
+    // MARK: - Saved items (permanent bookmarks — never pruned)
+
+    func isItemSaved(_ id: String) -> Bool { savedItemIDs.contains(id) }
+    func isRepoSaved(_ id: String) -> Bool { savedRepoIDs.contains(id) }
+
+    /// Loads the bookmark store. Best-effort: a failure leaves whatever was
+    /// last loaded (typically empty on first call) rather than surfacing a
+    /// hard error — bookmarks are a secondary feature relative to the feed.
+    func loadSaved() async {
+        guard let saved = try? await client.newsSaved() else { return }
+        savedItems = saved.items
+        savedRepos = saved.repos
+        savedItemIDs = Set(saved.items.map(\.id))
+        savedRepoIDs = Set(saved.repos.map(\.id))
+    }
+
+    /// Optimistic toggle: flips local state immediately (so the UI feels
+    /// instant), then persists via the bridge; rolls the local state back if
+    /// the round-trip fails so the bookmark button never lies about what's
+    /// actually saved.
+    func toggleSaveItem(_ item: NewsCard) async {
+        if savedItemIDs.contains(item.id) {
+            savedItemIDs.remove(item.id)
+            savedItems.removeAll { $0.id == item.id }
+            do {
+                try await client.newsUnsave(kind: "item", id: item.id)
+            } catch {
+                savedItemIDs.insert(item.id)
+                if !savedItems.contains(where: { $0.id == item.id }) { savedItems.insert(item, at: 0) }
+            }
+        } else {
+            savedItemIDs.insert(item.id)
+            savedItems.insert(item, at: 0)
+            do {
+                try await client.newsSave(kind: "item", payloadJSON: Self.encode(item))
+            } catch {
+                savedItemIDs.remove(item.id)
+                savedItems.removeAll { $0.id == item.id }
+            }
+        }
+    }
+
+    func toggleSaveRepo(_ repo: RepoCard) async {
+        if savedRepoIDs.contains(repo.id) {
+            savedRepoIDs.remove(repo.id)
+            savedRepos.removeAll { $0.id == repo.id }
+            do {
+                try await client.newsUnsave(kind: "repo", id: repo.id)
+            } catch {
+                savedRepoIDs.insert(repo.id)
+                if !savedRepos.contains(where: { $0.id == repo.id }) { savedRepos.insert(repo, at: 0) }
+            }
+        } else {
+            savedRepoIDs.insert(repo.id)
+            savedRepos.insert(repo, at: 0)
+            do {
+                try await client.newsSave(kind: "repo", payloadJSON: Self.encode(repo))
+            } catch {
+                savedRepoIDs.remove(repo.id)
+                savedRepos.removeAll { $0.id == repo.id }
+            }
+        }
+    }
+
+    private static func encode<T: Encodable>(_ value: T) -> String {
+        guard let data = try? JSONEncoder().encode(value) else { return "{}" }
+        return String(data: data, encoding: .utf8) ?? "{}"
     }
 
     // MARK: - Auto-refresh (gated on window visibility for energy)

@@ -2,13 +2,21 @@ import SwiftUI
 
 /// One GitHub repo card — port of the mockup's `.card.repo`: gradient
 /// `owner/repo` name, VN description, and a footer of language dot + stars +
-/// weekly delta. Clicking opens the repo's GitHub URL.
+/// weekly delta. Clicking opens the repo's GitHub URL; the bookmark button in
+/// the top-right corner saves/unsaves it (repos are a first-class "Đã lưu"
+/// citizen alongside news items).
 struct RepoCardView: View {
     let repo: RepoCard
 
+    @EnvironmentObject private var store: NewsStore
+
     var body: some View {
         VStack(alignment: .leading, spacing: 9) {
-            repoName
+            HStack(alignment: .top, spacing: 8) {
+                repoName
+                Spacer(minLength: 8)
+                bookmarkButton
+            }
             if !repo.descVI.isEmpty {
                 Text(repo.descVI)
                     .font(.system(size: 13))
@@ -22,6 +30,21 @@ struct RepoCardView: View {
         .background(NewsAuroraStyle.cardBackground())
         .contentShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
         .onTapGesture { openRepo() }
+        .pointingHandCursor()
+    }
+
+    private var bookmarkButton: some View {
+        let saved = store.isRepoSaved(repo.id)
+        return Button {
+            Task { await store.toggleSaveRepo(repo) }
+        } label: {
+            Image(systemName: saved ? "bookmark.fill" : "bookmark")
+                .font(.system(size: 12.5, weight: .semibold))
+                .foregroundColor(saved ? NewsAuroraStyle.violet : NewsAuroraStyle.muted)
+                .padding(6)
+                .background(Circle().fill(Color.white.opacity(saved ? 0.9 : 0.55)))
+        }
+        .buttonStyle(.plain)
         .pointingHandCursor()
     }
 

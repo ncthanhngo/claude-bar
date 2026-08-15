@@ -72,8 +72,10 @@ struct NewsFeed: Decodable, Equatable {
 
 /// `category` ∈ ai | dev | github | iot | other (contract.md). Unknown
 /// strings (a future backend addition ahead of an app update) fall back to
-/// `.other` instead of failing the decode.
-enum NewsCategory: String, Decodable, CaseIterable, Equatable, Identifiable {
+/// `.other` instead of failing the decode. `Encodable` (default synthesis —
+/// round-trips as its raw string) is needed so `NewsCard`/`RepoCard` can be
+/// re-encoded as the `csw news save` stdin payload (see `NewsStore.toggleSaveItem`).
+enum NewsCategory: String, Codable, CaseIterable, Equatable, Identifiable {
     case ai, dev, github, iot, other
 
     var id: String { rawValue }
@@ -108,8 +110,11 @@ enum NewsCategory: String, Decodable, CaseIterable, Equatable, Identifiable {
 }
 
 /// One news item — a glass card with an image, source favicon, VN summary,
-/// and (on hover) the full VN translation.
-struct NewsCard: Decodable, Identifiable, Equatable {
+/// and (on hover) the full VN translation. `Encodable` (default synthesis
+/// from `CodingKeys`, which already matches contract.md field-for-field) so
+/// `NewsStore` can re-encode a card as the `csw news save --kind item` stdin
+/// payload.
+struct NewsCard: Codable, Identifiable, Equatable {
     let id: String
     let category: NewsCategory
     let title: String
@@ -166,8 +171,9 @@ struct NewsCard: Decodable, Identifiable, Equatable {
     }
 }
 
-/// One GitHub repo card.
-struct RepoCard: Decodable, Identifiable, Equatable {
+/// One GitHub repo card. `Encodable` for the same reason as `NewsCard` —
+/// `csw news save --kind repo` takes the card JSON on stdin.
+struct RepoCard: Codable, Identifiable, Equatable {
     let id: String
     let fullName: String
     let descVI: String

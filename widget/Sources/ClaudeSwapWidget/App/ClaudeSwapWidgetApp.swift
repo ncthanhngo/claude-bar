@@ -107,7 +107,7 @@ struct ClaudeSwapWidgetApp: App {
             keyCode: UInt32(settings.briefingHotkeyOpenBriefingKeyCode),
             modifiers: UInt32(settings.briefingHotkeyOpenBriefingModifiers)
         ) {
-            NewsWindowController.shared.show()
+            NewsWindowController.shared.toggle()
         }
     }
 

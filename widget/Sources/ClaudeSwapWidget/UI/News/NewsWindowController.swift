@@ -67,6 +67,23 @@ final class NewsWindowController: NSObject, NSWindowDelegate {
         Task { await store.refresh() }
     }
 
+    /// ⌥X toggles the window: open (or front) when hidden, close when it's
+    /// already the visible key window. A visible-but-backgrounded window is
+    /// brought forward rather than closed, so ⌥X never hides a window the user
+    /// can't see.
+    func toggle() {
+        if let w = window, w.isVisible {
+            if w.isKeyWindow {
+                w.close()
+            } else {
+                w.makeKeyAndOrderFront(nil)
+                NSApp.activate(ignoringOtherApps: true)
+            }
+        } else {
+            show()
+        }
+    }
+
     /// Programmatic close. The user-driven path (red X / ⌘W) lands in
     /// `windowWillClose`.
     func close() {
