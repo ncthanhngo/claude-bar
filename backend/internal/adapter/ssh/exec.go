@@ -36,20 +36,56 @@ func Exec(ctx context.Context, host TrackedHost, cmd string, timeout time.Durati
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	// Password auth (if configured): fed non-interactively via SSH_ASKPASS so
-	// the secret never lands in argv. ssh tries password then the key
-	// (PreferredAuthentications below), so a missing/wrong password falls back
-	// to key-based auth automatically.
-	password := ""
+	args, password, passwordMode := buildExecArgs(ctx, host, cmd)
+	start := time.Now()
+	cc := exec.CommandContext(ctx, "ssh", args...)
+	var stdout, stderr bytes.Buffer
+	cc.Stdout = &stdout
+	cc.Stderr = &stderr
+	defer wirePasswordEnv(cc, passwordMode, password)()
+	return finishExec(ctx, cc, &stdout, &stderr, start)
+}
+
+// ExecStdin is Exec but streams stdin bytes to the remote command — used to
+// write files atomically on the remote in one round trip (e.g.
+// `mkdir -p <dir> && cat > <dir>/f.tmp && mv <dir>/f.tmp <dir>/f`) without
+// ever putting file contents in argv or a local temp file. Identical to Exec
+// in every other respect (auth, ControlMaster reuse, timeout/exit handling).
+func ExecStdin(ctx context.Context, host TrackedHost, cmd string, stdin []byte, timeout time.Duration) (*ExecResult, error) {
+	if timeout <= 0 {
+		timeout = 30 * time.Second
+	}
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	args, password, passwordMode := buildExecArgs(ctx, host, cmd)
+	start := time.Now()
+	cc := exec.CommandContext(ctx, "ssh", args...)
+	cc.Stdin = bytes.NewReader(stdin)
+	var stdout, stderr bytes.Buffer
+	cc.Stdout = &stdout
+	cc.Stderr = &stderr
+	defer wirePasswordEnv(cc, passwordMode, password)()
+	return finishExec(ctx, cc, &stdout, &stderr, start)
+}
+
+// buildExecArgs resolves password mode, lazily attaches a ControlMaster
+// socket when available, and assembles the full `ssh <opts> host -- cmd`
+// argv. Shared by Exec and ExecStdin so both stay in lockstep on auth /
+// ControlMaster handling.
+//
+// Password auth (if configured) is fed non-interactively via SSH_ASKPASS
+// (wired by wirePasswordEnv) so the secret never lands in argv. ssh tries
+// password then the key (PreferredAuthentications in sshArgs), so a
+// missing/wrong password falls back to key-based auth automatically.
+//
+// ControlMaster reuse is skipped in password mode — the master would open
+// without the askpass env and fail.
+func buildExecArgs(ctx context.Context, host TrackedHost, cmd string) (args []string, password string, passwordMode bool) {
 	if host.PasswordAuth {
 		password = ReadPassword(ctx, host.Name)
 	}
-	passwordMode := password != ""
-
-	args := []string{}
-	// Lazily open a ControlMaster so the 1st call eats the auth round-trip and
-	// every subsequent call reuses the same TCP connection. Skipped in
-	// password mode — the master would open without the askpass env and fail.
+	passwordMode = password != ""
 	if ActiveControlMaster != nil && !passwordMode {
 		if sock, err := ActiveControlMaster.Open(ctx, host); err == nil {
 			args = append(args, "-S", sock)
@@ -57,23 +93,34 @@ func Exec(ctx context.Context, host TrackedHost, cmd string, timeout time.Durati
 	}
 	args = append(args, sshArgs(host, passwordMode)...)
 	args = append(args, "--", cmd)
-	start := time.Now()
-	cc := exec.CommandContext(ctx, "ssh", args...)
-	var stdout, stderr bytes.Buffer
-	cc.Stdout = &stdout
-	cc.Stderr = &stderr
-	if passwordMode {
-		askpass, cleanup, aerr := writeAskpassScript()
-		if aerr == nil {
-			defer cleanup()
-			cc.Env = append(os.Environ(),
-				"SSH_ASKPASS="+askpass,
-				"SSH_ASKPASS_REQUIRE=force",
-				"DISPLAY=:0",
-				"CSW_SSH_PASSWORD="+password,
-			)
-		}
+	return args, password, passwordMode
+}
+
+// wirePasswordEnv sets the SSH_ASKPASS env on cc when in password mode and
+// returns the cleanup func for the temp askpass script — callers `defer` the
+// returned func immediately (`defer wirePasswordEnv(...)()`), which runs the
+// wiring now and the cleanup at function return. A no-op (identity) cleanup
+// is returned when not in password mode or if the script couldn't be written.
+func wirePasswordEnv(cc *exec.Cmd, passwordMode bool, password string) func() {
+	if !passwordMode {
+		return func() {}
 	}
+	askpass, cleanup, err := writeAskpassScript()
+	if err != nil {
+		return func() {}
+	}
+	cc.Env = append(os.Environ(),
+		"SSH_ASKPASS="+askpass,
+		"SSH_ASKPASS_REQUIRE=force",
+		"DISPLAY=:0",
+		"CSW_SSH_PASSWORD="+password,
+	)
+	return cleanup
+}
+
+// finishExec runs cc and maps its outcome to an ExecResult, shared by Exec
+// and ExecStdin.
+func finishExec(ctx context.Context, cc *exec.Cmd, stdout, stderr *bytes.Buffer, start time.Time) (*ExecResult, error) {
 	err := cc.Run()
 	res := &ExecResult{
 		Stdout:     stdout.String(),
@@ -220,6 +267,13 @@ func writeAskpassScript() (path string, cleanup func(), err error) {
 	}
 	return f.Name(), func() { os.Remove(f.Name()) }, nil
 }
+
+// ShellQuote is the exported form of shellQuote — single-quotes s for safe
+// embedding in a remote shell command. Lets callers outside this package
+// that build multi-part remote commands (e.g. usecase/news's publish
+// `mkdir -p … && cat > … && mv …` pipeline) reuse the exact same quoting
+// Exec/ReadFile/Tail rely on internally.
+func ShellQuote(s string) string { return shellQuote(s) }
 
 func shellQuote(s string) string {
 	if s == "" {

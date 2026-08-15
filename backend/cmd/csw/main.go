@@ -66,6 +66,8 @@ func main() {
 		err = runGate(ctx, args)
 	case "ssh":
 		err = runSSH(ctx, args)
+	case "news":
+		err = runNews(ctx, svc, args)
 	case "citools":
 		err = runCITools(ctx, args)
 	case "bw":
@@ -122,6 +124,11 @@ Commands:
   mcp connectors reconnect --account N --service slack|clickup|gdrive|github      (verify+enable saved credential)
   mcp connectors forget --account N --service slack|clickup|gdrive|github         (hard delete — wipes Keychain payload)
   mcp connectors set-enabled --account N --service slack|clickup|gdrive|github --enabled=true|false
+  news show               Print the last persisted news snapshot (fast, no network)
+  news fetch [--force]    Aggregate feeds+repos+AI now, persist, print the fresh snapshot
+  news config get         Print the news aggregation config
+  news config set         Persist a news aggregation config (stdin JSON)
+  news providers          Report Ollama/Claude provider availability
   help                    Show this help
 
 All commands accept --json for machine-readable output.`)
