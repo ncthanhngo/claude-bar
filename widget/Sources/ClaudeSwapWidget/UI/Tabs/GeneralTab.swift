@@ -20,6 +20,8 @@ struct GeneralTab: View {
                     .frame(maxWidth: 360, alignment: .leading)
                     Divider()
                     iconColorPicker
+                    Divider()
+                    Toggle("Show CPU temperature", isOn: $settings.menuBarShowCPUTemp)
                 }
 
                 SettingsGroup("Popover layout", subtitle: "Choose how much information the menu-bar popover shows. The popover auto-opens when you pick a layout so you can preview the result.") {

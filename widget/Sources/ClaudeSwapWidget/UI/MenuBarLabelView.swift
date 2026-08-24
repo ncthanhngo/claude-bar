@@ -7,6 +7,7 @@ struct MenuBarLabelView: View {
     @EnvironmentObject var store: AppStore
     @EnvironmentObject private var serverMonitor: ServerMonitorStore
     @EnvironmentObject private var claudeStatus: ClaudeStatusStore
+    @EnvironmentObject private var systemMetrics: SystemMetricsStore
     @ObservedObject private var settings = AppSettings.shared
 
     var body: some View {
@@ -31,7 +32,17 @@ struct MenuBarLabelView: View {
             if settings.menuBarStyle != .iconOnly, let text = labelText {
                 Text(text).monospacedDigit()
             }
+            // CPU temperature is its own opt-in, shown even in icon-only style.
+            if settings.menuBarShowCPUTemp, let temp = cpuTempText {
+                Text(temp).monospacedDigit()
+            }
         }
+    }
+
+    /// Rounded CPU die temperature like "58°C", or nil when there's no reading.
+    private var cpuTempText: String? {
+        guard let c = systemMetrics.cpuTempC else { return nil }
+        return "\(Int(c.rounded()))°C"
     }
 
     private var serverHasAlert: Bool {
