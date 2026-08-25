@@ -80,6 +80,9 @@ final class AppSettings: ObservableObject {
     @AppStorage("cookieKeepAliveEnabled") var cookieKeepAliveEnabled: Bool = true
     @AppStorage("sessionPollIntervalSec") var sessionPollIntervalSec: Int = 5
     @AppStorage("menuBarStyle") var menuBarStyle: MenuBarStyle = .compact
+    /// Show this Mac's CPU temperature (°C) next to the menu-bar icon. Opt-in:
+    /// off means the sensor is never polled. See SystemMetricsStore.
+    @AppStorage("menuBarShowCPUTemp") var menuBarShowCPUTemp: Bool = false
     @AppStorage("aggressiveAutoKill") var aggressiveAutoKill: Bool = false
 
     /// When true, automatically reloads supported IDE windows after a swap.

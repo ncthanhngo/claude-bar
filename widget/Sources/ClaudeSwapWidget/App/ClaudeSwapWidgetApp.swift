@@ -36,6 +36,7 @@ struct ClaudeSwapWidgetApp: App {
     @StateObject private var gateCoord = GateCoordinator.shared
     @StateObject private var serverMonitor = ServerMonitorStore()
     @StateObject private var claudeStatus = ClaudeStatusStore()
+    @StateObject private var systemMetrics = SystemMetricsStore()
     @ObservedObject private var settings = AppSettings.shared
 
     init() {
@@ -200,6 +201,7 @@ struct ClaudeSwapWidgetApp: App {
                 .environmentObject(store)
                 .environmentObject(serverMonitor)
                 .environmentObject(claudeStatus)
+                .environmentObject(systemMetrics)
                 .onAppear {
                     // Wire coordinators from the LABEL's onAppear — not the
                     // popover content's `.task` (lazy, popover-only) and not
@@ -256,7 +258,8 @@ struct ClaudeSwapWidgetApp: App {
             webFallback: webFallback,
             gate: gateCoord,
             serverMonitor: serverMonitor,
-            claudeStatus: claudeStatus
+            claudeStatus: claudeStatus,
+            systemMetrics: systemMetrics
         )
         BackgroundWorkController.shared.apply(dormant: settings.dormantModeEnabled)
         DiagnosticsLogger.shared.log(.info, subsystem: "launch", "polling started")

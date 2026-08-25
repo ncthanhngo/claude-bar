@@ -11,6 +11,7 @@ struct WidgetTabbedPopover: View {
     @EnvironmentObject var cloudSync: CloudSyncCoordinator
     @EnvironmentObject private var updateController: UpdateController
     @EnvironmentObject private var serverMonitor: ServerMonitorStore
+    @EnvironmentObject private var claudeStatus: ClaudeStatusStore
     @ObservedObject private var settings = AppSettings.shared
 
     /// Selected tab. Defaults to Claude on every open (not persisted).
@@ -266,6 +267,7 @@ struct WidgetTabbedPopover: View {
             Text("Accounts")
                 .font(.system(size: 12, weight: .semibold))
                 .foregroundColor(.primary.opacity(0.78))
+            ClaudeStatusIndicator(status: claudeStatus)
             syncChip
             Spacer()
             if let count = store.snapshot.map({ "\($0.accounts.count)" }) {
@@ -347,5 +349,33 @@ struct WidgetTabbedPopover: View {
         if s < 60 * 60    { return "\(s / 60)m" }
         if s < 24 * 3600  { return "\(s / 3600)h" }
         return "\(s / 86400)d"
+    }
+}
+
+/// Compact dot in the Claude tab's accounts header reflecting Claude's own
+/// service status (status.claude.com). Hidden while everything is
+/// operational; on degradation shows a coloured dot whose native tooltip
+/// carries the incident summary on hover, and opens the status page on
+/// click. Was previously a full-width banner on the Server tab — moved here
+/// since this is Claude's own status, not a monitored host's.
+private struct ClaudeStatusIndicator: View {
+    @ObservedObject var status: ClaudeStatusStore
+
+    var body: some View {
+        if status.level != .none {
+            Button(action: open) {
+                Circle().fill(status.tint).frame(width: 7, height: 7)
+            }
+            .buttonStyle(.plain)
+            .pointingHandCursor()
+            .help(status.summary.isEmpty ? "Claude đang gặp sự cố — mở status.claude.com" : status.summary)
+            .accessibilityLabel("Claude service status: \(status.summary)")
+        }
+    }
+
+    private func open() {
+        if let url = URL(string: "https://status.claude.com") {
+            NSWorkspace.shared.open(url)
+        }
     }
 }
