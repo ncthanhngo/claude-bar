@@ -13,9 +13,9 @@
     <key>CFBundleIdentifier</key>
     <string>dev.ncthanhngo.claude-bar</string>
     <key>CFBundleVersion</key>
-    <string>13.4</string>
+    <string>13.5</string>
     <key>CFBundleShortVersionString</key>
-    <string>13.4</string>
+    <string>13.5</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleSignature</key>
@@ -35,7 +35,7 @@
     <key>NSHumanReadableCopyright</key>
     <string>Copyright © 2026 Thanh Ngô. Licensed under MIT.</string>
     <key>CFBundleGetInfoString</key>
-    <string>Claude Bar 13.4 — menu-bar manager for multiple Claude Code accounts</string>
+    <string>Claude Bar 13.5 — menu-bar manager for multiple Claude Code accounts</string>
     <key>CBAuthorName</key>
     <string>Thanh Ngô</string>
     <key>CBAuthorEmail</key>
@@ -45,18 +45,17 @@
     <key>CBLicense</key>
     <string>MIT</string>
     <key>CBBuildDate</key>
-    <string>2026-08-15</string>
+    <string>2026-08-25</string>
     <key>CBReleaseChannel</key>
     <string>Beta</string>
     <key>CBReleaseWhatsNew</key>
-    <string>New News dashboard — press &#8997;X for AI &amp; Claude news in an Aurora Glass window.
-Read articles in-app, grouped by repo and topic, with one-tap save.
-On-demand translation for any article, plus saved bookmarks kept for 30 days.
-Pick your summarizer: local Ollama or Claude.</string>
+    <string>CPU temperature in the menu bar — turn it on in Settings, General tab.
+Claude service status moved to a compact dot on the Claude tab.
+News fallback summarizer is now an explicit picker instead of a toggle.</string>
     <key>CBReleaseHotfixes</key>
     <string>None.</string>
     <key>CBReleaseKnownIssues</key>
-    <string>News summaries need a configured Ollama or Claude provider; without one, articles show untranslated.</string>
+    <string>CPU temperature needs Apple Silicon; Intel Macs show no reading.</string>
     <key>CFBundleDevelopmentRegion</key>
     <string>en</string>
     <key>CFBundleLocalizations</key>
