@@ -29,14 +29,20 @@ struct MenuBarLabelView: View {
                             .offset(x: -1, y: -1)
                     }
                 }
-            if settings.menuBarStyle != .iconOnly, let text = labelText {
-                Text(text).monospacedDigit()
-            }
-            // CPU temperature is its own opt-in, shown even in icon-only style.
-            if settings.menuBarShowCPUTemp, let temp = cpuTempText {
-                Text(temp).monospacedDigit()
+            if let combined = combinedLabel {
+                Text(combined).monospacedDigit()
             }
         }
+    }
+
+    /// Usage label and CPU temperature merged into ONE Text. MenuBarExtra
+    /// sizes its status item from the label's first measurement; a second
+    /// sibling Text that appears later is clipped instead of widening it.
+    private var combinedLabel: String? {
+        let usage = settings.menuBarStyle != .iconOnly ? labelText : nil
+        let temp = settings.menuBarShowCPUTemp ? cpuTempText : nil
+        if usage == nil && temp == nil { return nil }
+        return [usage, temp].compactMap { $0 }.joined(separator: " · ")
     }
 
     /// Rounded CPU die temperature like "58°C", or nil when there's no reading.
