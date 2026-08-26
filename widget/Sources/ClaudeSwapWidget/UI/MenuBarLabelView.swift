@@ -11,44 +11,36 @@ struct MenuBarLabelView: View {
     @ObservedObject private var settings = AppSettings.shared
 
     var body: some View {
-        HStack(spacing: 4) {
-            menuBarIcon
-                // Red dot when a monitored server is offline or past the disk
-                // crit threshold — a glanceable alert without opening the popover.
-                .overlay(alignment: .topTrailing) {
-                    if serverHasAlert {
-                        Circle().fill(Color.red).frame(width: 5, height: 5)
-                            .offset(x: 1, y: -1)
-                    }
-                }
-                // Severity dot when Claude itself has a major+ outage — kept at
-                // the opposite corner so it can't be mistaken for the server dot.
-                .overlay(alignment: .topLeading) {
-                    if claudeStatus.shouldBadge {
-                        Circle().fill(claudeStatus.tint).frame(width: 5, height: 5)
-                            .offset(x: -1, y: -1)
-                    }
-                }
-            if let combined = combinedLabel {
-                Text(combined).monospacedDigit()
-            }
+        // One pre-rendered bitmap for the whole label; see MenuBarLabelRenderer
+        // for why SwiftUI Text/Image siblings don't work in a MenuBarExtra label.
+        Image(nsImage: MenuBarLabelRenderer.render(labelSpec))
+    }
+
+    private var labelSpec: MenuBarLabelRenderer.Spec {
+        var plain = usageSegments
+        var tinted: (text: String, color: NSColor)?
+        if settings.menuBarShowCPUTemp, let c = systemMetrics.cpuTempC {
+            let label = "\(Int(c.rounded()))°C"
+            if let color = Self.temperatureColor(c) { tinted = (label, color) } else { plain.append(label) }
         }
+        return .init(
+            icon: iconImage,
+            // Red dot when a monitored server is offline or past the disk crit
+            // threshold; severity dot on the opposite corner for a Claude
+            // outage so the two can't be mistaken for each other.
+            trailingDot: serverHasAlert ? .systemRed : nil,
+            leadingDot: claudeStatus.shouldBadge ? NSColor(claudeStatus.tint) : nil,
+            plain: plain,
+            tinted: tinted)
     }
 
-    /// Usage label and CPU temperature merged into ONE Text. MenuBarExtra
-    /// sizes its status item from the label's first measurement; a second
-    /// sibling Text that appears later is clipped instead of widening it.
-    private var combinedLabel: String? {
-        let usage = settings.menuBarStyle != .iconOnly ? labelText : nil
-        let temp = settings.menuBarShowCPUTemp ? cpuTempText : nil
-        if usage == nil && temp == nil { return nil }
-        return [usage, temp].compactMap { $0 }.joined(separator: " · ")
-    }
-
-    /// Rounded CPU die temperature like "58°C", or nil when there's no reading.
-    private var cpuTempText: String? {
-        guard let c = systemMetrics.cpuTempC else { return nil }
-        return "\(Int(c.rounded()))°C"
+    /// Heat warning tint: orange from 60°C, dark red from 70°C, else nil.
+    static func temperatureColor(_ celsius: Double) -> NSColor? {
+        switch celsius {
+        case 70...: return NSColor(red: 0.75, green: 0.05, blue: 0.05, alpha: 1)
+        case 60...: return .systemOrange
+        default:    return nil
+        }
     }
 
     private var serverHasAlert: Bool {
@@ -57,15 +49,13 @@ struct MenuBarLabelView: View {
         }
     }
 
-    private var menuBarIcon: some View {
-        Group {
-            if let img = scaledMenuBarImage {
-                Image(nsImage: img)
-            } else {
-                Image(systemName: iconName)
-                    .foregroundColor(settings.menuBarIconColor.color)
-            }
-        }
+    /// Bundled icon (tinted per settings) or the SF Symbol fallback.
+    private var iconImage: NSImage {
+        if let img = scaledMenuBarImage { return img }
+        let symbol = NSImage(systemSymbolName: iconName, accessibilityDescription: nil) ?? NSImage()
+        guard let tint = settings.menuBarIconColor.color else { return symbol }
+        let config = NSImage.SymbolConfiguration(paletteColors: [NSColor(tint)])
+        return symbol.withSymbolConfiguration(config) ?? symbol
     }
 
     private var scaledMenuBarImage: NSImage? {
@@ -125,16 +115,17 @@ struct MenuBarLabelView: View {
         }
     }
 
-    private var labelText: String? {
-        guard let active else { return "—" }
-        let name = active.account.displayName
-        guard let w = fiveHour else { return name }
-        let pct = w.percentInt
-        let reset = w.resetLabel()
-        switch settings.menuBarStyle {
-        case .iconOnly: return nil
-        case .compact:  return "\(pct)% · \(reset)"
-        case .full:     return "\(name) · \(pct)% · \(reset)"
+    /// Usage-related label parts per menu-bar style, each metric gated by its
+    /// own Settings toggle. Icon-only style contributes nothing.
+    private var usageSegments: [String] {
+        guard settings.menuBarStyle != .iconOnly else { return [] }
+        guard let active else { return ["—"] }
+        var parts: [String] = []
+        if settings.menuBarStyle == .full { parts.append(active.account.displayName) }
+        if let w = fiveHour {
+            if settings.menuBarShowUsagePct { parts.append("\(w.percentInt)%") }
+            if settings.menuBarShowReset { parts.append(w.resetLabel()) }
         }
+        return parts
     }
 }

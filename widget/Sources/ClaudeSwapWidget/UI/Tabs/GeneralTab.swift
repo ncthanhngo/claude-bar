@@ -21,7 +21,13 @@ struct GeneralTab: View {
                     Divider()
                     iconColorPicker
                     Divider()
+                    Toggle("Show usage %", isOn: $settings.menuBarShowUsagePct)
+                        .disabled(settings.menuBarStyle == .iconOnly)
+                    Toggle("Show reset time", isOn: $settings.menuBarShowReset)
+                        .disabled(settings.menuBarStyle == .iconOnly)
                     Toggle("Show CPU temperature", isOn: $settings.menuBarShowCPUTemp)
+                    Text("Temperature turns orange at 60°C and dark red at 70°C.")
+                        .font(.caption).foregroundStyle(.secondary)
                 }
 
                 SettingsGroup("Popover layout", subtitle: "Choose how much information the menu-bar popover shows. The popover auto-opens when you pick a layout so you can preview the result.") {

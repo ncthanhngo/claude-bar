@@ -83,6 +83,9 @@ final class AppSettings: ObservableObject {
     /// Show this Mac's CPU temperature (°C) next to the menu-bar icon. Opt-in:
     /// off means the sensor is never polled. See SystemMetricsStore.
     @AppStorage("menuBarShowCPUTemp") var menuBarShowCPUTemp: Bool = false
+    /// Individual metrics of the menu-bar label (compact/full styles only).
+    @AppStorage("menuBarShowUsagePct") var menuBarShowUsagePct: Bool = true
+    @AppStorage("menuBarShowReset") var menuBarShowReset: Bool = true
     @AppStorage("aggressiveAutoKill") var aggressiveAutoKill: Bool = false
 
     /// When true, automatically reloads supported IDE windows after a swap.
