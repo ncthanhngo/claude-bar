@@ -13,9 +13,9 @@
     <key>CFBundleIdentifier</key>
     <string>dev.ncthanhngo.claude-bar</string>
     <key>CFBundleVersion</key>
-    <string>13.5</string>
+    <string>13.6</string>
     <key>CFBundleShortVersionString</key>
-    <string>13.5</string>
+    <string>13.6</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleSignature</key>
@@ -35,7 +35,7 @@
     <key>NSHumanReadableCopyright</key>
     <string>Copyright © 2026 Thanh Ngô. Licensed under MIT.</string>
     <key>CFBundleGetInfoString</key>
-    <string>Claude Bar 13.5 — menu-bar manager for multiple Claude Code accounts</string>
+    <string>Claude Bar 13.6 — menu-bar manager for multiple Claude Code accounts</string>
     <key>CBAuthorName</key>
     <string>Thanh Ngô</string>
     <key>CBAuthorEmail</key>
@@ -45,13 +45,12 @@
     <key>CBLicense</key>
     <string>MIT</string>
     <key>CBBuildDate</key>
-    <string>2026-08-25</string>
+    <string>2026-08-26</string>
     <key>CBReleaseChannel</key>
     <string>Beta</string>
     <key>CBReleaseWhatsNew</key>
-    <string>CPU temperature in the menu bar — turn it on in Settings, General tab.
-Claude service status moved to a compact dot on the Claude tab.
-News fallback summarizer is now an explicit picker instead of a toggle.</string>
+    <string>Menu bar: separate toggles for usage %, reset time and CPU temperature (Settings, General).
+CPU temperature turns orange from 60°C and dark red from 70°C.</string>
     <key>CBReleaseHotfixes</key>
     <string>None.</string>
     <key>CBReleaseKnownIssues</key>

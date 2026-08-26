@@ -12,6 +12,27 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 13.6</title>
+      <sparkle:version>13.6</sparkle:version>
+      <sparkle:shortVersionString>13.6</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li>Menu bar: separate toggles for usage %, reset time and CPU temperature (Settings → General).</li>
+          <li>CPU temperature turns orange from 60°C and dark red from 70°C.</li>
+          <li>Menu-bar label is rendered as a single image so coloured text and later-appearing metrics are no longer clipped.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Wed, 26 Aug 2026 11:38:06 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v13.6/ClaudeBar.zip"
+        sparkle:version="13.6"
+        sparkle:shortVersionString="13.6"
+        sparkle:edSignature="TzaxF2KIvQkGXyufc2bS2rllWz3Hn0Z2JUOjrG96Vkpx28AcME5br+7B8/mC1LPsb6yeLOpgP99h+/tJ9f5UDw=="
+        length="8436155"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 13.5</title>
       <sparkle:version>13.5</sparkle:version>
       <sparkle:shortVersionString>13.5</sparkle:shortVersionString>
