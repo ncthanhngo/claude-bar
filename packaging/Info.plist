@@ -13,9 +13,9 @@
     <key>CFBundleIdentifier</key>
     <string>dev.ncthanhngo.claude-bar</string>
     <key>CFBundleVersion</key>
-    <string>13.3</string>
+    <string>13.5</string>
     <key>CFBundleShortVersionString</key>
-    <string>13.3</string>
+    <string>13.5</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleSignature</key>
@@ -35,7 +35,7 @@
     <key>NSHumanReadableCopyright</key>
     <string>Copyright © 2026 Thanh Ngô. Licensed under MIT.</string>
     <key>CFBundleGetInfoString</key>
-    <string>Claude Bar 13.3 — menu-bar manager for multiple Claude Code accounts</string>
+    <string>Claude Bar 13.5 — menu-bar manager for multiple Claude Code accounts</string>
     <key>CBAuthorName</key>
     <string>Thanh Ngô</string>
     <key>CBAuthorEmail</key>
@@ -45,20 +45,17 @@
     <key>CBLicense</key>
     <string>MIT</string>
     <key>CBBuildDate</key>
-    <string>2026-08-13</string>
+    <string>2026-08-25</string>
     <key>CBReleaseChannel</key>
     <string>Beta</string>
     <key>CBReleaseWhatsNew</key>
-    <string>Lower idle CPU and energy use — the menu-bar app polls more efficiently.
-Usage: GitHub-style daily heatmap plus a month-by-month token breakdown.
-New Server tab — monitor SSH hosts: health, stats, alerts, history, logs.
-New Backup &amp; Restore (Sao lưu) with an AI assistant for setting up hosts.
-Slimmer app, Claude service-outage alerts, and fewer surprise re-logins.</string>
+    <string>CPU temperature in the menu bar — turn it on in Settings, General tab.
+Claude service status moved to a compact dot on the Claude tab.
+News fallback summarizer is now an explicit picker instead of a toggle.</string>
     <key>CBReleaseHotfixes</key>
-    <string>Fixed a daily re-login prompt caused by refreshing the active account's backup token.
-Fixed web re-login giving up after 5s instead of waiting for the login to finish.</string>
-    <key>CBReleaseKnownIssues</key>
     <string>None.</string>
+    <key>CBReleaseKnownIssues</key>
+    <string>CPU temperature needs Apple Silicon; Intel Macs show no reading.</string>
     <key>CFBundleDevelopmentRegion</key>
     <string>en</string>
     <key>CFBundleLocalizations</key>

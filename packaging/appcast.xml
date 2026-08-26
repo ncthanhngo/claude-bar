@@ -12,6 +12,50 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 13.5</title>
+      <sparkle:version>13.5</sparkle:version>
+      <sparkle:shortVersionString>13.5</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li>CPU temperature in the menu bar &mdash; opt in from Settings &rarr; General.</li>
+          <li>Claude service status moved to a compact dot on the Claude tab; hover for the incident summary, click to open status.claude.com.</li>
+          <li>The news fallback summarizer is now an explicit picker instead of a toggle.</li>
+          <li>Known issue: CPU temperature reads the Apple Silicon SoC sensors &mdash; Intel Macs show no reading.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Tue, 25 Aug 2026 22:45:46 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v13.5/ClaudeBar.zip"
+        sparkle:version="13.5"
+        sparkle:shortVersionString="13.5"
+        sparkle:edSignature="gURReFyX4W6ttpdvBHgu/8oX8O7GShqtPGVKReFB8WvzcYv6ixYiiblVXlItQMCaqMgRJZd3ZNpkIB4c+mLUAw=="
+        length="8244316"
+        type="application/octet-stream"/>
+    </item>
+    <item>
+      <title>Version 13.4</title>
+      <sparkle:version>13.4</sparkle:version>
+      <sparkle:shortVersionString>13.4</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li>New News dashboard — press ⌥X for AI &amp; Claude news in an Aurora Glass window.</li>
+          <li>Read articles in-app, grouped by repo and topic, with one-tap save.</li>
+          <li>On-demand translation for any article, plus saved bookmarks kept for 30 days.</li>
+          <li>Pick your summarizer: a local Ollama model or Claude.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Sat, 15 Aug 2026 20:51:06 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v13.4/ClaudeBar.zip"
+        sparkle:version="13.4"
+        sparkle:shortVersionString="13.4"
+        sparkle:edSignature="seBy6oSJ9z9cRCVxNIKY05Qf7g9wZ9u+yVJ8kvQbtsQxd7mAYTvpyvirGY6XMM8a8ozsDtz+b6pCV42Muc5JDg=="
+        length="8256443"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 13.3</title>
       <sparkle:version>13.3</sparkle:version>
       <sparkle:shortVersionString>13.3</sparkle:shortVersionString>
