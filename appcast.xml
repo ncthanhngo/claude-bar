@@ -12,6 +12,27 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 13.7</title>
+      <sparkle:version>13.7</sparkle:version>
+      <sparkle:shortVersionString>13.7</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li>Server tab: the server IP address now sits beside the host name, with a one-click copy button.</li>
+          <li>CPU temperature now reads the real CPU core sensors via SMC, so it tracks load like Stats / iStat Menus.</li>
+          <li>Fixed CPU temperature reading about 20°C too low on M4-class Macs (was the PMU die sensor, not the cores).</li>
+        </ul>
+      ]]></description>
+      <pubDate>Wed, 09 Sep 2026 13:31:25 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v13.7/ClaudeBar.zip"
+        sparkle:version="13.7"
+        sparkle:shortVersionString="13.7"
+        sparkle:edSignature="4snS/mB6fs+GWhMrvl4WLQz1g0VT4034pFHmnbqafIvBUg8zm5morETsSgEY1O9iEOoJBCTT06o6A698yPPxDw=="
+        length="8444529"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 13.6</title>
       <sparkle:version>13.6</sparkle:version>
       <sparkle:shortVersionString>13.6</sparkle:shortVersionString>
