@@ -178,6 +178,37 @@ struct ServerPopoverTab: View {
     }
 }
 
+// MARK: - copyable address
+
+/// Server address (IP/hostname) shown beside the name with a one-click copy
+/// button; the icon flips to a checkmark briefly to confirm the copy.
+private struct CopyableAddress: View {
+    let address: String
+    @State private var copied = false
+
+    var body: some View {
+        HStack(spacing: 3) {
+            Text(address)
+                .font(.system(size: 10, design: .monospaced))
+                .foregroundColor(.secondary)
+                .lineLimit(1)
+                .truncationMode(.middle)
+            Button {
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(address, forType: .string)
+                copied = true
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { copied = false }
+            } label: {
+                Image(systemName: copied ? "checkmark" : "doc.on.doc")
+                    .font(.system(size: 9))
+                    .foregroundColor(copied ? .green : .secondary)
+            }
+            .buttonStyle(.plain)
+            .help("Sao chép địa chỉ \(address)")
+        }
+    }
+}
+
 // MARK: - host row
 
 private struct ServerHostRow: View {
@@ -219,6 +250,7 @@ private struct ServerHostRow: View {
             VStack(alignment: .leading, spacing: 1) {
                 HStack(spacing: 5) {
                     Text(host.displayName).font(.system(size: 12, weight: .semibold)).lineLimit(1)
+                    if let addr = host.hostName, !addr.isEmpty { CopyableAddress(address: addr) }
                     badges
                 }
                 if let sub = subtitle {
