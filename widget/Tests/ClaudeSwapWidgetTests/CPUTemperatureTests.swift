@@ -15,6 +15,14 @@ final class CPUTemperatureTests: XCTestCase {
         }
     }
 
+    func testAverageDropsImplausibleSamplesAndMeansTheRest() {
+        // Sleeping cores report placeholders (0, -4, 1.5, 2.3°C) and the SMC
+        // occasionally emits garbage; none of it may drag the mean.
+        XCTAssertEqual(CPUTemperature.average([60, 70, 0, -4, 1.5, 2.3, 250, -9201]), 65)
+        XCTAssertNil(CPUTemperature.average([]))
+        XCTAssertNil(CPUTemperature.average([0, 0, 130]))
+    }
+
     @MainActor
     func testStoreClearsValueWhenToggleOff() async {
         AppSettings.shared.menuBarShowCPUTemp = false

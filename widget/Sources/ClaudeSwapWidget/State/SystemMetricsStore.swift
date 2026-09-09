@@ -1,7 +1,7 @@
 import Foundation
 
 /// App-level monitor for this Mac's local hardware metrics. Currently just the
-/// CPU die temperature (see `CPUTemperature`), polled on a fixed cadence WHILE
+/// CPU core temperature (see `CPUTemperature`), polled on a fixed cadence WHILE
 /// THE APP IS OPEN and surfaced in the menu-bar label.
 ///
 /// Registered with `BackgroundWorkController` so the Settings dormant toggle
@@ -10,7 +10,7 @@ import Foundation
 /// skip the sensor read entirely and clear any stale value.
 @MainActor
 final class SystemMetricsStore: ObservableObject {
-    /// Latest CPU die temperature in °C, or nil when off / no reading.
+    /// Latest CPU core temperature in °C, or nil when off / no reading.
     @Published private(set) var cpuTempC: Double?
 
     private var pollTask: Task<Void, Never>?
