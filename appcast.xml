@@ -12,6 +12,28 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 13.8</title>
+      <sparkle:version>13.8</sparkle:version>
+      <sparkle:shortVersionString>13.8</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li>The popover now shows the per-model weekly limit (currently Fable) next to the all-models one.</li>
+          <li>The row is labelled with whatever model name Anthropic reports, so a rename needs no app update.</li>
+          <li>Works for OAuth accounts and web-linked accounts alike.</li>
+          <li>Fixed <code>csw list</code> printing usage as 7000% instead of 70%.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Thu, 10 Sep 2026 10:51:20 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v13.8/ClaudeBar.zip"
+        sparkle:version="13.8"
+        sparkle:shortVersionString="13.8"
+        sparkle:edSignature="SY38X2mp01PPcIhFZ9o7Er4jxO65HZCOkD0SbIgzm92/mO7jDMxoIX0A+bg7ap9t+BUdACbRUNOLYQ7BdbAtAQ=="
+        length="8467657"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 13.7</title>
       <sparkle:version>13.7</sparkle:version>
       <sparkle:shortVersionString>13.7</sparkle:shortVersionString>
