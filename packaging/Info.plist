@@ -13,9 +13,9 @@
     <key>CFBundleIdentifier</key>
     <string>dev.ncthanhngo.claude-bar</string>
     <key>CFBundleVersion</key>
-    <string>13.7</string>
+    <string>13.8</string>
     <key>CFBundleShortVersionString</key>
-    <string>13.7</string>
+    <string>13.8</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleSignature</key>
@@ -35,7 +35,7 @@
     <key>NSHumanReadableCopyright</key>
     <string>Copyright © 2026 Thanh Ngô. Licensed under MIT.</string>
     <key>CFBundleGetInfoString</key>
-    <string>Claude Bar 13.7 — menu-bar manager for multiple Claude Code accounts</string>
+    <string>Claude Bar 13.8 — menu-bar manager for multiple Claude Code accounts</string>
     <key>CBAuthorName</key>
     <string>Thanh Ngô</string>
     <key>CBAuthorEmail</key>
@@ -45,16 +45,16 @@
     <key>CBLicense</key>
     <string>MIT</string>
     <key>CBBuildDate</key>
-    <string>2026-09-09</string>
+    <string>2026-09-10</string>
     <key>CBReleaseChannel</key>
     <string>Beta</string>
     <key>CBReleaseWhatsNew</key>
-    <string>Server tab: the server IP address now sits beside the host name, with a one-click copy button.
-CPU temperature now reads the real CPU core sensors via SMC, so it tracks load like Stats / iStat Menus.</string>
+    <string>The popover now shows the per-model weekly limit (currently Fable) next to the all-models one.
+The row is labelled with whatever model name Anthropic reports, so a rename needs no update.</string>
     <key>CBReleaseHotfixes</key>
-    <string>Fixed CPU temperature reading about 20°C too low on M4-class Macs (was the PMU die sensor, not the cores).</string>
+    <string>Fixed csw list printing usage as 7000% instead of 70%.</string>
     <key>CBReleaseKnownIssues</key>
-    <string>CPU temperature needs Apple Silicon; Intel Macs show no reading.</string>
+    <string>The per-model row appears only for accounts whose plan reports such a limit.</string>
     <key>CFBundleDevelopmentRegion</key>
     <string>en</string>
     <key>CFBundleLocalizations</key>
