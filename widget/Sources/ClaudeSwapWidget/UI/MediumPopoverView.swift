@@ -215,6 +215,12 @@ private struct MediumAccountRow: View {
                     }
                     usageRow(label: "5h", pct: view.usage?.fiveHour?.percentInt)
                     usageRow(label: "7d", pct: view.usage?.sevenDay?.percentInt)
+                    // Per-model weekly cap ("Fable") — only for accounts that
+                    // report one.
+                    if let scoped = view.usage?.sevenDayScoped {
+                        usageRow(label: view.usage?.scopedLabel ?? "model",
+                                 pct: scoped.percentInt)
+                    }
                 }
             }
             .padding(.horizontal, 8)
@@ -241,7 +247,10 @@ private struct MediumAccountRow: View {
             Text(label)
                 .font(.system(size: 9, weight: .medium))
                 .foregroundColor(.secondary)
-                .frame(width: 14, alignment: .leading)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+                // Wide enough for a model name ("Fable"), not just "5h".
+                .frame(width: 30, alignment: .leading)
             usageBar(pct).frame(height: 6)
             Text(pct.map { "\($0)%" } ?? "—")
                 .font(.system(size: 11, weight: .semibold))

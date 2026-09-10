@@ -1,6 +1,13 @@
 import SwiftUI
 
-/// One usage-window row (5h or 7d).
+/// Shared geometry for the usage rows so the bars line up across windows,
+/// placeholder states, and accounts.
+enum UsageRowMetrics {
+    /// Wide enough for a model name ("Fable") next to the "5h" / "7d" labels.
+    static let labelWidth: CGFloat = 34
+}
+
+/// One usage-window row (5h, 7d, or the per-model weekly window).
 ///
 /// Layout: [label] [bar] [pct%] [reset]
 /// Numbers are monospaced and right-aligned to fixed widths so they line up
@@ -8,20 +15,25 @@ import SwiftUI
 struct UsageBar: View {
     let label: String
     let window: UsageWindowDTO
+    /// Weekly rows (all-models and per-model). Their number stays plain —
+    /// see the `foregroundColor` note below.
+    var weekly: Bool = false
 
     var body: some View {
         HStack(spacing: 8) {
             Text(label)
                 .font(.system(size: 11, weight: .medium))
                 .foregroundColor(.secondary)
-                .frame(width: 18, alignment: .leading)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+                .frame(width: UsageRowMetrics.labelWidth, alignment: .leading)
             bar
             Text(window.percentInt < 1 ? "<1%" : "\(window.percentInt)%")
                 .font(.system(size: 12, weight: .bold))
                 .monospacedDigit()
-                // The 7d number stays plain (never colour-coded) regardless of %;
+                // Weekly numbers stay plain (never colour-coded) regardless of %;
                 // the coloured bar already signals its tier. 5h keeps the palette.
-                .foregroundColor(label == "7d" ? .primary : UsagePalette.textColor(for: window.percentInt))
+                .foregroundColor(weekly ? .primary : UsagePalette.textColor(for: window.percentInt))
                 .frame(width: 34, alignment: .trailing)
             Text(window.resetLabel())
                 .font(.system(size: 11, weight: .medium))
@@ -80,7 +92,7 @@ struct UnavailableBar: View {
             Text(label)
                 .font(.system(size: 11, weight: .medium))
                 .foregroundColor(.secondary.opacity(0.5))
-                .frame(width: 18, alignment: .leading)
+                .frame(width: UsageRowMetrics.labelWidth, alignment: .leading)
             GeometryReader { geo in
                 Capsule()
                     .fill(Color.primary.opacity(0.07))
@@ -111,7 +123,7 @@ struct SkeletonBar: View {
             Text(label)
                 .font(.system(size: 10, weight: .medium))
                 .foregroundColor(.secondary.opacity(0.5))
-                .frame(width: 18, alignment: .leading)
+                .frame(width: UsageRowMetrics.labelWidth, alignment: .leading)
             GeometryReader { geo in
                 Capsule()
                     .fill(LinearGradient(

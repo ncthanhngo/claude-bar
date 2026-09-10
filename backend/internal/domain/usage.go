@@ -6,6 +6,13 @@ import "time"
 type Usage struct {
 	FiveHour *Window `json:"fiveHour,omitempty"`
 	SevenDay *Window `json:"sevenDay,omitempty"`
+	// SevenDayScoped is the per-model weekly window the usage page renders
+	// under "Weekly limits" next to the all-models bar (e.g. "Fable"). It
+	// exists only in the API's `limits` array — the legacy `seven_day_opus`
+	// style fields report null since the model rename.
+	SevenDayScoped *Window `json:"sevenDayScoped,omitempty"`
+	// ScopedLabel is the model display name for SevenDayScoped ("Fable").
+	ScopedLabel string `json:"scopedLabel,omitempty"`
 	FetchedAt time.Time `json:"fetchedAt"`
 }
 

@@ -278,8 +278,14 @@ struct AccountRowView: View {
             if let usage = view.usage {
                 if let w = usage.fiveHour { UsageBar(label: "5h", window: w) }
                 else                       { UnavailableBar(label: "5h") }
-                if let w = usage.sevenDay  { UsageBar(label: "7d", window: w) }
+                if let w = usage.sevenDay  { UsageBar(label: "7d", window: w, weekly: true) }
                 else                       { UnavailableBar(label: "7d") }
+                // Per-model weekly cap ("Fable"). Rendered only when the
+                // account reports one — plans without a per-model limit
+                // would otherwise show a permanently empty row.
+                if let w = usage.sevenDayScoped {
+                    UsageBar(label: usage.scopedLabel ?? "model", window: w, weekly: true)
+                }
                 if let err = view.error    { errorBadge(err) }
             } else if let err = view.error {
                 errorBadge(err)

@@ -161,6 +161,10 @@ private struct TinyAccountRow: View {
                 Spacer(minLength: 4)
                 UsageChip(label: "5h", pct: view.usage?.fiveHour?.percentInt)
                 UsageChip(label: "7d", pct: view.usage?.sevenDay?.percentInt)
+                if let scoped = view.usage?.sevenDayScoped {
+                    UsageChip(label: view.usage?.scopedLabel ?? "model",
+                              pct: scoped.percentInt)
+                }
                 trailing
             }
             .padding(.horizontal, 10)
@@ -217,7 +221,9 @@ private struct UsageChip: View {
             Text(label)
                 .font(.system(size: 10, weight: .medium))
                 .foregroundColor(.secondary)
-                .frame(width: 14, alignment: .leading)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+                .frame(width: labelWidth, alignment: .leading)
             Text(valueText)
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundColor(valueColor)
@@ -229,6 +235,10 @@ private struct UsageChip: View {
         .background(Capsule().fill(background))
         .overlay(Capsule().stroke(palette.opacity(0.30), lineWidth: 0.6))
     }
+
+    /// "5h" / "7d" keep the original 14pt slot so those chips stay identical
+    /// in width; a model name ("Fable") gets a wider one.
+    private var labelWidth: CGFloat { label.count <= 2 ? 14 : 32 }
 
     private var valueColor: Color { pct == nil ? .secondary : UsagePalette.color(for: pct!) }
 

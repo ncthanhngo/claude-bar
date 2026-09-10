@@ -73,6 +73,9 @@ func printList(r *usecase.ListAccountsResult) {
 			continue
 		}
 		fmt.Printf("       5h: %s    7d: %s\n", windowStr(v.Usage.FiveHour, now), windowStr(v.Usage.SevenDay, now))
+		if v.Usage.SevenDayScoped != nil {
+			fmt.Printf("       %s (7d): %s\n", v.Usage.ScopedLabel, windowStr(v.Usage.SevenDayScoped, now))
+		}
 	}
 }
 
@@ -81,7 +84,9 @@ func windowStr(w *domain.Window, now time.Time) string {
 		return "—"
 	}
 	secs := w.SecondsUntilReset(now)
-	return fmt.Sprintf("%3.0f%% (resets in %s)", w.UtilizationPct*100, durationShort(secs))
+	// UtilizationPct is already a percentage in [0,100] — the API's
+	// "utilization" is not a fraction.
+	return fmt.Sprintf("%3.0f%% (resets in %s)", w.UtilizationPct, durationShort(secs))
 }
 
 func durationShort(secs int64) string {

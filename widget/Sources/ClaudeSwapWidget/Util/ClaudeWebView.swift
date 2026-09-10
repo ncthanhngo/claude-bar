@@ -235,12 +235,15 @@ final class ClaudeWebUsageFetcher: NSObject, WKNavigationDelegate {
     private struct WebUsagePayload: Decodable {
         let fiveHour: WebUsageWindow?
         let sevenDay: WebUsageWindow?
+        let sevenDayScoped: WebUsageWindow?
         let fetchedAtMillis: Double
 
         var usage: UsageDTO {
             UsageDTO(
                 fiveHour: fiveHour?.window,
                 sevenDay: sevenDay?.window,
+                sevenDayScoped: sevenDayScoped?.window,
+                scopedLabel: sevenDayScoped?.modelLabel,
                 fetchedAt: Date(timeIntervalSince1970: fetchedAtMillis / 1000)
             )
         }
@@ -249,6 +252,9 @@ final class ClaudeWebUsageFetcher: NSObject, WKNavigationDelegate {
     private struct WebUsageWindow: Decodable {
         let utilizationPct: Double
         let resetsAtMillis: Double
+        /// Only set for the per-model weekly bar — the model name as the
+        /// page prints it ("Fable").
+        let modelLabel: String?
 
         var window: UsageWindowDTO {
             UsageWindowDTO(
@@ -317,7 +323,10 @@ final class ClaudeWebUsageFetcher: NSObject, WKNavigationDelegate {
           // into page-wide containers.
           if (text.length > 900) break;
           if (!text) continue;
-          const hasLabel = /current\\s+session|5\\s*-?\\s*hour|weekly|all\\s+models|7\\s*-?\\s*day/i.test(text);
+          // Model names are part of the label set so the per-model weekly
+          // cell ("Fable / Resets Fri 7:00 PM / 83% used") is recognised —
+          // that cell carries no "weekly" or "all models" wording of its own.
+          const hasLabel = /current\\s+session|5\\s*-?\\s*hour|weekly|all\\s+models|7\\s*-?\\s*day|\\b(fable|opus|sonnet|haiku)\\b/i.test(text);
           const hasReset = /reset/i.test(text);
           if (hasLabel && hasReset) {
             best = { node, text };
@@ -329,9 +338,8 @@ final class ClaudeWebUsageFetcher: NSObject, WKNavigationDelegate {
       }
 
       // Classify a label cell as the 5h ("current session") window, the
-      // all-models 7d window, or neither. Per-model weekly bars are dropped
-      // — they routinely pin at 100 % even when the headline weekly limit
-      // has room and are not what the widget displays.
+      // all-models 7d window, the per-model weekly window, or none.
+      // Returns { kind, model } — `model` is set only for the per-model bar.
       function classify(text) {
         const t = text.toLowerCase();
         const isWeekly  = /weekly|7\\s*-?\\s*day/.test(t);
@@ -341,15 +349,21 @@ final class ClaudeWebUsageFetcher: NSObject, WKNavigationDelegate {
         // guess. A subsequent progressbar should find a tighter labelling
         // ancestor; if none does we surface UnavailableBar instead of wrong.
         if (isSession && (isWeekly || isAllModels)) return null;
-        if (isSession) return "fiveHour";
-        const hasModelQualifier = /\\b(opus|sonnet|haiku)\\b/.test(t);
+        if (isSession) return { kind: "fiveHour" };
+        const model = t.match(/\\b(fable|opus|sonnet|haiku)\\b/);
         // "All models" alone is the canonical weekly headline bar on
         // current claude.ai — its label cell does NOT include the
         // "Weekly limits" heading text (which lives one section up).
         // Treat all-models without a per-model qualifier as sevenDay even
         // when "weekly" itself isn't in the cell.
-        if ((isWeekly || isAllModels) && !hasModelQualifier) {
-          return "sevenDay";
+        if ((isWeekly || isAllModels) && !model) {
+          return { kind: "sevenDay" };
+        }
+        // A cell naming exactly one model is the per-model weekly bar the
+        // page renders beside the all-models one.
+        if (model && !isAllModels) {
+          const name = model[1];
+          return { kind: "sevenDayScoped", model: name.charAt(0).toUpperCase() + name.slice(1) };
         }
         return null;
       }
@@ -393,7 +407,7 @@ final class ClaudeWebUsageFetcher: NSObject, WKNavigationDelegate {
                                    : now + 7 * 24 * 60 * 60 * 1000;
       }
 
-      const out = { fiveHour: null, sevenDay: null, fetchedAtMillis: Date.now(), diag: { progressbarCount: 0, samples: [] } };
+      const out = { fiveHour: null, sevenDay: null, sevenDayScoped: null, fetchedAtMillis: Date.now(), diag: { progressbarCount: 0, samples: [] } };
       const progressbars = Array.from(document.querySelectorAll("[role=progressbar][aria-valuenow]"));
       out.diag.progressbarCount = progressbars.length;
       for (const progress of progressbars) {
@@ -414,7 +428,7 @@ final class ClaudeWebUsageFetcher: NSObject, WKNavigationDelegate {
             ancestors.push({
               d,
               len: text.length,
-              hasLabel: /current\\s+session|5\\s*-?\\s*hour|weekly|all\\s+models|7\\s*-?\\s*day/i.test(text),
+              hasLabel: /current\\s+session|5\\s*-?\\s*hour|weekly|all\\s+models|7\\s*-?\\s*day|\\b(fable|opus|sonnet|haiku)\\b/i.test(text),
               hasReset: /reset/i.test(text),
               hasPct: /\\d+\\s*%/.test(text),
               snippet: text.slice(0, 80).replace(/\\s+/g, " ")
@@ -428,13 +442,20 @@ final class ClaudeWebUsageFetcher: NSObject, WKNavigationDelegate {
           });
         }
         if (!labelled) continue;
-        const kind = classify(labelled.text);
-        if (!kind || out[kind]) continue;
+        const classified = classify(labelled.text);
+        if (!classified) continue;
+        const kind = classified.kind;
+        if (out[kind]) continue;
         const utilizationPct = readPct(progress, labelled.text);
         if (utilizationPct == null) continue;
         const parsed = findResetMillis(labelled.node);
         const resetsAtMillis = parsed != null ? parsed : fallbackReset(kind);
-        out[kind] = { utilizationPct, resetsAtMillis, resetParsed: parsed != null };
+        out[kind] = {
+          utilizationPct,
+          resetsAtMillis,
+          resetParsed: parsed != null,
+          modelLabel: classified.model || null
+        };
       }
 
       return JSON.stringify(out);

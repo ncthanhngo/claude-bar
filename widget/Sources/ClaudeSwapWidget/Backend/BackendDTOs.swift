@@ -67,6 +67,13 @@ struct UsageWindowDTO: Codable, Hashable {
 struct UsageDTO: Codable, Hashable {
     let fiveHour: UsageWindowDTO?
     let sevenDay: UsageWindowDTO?
+    /// Per-model weekly window — the second bar under "Weekly limits" on
+    /// claude.ai (e.g. "Fable"). Optional: accounts on plans without a
+    /// per-model cap never report it.
+    let sevenDayScoped: UsageWindowDTO?
+    /// Model display name for `sevenDayScoped` ("Fable"). Used as the row
+    /// label so a future model rename needs no code change.
+    let scopedLabel: String?
     let fetchedAt: Date
 
     /// True when any present window already rolled over. Mirrors
@@ -89,7 +96,15 @@ struct UsageDTO: Codable, Hashable {
         let now = Date()
         let mergedFive = fiveHour ?? (previous.fiveHour?.resetsAt ?? .distantPast > now ? previous.fiveHour : nil)
         let mergedSeven = sevenDay ?? (previous.sevenDay?.resetsAt ?? .distantPast > now ? previous.sevenDay : nil)
-        return UsageDTO(fiveHour: mergedFive, sevenDay: mergedSeven, fetchedAt: fetchedAt)
+        let keepScoped = sevenDayScoped == nil && (previous.sevenDayScoped?.resetsAt ?? .distantPast) > now
+        let mergedScoped = keepScoped ? previous.sevenDayScoped : sevenDayScoped
+        return UsageDTO(
+            fiveHour: mergedFive,
+            sevenDay: mergedSeven,
+            sevenDayScoped: mergedScoped,
+            scopedLabel: keepScoped ? previous.scopedLabel : scopedLabel,
+            fetchedAt: fetchedAt
+        )
     }
 }
 

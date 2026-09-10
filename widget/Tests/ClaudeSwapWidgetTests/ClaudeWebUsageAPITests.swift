@@ -45,4 +45,39 @@ final class ClaudeWebUsageAPITests: XCTestCase {
         XCTAssertNil(usage.fiveHour)
         XCTAssertEqual(usage.sevenDay?.utilizationPct, 3.0)
     }
+
+    /// The per-model weekly window ("Fable") is reported only inside the
+    /// `limits` array — the legacy `seven_day_opus` field is null since the
+    /// model rename, so the array is the sole source for that bar.
+    func testDecodesScopedWeeklyLimitFromLimitsArray() throws {
+        let json = """
+        {"five_hour":{"utilization":11.0,"resets_at":"2026-09-10T06:39:59.911770+00:00"},
+         "seven_day":{"utilization":70.0,"resets_at":"2026-09-11T11:59:59.911790+00:00"},
+         "seven_day_opus":null,
+         "limits":[
+           {"kind":"session","percent":11,"resets_at":"2026-09-10T06:39:59.911770+00:00","scope":null},
+           {"kind":"weekly_all","percent":70,"resets_at":"2026-09-11T11:59:59.911790+00:00","scope":null},
+           {"kind":"weekly_scoped","percent":83,"resets_at":"2026-09-11T11:59:59.911939+00:00",
+            "scope":{"model":{"id":null,"display_name":"Fable"},"surface":null}}]}
+        """.data(using: .utf8)!
+
+        let usage = try ClaudeWebUsageAPI.decode(data: json)
+        XCTAssertEqual(usage.sevenDay?.utilizationPct, 70.0)
+        XCTAssertEqual(usage.sevenDayScoped?.utilizationPct, 83.0)
+        XCTAssertEqual(usage.scopedLabel, "Fable")
+    }
+
+    /// No `limits` array (or no per-model entry) leaves the scoped window nil
+    /// so the popover simply omits that row.
+    func testMissingScopedLimitDecodesToNil() throws {
+        let json = """
+        {"five_hour":{"utilization":4.0,"resets_at":"2026-06-09T09:42:12Z"},
+         "seven_day":{"utilization":10.0,"resets_at":"2026-06-12T12:00:00Z"},
+         "limits":[{"kind":"weekly_all","percent":10,"resets_at":"2026-06-12T12:00:00Z","scope":null}]}
+        """.data(using: .utf8)!
+
+        let usage = try ClaudeWebUsageAPI.decode(data: json)
+        XCTAssertNil(usage.sevenDayScoped)
+        XCTAssertNil(usage.scopedLabel)
+    }
 }

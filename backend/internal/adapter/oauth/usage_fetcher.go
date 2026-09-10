@@ -56,6 +56,7 @@ func (f *UsageFetcher) Fetch(ctx context.Context, accessToken string) (*domain.U
 	var apiResp struct {
 		FiveHour *windowDTO `json:"five_hour"`
 		SevenDay *windowDTO `json:"seven_day"`
+		Limits   []limitDTO `json:"limits"`
 	}
 	if err := json.Unmarshal(raw, &apiResp); err != nil {
 		return nil, err
@@ -67,7 +68,46 @@ func (f *UsageFetcher) Fetch(ctx context.Context, accessToken string) (*domain.U
 	if apiResp.SevenDay != nil {
 		u.SevenDay = apiResp.SevenDay.toDomain()
 	}
+	if w, label := scopedWeekly(apiResp.Limits); w != nil {
+		u.SevenDayScoped = w
+		u.ScopedLabel = label
+	}
 	return u, nil
+}
+
+// limitDTO is one entry of the API's `limits` array — the only place the
+// per-model weekly window is reported (`kind: "weekly_scoped"`, with the
+// model name under `scope.model.display_name`).
+type limitDTO struct {
+	Kind     string  `json:"kind"`
+	Percent  float64 `json:"percent"`
+	ResetsAt string  `json:"resets_at"`
+	Scope    *struct {
+		Model *struct {
+			DisplayName string `json:"display_name"`
+		} `json:"model"`
+	} `json:"scope"`
+}
+
+// scopedWeekly returns the per-model weekly window and its model label.
+// Entries without a parseable resets_at are skipped: a zero ResetsAt would
+// read as an already-rolled-over window downstream and get dropped anyway.
+func scopedWeekly(limits []limitDTO) (*domain.Window, string) {
+	for _, l := range limits {
+		if l.Kind != "weekly_scoped" || l.Scope == nil || l.Scope.Model == nil {
+			continue
+		}
+		name := l.Scope.Model.DisplayName
+		if name == "" {
+			continue
+		}
+		t, err := time.Parse(time.RFC3339, l.ResetsAt)
+		if err != nil {
+			continue
+		}
+		return &domain.Window{UtilizationPct: l.Percent, ResetsAt: t.UTC()}, name
+	}
+	return nil, ""
 }
 
 type windowDTO struct {

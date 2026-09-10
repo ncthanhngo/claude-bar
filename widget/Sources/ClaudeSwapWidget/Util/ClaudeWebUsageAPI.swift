@@ -181,20 +181,55 @@ enum ClaudeWebUsageAPI {
     private struct WireV1: Decodable {
         let five_hour: Window?
         let seven_day: Window?
+        /// Per-model weekly caps live only here. The legacy top-level
+        /// `seven_day_opus` / `seven_day_sonnet` fields report null since
+        /// the model rename, so the `limits` array is the only source for
+        /// the "Fable" bar the usage page shows next to "All models".
+        let limits: [Limit]?
 
         struct Window: Decodable {
             let utilization: Double
             let resets_at: Date
         }
 
+        struct Limit: Decodable {
+            let kind: String?
+            let percent: Double?
+            /// Kept as the raw string and parsed here rather than through the
+            /// decoder's date strategy: that strategy throws on an unparseable
+            /// value, which would fail the whole response decode over a field
+            /// the two headline windows don't need.
+            let resets_at: String?
+            let scope: Scope?
+
+            struct Scope: Decodable {
+                let model: Model?
+                struct Model: Decodable { let display_name: String? }
+            }
+
+            /// The per-model weekly entry, as (window, model label).
+            var scopedWeekly: (UsageWindowDTO, String)? {
+                guard kind == "weekly_scoped",
+                      let name = scope?.model?.display_name, !name.isEmpty,
+                      let pct = percent,
+                      let raw = resets_at,
+                      let reset = usageISOFractional.date(from: raw) ?? usageISOPlain.date(from: raw)
+                else { return nil }
+                return (UsageWindowDTO(utilizationPct: pct, resetsAt: reset), name)
+            }
+        }
+
         var usage: UsageDTO {
-            UsageDTO(
+            let scoped = limits?.compactMap(\.scopedWeekly).first
+            return UsageDTO(
                 fiveHour: five_hour.map {
                     UsageWindowDTO(utilizationPct: $0.utilization, resetsAt: $0.resets_at)
                 },
                 sevenDay: seven_day.map {
                     UsageWindowDTO(utilizationPct: $0.utilization, resetsAt: $0.resets_at)
                 },
+                sevenDayScoped: scoped?.0,
+                scopedLabel: scoped?.1,
                 fetchedAt: Date()
             )
         }
