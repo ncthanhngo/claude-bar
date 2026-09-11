@@ -12,6 +12,26 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 13.9</title>
+      <sparkle:version>13.9</sparkle:version>
+      <sparkle:shortVersionString>13.9</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li>Fixed the per-model weekly bar (Fable) being cut off at the bottom of the account list.</li>
+          <li>No other changes since 13.8.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Fri, 11 Sep 2026 09:21:42 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v13.9/ClaudeBar.zip"
+        sparkle:version="13.9"
+        sparkle:shortVersionString="13.9"
+        sparkle:edSignature="TWzo+XTUqMfTliJAX0Z/caWe42EXoN0yp8Gbx5R99rB6bOURyFJgOMAZWcebCWvy3oFWEAr/9JVBTN5w2l/BAA=="
+        length="8467599"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 13.8</title>
       <sparkle:version>13.8</sparkle:version>
       <sparkle:shortVersionString>13.8</sparkle:shortVersionString>
