@@ -25,7 +25,9 @@ struct TinyPopoverView: View {
     // text onto multiple lines because 13pt "0%" wrapped. 290pt restores
     // single-line chips and leaves the row compact without re-introducing
     // the wide-Standard look.
-    private static let popoverWidth: CGFloat = 290
+    // 330 since the per-model weekly chip ("Fable") joined the row: three
+    // chips at 290 left the account name almost no width and truncated it.
+    private static let popoverWidth: CGFloat = 330
     // Real measured height of one TinyAccountRow: avatar 22 + 7pt vertical
     // padding × 2 = 36pt; tightened from the previous 46 because the
     // previous estimate over-budgeted the row and left visible slack
@@ -228,7 +230,10 @@ private struct UsageChip: View {
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundColor(valueColor)
                 .monospacedDigit()
-                .frame(width: 30, alignment: .trailing)
+                // 30pt was a hair short of "100%" at 13pt, which wrapped the
+                // chip onto two lines.
+                .lineLimit(1)
+                .frame(width: 36, alignment: .trailing)
         }
         .padding(.horizontal, 6)
         .padding(.vertical, 3)

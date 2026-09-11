@@ -5,6 +5,10 @@ import SwiftUI
 enum UsageRowMetrics {
     /// Wide enough for a model name ("Fable") next to the "5h" / "7d" labels.
     static let labelWidth: CGFloat = 34
+    /// Fits "100%" in 12pt bold monospaced digits. 34pt was half a point
+    /// short, so a window at 100% wrapped onto two lines and pushed the row
+    /// below it out of the account list's bounded height.
+    static let percentWidth: CGFloat = 42
 }
 
 /// One usage-window row (5h, 7d, or the per-model weekly window).
@@ -31,10 +35,11 @@ struct UsageBar: View {
             Text(window.percentInt < 1 ? "<1%" : "\(window.percentInt)%")
                 .font(.system(size: 12, weight: .bold))
                 .monospacedDigit()
+                .lineLimit(1)
                 // Weekly numbers stay plain (never colour-coded) regardless of %;
                 // the coloured bar already signals its tier. 5h keeps the palette.
                 .foregroundColor(weekly ? .primary : UsagePalette.textColor(for: window.percentInt))
-                .frame(width: 34, alignment: .trailing)
+                .frame(width: UsageRowMetrics.percentWidth, alignment: .trailing)
             Text(window.resetLabel())
                 .font(.system(size: 11, weight: .medium))
                 .monospacedDigit()
@@ -103,7 +108,7 @@ struct UnavailableBar: View {
                 .font(.system(size: 12, weight: .bold))
                 .monospacedDigit()
                 .foregroundColor(.secondary.opacity(0.5))
-                .frame(width: 34, alignment: .trailing)
+                .frame(width: UsageRowMetrics.percentWidth, alignment: .trailing)
             Text("n/a")
                 .font(.system(size: 10, weight: .medium))
                 .foregroundColor(.secondary.opacity(0.5))
@@ -139,7 +144,7 @@ struct SkeletonBar: View {
             }
             .frame(height: 5)
             Text("—").font(.system(size: 10)).foregroundColor(.secondary.opacity(0.5))
-                .frame(width: 34, alignment: .trailing)
+                .frame(width: UsageRowMetrics.percentWidth, alignment: .trailing)
             Text("—").font(.system(size: 10)).foregroundColor(.secondary.opacity(0.5))
                 .frame(width: 52, alignment: .trailing)
         }

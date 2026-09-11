@@ -263,8 +263,10 @@ private struct MediumAccountRow: View {
             Text(pct.map { "\($0)%" } ?? "—")
                 .font(.system(size: 11, weight: .semibold))
                 .monospacedDigit()
-                .foregroundColor(pct == nil ? .secondary : UsagePalette.color(for: pct!))
-                .frame(width: 34, alignment: .trailing)
+                // Keep "100%" on one line — a wrapped value makes the row
+                // taller than the list's per-row height estimate.
+                .lineLimit(1)
+                .frame(width: 38, alignment: .trailing)
         }
     }
 
