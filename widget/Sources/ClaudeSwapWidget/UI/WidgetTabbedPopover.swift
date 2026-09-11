@@ -58,6 +58,10 @@ struct WidgetTabbedPopover: View {
     /// "Needs login" credential chip and the usage-error chip both render
     /// as a single ~14pt HStack stacked into the usage VStack (spacing 3).
     private static let badgeRowExtra: CGFloat = 17
+    /// Extra height for the per-model weekly bar ("Fable"), present only on
+    /// accounts whose plan reports one. Same single-line HStack + 3pt VStack
+    /// spacing as a badge row.
+    private static let scopedBarExtra: CGFloat = badgeRowExtra
     /// The Claude|Server segmented row inserted under the header.
     private static let tabBarHeight: CGFloat = 44
 
@@ -124,11 +128,13 @@ struct WidgetTabbedPopover: View {
 
     /// Estimate one row's rendered height. Base covers the standard
     /// content (avatar/title, email, 5h bar, 7d bar). Each in-row badge —
-    /// "Needs login" chip or usage-error chip — adds `badgeRowExtra`.
+    /// "Needs login" chip or usage-error chip — adds `badgeRowExtra`, and
+    /// the per-model weekly bar adds `scopedBarExtra`.
     private static func estimatedRowHeight(for view: AccountViewDTO) -> CGFloat {
         var h = baseRowHeight
         if view.credentialState == "needs_login" { h += badgeRowExtra }
         if view.error != nil { h += badgeRowExtra }
+        if view.usage?.sevenDayScoped != nil { h += scopedBarExtra }
         return h
     }
 

@@ -27,6 +27,9 @@ struct MediumPopoverView: View {
     // Total ≈ 60. We keep 62 for a small safety buffer; the old 78pt
     // budget left a visible 16pt gap below the last visible row.
     private static let rowHeight: CGFloat = 62
+    // A third usage row (the per-model weekly bar, e.g. "Fable") when the
+    // account reports one: ~14pt content + 4pt VStack spacing.
+    private static let scopedRowExtra: CGFloat = 18
     // Shell = header (36) + divider (1) + accounts header (22) +
     // divider (1) + auto-swap section title (22) + MediumAutoSwapCard
     // (~134) + Day/Week/Month strip (~46) + outer padding (8) = ~270.
@@ -80,12 +83,17 @@ struct MediumPopoverView: View {
     /// the frame for 1/2/3 accounts and to cap it at the 3-row size for
     /// 4+ accounts (the user's stated cutoff).
     private var visibleAccountsHeight: CGFloat {
-        let count = store.snapshot?.accounts.count ?? 0
-        if count == 0 { return 0 }
-        let visible = min(count, Self.accountsRowsBeforeScroll)
+        let accounts = store.snapshot?.accounts ?? []
+        if accounts.isEmpty { return 0 }
+        let visible = accounts.prefix(Self.accountsRowsBeforeScroll)
+        // Sum per-row instead of count × rowHeight so a row carrying the
+        // per-model weekly bar isn't clipped by the bounded ScrollView.
+        let rows = visible.reduce(0 as CGFloat) { sum, acc in
+            sum + Self.rowHeight + (acc.usage?.sevenDayScoped != nil ? Self.scopedRowExtra : 0)
+        }
         // Inter-row spacing 4pt × (visible - 1) + 4 vertical padding on
         // the wrapping VStack.
-        return CGFloat(visible) * Self.rowHeight + CGFloat(max(0, visible - 1)) * 4 + 8
+        return rows + CGFloat(max(0, visible.count - 1)) * 4 + 8
     }
 
     @ViewBuilder
