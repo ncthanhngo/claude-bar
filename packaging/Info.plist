@@ -13,9 +13,9 @@
     <key>CFBundleIdentifier</key>
     <string>dev.ncthanhngo.claude-bar</string>
     <key>CFBundleVersion</key>
-    <string>13.8</string>
+    <string>13.9</string>
     <key>CFBundleShortVersionString</key>
-    <string>13.8</string>
+    <string>13.9</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleSignature</key>
@@ -35,7 +35,7 @@
     <key>NSHumanReadableCopyright</key>
     <string>Copyright © 2026 Thanh Ngô. Licensed under MIT.</string>
     <key>CFBundleGetInfoString</key>
-    <string>Claude Bar 13.8 — menu-bar manager for multiple Claude Code accounts</string>
+    <string>Claude Bar 13.9 — menu-bar manager for multiple Claude Code accounts</string>
     <key>CBAuthorName</key>
     <string>Thanh Ngô</string>
     <key>CBAuthorEmail</key>
@@ -45,14 +45,13 @@
     <key>CBLicense</key>
     <string>MIT</string>
     <key>CBBuildDate</key>
-    <string>2026-09-10</string>
+    <string>2026-09-11</string>
     <key>CBReleaseChannel</key>
     <string>Beta</string>
     <key>CBReleaseWhatsNew</key>
-    <string>The popover now shows the per-model weekly limit (currently Fable) next to the all-models one.
-The row is labelled with whatever model name Anthropic reports, so a rename needs no update.</string>
+    <string>Fix-only release for 13.8 — no new features.</string>
     <key>CBReleaseHotfixes</key>
-    <string>Fixed csw list printing usage as 7000% instead of 70%.</string>
+    <string>Fixed the per-model weekly bar (Fable) being cut off at the bottom of the account list.</string>
     <key>CBReleaseKnownIssues</key>
     <string>The per-model row appears only for accounts whose plan reports such a limit.</string>
     <key>CFBundleDevelopmentRegion</key>
