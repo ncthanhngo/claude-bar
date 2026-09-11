@@ -12,6 +12,26 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 13.10</title>
+      <sparkle:version>13.10</sparkle:version>
+      <sparkle:shortVersionString>13.10</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li>Fixed a usage value of 100% wrapping onto two lines and pushing the row below it out of view.</li>
+          <li>Tiny layout is slightly wider so the account name still fits beside the three usage chips.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Fri, 11 Sep 2026 20:13:36 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v13.10/ClaudeBar.zip"
+        sparkle:version="13.10"
+        sparkle:shortVersionString="13.10"
+        sparkle:edSignature="sZmEvVumE1NNgRPgBXlHEaFG+k0Mw5XMFWrSJlMcWULUjnShC0lfOmdN7t6tEtM39/tQYiNfxDeZVndYMg4bDQ=="
+        length="8468899"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 13.9</title>
       <sparkle:version>13.9</sparkle:version>
       <sparkle:shortVersionString>13.9</sparkle:shortVersionString>
