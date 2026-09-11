@@ -13,9 +13,9 @@
     <key>CFBundleIdentifier</key>
     <string>dev.ncthanhngo.claude-bar</string>
     <key>CFBundleVersion</key>
-    <string>13.9</string>
+    <string>13.10</string>
     <key>CFBundleShortVersionString</key>
-    <string>13.9</string>
+    <string>13.10</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleSignature</key>
@@ -35,7 +35,7 @@
     <key>NSHumanReadableCopyright</key>
     <string>Copyright © 2026 Thanh Ngô. Licensed under MIT.</string>
     <key>CFBundleGetInfoString</key>
-    <string>Claude Bar 13.9 — menu-bar manager for multiple Claude Code accounts</string>
+    <string>Claude Bar 13.10 — menu-bar manager for multiple Claude Code accounts</string>
     <key>CBAuthorName</key>
     <string>Thanh Ngô</string>
     <key>CBAuthorEmail</key>
@@ -49,9 +49,10 @@
     <key>CBReleaseChannel</key>
     <string>Beta</string>
     <key>CBReleaseWhatsNew</key>
-    <string>Fix-only release for 13.8 — no new features.</string>
+    <string>Fix-only release — no new features.</string>
     <key>CBReleaseHotfixes</key>
-    <string>Fixed the per-model weekly bar (Fable) being cut off at the bottom of the account list.</string>
+    <string>Fixed a usage value of 100% wrapping onto two lines and pushing the row below it out of view.
+Tiny layout is slightly wider so the account name still fits beside the three usage chips.</string>
     <key>CBReleaseKnownIssues</key>
     <string>The per-model row appears only for accounts whose plan reports such a limit.</string>
     <key>CFBundleDevelopmentRegion</key>
