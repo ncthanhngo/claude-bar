@@ -13,7 +13,26 @@ SHELL        := /bin/bash
 DISPLAY_NAME := ClaudeBar
 EXECUTABLE   := ClaudeSwapWidget
 BUNDLE_ID    := dev.ncthanhngo.claude-bar
-SIGN_ID      := ClaudeSwapWidgetLocalDev
+# Apple Development certificate (team 566SKQXVZT), referenced by SHA-1 because
+# revoked certificates with the same common name still sit in the keychain.
+# A stable team-signed identity keeps Keychain "Always Allow" grants valid
+# across rebuilds and Sparkle updates. Builds on machines without it fall
+# back to ad-hoc signing with a warning. Override: make app SIGN_ID=<hash|name>.
+SIGN_ID      ?= 35D262F3699333E8478CE16686683BED8A58B4B3
+CSW_SIGN_IDENTIFIER := $(BUNDLE_ID).csw
+
+# Sign inside-out: Sparkle, the csw helper (fixed identifier so Keychain ACLs
+# survive rebuilds), then the bundle. $(1) is the .app path.
+define sign_bundle
+	@if codesign --force --deep --options runtime --timestamp=none --sign "$(SIGN_ID)" $(1)/Contents/Frameworks/Sparkle.framework && \
+	   codesign --force --options runtime --timestamp=none --identifier $(CSW_SIGN_IDENTIFIER) --sign "$(SIGN_ID)" $(1)/Contents/Resources/csw && \
+	   codesign --force --options runtime --timestamp=none --sign "$(SIGN_ID)" $(1); then \
+	  echo "Signed $(1) with $(SIGN_ID)"; \
+	else \
+	  echo "warning: signing identity $(SIGN_ID) unavailable — falling back to ad-hoc; Keychain will re-prompt" >&2; \
+	  codesign --force --deep --sign - $(1); \
+	fi
+endef
 
 # Source Info.plist baked into the bundle. Override to build the AI Bar track:
 #   make release DISPLAY_NAME=AIBar INFO_PLIST=packaging/Info-aibar.plist
@@ -94,8 +113,7 @@ app: guard-identity backend widget
 	# re-runs — harmless, suppress with || true.
 	install_name_tool -add_rpath @executable_path/../Frameworks \
 	  $(APP_BUNDLE)/Contents/MacOS/$(EXECUTABLE) 2>/dev/null || true
-	codesign --force --deep --sign "$(SIGN_ID)" $(APP_BUNDLE) 2>/dev/null || \
-	  codesign --force --deep --sign - $(APP_BUNDLE)
+	$(call sign_bundle,$(APP_BUNDLE))
 	@echo "Built $(APP_BUNDLE)"
 
 release: app
@@ -107,8 +125,7 @@ release: app
 install: app
 	@rm -rf /Applications/$(DISPLAY_NAME).app
 	cp -R $(APP_BUNDLE) /Applications/$(DISPLAY_NAME).app
-	codesign --force --deep --sign "$(SIGN_ID)" /Applications/$(DISPLAY_NAME).app 2>/dev/null || \
-	  codesign --force --deep --sign - /Applications/$(DISPLAY_NAME).app
+	$(call sign_bundle,/Applications/$(DISPLAY_NAME).app)
 	@echo "Installed /Applications/$(DISPLAY_NAME).app"
 
 test:
