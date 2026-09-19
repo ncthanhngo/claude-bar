@@ -12,6 +12,28 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 13.11</title>
+      <sparkle:version>13.11</sparkle:version>
+      <sparkle:shortVersionString>13.11</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li>Removed the Daily window and its ⌥X hotkey. ⌥Z still toggles the popover.</li>
+          <li>Removed Local MCP connectors and the background approval proxy.</li>
+          <li>Stopped stray csw gate proxy processes from piling up across relaunches.</li>
+          <li>Lighter app: the app and csw binaries are roughly a third smaller.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Sat, 19 Sep 2026 10:40:36 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v13.11/ClaudeBar.zip"
+        sparkle:version="13.11"
+        sparkle:shortVersionString="13.11"
+        sparkle:edSignature="xmBgSgyUhlaxmvNNKdM4mztfWYXW7VFF9haBZulwjxP1fy+jCvxGgOMDlgcf0O/GhT6TzGTPm+5XYg+IDtTvDA=="
+        length="6232779"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 13.10</title>
       <sparkle:version>13.10</sparkle:version>
       <sparkle:shortVersionString>13.10</sparkle:shortVersionString>
