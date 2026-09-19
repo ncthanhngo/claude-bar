@@ -57,7 +57,6 @@ enum ForceRefreshOutcome {
 ///   • Verify all      → Settings → Diagnostics
 ///   • Force refresh   → Settings → Diagnostics
 ///   • Health check    → folded into Verify (same backend call)
-///   • Briefing pill   → removed entirely; use ⌥X hotkey
 struct MenuHeaderBar: View {
     @EnvironmentObject var store: AppStore
     @ObservedObject private var settings = AppSettings.shared

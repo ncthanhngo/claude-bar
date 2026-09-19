@@ -94,7 +94,6 @@ struct WidgetTabbedPopover: View {
                 .stroke(Color.primary.opacity(0.12), lineWidth: 0.5)
         )
         .overlay(UpdateOverlayView(driver: updateController.driver))
-        .overlay(alignment: .bottom) { ConfirmGateOverlay() }
         .overlay { SwapErrorOverlay() }
         .focusable()
         .focusEffectDisabled()

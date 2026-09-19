@@ -45,7 +45,6 @@ struct AboutTab: View {
                     stackRow(label: "IPC", value: "Unix socket · HTTP/JSON")
                     stackRow(label: "Auth storage", value: "macOS Keychain")
                     stackRow(label: "Cloud sync", value: "iCloud Drive · AES-256-GCM")
-                    stackRow(label: "MCP connectors", value: "ClickUp · Slack · Google Drive · Google Workspace")
                 }
                 SettingsGroup("Welcome flow") {
                     HStack {

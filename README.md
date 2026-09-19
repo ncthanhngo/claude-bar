@@ -26,7 +26,6 @@ One Claude Code login at a time means hitting a quota wall mid-session and stopp
   - [Auto-restart terminal sessions](#auto-restart-terminal-sessions)
   - [IDE reload](#ide-reload--vscode--code-insiders--cursor--windsurf--antigravity)
   - [Cmux pane relaunch](#cmux-pane-relaunch)
-  - [Local MCP connectors](#local-mcp-connectors-optional)
 - [How auto-swap works](#how-auto-swap-works)
 - [Update](#update)
 - [Uninstall](#uninstall)
@@ -66,10 +65,6 @@ brew install --cask claude-bar
 - **CLI auto-restart** — sends SIGINT to running `claude` sessions; use with the bundled `claude-watch` wrapper to auto-restart in your terminal
 - **Session guard** — warns you if Claude is running before a manual switch; option to force-switch anyway
 - **Web-first usage** — each account can link its own embedded claude.ai web profile for usage before falling back to terminal OAuth usage; web sessions sync separately through iCloud Keychain by account email
-- **Local MCP connectors** — share one set of Slack / ClickUp / Google / GitHub / GitLab / Bitwarden tokens across accounts and reach them from Claude Code through a local stdio gateway (see [below](#local-mcp-connectors-optional))
-- **Sao lưu** (Daily → Tools → Sao lưu) — a top-level Tools tab (alongside App and Netbird) with two panes:
-  - **Hồ sơ** — configure server-side backups of a Docker-deployed app and its database, pushed to SharePoint via rclone. The app SSHes in to install a daily cron/systemd job with grandfather-father-son retention (daily / weekly / monthly / yearly), runs read-only preflight checks, triggers backups on demand, and restores a chosen snapshot. Backup sources are DB-agnostic: a freeform dump command (pg_dump / mysqldump / mongodump), tarred paths, or docker volumes. Every server mutation is previewed in a confirm sheet first; no backup secrets are stored on the Mac (SSH keys live in `~/.ssh`, rclone credentials live on the server)
-  - **Trợ lý máy chủ** — chat with the active Claude account as a server-ops assistant against a tracked SSH host. It proposes shell commands to install/configure/inspect the server; read-only commands run automatically while anything that mutates the server gates behind a confirm sheet (commands are risk-classified by the same server-side classifier the MCP gateway uses). Command output is fed back so the assistant continues the job end to end
 - **Themes** — Light, Dark, and Rainbow
 - **Icon color** — 11 preset tint colors for the menu bar icon (Settings → General)
 
@@ -106,38 +101,6 @@ Enable **Auto-reload IDE after swap** in Settings → General, then click **Gran
 If you run `claude` inside a [cmux](https://cmux.com/) terminal pane, Claude Bar automatically resumes the conversation under the new account after each swap. It reads cmux's hook state at `~/.cmuxterm/claude-hook-sessions.json`, then for every active Claude pane sends `Ctrl-C` followed by `claude --resume <sessionId>` via `cmux send-key` / `cmux send`. No toggle required.
 
 Requires `cmux hooks setup` (so cmux tracks sessions) and the `cmux` CLI on `PATH`. Panes that pin an isolated `CLAUDE_CONFIG_DIR` (e.g. `~/.codex-accounts/claude/<id>/`) are intentionally skipped — claude-bar's global credential swap does not reach them, and merging the two account systems would defeat the isolation. When no cmux panes are active this integration is a silent no-op.
-
-### Local MCP connectors (optional)
-
-Claude Bar can keep one shared set of Slack, ClickUp, and Google Workspace tokens for every account on this Mac, plus optional per-account overrides. Claude Code reaches them through a local stdio gateway. Tokens stay in the macOS Keychain locally; if iCloud Sync is enabled, they are copied only into the passphrase-encrypted Claude Bar iCloud bundle so another Mac signed into the same Apple ID can restore them into its own Keychain. Switching accounts in the menu bar swaps to that account's override when present; otherwise it uses the shared connector — no Claude Code restart required.
-
-1. Open **Settings → Local MCP**.
-2. Click **Install** to wire `claude-bar-mcp` into `~/.claude.json`.
-3. In **Shared for all accounts**, click **Connect** next to each service you want to use across all Claude Bar accounts. Use per-account rows only when an account should override the shared connector.
-   - Slack/ClickUp/GitHub/GitLab: paste a personal user token (Slack `xoxp-…`/`xoxe-…`, ClickUp `pk_…`, GitHub `ghp_…`/`github_pat_…`, GitLab PAT). Slack bot tokens (`xoxb-…`) are not supported because Slack search requires a user token. The token is piped to `csw` over stdin and never appears in argv or shell history.
-   - Google Workspace: enable Drive, Calendar, Gmail, and Sheets APIs in Google Cloud, paste your OAuth Desktop client ID/secret or import the downloaded JSON file, then click **Open browser to connect**. PKCE (S256) is still used. Existing Google connectors created before Sheets/share support must be disconnected and reconnected once so Google grants the newer `spreadsheets` and `drive.file` scopes.
-4. Restart Claude Code once so it picks up the new MCP server. After that, switching Claude Bar accounts is hot — Claude Code keeps running.
-
-**Tools exposed.** The gateway registers more than 90 tools, named `cb_<service>_…` and grouped by service:
-
-| Service | Tools | Examples |
-|---|---|---|
-| Slack | 9 | list channels, search messages, read threads, post message, reply |
-| ClickUp | 15 | list/search/get tasks, comments, create & update tasks, assign |
-| GitHub | 28 | issues, PRs, reviews, file/commit reads, CI runs, plus gated writes (open PR, merge, labels) |
-| GitLab | 19 | MRs, issues, file reads, pipelines, plus gated writes (open/approve/merge MR) |
-| Google Drive | 6 | search files, read docs, file metadata, download, share |
-| Google Calendar | 4 | list calendars, list events, get event, free/busy |
-| Gmail | 4 | search messages, get message/thread, list labels |
-| Google Sheets | 4 | create spreadsheet, create from CSV, append/update values |
-| Bitwarden | 3 | search items, get item, list folders |
-| SSH | 4 | list hosts (from `~/.ssh/config`), exec, read file, tail |
-
-High-impact write tools (posting, task updates, Sheets create/write, Drive share, GitHub/GitLab review and merge workflows, `ssh exec`) are gated by local approval prompts before they run; read tools run without a prompt.
-
-> **Privacy boundary:** shared tokens are usable by every Claude Bar account configured on this Mac. If iCloud Sync is enabled, the same connector tokens are available to Macs that share your Apple ID and know the Claude Bar sync passphrase. Tool results still flow through your Claude account's chat history, which may be shared if you share that Claude login.
-
----
 
 ## How auto-swap works
 
@@ -231,7 +194,7 @@ Issues and pull requests are welcome.
 
 1. Build and test locally with `make app` and `make test`.
 2. Keep changes focused; match the existing Go and Swift style in the surrounding code.
-3. For anything that touches credentials, syncing, or the MCP gateway, read [SECURITY.md](./SECURITY.md) first and call out the trust-boundary impact in your PR description.
+3. For anything that touches credentials or syncing, read [SECURITY.md](./SECURITY.md) first and call out the trust-boundary impact in your PR description.
 
 ---
 

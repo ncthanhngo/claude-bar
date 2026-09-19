@@ -8,9 +8,8 @@ import Foundation
 /// so neither user nor LLM bytes ever land in argv or shell history.
 extension CswClient {
 
-    /// Risk level returned by the Go classifier — the single source of truth
-    /// shared with the MCP gateway. `low` runs without a confirm; everything
-    /// else gates behind the confirm sheet.
+    /// Risk level returned by the Go classifier. `low` runs without a
+    /// confirm; everything else gates behind the confirm sheet.
     enum SSHRisk: String, Decodable {
         case low, medium, destructive
 

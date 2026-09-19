@@ -3,9 +3,8 @@ import AppKit
 
 /// Two-step welcome flow. Step 1 adds the first account via the existing
 /// LoginCoordinator; Step 2 lets the user opt into Auto-swap / IDE reload /
-/// Cloud Sync / Local MCP. Cloud Sync + MCP opens the relevant Settings
-/// tab after Finish — passphrase / connector setup happens there rather
-/// than mid-wizard.
+/// Cloud Sync. Cloud Sync opens the popover after Finish — passphrase setup
+/// happens there rather than mid-wizard.
 struct OnboardingView: View {
     @EnvironmentObject private var store: AppStore
     @EnvironmentObject private var loginCoordinator: LoginCoordinator
@@ -20,7 +19,6 @@ struct OnboardingView: View {
     @State private var optAutoSwap: Bool = false
     @State private var optIDEReload: Bool = false
     @State private var optCloudSync: Bool = false
-    @State private var optLocalMCP: Bool = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -105,14 +103,8 @@ struct OnboardingView: View {
                 featureToggle(
                     icon: "icloud",
                     title: "Sync to iCloud",
-                    blurb: "Encrypt accounts + MCP tokens to your iCloud Drive. We'll prompt for a passphrase next.",
+                    blurb: "Encrypt accounts to your iCloud Drive. We'll prompt for a passphrase next.",
                     isOn: $optCloudSync
-                )
-                featureToggle(
-                    icon: "puzzlepiece.extension",
-                    title: "Local MCP connectors",
-                    blurb: "Optional: connect Slack / Drive / Gmail across all accounts. Tokens stay on your Mac.",
-                    isOn: $optLocalMCP
                 )
             }
             Spacer(minLength: 0)
@@ -153,18 +145,15 @@ struct OnboardingView: View {
     }
 
     private func applyAndFinish() {
-        // Apply the toggles users actually flipped. We don't apply
-        // cloudSync / MCP side effects (passphrase, install gateway)
-        // here — too aggressive — but we record the intent so the
-        // matching Settings tab can highlight a banner.
+        // Apply the toggles users actually flipped. We don't apply the
+        // cloudSync side effect (passphrase prompt) here — too aggressive.
         settings.autoSwapEnabled = optAutoSwap
         settings.autoReloadIDEAfterSwap = optIDEReload
-        // CloudSync + Local MCP open the relevant Settings tab so the user
-        // sees what they're enrolling in before any prompt fires.
+        // CloudSync opens the popover so the user sees what they're
+        // enrolling in before any prompt fires.
         let needsCloudSync = optCloudSync
-        let needsMCP = optLocalMCP
         onFinish()
-        if needsCloudSync || needsMCP {
+        if needsCloudSync {
             // Open the popover so the user lands on the destination tab.
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                 MenuBarPopoverToggle.toggle()

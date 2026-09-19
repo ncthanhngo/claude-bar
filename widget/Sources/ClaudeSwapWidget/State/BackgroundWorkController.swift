@@ -21,7 +21,6 @@ final class BackgroundWorkController {
     private weak var store: AppStore?
     private weak var prefsSync: PreferencesCloudSync?
     private weak var webFallback: WebFallbackCoordinator?
-    private weak var gate: GateCoordinator?
     private weak var serverMonitor: ServerMonitorStore?
     private weak var claudeStatus: ClaudeStatusStore?
     private weak var systemMetrics: SystemMetricsStore?
@@ -30,7 +29,6 @@ final class BackgroundWorkController {
         store: AppStore,
         prefsSync: PreferencesCloudSync,
         webFallback: WebFallbackCoordinator,
-        gate: GateCoordinator,
         serverMonitor: ServerMonitorStore,
         claudeStatus: ClaudeStatusStore,
         systemMetrics: SystemMetricsStore
@@ -38,7 +36,6 @@ final class BackgroundWorkController {
         self.store = store
         self.prefsSync = prefsSync
         self.webFallback = webFallback
-        self.gate = gate
         self.serverMonitor = serverMonitor
         self.claudeStatus = claudeStatus
         self.systemMetrics = systemMetrics
@@ -52,26 +49,24 @@ final class BackgroundWorkController {
             "background work \(dormant ? "paused (dormant)" : "resumed")")
     }
 
-    /// Start every periodic loop + the gate proxy. Safe to call when already
-    /// running. `store.start()` also re-acquires the App Nap opt-out and the
-    /// wake observer; the gate proxy guards against a duplicate spawn.
+    /// Start every periodic loop. Safe to call when already running.
+    /// `store.start()` also re-acquires the App Nap opt-out and the wake
+    /// observer.
     private func resume() {
         store?.start()
         prefsSync?.start()
         webFallback?.resumeKeepAlive()
-        gate?.start()
         serverMonitor?.start()
         claudeStatus?.start()
         systemMetrics?.start()
     }
 
-    /// Tear down every periodic loop, release App Nap, and stop the gate
-    /// proxy subprocess. Interactive actions in the UI still function.
+    /// Tear down every periodic loop and release App Nap. Interactive
+    /// actions in the UI still function.
     private func pause() {
         store?.stop()
         prefsSync?.stop()
         webFallback?.stop()
-        gate?.stop()
         serverMonitor?.stop()
         claudeStatus?.stop()
         systemMetrics?.stop()

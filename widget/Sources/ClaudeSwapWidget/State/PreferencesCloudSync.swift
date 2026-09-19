@@ -3,7 +3,7 @@ import CryptoKit
 import Foundation
 import SwiftUI
 
-/// Auto-syncs General / MCP / Daily tab settings across Macs via iCloud Drive.
+/// Auto-syncs General tab settings across Macs via iCloud Drive.
 ///
 /// Pattern matches CloudSyncCoordinator: writes a plain JSON file alongside the
 /// encrypted accounts bundle at
@@ -316,9 +316,8 @@ private struct SyncedKey {
     }
 }
 
-/// Whitelist of UserDefaults keys covered by iCloud sync. Tabs: General, MCP,
-/// Daily. Throttle timestamps and local-file paths (avatar) are intentionally
-/// excluded — they're machine-specific.
+/// Whitelist of UserDefaults keys covered by iCloud sync. Throttle
+/// timestamps are intentionally excluded — they're machine-specific.
 private let syncedKeys: [SyncedKey] = [
     // General tab
     .init(id: "autoSwapEnabled",          kind: .bool),
@@ -339,25 +338,8 @@ private let syncedKeys: [SyncedKey] = [
     .init(id: "injectReloadShortcut",     kind: .bool),
     .init(id: "widgetTheme",              kind: .string),
 
-    // MCP tab
-    .init(id: "mcpConnectorPromptsJSON",  kind: .string),
-
-    // Daily tab
-    .init(id: "dailyMode",                              kind: .string),
-    .init(id: "dailyProfileName",                       kind: .string),
-    .init(id: "briefingHotkeyOpenAppKeyCode",           kind: .int),
-    .init(id: "briefingHotkeyOpenAppModifiers",         kind: .int),
-    .init(id: "briefingHotkeyOpenBriefingKeyCode",      kind: .int),
-    .init(id: "briefingHotkeyOpenBriefingModifiers",    kind: .int),
-    .init(id: "briefingNewsFeedsJSON",                  kind: .string),
-    .init(id: "briefingNewsFetchTime",                  kind: .string),
-    .init(id: "briefingNewsFetchesPerDay",              kind: .int),
-    .init(id: "briefingScheduleTimes",                  kind: .string),
-    .init(id: "briefingUserPrompt",                     kind: .string),
-
-    // Daily → Netbird (group metadata, JSON-encoded dicts as strings)
-    .init(id: "netbird.groupRoles.v1.json",  kind: .string),
-    .init(id: "netbird.groupColors.v1.json", kind: .string),
-    .init(id: "netbird.groupNotes.v1.json",  kind: .string),
-    .init(id: "netbird.people.v1.json",      kind: .string),
+    // Global hotkey (⌥Z toggles the popover). Keys keep their historical
+    // names so existing installs and older Macs stay in sync.
+    .init(id: "briefingHotkeyOpenAppKeyCode",   kind: .int),
+    .init(id: "briefingHotkeyOpenAppModifiers", kind: .int),
 ]

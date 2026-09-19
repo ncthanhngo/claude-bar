@@ -59,7 +59,7 @@ guard-identity:
 backend:
 	@mkdir -p backend/bin
 	cd backend && CGO_ENABLED=1 go build -trimpath -tags $(GO_TAGS) \
-	  -ldflags="-s -w -X main.defaultGDriveClientID=$(GDRIVE_CLIENT_ID)" \
+	  -ldflags="-s -w" \
 	  -o bin/csw ./cmd/csw
 
 widget:

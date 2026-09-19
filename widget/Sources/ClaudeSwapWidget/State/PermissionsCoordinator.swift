@@ -21,7 +21,7 @@ final class PermissionsCoordinator: ObservableObject {
     @Published private(set) var automation: Status = .informational
     /// Network access is always available to non-sandboxed menu-bar apps;
     /// listed for transparency, not for grant/deny status.
-    let networkLabel = "Always available — used for usage fetching, iCloud Drive, and any MCP services you enable."
+    let networkLabel = "Always available — used for usage fetching, iCloud Drive, and server monitoring."
 
     init() { refresh() }
 

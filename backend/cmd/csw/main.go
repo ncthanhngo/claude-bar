@@ -56,26 +56,12 @@ func main() {
 		err = runAddAccountOAuth(ctx, svc, args)
 	case "cloud":
 		err = runCloud(ctx, svc, args)
-	case "mcp":
-		err = runMCP(ctx, svc, args)
 	case "usage-stats":
 		err = runUsageStats(ctx, svc, args)
 	case "refresh-bundle":
 		err = runRefreshBundle(ctx, svc, args)
-	case "gate":
-		err = runGate(ctx, args)
 	case "ssh":
 		err = runSSH(ctx, args)
-	case "news":
-		err = runNews(ctx, svc, args)
-	case "citools":
-		err = runCITools(ctx, args)
-	case "bw":
-		err = runBW(ctx, args)
-	case "audit":
-		err = runAudit(ctx, args)
-	case "repomap":
-		err = runRepomap(ctx, args)
 	case "help", "-h", "--help":
 		usage()
 	default:
@@ -114,21 +100,6 @@ Commands:
   cloud push              Encrypt and push accounts to iCloud Drive
   cloud pull              Restore accounts from iCloud Drive bundle
   cloud forget            Delete the bundle from iCloud Drive
-  mcp serve               Run the local MCP gateway over stdio
-  mcp install [--force]   Wire claude-bar-mcp into ~/.claude.json
-  mcp uninstall           Remove claude-bar-mcp from ~/.claude.json
-  mcp status              Show gateway install state
-  mcp connectors list     List connectors per account
-  mcp connectors connect --account N --service slack|clickup|gdrive|github [--token=- | --client-id ID]
-  mcp connectors disconnect --account N --service slack|clickup|gdrive|github     (soft — keeps saved credential)
-  mcp connectors reconnect --account N --service slack|clickup|gdrive|github      (verify+enable saved credential)
-  mcp connectors forget --account N --service slack|clickup|gdrive|github         (hard delete — wipes Keychain payload)
-  mcp connectors set-enabled --account N --service slack|clickup|gdrive|github --enabled=true|false
-  news show               Print the last persisted news snapshot (fast, no network)
-  news fetch [--force]    Aggregate feeds+repos+AI now, persist, print the fresh snapshot
-  news config get         Print the news aggregation config
-  news config set         Persist a news aggregation config (stdin JSON)
-  news providers          Report Ollama/Claude provider availability
   help                    Show this help
 
 All commands accept --json for machine-readable output.`)

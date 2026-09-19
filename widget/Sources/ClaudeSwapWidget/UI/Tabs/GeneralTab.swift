@@ -167,7 +167,7 @@ struct GeneralTab: View {
 
     @ViewBuilder
     private var backgroundActivityGroup: some View {
-        SettingsGroup("Background activity", subtitle: "Keep \(AppInfo.displayName) in the menu bar but stop everything it does in the background — usage polling, the periodic token refresh, auto-swap, the daily briefing, web keep-alive, iCloud preference sync, and the local MCP gate. The app goes as quiet as before it was installed; you can still refresh and switch accounts by hand.") {
+        SettingsGroup("Background activity", subtitle: "Keep \(AppInfo.displayName) in the menu bar but stop everything it does in the background — usage polling, the periodic token refresh, auto-swap, web keep-alive, iCloud preference sync, and the server / Claude status monitors. The app goes as quiet as before it was installed; you can still refresh and switch accounts by hand.") {
             Toggle(isOn: $settings.dormantModeEnabled) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Pause background activity")

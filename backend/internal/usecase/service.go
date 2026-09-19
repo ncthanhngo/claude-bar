@@ -8,7 +8,6 @@ import (
 	"github.com/soi/claude-swap-widget/backend/internal/adapter/cache"
 	"github.com/soi/claude-swap-widget/backend/internal/domain"
 	"github.com/soi/claude-swap-widget/backend/internal/port"
-	"github.com/soi/claude-swap-widget/backend/internal/usecase/news"
 )
 
 // Service wires every port and exposes the operations.
@@ -26,25 +25,6 @@ type Service struct {
 	UsageCache *cache.UsageCache
 	Backoff    *cache.Backoff
 
-	// News: feed+repo aggregation with AI summarise/translate (Ollama
-	// default, optional Claude fallback), and its on-disk snapshot/config
-	// store. See internal/usecase/news for the aggregation logic.
-	NewsAggregator port.NewsAggregator
-	NewsStore      port.NewsStore
-
-	// News master/client SSH relay sync (P4): Publisher pushes news.json +
-	// manifest to the shared relay host after a Master's fetch; Puller
-	// reads+verifies+caches it on Client machines instead of aggregating
-	// locally. See internal/usecase/news/{publish,pull}.go.
-	NewsPublisher *news.Publisher
-	NewsPuller    *news.Puller
-
-	// NewsArticles implements on-demand full-article translation
-	// (`csw news article`): fetch + extract the page, translate via the
-	// same provider router the aggregator uses, cache by sha1(url). See
-	// internal/usecase/news/article.go.
-	NewsArticles *news.ArticleService
-
 	// backupRefreshMu serialises per-account token refresh+write so concurrent
 	// callers (list, verify, refresh-all, switch) cannot race on the same backup
 	// when the OAuth provider rotates the refresh token on first use.
@@ -58,14 +38,6 @@ type Service struct {
 	usageStatsMu       sync.Mutex
 	usageStatsCached   *domain.UsageStatsReport
 	usageStatsCachedAt time.Time
-
-	// mcpToolCostsOnce gates a one-shot computation of per-tool schema
-	// token cost. The result feeds Settings → MCP's per-tool table so
-	// users see "this tool costs X tokens per message". Computed lazily
-	// the first time the widget asks for tool list — cheap (~tens of
-	// ms) but no point paying it on every refresh.
-	mcpToolCostsOnce  sync.Once
-	mcpToolCostsCache map[string]int
 }
 
 // UsageStatsCacheTTL is the maximum age a cached report can serve before

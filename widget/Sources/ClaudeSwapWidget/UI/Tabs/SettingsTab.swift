@@ -5,12 +5,12 @@ import SwiftUI
 // split into four semantic groups so each item does exactly one job:
 //
 //   APP          — basic cosmetics + the canonical Accounts surface
-//   FEATURES     — opt-in workflows (IDE reload, Briefing, Local MCP)
+//   FEATURES     — opt-in workflows (IDE reload)
 //   DATA & SYNC  — anything that backs up, restores, or inspects state
 //   SYSTEM       — read-mostly screens (privacy, updates, about)
 //
 // The earlier "General / System" pair conflated cosmetic prefs with feature
-// surfaces (MCP, Briefing) and dumped Diagnostics + iCloud Sync under the
+// surfaces and dumped Diagnostics + iCloud Sync under the
 // Update tab. Four groups is short enough to scan without scrolling and
 // long enough to separate concerns the user reasons about differently.
 struct SettingsTab: View {
@@ -34,8 +34,8 @@ struct SettingsTab: View {
                 // Force a fresh detail subtree per tab. Without an `.id`
                 // tied to `selected`, SwiftUI may reuse the previous
                 // tab's NSScrollView for the new tab's content — which
-                // landed users mid-page (e.g. on MCP's chat-tool-mode
-                // card) before the page settled back to the top.
+                // landed users mid-page (e.g. deep in a long settings
+                // page) before the page settled back to the top.
                 .id(selected)
                 // Without this, the implicit `.animation(...)` on the
                 // sidebar item's `isSelected` propagates down into the
@@ -210,8 +210,6 @@ struct SettingsTab: View {
         case .general:     GeneralTab()
         case .accounts:    AccountsTab()
         case .ide:         IDEIntegrationTab()
-        case .mcp:         MCPTab()
-        case .news:        NewsSettingsView()
         case .iCloudSync:  DiagnosticsTab(mode: .iCloud)
         case .diagnostics: DiagnosticsTab(mode: .diagnostics)
         case .privacy:     PrivacyTab()
@@ -222,7 +220,7 @@ struct SettingsTab: View {
 }
 
 enum SettingsSubTab: String, CaseIterable, Identifiable {
-    case general, accounts, ide, mcp, news, iCloudSync, diagnostics, privacy, update, about
+    case general, accounts, ide, iCloudSync, diagnostics, privacy, update, about
 
     var id: String { rawValue }
 
@@ -230,7 +228,7 @@ enum SettingsSubTab: String, CaseIterable, Identifiable {
     static let appGroup: [SettingsSubTab] = [.general, .accounts]
     /// Opt-in workflows that wire Claude Bar into the rest of the user's
     /// toolchain — each has enough surface area to deserve its own tab.
-    static let featuresGroup: [SettingsSubTab] = [.ide, .mcp, .news]
+    static let featuresGroup: [SettingsSubTab] = [.ide]
     /// Anything that backs up, restores, or inspects state.
     static let dataGroup: [SettingsSubTab] = [.iCloudSync, .diagnostics]
     /// Read-mostly screens.
@@ -241,8 +239,6 @@ enum SettingsSubTab: String, CaseIterable, Identifiable {
         case .general:     return "General"
         case .accounts:    return "Accounts"
         case .ide:         return "IDE Integration"
-        case .mcp:         return "Local MCP"
-        case .news:        return "News"
         case .iCloudSync:  return "iCloud Sync"
         case .diagnostics: return "Diagnostics"
         case .privacy:     return "Privacy"
@@ -256,8 +252,6 @@ enum SettingsSubTab: String, CaseIterable, Identifiable {
         case .general:     return "gearshape.fill"
         case .accounts:    return "person.2.fill"
         case .ide:         return "macwindow.on.rectangle"
-        case .mcp:         return "puzzlepiece.extension.fill"
-        case .news:        return "newspaper.fill"
         case .iCloudSync:  return "icloud.fill"
         case .diagnostics: return "stethoscope"
         case .privacy:     return "hand.raised.fill"
@@ -274,8 +268,6 @@ enum SettingsSubTab: String, CaseIterable, Identifiable {
         case .general:     return .gray
         case .accounts:    return .blue
         case .ide:         return .purple
-        case .mcp:         return .teal
-        case .news:        return .indigo
         case .iCloudSync:  return .cyan
         case .diagnostics: return .red
         case .privacy:     return .pink

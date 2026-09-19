@@ -9,10 +9,10 @@ struct SettingsPage<Content: View>: View {
     @ViewBuilder var content: Content
 
     var body: some View {
-        // Belt-and-suspenders for the "MCP opens scrolled mid-page" bug:
+        // Belt-and-suspenders for the "page opens scrolled mid-page" bug:
         //
         //   1. `defaultScrollAnchor(.top)` makes async content growth
-        //      (MCP connector list inflating after `coordinator.refresh()`)
+        //      (e.g. a list inflating after an async refresh)
         //      keep the top edge pinned instead of sliding the page down.
         //   2. `ScrollViewReader` + a sentinel `"top"` view + explicit
         //      `scrollTo("top")` on appear forces the scroll offset back

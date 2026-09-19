@@ -12,10 +12,10 @@ final class AppSettings: ObservableObject {
     /// Master "pause" switch. When true the app stays in the menu bar and
     /// remains fully interactive (manual refresh, account switch, settings)
     /// but every background loop and helper process is torn down: usage
-    /// polling, the 6-hour token refresh, auto-swap, the briefing scheduler,
-    /// web cookie keep-alive, iCloud preference sync, and the gate-proxy
-    /// subprocess. App Nap is allowed to re-engage too, so a paused app is as
-    /// quiet as it was before it was installed. Persisted — a paused app
+    /// polling, the 6-hour token refresh, auto-swap, web cookie keep-alive,
+    /// iCloud preference sync, and the server / Claude status monitors. App
+    /// Nap is allowed to re-engage too, so a paused app is as quiet as it was
+    /// before it was installed. Persisted — a paused app
     /// relaunches paused until the user flips it back. Coordinated centrally
     /// by `BackgroundWorkController`.
     @AppStorage("dormantModeEnabled") var dormantModeEnabled: Bool = false
@@ -122,14 +122,14 @@ final class AppSettings: ObservableObject {
     /// popover renders whichever is selected (no in-popover switcher).
     @AppStorage("tokenChartStyle") var tokenChartStyle: TokenChartStyle = .wave
 
-    // MARK: - Daily Briefing scheduler + quiet hours
+    // MARK: - Quiet hours (server / Claude status alerts)
 
-    @AppStorage("briefingScheduleMode") var briefingScheduleMode: String = "cron"
-    @AppStorage("briefingIntervalMinutes") var briefingIntervalMinutes: Int = 15
     @AppStorage("quietHoursStart") var quietHoursStart: String = "22:00"
     @AppStorage("quietHoursEnd") var quietHoursEnd: String = "07:00"
 
-    // MARK: - Daily Briefing hotkeys (Carbon key codes + modifier bitmask)
+    // MARK: - Global hotkey (Carbon key code + modifier bitmask)
+    // Keys keep their historical "briefing" names so existing installs keep
+    // the user's binding.
 
     @AppStorage("briefingHotkeyOpenAppKeyCode")
     var briefingHotkeyOpenAppKeyCode: Int = 6   // kVK_ANSI_Z
@@ -137,84 +137,10 @@ final class AppSettings: ObservableObject {
     @AppStorage("briefingHotkeyOpenAppModifiers")
     var briefingHotkeyOpenAppModifiers: Int = 2048 // optionKey
 
-    @AppStorage("briefingHotkeyOpenBriefingKeyCode")
-    var briefingHotkeyOpenBriefingKeyCode: Int = 7  // kVK_ANSI_X
-
-    @AppStorage("briefingHotkeyOpenBriefingModifiers")
-    var briefingHotkeyOpenBriefingModifiers: Int = 2048 // optionKey
-
-    // MARK: - News feeds (JSON-encoded list of NewsFeedConfig)
-
-    @AppStorage("briefingNewsFeedsJSON")
-    var briefingNewsFeedsJSON: String = "[]"
-
-    // MARK: - News dashboard (⌥X) — machine-local behaviour only.
-    // Provider, model, Claude-fallback, and feed list are Go-owned
-    // aggregation config (`csw news config get|set`, see contract.md's
-    // "Config ownership split") — intentionally NOT duplicated here.
-
-    /// "master" (aggregates + serves) or "client" (pulls from the SSH relay).
-    @AppStorage("newsRole") var newsRole: String = "master"
-
-    /// SSH host id (from the shared `ssh/hosts.json` tracked-host store) the
-    /// Client role pulls `news.json` from. Empty until the user picks one in
-    /// Netbird → SSH. Wired up in Phase 4.
-    @AppStorage("newsRelayHostID") var newsRelayHostID: String = ""
-
-    /// Remote directory on the relay host holding the published news
-    /// snapshot + manifest. Wired up in Phase 4.
-    @AppStorage("newsRelayRemoteDir") var newsRelayRemoteDir: String = ""
-
-    /// How often (hours) the News window re-aggregates in the background, in
-    /// addition to on-open and the manual refresh button.
-    @AppStorage("newsRefreshIntervalHours") var newsRefreshIntervalHours: Int = 6
-
-    /// "08:00" — fetch news at this local time. Empty disables auto fetch.
-    @AppStorage("briefingNewsFetchTime")
-    var briefingNewsFetchTime: String = "08:00"
-
-    /// How many times per day to refresh news. 1 = once at fetch time.
-    @AppStorage("briefingNewsFetchesPerDay")
-    var briefingNewsFetchesPerDay: Int = 1
-
-    /// Comma-separated "HH:mm" times at which the briefing auto-runs.
-    /// Persisted in addition to the cron expression so the Settings UI can
-    /// show a friendly time-picker; cron is regenerated from this on save.
-    @AppStorage("briefingScheduleTimes")
-    var briefingScheduleTimes: String = "08:33"
-
-    /// Free-form markdown the user pastes to steer the briefing summariser
-    /// — e.g. "tập trung vào việc kỹ thuật, bỏ qua marketing". Persisted
-    /// to a file the Go briefing runner reads so Claude's prompt sees it
-    /// as a "# Ưu tiên người dùng" section.
-    @AppStorage("briefingUserPrompt")
-    var briefingUserPrompt: String = ""
-
-    /// Tool-permission level for the in-app chat ("Hỏi gì đó với Claude…").
-    /// Read by `ChatStreamReader` and forwarded to the Go chat client via the
-    /// `CB_CHAT_TOOL_MODE` env var. Three tiers: `.off` (no tools / no skills,
-    /// safest), `.safe` (read-only + MCP + skills, no Bash/Write/Edit), `.full`
-    /// (everything, equivalent to `--dangerously-skip-permissions`).
-    @AppStorage("chatToolMode") var chatToolMode: ChatToolMode = .safe
-
     /// Flipped to true once the first-launch onboarding wizard's Finish
     /// button is clicked. The wizard never reappears while this is true;
     /// the "Re-run onboarding" action in the About tab flips it back.
     @AppStorage("didCompleteOnboarding") var didCompleteOnboarding: Bool = false
-
-    /// Per-MCP-connector markdown prompts. JSON encoded shape of
-    /// `MCPConnectorPrompts` (slack / clickup / gdrive / gmail / gcal /
-    /// gsheets). Read by the Go side on chat-tool invocations.
-    @AppStorage("mcpConnectorPromptsJSON")
-    var mcpConnectorPromptsJSON: String = "{}"
-
-    /// When true, `cb_slack_post_message` skips the local write approval
-    /// popover. Other Slack write tools and all non-Slack write tools stay
-    /// gated. Defaults to `true`; user can opt out via Local MCP settings.
-    /// App.init() seeds the UserDefaults key to true on first launch so
-    /// existing installs that pre-date the default flip also get it on
-    /// without overriding any choice the user has actively made.
-    @AppStorage("autoApproveSlackPostMessage") var autoApproveSlackPostMessage: Bool = true
 
     /// Timestamp of the last backup token refresh attempt (written before RPC).
     /// Used to throttle attempt frequency — prevents hammering Anthropic on
@@ -262,19 +188,6 @@ final class AppSettings: ObservableObject {
     @AppStorage("lastLaunchedAppVersion") var lastLaunchedAppVersion: String = ""
 
     @AppStorage("menuBarIconColor") var menuBarIconColor: MenuBarIconColor = .system
-
-    /// Display name shown in the Daily window's top-left profile chip.
-    /// Empty falls back to "Bạn" so the chip still renders something readable.
-    @AppStorage("dailyProfileName") var dailyProfileName: String = ""
-
-    /// Absolute path to the user-selected avatar PNG copied into
-    /// `~/Library/Application Support/claude-swap-widget/avatar.png`.
-    /// Empty means use the initial-letter placeholder.
-    @AppStorage("dailyProfileAvatarPath") var dailyProfileAvatarPath: String = ""
-
-    /// Bumped every time the avatar file is rewritten so SwiftUI views observing
-    /// this counter re-decode the on-disk image without us mutating its URL.
-    @AppStorage("dailyProfileAvatarVersion") var dailyProfileAvatarVersion: Int = 0
 
     /// Parsed view of `reloadShortcut`, with default fallback if the stored
     /// string is malformed (e.g. user-edited UserDefaults).
@@ -430,45 +343,6 @@ enum MenuBarIconColor: String, CaseIterable, Identifiable {
         case .red:    return .red
         case .pink:   return Color(red: 1.0, green: 0.45, blue: 0.70)
         case .purple: return .purple
-        }
-    }
-}
-
-/// Tool-permission tier for in-app chat. Wire-format string is the same value
-/// passed through the `CB_CHAT_TOOL_MODE` env var so the Go backend can
-/// switch on it without knowing about Swift enums.
-enum ChatToolMode: String, CaseIterable, Identifiable {
-    case off
-    case safe
-    case full
-
-    var id: String { rawValue }
-
-    var label: String {
-        switch self {
-        case .off:  return "Chat only — no tools"
-        case .safe: return "Read + MCP + skills (recommended)"
-        case .full: return "Full agent — bash, write files, run commands"
-        }
-    }
-
-    var subtitle: String {
-        switch self {
-        case .off:
-            return "Claude only replies with text. No skills, no MCP, no file access."
-        case .safe:
-            return "Lets Claude read files (Read/Glob/Grep), browse the web (WebFetch/WebSearch), use any MCP server (Slack/Gmail/Drive/Calendar/ClickUp…), and run slash commands (skills). No Bash/Write/Edit, so Claude can't run shell commands or change your files."
-        case .full:
-            return "All tools enabled, including Bash, Write, and Edit. Claude runs from $HOME, so it can read and write any file in your home folder and run shell commands. All confirmations are skipped — a prompt injection could destroy data."
-        }
-    }
-
-    /// Severity badge: 0 = safe, 1 = caution, 2 = danger.
-    var riskTier: Int {
-        switch self {
-        case .off:  return 0
-        case .safe: return 1
-        case .full: return 2
         }
     }
 }

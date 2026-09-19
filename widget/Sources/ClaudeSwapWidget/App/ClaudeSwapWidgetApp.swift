@@ -30,10 +30,8 @@ struct ClaudeSwapWidgetApp: App {
     @StateObject private var quickRelogin = QuickReloginCoordinator()
     @StateObject private var recovery = CredentialRecoveryCoordinator()
     @StateObject private var cloudSync = CloudSyncCoordinator(client: CswClient())
-    @StateObject private var localMCP = LocalMCPCoordinator(client: CswClient())
     @StateObject private var prefsCloudSync = PreferencesCloudSync.shared
     @StateObject private var updateController = UpdateController()
-    @StateObject private var gateCoord = GateCoordinator.shared
     @StateObject private var serverMonitor = ServerMonitorStore()
     @StateObject private var claudeStatus = ClaudeStatusStore()
     @StateObject private var systemMetrics = SystemMetricsStore()
@@ -45,7 +43,7 @@ struct ClaudeSwapWidgetApp: App {
         // in ~/Library/Logs/ClaudeBar/.
         DiagnosticsLogger.shared.bootstrap()
         CrashHandler.install()
-        // Export CLAUDE_BIN so csw chat/briefing children can find the Claude
+        // Export CLAUDE_BIN so csw children can find the Claude
         // CLI even under the GUI's minimal PATH (Finder-launched apps don't
         // inherit the shell PATH where claude is installed).
         ClaudeBinaryEnv.ensure()
@@ -65,50 +63,31 @@ struct ClaudeSwapWidgetApp: App {
         // was still live. The new code signature then hit the Keychain
         // ACL, triggering the macOS "Allow access?" password dialog.
         resetICloudSyncToggleOnVersionChange()
-        seedAutoApproveSlackPostMessageDefault()
         syncReloadShortcutIfNeeded()
 
-        // GateCoordinator is a singleton (`.shared`) so it can safely run
-        // before any view materialises. Everything else gets wired from
-        // MenuBarLabelView.onAppear — see `wireCoordinatorsOnce` for the
-        // reasoning around @StateObject identity in App.init().
+        // Coordinators get wired from MenuBarLabelView.onAppear — see
+        // `wireCoordinatorsOnce` for the reasoning around @StateObject
+        // identity in App.init().
         AppDelegate.onLaunchCompleted = {
             Task { @MainActor in
                 DiagnosticsLogger.shared.log(.info, subsystem: "launch", "AppDelegate didFinishLaunching")
-                // Skip the gate-proxy spawn when launched paused — the app
-                // is meant to sit as quiet as an uninstalled copy. The
-                // proxy gets started by `BackgroundWorkController.resume()`
-                // the moment the user un-pauses.
-                if !AppSettings.shared.dormantModeEnabled {
-                    GateCoordinator.shared.start()
-                }
-                // ⌥Z toggles the popover, ⌥X toggles the Daily window. Must
-                // run at launch (not from the popover's .task) so the
-                // hotkeys work on a cold-launched session the user hasn't
-                // clicked into yet.
-                Self.registerBriefingHotkeys(settings: AppSettings.shared)
+                // ⌥Z toggles the popover. Must run at launch (not from the
+                // popover's .task) so the hotkey works on a cold-launched
+                // session the user hasn't clicked into yet.
+                Self.registerGlobalHotkey(settings: AppSettings.shared)
             }
         }
     }
 
-    /// Wire the global Carbon hotkeys: ⌥Z toggles the menu-bar popover, ⌥X
-    /// opens the News dashboard window (singleton — reopening just brings
-    /// the existing window forward, see `NewsWindowController.show()`).
+    /// Wire the global Carbon hotkey that toggles the menu-bar popover.
     @MainActor
-    static func registerBriefingHotkeys(settings: AppSettings) {
+    static func registerGlobalHotkey(settings: AppSettings) {
         HotkeyRegistry.shared.register(
-            name: BriefingHotkeySlot.openApp,
+            name: HotkeySlot.openApp,
             keyCode: UInt32(settings.briefingHotkeyOpenAppKeyCode),
             modifiers: UInt32(settings.briefingHotkeyOpenAppModifiers)
         ) {
             MenuBarPopoverToggle.toggle()
-        }
-        HotkeyRegistry.shared.register(
-            name: BriefingHotkeySlot.openBriefing,
-            keyCode: UInt32(settings.briefingHotkeyOpenBriefingKeyCode),
-            modifiers: UInt32(settings.briefingHotkeyOpenBriefingModifiers)
-        ) {
-            NewsWindowController.shared.toggle()
         }
     }
 
@@ -164,28 +143,9 @@ struct ClaudeSwapWidgetApp: App {
                 .environmentObject(quickRelogin)
                 .environmentObject(recovery)
                 .environmentObject(cloudSync)
-                .environmentObject(localMCP)
                 .environmentObject(updateController)
-                .environmentObject(gateCoord)
                 .environmentObject(serverMonitor)
                 .environmentObject(claudeStatus)
-                // Write-gate sheet for Low / Medium / ReadSensitive prompts.
-                // Without this, those prompts only render via the
-                // ConfirmGateOverlay inside the popover — invisible when the
-                // popover is closed, so MCP write calls (Slack post, ClickUp
-                // comment, etc.) time out after 30s without the user ever
-                // seeing the prompt. The `isPresented` binding must accept
-                // writes too — a no-op setter would leave SwiftUI thinking
-                // the sheet is in-flight forever.
-                .sheet(isPresented: Binding(
-                    get: { gateCoord.pending.map { $0.risk != .destructive } ?? false },
-                    set: { isOpen in if !isOpen { gateCoord.cancel() } }
-                )) {
-                    ConfirmGateView(gate: gateCoord)
-                        .frame(width: 460)
-                        .padding(20)
-                        .background(Color(NSColor.windowBackgroundColor))
-                }
                 .task {
                     // All launch-time wiring (timer start, coordinator
                     // attaches, notification handler) now fires from
@@ -248,7 +208,7 @@ struct ClaudeSwapWidgetApp: App {
         store.cloudSync = cloudSync
         DiagnosticsLogger.shared.log(.info, subsystem: "launch", "coordinators wired")
         // All periodic loops (usage polling, iCloud prefs, web keep-alive)
-        // and the gate proxy are driven through one switch so a persisted
+        // are driven through one switch so a persisted
         // pause survives relaunch and the Settings toggle can flip the whole
         // app dormant. `apply` either starts everything or leaves it stopped
         // depending on the saved flag.
@@ -256,7 +216,6 @@ struct ClaudeSwapWidgetApp: App {
             store: store,
             prefsSync: prefsCloudSync,
             webFallback: webFallback,
-            gate: gateCoord,
             serverMonitor: serverMonitor,
             claudeStatus: claudeStatus,
             systemMetrics: systemMetrics
@@ -269,9 +228,7 @@ struct ClaudeSwapWidgetApp: App {
         let webBind = webFallback
         let quickBind = quickRelogin
         let cloudBind = cloudSync
-        let mcpBind = localMCP
         let updateBind = updateController
-        let gateBind = gateCoord
         SettingsWindowController.shared.bindEnvironment { content in
             AnyView(
                 content
@@ -281,18 +238,8 @@ struct ClaudeSwapWidgetApp: App {
                     .environmentObject(webBind)
                     .environmentObject(quickBind)
                     .environmentObject(cloudBind)
-                    .environmentObject(mcpBind)
                     .environmentObject(updateBind)
-                    .environmentObject(gateBind)
             )
-        }
-        // News window lives outside the MenuBarExtra view tree too — bind
-        // the app identity coordinator now so Phase 4 (relay status via
-        // GateCoordinator/ServerMonitorStore) doesn't need to touch this
-        // wiring again. NewsDashboardView itself only needs NewsStore,
-        // which NewsWindowController injects directly in `hostedRoot()`.
-        NewsWindowController.shared.bindEnvironment { content in
-            AnyView(content.environmentObject(storeBind))
         }
         // prefsCloudSync is started/stopped by BackgroundWorkController above.
         Task { @MainActor in
@@ -302,9 +249,6 @@ struct ClaudeSwapWidgetApp: App {
             try? await Task.sleep(nanoseconds: 800_000_000)
             presentOnboardingIfNeeded()
             DiagnosticsLogger.shared.log(.info, subsystem: "launch", "end wireCoordinatorsOnce")
-        }
-        Task.detached(priority: .utility) { [localMCP] in
-            await localMCP.refresh()
         }
     }
 
@@ -336,23 +280,6 @@ struct ClaudeSwapWidgetApp: App {
     /// the user's choice, so flipping it on once per release sticks until
     /// the next update. Keychain item is left intact so re-enabling the
     /// toggle reuses the saved passphrase without a re-prompt.
-    /// Seed the auto-approve toggle to ON for users who have never touched
-    /// it — handles fresh installs and existing users on builds that
-    /// shipped before the default flipped to true. Once UserDefaults has
-    /// a value (user toggled, or this seed ran), we leave the user's
-    /// choice alone. Always re-emits the policy JSON the Go MCP process
-    /// reads so the backend stays in sync without waiting for the
-    /// settings view's .task to fire.
-    @MainActor
-    private func seedAutoApproveSlackPostMessageDefault() {
-        let key = "autoApproveSlackPostMessage"
-        let defaults = UserDefaults.standard
-        if defaults.object(forKey: key) == nil {
-            defaults.set(true, forKey: key)
-        }
-        MCPWritePolicyWriter.write(autoApproveSlackPostMessage: settings.autoApproveSlackPostMessage)
-    }
-
     @MainActor
     private func resetICloudSyncToggleOnVersionChange() {
         let current = (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String) ?? ""

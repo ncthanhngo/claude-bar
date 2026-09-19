@@ -1,9 +1,9 @@
 import Foundation
 
-/// Phase 3/7/9/10 — backend RPCs the Command Center Diagnostics cards call.
-/// Each maps 1:1 to a `csw <subcommand>` invocation.
+/// Backend RPCs for the SSH host registry behind the server monitor.
+/// Each maps 1:1 to a `csw ssh <subcommand>` invocation.
 extension CswClient {
-    // MARK: - SSH (Phase 3)
+    // MARK: - Host registry
 
     struct SSHHostDTO: Codable, Identifiable, Equatable {
         let name: String
@@ -40,9 +40,6 @@ extension CswClient {
         try await self.run(["ssh", "list"], decode: [SSHHostDTO].self)
     }
 
-    func sshImportFromConfig() async throws {
-        _ = try await self.runRaw(["ssh", "import"])
-    }
 
     func sshRemove(name: String) async throws {
         _ = try await self.runRaw(["ssh", "remove", "--name", name])
@@ -100,130 +97,7 @@ extension CswClient {
         _ = try await self.runRaw(["ssh", "trust-key", "--host", host])
     }
 
-    // MARK: - CI Tools (Daily → Tools: ci-watch + glpush installer)
-
-    /// Machine-wide install state for the ci-watch/glpush tooling. Mirrors
-    /// the Go `citools.Status` JSON (flat keys).
-    struct CIToolsStatusDTO: Codable, Equatable {
-        let brew: Bool
-        let glab: Bool
-        let gh: Bool
-        let ghAuthed: Bool
-        let ciWatch: Bool
-        let glpush: Bool
-        let instances: Int
-        let hostsAuthed: [String]?
-        let installed: Bool
-    }
-
-    /// `citools install` result — Status fields (embedded, so flat) + a step log.
-    struct CIToolsInstallDTO: Codable, Equatable {
-        let brew: Bool
-        let glab: Bool
-        let gh: Bool
-        let ghAuthed: Bool
-        let ciWatch: Bool
-        let glpush: Bool
-        let instances: Int
-        let hostsAuthed: [String]?
-        let installed: Bool
-        let log: [String]
-
-        var status: CIToolsStatusDTO {
-            CIToolsStatusDTO(brew: brew, glab: glab, gh: gh, ghAuthed: ghAuthed,
-                             ciWatch: ciWatch, glpush: glpush, instances: instances,
-                             hostsAuthed: hostsAuthed, installed: installed)
-        }
-    }
-
-    func citoolsStatus() async throws -> CIToolsStatusDTO {
-        try await self.run(["citools", "status"], decode: CIToolsStatusDTO.self)
-    }
-
-    func citoolsInstall() async throws -> CIToolsInstallDTO {
-        try await self.run(["citools", "install"], decode: CIToolsInstallDTO.self)
-    }
-
-    // MARK: - Bitwarden (Phase 9)
-
-    struct BWStatusDTO: Codable, Equatable {
-        let binaryFound: Bool
-        let binaryPath: String?
-        let unlocked: Bool
-        let unlockedAt: String?
-        let serverUrl: String?
-        let userEmail: String?
-    }
-
-    func bwStatus() async throws -> BWStatusDTO {
-        try await self.run(["bw", "status"], decode: BWStatusDTO.self)
-    }
-
-    func bwUnlock(passphrase: String) async throws {
-        try await self.runWithStdin(["bw", "unlock"], stdin: passphrase)
-    }
-
-    func bwLock() async throws {
-        _ = try await self.runRaw(["bw", "lock"])
-    }
-
-    // MARK: - Audit (Phase 10)
-
-    struct AuditEventDTO: Codable, Identifiable, Equatable {
-        let ts: Date
-        let kind: String
-        let tool: String?
-        let account: String?
-        let outcome: String
-        let latencyMs: Int?
-        let argsHash: String?
-
-        var id: String { (tool ?? kind) + ts.timeIntervalSince1970.description }
-    }
-
-    func auditTail(lines: Int = 50) async throws -> [AuditEventDTO] {
-        try await self.run(["audit", "tail", "-n", String(lines)], decode: [AuditEventDTO].self)
-    }
-
-    func auditPath() async throws -> String {
-        let data = try await self.runRaw(["audit", "path"])
-        return String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-    }
-
-    // MARK: - Repomap (Phase 4 — repo-link resolution)
-
-    struct RepoEntryDTO: Codable, Identifiable, Equatable {
-        let origin: String
-        let localPath: String
-        let discoveredAt: Date?
-
-        var id: String { origin + "|" + localPath }
-    }
-
-    struct RepoScanResultDTO: Codable, Equatable {
-        let entries: Int
-        let roots: [String]
-    }
-
-    func repomapScan(roots: [String]? = nil) async throws -> RepoScanResultDTO {
-        var args = ["repomap", "scan"]
-        if let r = roots, !r.isEmpty {
-            args += ["--roots", r.joined(separator: ",")]
-        }
-        return try await self.run(args, decode: RepoScanResultDTO.self)
-    }
-
-    func repomapLookup(origin: String) async throws -> String {
-        struct R: Decodable { let localPath: String }
-        let r = try await self.run(["repomap", "lookup", "--origin", origin], decode: R.self)
-        return r.localPath
-    }
-
-    func repomapList() async throws -> [RepoEntryDTO] {
-        try await self.run(["repomap", "list"], decode: [RepoEntryDTO].self)
-    }
-
-    // MARK: - SSH bundle (Phase 3 — encrypted .cbssh export/import)
+    // MARK: - Encrypted .cbssh export/import
 
     func sshExportBundle(toPath path: String, passphrase: String) async throws {
         try await self.runWithStdin(["ssh", "export-bundle", "--out", path], stdin: passphrase)
@@ -233,5 +107,19 @@ extension CswClient {
         var args = ["ssh", "import-bundle", "--in", path]
         if !merge { args += ["--merge=false"] }
         try await self.runWithStdin(args, stdin: passphrase)
+    }
+}
+
+/// Convenience accessors over the (optional-heavy) backend SSH host DTO.
+extension CswClient.SSHHostDTO {
+    var hostNameOr: String { hostName ?? "" }
+    var userOr: String { user ?? "" }
+    var portOr: Int { port ?? 0 }
+
+    /// "user@host" target, or just host when no user is set.
+    var target: String {
+        let h = hostName ?? ""
+        let u = user ?? ""
+        return u.isEmpty ? h : "\(u)@\(h)"
     }
 }

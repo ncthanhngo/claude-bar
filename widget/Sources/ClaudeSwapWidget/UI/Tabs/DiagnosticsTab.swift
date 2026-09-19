@@ -232,7 +232,7 @@ struct DiagnosticsTab: View {
     private var iCloudGroup: some View {
         SettingsGroup(
             "iCloud Sync",
-            subtitle: "Sync the account roster, MCP connector tokens, and claude.ai web profile cookies across Macs sharing your Apple ID. Claude Code OAuth credentials stay local — each new Mac still needs its own `claude /login`, so a stolen iCloud bundle can never authenticate as you."
+            subtitle: "Sync the account roster and claude.ai web profile cookies across Macs sharing your Apple ID. Claude Code OAuth credentials stay local — each new Mac still needs its own `claude /login`, so a stolen iCloud bundle can never authenticate as you."
         ) {
             Toggle(isOn: Binding(
                 get: { iCloudSyncEnabled },
@@ -241,7 +241,7 @@ struct DiagnosticsTab: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Enable iCloud sync")
                         .font(.system(size: 12, weight: .medium))
-                    Text("Off by default after every update. When on, MCP connectors (Slack / ClickUp / Google) and account metadata roam across your Macs — so you don't have to re-pair every service on every new install. Claude Code OAuth tokens are deliberately excluded: each Mac still needs its own `claude /login` per account. Turning sync off skips every Keychain read, so Sparkle updates don't trigger password prompts.")
+                    Text("Off by default after every update. When on, account metadata roams across your Macs. Claude Code OAuth tokens are deliberately excluded: each Mac still needs its own `claude /login` per account. Turning sync off skips every Keychain read, so Sparkle updates don't trigger password prompts.")
                         .font(.caption)
                         .foregroundColor(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
