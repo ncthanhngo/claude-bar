@@ -164,6 +164,21 @@ final class ClaudeWebUsageFetcher: NSObject, WKNavigationDelegate {
 
     private func reloadUsagePage() async throws {
         lastMainFrameStatus = nil
+        // A navigation that never reports back (WebContent process killed,
+        // redirect stall) would otherwise leave this continuation pending
+        // forever; cancellation from the caller's timeout releases it.
+        try await withTaskCancellationHandler {
+            try await startUsagePageLoad()
+        } onCancel: {
+            Task { @MainActor [weak self] in
+                self?.webView.stopLoading()
+                self?.finishLoad(CancellationError())
+            }
+        }
+    }
+
+    private func startUsagePageLoad() async throws {
+        try Task.checkCancellation()
         try await withCheckedThrowingContinuation { continuation in
             loadContinuation = continuation
             // Bypass HTTP cache so a recent reset isn't masked by a 304 that
@@ -218,6 +233,10 @@ final class ClaudeWebUsageFetcher: NSObject, WKNavigationDelegate {
 
     func webView(_: WKWebView, didFailProvisionalNavigation _: WKNavigation!, withError error: Error) {
         finishLoad(error)
+    }
+
+    func webViewWebContentProcessDidTerminate(_: WKWebView) {
+        finishLoad(ClaudeWebUsageError.usagePageNotReady)
     }
 
     private func finishLoad(_ error: Error? = nil) {

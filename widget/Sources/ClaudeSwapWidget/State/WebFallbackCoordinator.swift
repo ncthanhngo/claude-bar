@@ -278,17 +278,8 @@ final class WebFallbackCoordinator: ObservableObject {
                 // entire refresh cycle. Without this we observed 40–50s
                 // pending tasks piling up on the main actor.
                 let fetcher = ClaudeWebUsageFetcher(dataStore: dataStore)
-                usage = try await withThrowingTaskGroup(of: UsageDTO.self) { group in
-                    group.addTask { try await fetcher.fetchUsage() }
-                    group.addTask {
-                        try await Task.sleep(nanoseconds: 12_000_000_000)
-                        throw ClaudeWebUsageError.usagePageNotReady
-                    }
-                    defer { group.cancelAll() }
-                    guard let first = try await group.next() else {
-                        throw ClaudeWebUsageError.usagePageNotReady
-                    }
-                    return first
+                usage = try await Self.withHardTimeout(seconds: 12) {
+                    try await fetcher.fetchUsage()
                 }
             }
             let elapsedMs = Int(Date().timeIntervalSince(started) * 1000)
@@ -368,6 +359,46 @@ final class WebFallbackCoordinator: ObservableObject {
     /// resolve: 401/403 from the JSON API, or no claude.ai cookies in the
     /// data store at all. Rate-limit (429) is intentionally excluded — that's
     /// handled by the backoff path and a relogin would not help.
+    /// Races `operation` against a deadline and returns as soon as either
+    /// side finishes. A task group can't do this: it waits for every child
+    /// even after `cancelAll()`, so a WKWebView scrape that never resumes its
+    /// continuation used to hold the refresh cycle — and AppStore's
+    /// `isRefreshing` guard — forever, freezing every usage bar.
+    private static func withHardTimeout<T>(
+        seconds: Double,
+        _ operation: @escaping @MainActor () async throws -> T
+    ) async throws -> T {
+        try await withCheckedThrowingContinuation { (cont: CheckedContinuation<T, Error>) in
+            let gate = OnceGate()
+            let work = Task { @MainActor in
+                do {
+                    let value = try await operation()
+                    if gate.claim() { cont.resume(returning: value) }
+                } catch {
+                    if gate.claim() { cont.resume(throwing: error) }
+                }
+            }
+            Task { @MainActor in
+                try? await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
+                guard gate.claim() else { return }
+                work.cancel()
+                cont.resume(throwing: ClaudeWebUsageError.usagePageNotReady)
+            }
+        }
+    }
+
+    /// Lets exactly one of the racing tasks in `withHardTimeout` resume the
+    /// continuation. Both run on the main actor, so a plain flag suffices.
+    @MainActor
+    private final class OnceGate {
+        private var done = false
+        func claim() -> Bool {
+            if done { return false }
+            done = true
+            return true
+        }
+    }
+
     private static func isAuthShaped(_ error: Error) -> Bool {
         if let api = error as? ClaudeWebUsageAPI.APIError {
             switch api {
