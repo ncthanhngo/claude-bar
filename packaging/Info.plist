@@ -13,9 +13,9 @@
     <key>CFBundleIdentifier</key>
     <string>dev.ncthanhngo.claude-bar</string>
     <key>CFBundleVersion</key>
-    <string>13.11</string>
+    <string>13.12</string>
     <key>CFBundleShortVersionString</key>
-    <string>13.11</string>
+    <string>13.12</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleSignature</key>
@@ -35,7 +35,7 @@
     <key>NSHumanReadableCopyright</key>
     <string>Copyright © 2026 Thanh Ngô. Licensed under MIT.</string>
     <key>CFBundleGetInfoString</key>
-    <string>Claude Bar 13.11 — menu-bar manager for multiple Claude Code accounts</string>
+    <string>Claude Bar 13.12 — menu-bar manager for multiple Claude Code accounts</string>
     <key>CBAuthorName</key>
     <string>Thanh Ngô</string>
     <key>CBAuthorEmail</key>
@@ -45,17 +45,16 @@
     <key>CBLicense</key>
     <string>MIT</string>
     <key>CBBuildDate</key>
-    <string>2026-09-19</string>
+    <string>2026-09-28</string>
     <key>CBReleaseChannel</key>
     <string>Beta</string>
     <key>CBReleaseWhatsNew</key>
-    <string>Removed the Daily window and its ⌥X hotkey; ⌥Z still toggles the popover.
-Removed Local MCP connectors and the background approval proxy.
-Smaller app: the app and csw binaries are roughly a third lighter.</string>
+    <string>Usage bars keep refreshing even when the claude.ai usage page hangs.
+App and csw are now signed with an Apple Development certificate.</string>
     <key>CBReleaseHotfixes</key>
-    <string>Stopped stray csw gate proxy processes piling up across relaunches.</string>
+    <string>Fixed usage bars freezing on stale numbers for hours after a stuck web usage check.</string>
     <key>CBReleaseKnownIssues</key>
-    <string>Claude Code sessions that still list claude-bar-mcp in ~/.claude.json will report it as failed; remove that entry.</string>
+    <string>The claude.ai usage page often fails to load; usage then comes from the slower OAuth fallback.</string>
     <key>CFBundleDevelopmentRegion</key>
     <string>en</string>
     <key>CFBundleLocalizations</key>

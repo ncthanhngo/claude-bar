@@ -12,6 +12,26 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 13.12</title>
+      <sparkle:version>13.12</sparkle:version>
+      <sparkle:shortVersionString>13.12</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li>Fixed usage bars freezing on stale numbers for hours after a stuck claude.ai usage check. The check is now cut off after 12 seconds.</li>
+          <li>App and csw are now signed with an Apple Development certificate.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Mon, 28 Sep 2026 16:09:19 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v13.12/ClaudeBar.zip"
+        sparkle:version="13.12"
+        sparkle:shortVersionString="13.12"
+        sparkle:edSignature="6wUyn2XWe9zDFscud8guogcSfLsY88TqZEJ77b/0i5pr6tvrJFef+kgSycfmvMvQ4km3kUxIBIln/XRxCQcYCg=="
+        length="6262145"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 13.11</title>
       <sparkle:version>13.11</sparkle:version>
       <sparkle:shortVersionString>13.11</sparkle:shortVersionString>
