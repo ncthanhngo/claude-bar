@@ -12,6 +12,25 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 13.16</title>
+      <sparkle:version>13.16</sparkle:version>
+      <sparkle:shortVersionString>13.16</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li>NetBird tab: machine labels are now bold in the normal text color instead of orange, which was hard to read.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Wed, 07 Oct 2026 17:42:03 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v13.16/ClaudeBar.zip"
+        sparkle:version="13.16"
+        sparkle:shortVersionString="13.16"
+        sparkle:edSignature="Lxvvcy/7i8mdSB5vbtNKn0iQ3JaSXnUy03JwT/vj43MMJpqZUuIiMFeg9VDS/DvwMTi1OTgof9HxrsYlUs+9AQ=="
+        length="6322872"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 13.15</title>
       <sparkle:version>13.15</sparkle:version>
       <sparkle:shortVersionString>13.15</sparkle:shortVersionString>
