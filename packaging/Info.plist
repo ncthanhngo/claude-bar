@@ -13,9 +13,9 @@
     <key>CFBundleIdentifier</key>
     <string>dev.ncthanhngo.claude-bar</string>
     <key>CFBundleVersion</key>
-    <string>13.12</string>
+    <string>13.13</string>
     <key>CFBundleShortVersionString</key>
-    <string>13.12</string>
+    <string>13.13</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleSignature</key>
@@ -35,7 +35,7 @@
     <key>NSHumanReadableCopyright</key>
     <string>Copyright © 2026 Thanh Ngô. Licensed under MIT.</string>
     <key>CFBundleGetInfoString</key>
-    <string>Claude Bar 13.12 — menu-bar manager for multiple Claude Code accounts</string>
+    <string>Claude Bar 13.13 — menu-bar manager for multiple Claude Code accounts</string>
     <key>CBAuthorName</key>
     <string>Thanh Ngô</string>
     <key>CBAuthorEmail</key>
@@ -45,16 +45,18 @@
     <key>CBLicense</key>
     <string>MIT</string>
     <key>CBBuildDate</key>
-    <string>2026-09-28</string>
+    <string>2026-10-07</string>
     <key>CBReleaseChannel</key>
     <string>Beta</string>
     <key>CBReleaseWhatsNew</key>
-    <string>Usage bars keep refreshing even when the claude.ai usage page hangs.
-App and csw are now signed with an Apple Development certificate.</string>
+    <string>New NetBird tab lists every machine on your NetBird network automatically.
+One click opens an SSH session to a machine in Terminal.
+Each machine remembers its SSH username and a label for who uses it.</string>
     <key>CBReleaseHotfixes</key>
-    <string>Fixed usage bars freezing on stale numbers for hours after a stuck web usage check.</string>
+    <string>None</string>
     <key>CBReleaseKnownIssues</key>
-    <string>The claude.ai usage page often fails to load; usage then comes from the slower OAuth fallback.</string>
+    <string>NetBird SSH only works for machines that have the NetBird SSH server enabled.
+The claude.ai usage page often fails to load; usage then comes from the slower OAuth fallback.</string>
     <key>CFBundleDevelopmentRegion</key>
     <string>en</string>
     <key>CFBundleLocalizations</key>
