@@ -12,6 +12,25 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 13.17</title>
+      <sparkle:version>13.17</sparkle:version>
+      <sparkle:shortVersionString>13.17</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li>Fixed: NetBird tab labels and SSH usernames are now saved per machine name, so they no longer disappear when the network's DNS domain changes. Existing labels are migrated automatically.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Wed, 07 Oct 2026 19:03:24 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v13.17/ClaudeBar.zip"
+        sparkle:version="13.17"
+        sparkle:shortVersionString="13.17"
+        sparkle:edSignature="s37ZEE/v0bAQEI+oYQOLd9NmH0+VQE+vLhuwcz0pL63jeH23gioRB5pmbArY2BoR9e6mNlQ+gN7bj+RWg+E1DA=="
+        length="6323372"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 13.16</title>
       <sparkle:version>13.16</sparkle:version>
       <sparkle:shortVersionString>13.16</sparkle:shortVersionString>
