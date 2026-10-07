@@ -43,4 +43,13 @@ final class NetbirdPeerStoreTests: XCTestCase {
         XCTAssertFalse(SSHTerminalLauncher.isSafe("a\"b", extra: "._-"))
         XCTAssertFalse(SSHTerminalLauncher.isSafe("", extra: "._-"))
     }
+
+    func testSavedEntriesAreKeyedByMachineName() {
+        let migrated = NetbirdPeerStore.byMachineName([
+            "dch.netbird.example.com": "old label",
+            "ndk.netbird.example.com": "Khanh",
+            "dch": "new label",
+        ])
+        XCTAssertEqual(migrated, ["dch": "new label", "ndk": "Khanh"])
+    }
 }

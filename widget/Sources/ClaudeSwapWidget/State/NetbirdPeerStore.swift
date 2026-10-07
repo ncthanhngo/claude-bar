@@ -25,11 +25,12 @@ final class NetbirdPeerStore: ObservableObject {
     /// User-facing reason the list could not be loaded; nil when it loaded.
     @Published private(set) var error: String?
 
-    /// Per-peer SSH usernames the user typed, keyed by FQDN.
+    /// Per-peer SSH usernames the user typed, keyed by machine name.
     @Published private(set) var users: [String: String]
 
-    /// Free-text labels (e.g. who uses the machine), keyed by FQDN. Local to
-    /// this Mac; the NetBird dashboard never sees them.
+    /// Free-text labels (e.g. who uses the machine), keyed by machine name so
+    /// they survive a change of the network's DNS domain. Local to this Mac;
+    /// the NetBird dashboard never sees them.
     @Published private(set) var labels: [String: String]
 
     static let defaultUser = "evseadmin"
@@ -37,8 +38,23 @@ final class NetbirdPeerStore: ObservableObject {
     private static let labelsKey = "netbirdPeerLabels"
 
     init() {
-        users = UserDefaults.standard.dictionary(forKey: Self.usersKey) as? [String: String] ?? [:]
-        labels = UserDefaults.standard.dictionary(forKey: Self.labelsKey) as? [String: String] ?? [:]
+        users = Self.load(Self.usersKey)
+        labels = Self.load(Self.labelsKey)
+    }
+
+    private static func load(_ key: String) -> [String: String] {
+        byMachineName(UserDefaults.standard.dictionary(forKey: key) as? [String: String] ?? [:])
+    }
+
+    /// Entries saved by earlier versions were keyed by FQDN; reduce those to
+    /// the machine name. A name-keyed entry wins over a migrated one.
+    nonisolated static func byMachineName(_ stored: [String: String]) -> [String: String] {
+        var result: [String: String] = [:]
+        for (key, value) in stored where key.contains(".") {
+            result[key.split(separator: ".").first.map(String.init) ?? key] = value
+        }
+        for (key, value) in stored where !key.contains(".") { result[key] = value }
+        return result
     }
 
     /// Where the NetBird CLI lives (pkg install, then Homebrew); nil if absent.
@@ -65,23 +81,23 @@ final class NetbirdPeerStore: ObservableObject {
     }
 
     func user(for peer: NetbirdPeer) -> String {
-        users[peer.fqdn] ?? Self.defaultUser
+        users[peer.name] ?? Self.defaultUser
     }
 
     func setUser(_ user: String, for peer: NetbirdPeer) {
         let trimmed = user.trimmingCharacters(in: .whitespaces)
-        users[peer.fqdn] = trimmed.isEmpty || trimmed == Self.defaultUser ? nil : trimmed
+        users[peer.name] = trimmed.isEmpty || trimmed == Self.defaultUser ? nil : trimmed
         UserDefaults.standard.set(users, forKey: Self.usersKey)
     }
 
     func label(for peer: NetbirdPeer) -> String {
-        labels[peer.fqdn] ?? ""
+        labels[peer.name] ?? ""
     }
 
     func setLabel(_ label: String, for peer: NetbirdPeer) {
         let trimmed = label.trimmingCharacters(in: .whitespaces)
         guard trimmed != self.label(for: peer) else { return }
-        labels[peer.fqdn] = trimmed.isEmpty ? nil : trimmed
+        labels[peer.name] = trimmed.isEmpty ? nil : trimmed
         UserDefaults.standard.set(labels, forKey: Self.labelsKey)
     }
 
