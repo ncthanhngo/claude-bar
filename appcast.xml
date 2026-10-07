@@ -12,6 +12,27 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 13.13</title>
+      <sparkle:version>13.13</sparkle:version>
+      <sparkle:shortVersionString>13.13</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li>New NetBird tab lists every machine on your NetBird network automatically, read from the local NetBird client.</li>
+          <li>One click opens an SSH session to a machine in Terminal.</li>
+          <li>Each machine remembers its SSH username and a label for who uses it.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Wed, 07 Oct 2026 17:13:12 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v13.13/ClaudeBar.zip"
+        sparkle:version="13.13"
+        sparkle:shortVersionString="13.13"
+        sparkle:edSignature="/0Ni52tWDRKAcxEab96D0W4scGRF/gyIO5dgeA+DPQjkXZGVRsrTPSgl97qHuLgzZKsgCyLSE5VhWZDJNly8Cg=="
+        length="6319531"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 13.12</title>
       <sparkle:version>13.12</sparkle:version>
       <sparkle:shortVersionString>13.12</sparkle:shortVersionString>
