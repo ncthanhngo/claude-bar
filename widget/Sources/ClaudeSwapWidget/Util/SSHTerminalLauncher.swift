@@ -16,6 +16,19 @@ enum SSHTerminalLauncher {
         runTerminal(parts.joined(separator: " "))
     }
 
+    /// Opens `netbird ssh user@host` for a machine on the NetBird network.
+    /// Both values end up on a shell command line, so anything outside plain
+    /// account/host characters is refused rather than quoted.
+    static func openNetbird(binary: String, user: String, host: String) {
+        guard isSafe(user, extra: "._-"), isSafe(host, extra: ".-") else { return }
+        runTerminal("\(binary) ssh \(user)@\(host)")
+    }
+
+    static func isSafe(_ value: String, extra: String) -> Bool {
+        let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: extra))
+        return !value.isEmpty && value.unicodeScalars.allSatisfy { $0.isASCII && allowed.contains($0) }
+    }
+
     private static func runTerminal(_ cmd: String) {
         let escaped = cmd.replacingOccurrences(of: "\"", with: "\\\"")
         let script = "tell application \"Terminal\" to do script \"\(escaped)\"\n"

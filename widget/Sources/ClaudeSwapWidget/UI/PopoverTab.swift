@@ -1,10 +1,12 @@
 import Foundation
 
-/// The two segments of the full popover: the existing Claude dashboard
-/// (accounts + auto-swap + token usage) and the new Server health monitor.
+/// The segments of the full popover: the Claude dashboard (accounts +
+/// auto-swap + token usage), the Server health monitor, and the NetBird
+/// machine list with quick SSH.
 enum PopoverTab: String, CaseIterable, Identifiable {
     case claude
     case server
+    case netbird
 
     var id: String { rawValue }
 
@@ -12,6 +14,7 @@ enum PopoverTab: String, CaseIterable, Identifiable {
         switch self {
         case .claude: return "Claude"
         case .server: return "Server"
+        case .netbird: return "NetBird"
         }
     }
 }

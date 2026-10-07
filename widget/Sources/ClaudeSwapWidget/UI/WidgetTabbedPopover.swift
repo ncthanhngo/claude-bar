@@ -1,8 +1,8 @@
 import SwiftUI
 
-// Menu-bar popover root. Two tabs under the header bar: **Claude** (status
-// header → account list → auto-swap → token usage) and **Server** (SSH host
-// health monitor). Global actions (Add account, Verify all, Force refresh,
+// Menu-bar popover root. Three tabs under the header bar: **Claude** (status
+// header → account list → auto-swap → token usage), **Server** (SSH host
+// health monitor) and **NetBird** (network machines with quick SSH). Global actions (Add account, Verify all, Force refresh,
 // Health check, Theme, Quit, Settings) live as icons in the header bar —
 // Settings pinned to the top-right corner. The `WidgetTabbedPopover` name is
 // finally accurate again.
@@ -62,7 +62,7 @@ struct WidgetTabbedPopover: View {
     /// accounts whose plan reports one. Same single-line HStack + 3pt VStack
     /// spacing as a badge row.
     private static let scopedBarExtra: CGFloat = badgeRowExtra
-    /// The Claude|Server segmented row inserted under the header.
+    /// The Claude|Server|NetBird segmented row inserted under the header.
     private static let tabBarHeight: CGFloat = 44
 
     var body: some View {
@@ -73,10 +73,10 @@ struct WidgetTabbedPopover: View {
                 Divider().opacity(0.5)
                 tabBar
                 Divider().opacity(0.4)
-                if tab == .claude {
-                    claudeTabBody
-                } else {
-                    ServerPopoverTab()
+                switch tab {
+                case .claude: claudeTabBody
+                case .server: ServerPopoverTab()
+                case .netbird: NetbirdPopoverTab()
                 }
             }
         }
@@ -143,6 +143,7 @@ struct WidgetTabbedPopover: View {
         HStack(spacing: 6) {
             tabButton(.claude)
             tabButton(.server)
+            tabButton(.netbird)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
