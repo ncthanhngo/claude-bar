@@ -101,8 +101,8 @@ private struct NetbirdPeerRow: View {
                     // Saved as you type, so there is no Return key to forget.
                     TextField("Người dùng máy…", text: $draftLabel)
                         .textFieldStyle(.plain)
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundColor(.orange)
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundColor(.primary)
                         .onChange(of: draftLabel) { _, new in onLabelChange(new) }
                         .help("Ghi chú để nhận diện máy (chỉ lưu trên máy này)")
                 }
