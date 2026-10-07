@@ -28,6 +28,14 @@ final class NetbirdPeerStoreTests: XCTestCase {
         XCTAssertEqual(NetbirdPeerStore.parse(#"{"peers":{"details":null}}"#), [])
     }
 
+    func testNetbirdCommandStartsWithAWordNotASlash() {
+        let cmd = SSHTerminalLauncher.netbirdCommand(
+            binary: "/usr/local/bin/netbird", user: "evseadmin", host: "dch.netbird.example.com")
+        XCTAssertEqual(cmd, "command /usr/local/bin/netbird ssh evseadmin@dch.netbird.example.com")
+        XCTAssertNil(SSHTerminalLauncher.netbirdCommand(
+            binary: "/usr/local/bin/netbird", user: "a;b", host: "dch.netbird.example.com"))
+    }
+
     func testTerminalValuesRejectShellMetacharacters() {
         XCTAssertTrue(SSHTerminalLauncher.isSafe("evseadmin", extra: "._-"))
         XCTAssertTrue(SSHTerminalLauncher.isSafe("dch.netbird.example.com", extra: ".-"))

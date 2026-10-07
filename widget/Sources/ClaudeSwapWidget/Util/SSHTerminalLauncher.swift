@@ -20,8 +20,17 @@ enum SSHTerminalLauncher {
     /// Both values end up on a shell command line, so anything outside plain
     /// account/host characters is refused rather than quoted.
     static func openNetbird(binary: String, user: String, host: String) {
-        guard isSafe(user, extra: "._-"), isSafe(host, extra: ".-") else { return }
-        runTerminal("\(binary) ssh \(user)@\(host)")
+        if let cmd = netbirdCommand(binary: binary, user: user, host: host) { runTerminal(cmd) }
+    }
+
+    /// The line typed into the new Terminal window; nil when a value is unsafe.
+    /// Terminal feeds it to the interactive shell as keystrokes, so it must not
+    /// start with "/" — shells commonly bind a leading "/" (or other first
+    /// keys) to a widget such as an fzf directory picker, which would swallow
+    /// the command. `command` keeps the absolute path while starting with a word.
+    static func netbirdCommand(binary: String, user: String, host: String) -> String? {
+        guard isSafe(user, extra: "._-"), isSafe(host, extra: ".-") else { return nil }
+        return "command \(binary) ssh \(user)@\(host)"
     }
 
     static func isSafe(_ value: String, extra: String) -> Bool {
