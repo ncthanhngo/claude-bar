@@ -90,6 +90,12 @@ final class NetbirdPeerStore: ObservableObject {
         SSHTerminalLauncher.openNetbird(binary: bin, user: user(for: peer), host: peer.fqdn)
     }
 
+    /// The command to paste into any terminal to SSH into this machine; nil
+    /// when the saved username is not a plain account name.
+    func sshCommand(for peer: NetbirdPeer) -> String? {
+        SSHTerminalLauncher.netbirdCommand(binary: "netbird", user: user(for: peer), host: peer.fqdn)
+    }
+
     /// Decodes `netbird status --json`. Connected peers first, then by name.
     /// Returns nil when the output is not the expected JSON (daemon down).
     nonisolated static func parse(_ json: String) -> [NetbirdPeer]? {

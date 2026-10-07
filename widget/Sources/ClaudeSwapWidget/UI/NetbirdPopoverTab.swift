@@ -55,6 +55,7 @@ struct NetbirdPopoverTab: View {
                             label: store.label(for: peer),
                             onUserChange: { store.setUser($0, for: peer) },
                             onLabelChange: { store.setLabel($0, for: peer) },
+                            sshCommand: { store.sshCommand(for: peer) },
                             onConnect: { store.connect(peer) }
                         )
                     }
@@ -80,10 +81,13 @@ private struct NetbirdPeerRow: View {
     let label: String
     let onUserChange: (String) -> Void
     let onLabelChange: (String) -> Void
+    /// Evaluated at click time so it reflects the username just typed.
+    let sshCommand: () -> String?
     let onConnect: () -> Void
 
     @State private var draftUser = ""
     @State private var draftLabel = ""
+    @State private var copied = false
 
     var body: some View {
         HStack(spacing: 8) {
@@ -97,8 +101,8 @@ private struct NetbirdPeerRow: View {
                     // Saved as you type, so there is no Return key to forget.
                     TextField("Người dùng máy…", text: $draftLabel)
                         .textFieldStyle(.plain)
-                        .font(.system(size: 11))
-                        .foregroundColor(.secondary)
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor(.orange)
                         .onChange(of: draftLabel) { _, new in onLabelChange(new) }
                         .help("Ghi chú để nhận diện máy (chỉ lưu trên máy này)")
                 }
@@ -112,11 +116,18 @@ private struct NetbirdPeerRow: View {
                 .textFieldStyle(.plain)
                 .font(.system(size: 10, design: .monospaced))
                 .multilineTextAlignment(.trailing)
-                .frame(width: 84)
+                .frame(width: 72)
                 .padding(.horizontal, 5).padding(.vertical, 3)
                 .background(RoundedRectangle(cornerRadius: 5).fill(Color.primary.opacity(0.06)))
                 .onSubmit { commitUser() }
                 .help("Tài khoản SSH cho máy này")
+            Button(action: copyCommand) {
+                Image(systemName: copied ? "checkmark" : "doc.on.doc").font(.system(size: 11))
+            }
+            .buttonStyle(.plain)
+            .foregroundColor(copied ? .green : .secondary)
+            .pointingHandCursor()
+            .help("Sao chép lệnh SSH vào \(peer.name)")
             Button(action: connect) {
                 Image(systemName: "terminal").font(.system(size: 12))
             }
@@ -143,6 +154,15 @@ private struct NetbirdPeerRow: View {
     }
 
     private func commitUser() { onUserChange(draftUser) }
+
+    private func copyCommand() {
+        commitUser()
+        guard let cmd = sshCommand() else { return }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(cmd, forType: .string)
+        copied = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { copied = false }
+    }
 
     /// Saves whatever is in the field first, so clicking Connect without
     /// pressing Return still uses the username on screen.
