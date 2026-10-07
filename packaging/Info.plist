@@ -13,9 +13,9 @@
     <key>CFBundleIdentifier</key>
     <string>dev.ncthanhngo.claude-bar</string>
     <key>CFBundleVersion</key>
-    <string>13.13</string>
+    <string>13.14</string>
     <key>CFBundleShortVersionString</key>
-    <string>13.13</string>
+    <string>13.14</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleSignature</key>
@@ -35,7 +35,7 @@
     <key>NSHumanReadableCopyright</key>
     <string>Copyright © 2026 Thanh Ngô. Licensed under MIT.</string>
     <key>CFBundleGetInfoString</key>
-    <string>Claude Bar 13.13 — menu-bar manager for multiple Claude Code accounts</string>
+    <string>Claude Bar 13.14 — menu-bar manager for multiple Claude Code accounts</string>
     <key>CBAuthorName</key>
     <string>Thanh Ngô</string>
     <key>CBAuthorEmail</key>
@@ -49,11 +49,9 @@
     <key>CBReleaseChannel</key>
     <string>Beta</string>
     <key>CBReleaseWhatsNew</key>
-    <string>New NetBird tab lists every machine on your NetBird network automatically.
-One click opens an SSH session to a machine in Terminal.
-Each machine remembers its SSH username and a label for who uses it.</string>
+    <string>NetBird tab: one-click SSH now works with shells that bind the "/" key.</string>
     <key>CBReleaseHotfixes</key>
-    <string>None</string>
+    <string>Fixed NetBird SSH opening a directory picker instead of connecting on some shell setups.</string>
     <key>CBReleaseKnownIssues</key>
     <string>NetBird SSH only works for machines that have the NetBird SSH server enabled.
 The claude.ai usage page often fails to load; usage then comes from the slower OAuth fallback.</string>
