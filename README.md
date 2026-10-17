@@ -65,6 +65,7 @@ brew install --cask claude-bar
 - **CLI auto-restart** — sends SIGINT to running `claude` sessions; use with the bundled `claude-watch` wrapper to auto-restart in your terminal
 - **Session guard** — warns you if Claude is running before a manual switch; option to force-switch anyway
 - **Web-first usage** — each account can link its own embedded claude.ai web profile for usage before falling back to terminal OAuth usage; web sessions sync separately through iCloud Keychain by account email
+- **Fan control** — Fan tab shows live fan speed (RPM) and switches between Auto, Max, or a custom speed on Apple Silicon Macs. The first change asks for your admin password once to install a small setuid helper in `/Library/PrivilegedHelperTools`; fans return to Auto when the app quits
 - **Themes** — Light, Dark, and Rainbow
 - **Icon color** — 11 preset tint colors for the menu bar icon (Settings → General)
 

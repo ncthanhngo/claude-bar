@@ -17,6 +17,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Self.onLaunchCompleted?()
         // Single-shot; don't fire on subsequent NSApp reactivations.
         Self.onLaunchCompleted = nil
+        // Fans left on Max/Custom by a crashed previous run go back to Auto.
+        DispatchQueue.global(qos: .utility).async { FanControlStore.restoreAuto() }
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        FanControlStore.restoreAuto()
     }
 }
 

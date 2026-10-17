@@ -5,7 +5,8 @@ let package = Package(
     name: "ClaudeSwapWidget",
     platforms: [.macOS(.v14)],
     products: [
-        .executable(name: "ClaudeSwapWidget", targets: ["ClaudeSwapWidget"])
+        .executable(name: "ClaudeSwapWidget", targets: ["ClaudeSwapWidget"]),
+        .executable(name: "ClaudeBarFanHelper", targets: ["ClaudeBarFanHelper"])
     ],
     dependencies: [
         // Sparkle 2 — in-app auto-update. EdDSA-signed appcast.
@@ -14,9 +15,23 @@ let package = Package(
         .package(url: "https://github.com/sparkle-project/Sparkle", from: "2.6.0")
     ],
     targets: [
+        // AppleSMC access shared by the app (sensor reads) and the root fan
+        // helper (fan writes).
+        .target(
+            name: "SMCKit",
+            path: "Sources/SMCKit",
+            swiftSettings: [.enableExperimentalFeature("StrictConcurrency=complete")]
+        ),
+        // Tiny setuid-root tool the app installs to change fan speed.
+        .executableTarget(
+            name: "ClaudeBarFanHelper",
+            dependencies: ["SMCKit"],
+            path: "Sources/ClaudeBarFanHelper"
+        ),
         .executableTarget(
             name: "ClaudeSwapWidget",
             dependencies: [
+                "SMCKit",
                 .product(name: "Sparkle", package: "Sparkle")
             ],
             path: "Sources/ClaudeSwapWidget",
@@ -30,7 +45,7 @@ let package = Package(
         ),
         .testTarget(
             name: "ClaudeSwapWidgetTests",
-            dependencies: ["ClaudeSwapWidget"],
+            dependencies: ["ClaudeSwapWidget", "SMCKit"],
             path: "Tests/ClaudeSwapWidgetTests"
         )
     ]

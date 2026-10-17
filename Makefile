@@ -22,10 +22,11 @@ SIGN_ID      ?= 35D262F3699333E8478CE16686683BED8A58B4B3
 CSW_SIGN_IDENTIFIER := $(BUNDLE_ID).csw
 
 # Sign inside-out: Sparkle, the csw helper (fixed identifier so Keychain ACLs
-# survive rebuilds), then the bundle. $(1) is the .app path.
+# survive rebuilds), the fan helper, then the bundle. $(1) is the .app path.
 define sign_bundle
 	@if codesign --force --deep --options runtime --timestamp=none --sign "$(SIGN_ID)" $(1)/Contents/Frameworks/Sparkle.framework && \
 	   codesign --force --options runtime --timestamp=none --identifier $(CSW_SIGN_IDENTIFIER) --sign "$(SIGN_ID)" $(1)/Contents/Resources/csw && \
+	   codesign --force --options runtime --timestamp=none --sign "$(SIGN_ID)" $(1)/Contents/MacOS/$(FAN_HELPER) && \
 	   codesign --force --options runtime --timestamp=none --sign "$(SIGN_ID)" $(1); then \
 	  echo "Signed $(1) with $(SIGN_ID)"; \
 	else \
@@ -40,6 +41,9 @@ INFO_PLIST   ?= packaging/Info.plist
 
 BACKEND_BIN  := backend/bin/csw
 WIDGET_BUILD := widget/.build/release/$(EXECUTABLE)
+# setuid-root fan control tool; the app installs it into
+# /Library/PrivilegedHelperTools on first use (see FanControlStore).
+FAN_HELPER   := ClaudeBarFanHelper
 APP_BUNDLE   := release/$(DISPLAY_NAME).app
 
 # sqlite_fts5: enables SQLite FTS5 full-text search inside the SQLCipher
@@ -90,6 +94,7 @@ app: guard-identity backend widget
 	@mkdir -p $(APP_BUNDLE)/Contents/Resources
 	@mkdir -p $(APP_BUNDLE)/Contents/Frameworks
 	cp $(WIDGET_BUILD)              $(APP_BUNDLE)/Contents/MacOS/$(EXECUTABLE)
+	cp widget/.build/release/$(FAN_HELPER) $(APP_BUNDLE)/Contents/MacOS/$(FAN_HELPER)
 	cp $(BACKEND_BIN)               $(APP_BUNDLE)/Contents/Resources/csw
 	cp packaging/icon.png           $(APP_BUNDLE)/Contents/Resources/icon.png
 	cp packaging/AppIcon.icns       $(APP_BUNDLE)/Contents/Resources/AppIcon.icns
