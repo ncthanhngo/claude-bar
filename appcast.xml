@@ -12,6 +12,28 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 13.18</title>
+      <sparkle:version>13.18</sparkle:version>
+      <sparkle:shortVersionString>13.18</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li>New Fan tab with live fan RPM and Auto / Max / Custom fan control.</li>
+          <li>Token usage stats refresh almost instantly and use far less CPU.</li>
+          <li>Fixed the background helper using several seconds of CPU on every usage refresh.</li>
+          <li>macOS may ask for Keychain access once after this update (new signing certificate).</li>
+        </ul>
+      ]]></description>
+      <pubDate>Mon, 26 Oct 2026 19:40:16 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v13.18/ClaudeBar.zip"
+        sparkle:version="13.18"
+        sparkle:shortVersionString="13.18"
+        sparkle:edSignature="z5pFEPTPy821zhhUntFKW6jMrQmC5sZW+m4FCZ4kNRm1yj4noDdtfO5l4waHPIqpMHRLGdaQ3OCZDAkJyAcZCA=="
+        length="6227503"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 13.17</title>
       <sparkle:version>13.17</sparkle:version>
       <sparkle:shortVersionString>13.17</sparkle:shortVersionString>
