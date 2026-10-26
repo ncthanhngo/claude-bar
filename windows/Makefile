@@ -1,11 +1,12 @@
 # Builds Claude Swap for Windows from any OS (pure Go, no cgo).
-#   make build     -> dist/windows-{amd64,arm64}/{ClaudeSwap.exe,csw.exe}
+#   make build     -> dist/windows-amd64/{ClaudeSwap.exe,csw.exe}
 #   make zip       -> dist/ClaudeSwap-<version>-windows-<arch>.zip
 #   make test      -> unit tests (backend + tray client)
 # The installer (installer/claudeswap.iss) is built on Windows by CI.
 
 VERSION := $(shell cat VERSION)
-ARCHES  := amd64 arm64
+# x64 only: every target PC is Intel/AMD x86-64.
+ARCHES  := amd64
 DIST    := dist
 WINRES  := go run github.com/tc-hib/go-winres@v0.3.3
 LDFLAGS := -s -w -X github.com/soi/claude-swap-widget/windows/internal/tray.Version=$(VERSION)
@@ -22,7 +23,7 @@ build: resources
 
 # Icon, version info and the GUI manifest (DPI aware, asInvoker) for the tray exe.
 resources:
-	cd cmd/claudeswap && $(WINRES) simply --arch amd64,arm64 \
+	cd cmd/claudeswap && $(WINRES) simply --arch amd64 \
 		--icon ../../internal/tray/icon.ico --manifest gui \
 		--product-name "Claude Swap" --file-description "Claude Swap" \
 		--product-version $(VERSION) --file-version $(VERSION) --original-filename ClaudeSwap.exe

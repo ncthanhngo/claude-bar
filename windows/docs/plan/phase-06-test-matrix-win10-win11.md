@@ -13,7 +13,7 @@ dependencies: [5]
 Manual acceptance on the supported OS versions with real Claude accounts.
 
 ## Requirements
-Matrix: Windows 10 22H2 x64, Windows 11 23H2 x64, Windows 11 24H2 x64 (+ arm64 if available); each with Claude Code in both credential modes if the flag can be forced (`CLAUDE_CODE_FORCE_WINDOWS_CREDMAN=1`).
+Matrix: Windows 10 22H2 x64, Windows 11 23H2 x64, Windows 11 24H2 x64 (x64 only — no ARM machines); each with Claude Code in both credential modes if the flag can be forced (`CLAUDE_CODE_FORCE_WINDOWS_CREDMAN=1`).
 
 ## Implementation Steps (checklist per machine)
 1. Install from setup.exe; tray icon appears; no console window.

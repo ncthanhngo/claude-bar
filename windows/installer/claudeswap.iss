@@ -1,12 +1,9 @@
 ; Claude Swap installer — per-user, no admin rights.
-; Build on Windows:  iscc /DAppVersion=0.1.0 /DArch=amd64 installer\claudeswap.iss
-; Expects dist\windows-<Arch>\{ClaudeSwap.exe,csw.exe} from `make build`.
+; Build on Windows:  iscc /DAppVersion=0.1.0 installer\claudeswap.iss
+; Expects dist\windows-amd64\{ClaudeSwap.exe,csw.exe} from `make build`.
 
 #ifndef AppVersion
   #define AppVersion "0.0.0"
-#endif
-#ifndef Arch
-  #define Arch "amd64"
 #endif
 
 [Setup]
@@ -20,7 +17,7 @@ DefaultGroupName=Claude Swap
 DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
 OutputDir=..\dist
-OutputBaseFilename=ClaudeSwap-{#AppVersion}-windows-{#Arch}-setup
+OutputBaseFilename=ClaudeSwap-{#AppVersion}-windows-amd64-setup
 SetupIconFile=..\internal\tray\icon.ico
 UninstallDisplayIcon={app}\ClaudeSwap.exe
 Compression=lzma2
@@ -30,20 +27,15 @@ MinVersion=10.0
 ; Same name the tray uses (Local\ClaudeSwapTray): setup and uninstall ask
 ; the user to quit it first. x64compatible needs Inno Setup 6.3+.
 AppMutex=ClaudeSwapTray
-#if Arch == "arm64"
-ArchitecturesAllowed=arm64
-ArchitecturesInstallIn64BitMode=arm64
-#else
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
-#endif
 
 [Tasks]
 Name: "autostart"; Description: "Start Claude Swap when I sign in to Windows"
 
 [Files]
-Source: "..\dist\windows-{#Arch}\ClaudeSwap.exe"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\dist\windows-{#Arch}\csw.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\dist\windows-amd64\ClaudeSwap.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\dist\windows-amd64\csw.exe"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 Name: "{group}\Claude Swap"; Filename: "{app}\ClaudeSwap.exe"

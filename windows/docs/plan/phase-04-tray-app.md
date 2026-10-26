@@ -34,7 +34,7 @@ windows/
 `csw.exe` ships next to `ClaudeSwap.exe`; resolve it relative to the executable.
 
 ## Related Code Files
-- Create: everything under `windows/` above; `windows/Makefile` (build both exes with GOOS=windows for amd64 + arm64)
+- Create: everything under `windows/` above; `windows/Makefile` (build both exes with GOOS=windows GOARCH=amd64)
 
 ## Implementation Steps
 1. cswclient with unit tests (fake exec).

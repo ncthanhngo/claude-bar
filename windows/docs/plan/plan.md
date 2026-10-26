@@ -92,5 +92,5 @@ Out: usage/quota display, auto-swap, web usage, IDE/terminal reload, auto-update
 ## Open questions
 
 1. Authenticode code-signing certificate: buy one (OV/EV), use Azure Trusted Signing, or ship unsigned?
-2. Which Windows machine(s)/VMs are available for Phase 1 and Phase 6 (x64 only, or also ARM64)?
+2. Which Windows machine(s)/VMs are available for Phase 1 and Phase 6 (answered: x64 only — Intel i5-14600 / i5-12400)?
 3. Product name for Windows ("Claude Swap"?) and whether it shares accounts/registry format with macOS (no sync either way).

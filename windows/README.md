@@ -29,22 +29,21 @@ Nothing syncs between machines.
 
 ## Build (any OS, Go 1.25+)
 
-> **Dùng bản amd64.** Các máy Windows của mình đều chạy chip Intel x86-64
-> (i5-14600, i5-12400…) — luôn lấy `windows-amd64` / `*-windows-amd64.zip` /
-> `*-windows-amd64-setup.exe`. Bản `arm64` chỉ dành cho máy chip ARM
-> (Snapdragon), không dùng. Build nhanh chỉ amd64: `make build ARCHES=amd64`.
+> **Chỉ build bản amd64 (x64).** Các máy Windows của mình đều chạy chip Intel
+> x86-64 (i5-14600, i5-12400…), nên build và release không còn bản arm64.
+> File cần lấy: `windows-amd64` / `*-windows-amd64.zip` / `*-windows-amd64-setup.exe`.
 
 ```sh
 cd windows
-make build   # dist/windows-{amd64,arm64}/{ClaudeSwap.exe,csw.exe}
-make zip     # portable zips
+make build   # dist/windows-amd64/{ClaudeSwap.exe,csw.exe}
+make zip     # portable zip
 make test    # unit tests (tray client + backend)
 ```
 
 The installer is built on Windows with Inno Setup:
-`iscc /DAppVersion=0.1.0 /DArch=amd64 installer\claudeswap.iss`.
-Pushing a tag `win-v<VERSION>` (matching `VERSION`) makes CI publish zips and
-installers for x64 and ARM64. Builds are unsigned: SmartScreen may show
+`iscc /DAppVersion=0.1.0 installer\claudeswap.iss`.
+Pushing a tag `win-v<VERSION>` (matching `VERSION`) makes CI publish the x64
+zip and installer. Builds are unsigned: SmartScreen may show
 *More info → Run anyway*.
 
 ## Testing on a Windows machine

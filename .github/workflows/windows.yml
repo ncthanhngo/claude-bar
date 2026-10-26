@@ -57,10 +57,8 @@ jobs:
         working-directory: windows
         run: |
           v=$(cat VERSION)
-          for arch in amd64 arm64; do
-            (cd dist/windows-$arch && 7z a -tzip ../ClaudeSwap-$v-windows-$arch.zip ClaudeSwap.exe csw.exe)
-            "/c/Program Files (x86)/Inno Setup 6/ISCC.exe" //DAppVersion=$v //DArch=$arch installer/claudeswap.iss
-          done
+          (cd dist/windows-amd64 && 7z a -tzip ../ClaudeSwap-$v-windows-amd64.zip ClaudeSwap.exe csw.exe)
+          "/c/Program Files (x86)/Inno Setup 6/ISCC.exe" //DAppVersion=$v installer/claudeswap.iss
       - name: Publish release
         env:
           GH_TOKEN: ${{ github.token }}
