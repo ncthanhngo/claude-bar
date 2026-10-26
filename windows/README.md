@@ -29,6 +29,11 @@ Nothing syncs between machines.
 
 ## Build (any OS, Go 1.25+)
 
+> **Dùng bản amd64.** Các máy Windows của mình đều chạy chip Intel x86-64
+> (i5-14600, i5-12400…) — luôn lấy `windows-amd64` / `*-windows-amd64.zip` /
+> `*-windows-amd64-setup.exe`. Bản `arm64` chỉ dành cho máy chip ARM
+> (Snapdragon), không dùng. Build nhanh chỉ amd64: `make build ARCHES=amd64`.
+
 ```sh
 cd windows
 make build   # dist/windows-{amd64,arm64}/{ClaudeSwap.exe,csw.exe}
