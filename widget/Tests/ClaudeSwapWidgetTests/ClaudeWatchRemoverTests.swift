@@ -31,4 +31,12 @@ final class ClaudeWatchRemoverTests: XCTestCase {
         let block = "\n# Added by Claude Bar\nalias claude=\"claude-watch\"\n"
         XCTAssertEqual(ClaudeWatchRemover.strippedAlias(from: "a\n" + block + block), "a\n")
     }
+
+    func testDetectsUserAliasStillCallingClaudeWatch() {
+        XCTAssertTrue(ClaudeWatchRemover.referencesClaudeWatch("alias cc=\"claude-watch --model x\"\n"))
+    }
+
+    func testIgnoresCommentsAndUnrelatedLines() {
+        XCTAssertFalse(ClaudeWatchRemover.referencesClaudeWatch("# old: claude-watch\nalias cc=\"claude\"\n"))
+    }
 }
