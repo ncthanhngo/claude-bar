@@ -12,6 +12,27 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 13.19</title>
+      <sparkle:version>13.19</sparkle:version>
+      <sparkle:shortVersionString>13.19</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li>Claude Bar is now signed with a Developer ID certificate and notarized by Apple.</li>
+          <li>Fresh downloads open directly — no more "Open Anyway" or admin password prompt.</li>
+          <li>Known issue: macOS may ask for Keychain access once after this update (new signing certificate).</li>
+        </ul>
+      ]]></description>
+      <pubDate>Mon, 26 Oct 2026 20:27:54 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v13.19/ClaudeBar.zip"
+        sparkle:version="13.19"
+        sparkle:shortVersionString="13.19"
+        sparkle:edSignature="gUl/q7sfIc/qYi2x2/S4L3bDQlc5bPZytYR4XEAUGHKrFas6toZHlal4oDSWzq1vO4B/kArk3yLn7/YNafkvCA=="
+        length="6243518"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 13.18</title>
       <sparkle:version>13.18</sparkle:version>
       <sparkle:shortVersionString>13.18</sparkle:shortVersionString>
