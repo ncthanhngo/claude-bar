@@ -12,6 +12,29 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 13.20</title>
+      <sparkle:version>13.20</sparkle:version>
+      <sparkle:shortVersionString>13.20</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li>Running claude sessions now switch accounts on their own after a swap — no more terminal or cmux restarts.</li>
+          <li>The claude-watch wrapper and its shell alias are removed automatically (kept as a passthrough if your own aliases still call it).</li>
+          <li>Fixed auto-swap picking an account that already hit its 7-day limit.</li>
+          <li>Fixed a swap during Claude Code's own token refresh losing the old account's login.</li>
+          <li>Open a new terminal tab once after updating.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Mon, 26 Oct 2026 21:52:26 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v13.20/ClaudeBar.zip"
+        sparkle:version="13.20"
+        sparkle:shortVersionString="13.20"
+        sparkle:edSignature="G/cWHoP4dBSJgasxXzefWmDURUwrnowYuPbFw5WoqrCXP/DiU8qHKYCypNkQ9Sj4KSBdz67J+Z+fcJ15lhgUDw=="
+        length="6208954"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 13.19</title>
       <sparkle:version>13.19</sparkle:version>
       <sparkle:shortVersionString>13.19</sparkle:shortVersionString>
