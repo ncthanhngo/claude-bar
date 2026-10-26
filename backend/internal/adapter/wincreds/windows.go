@@ -3,6 +3,8 @@
 package wincreds
 
 import (
+	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"unsafe"
@@ -15,13 +17,9 @@ import (
 
 // NewLiveStore binds to the current user's Claude Code login.
 func NewLiveStore() *LiveStore {
-	home, _ := os.UserHomeDir()
-	configDir := adapter.ClaudeConfigDir()
 	return newLiveStore(
-		filepath.Join(configDir, ".credentials.json"),
-		func() bool {
-			return credmanEnabled(os.Getenv, filepath.Join(configDir, ".config.json"), filepath.Join(home, ".claude.json"))
-		},
+		filepath.Join(adapter.ClaudeConfigDir(), ".credentials.json"),
+		func() bool { return credmanEnabled(os.Getenv, adapter.ClaudeConfigFile()) },
 		winCredman{},
 	)
 }
@@ -48,13 +46,18 @@ func (winCredman) list(prefix string) ([]credEntry, error) {
 	return out, nil
 }
 
-// write updates the entry in place (keeping its user name and persistence)
-// or creates it.
-func (winCredman) write(target string, blob []byte) error {
+// write updates the entry in place (keeping its user name and persistence),
+// creating it only when asked: an existing entry that can't be read as a
+// generic credential is an error, never a reason to add a second one.
+func (winCredman) write(target string, blob []byte, create bool) error {
 	g, err := wincred.GetGenericCredential(target)
-	if err != nil {
+	switch {
+	case err == nil:
+	case create && errors.Is(err, wincred.ErrElementNotFound):
 		g = wincred.NewGenericCredential(target)
 		g.Persist = wincred.PersistLocalMachine
+	default:
+		return fmt.Errorf("read Credential Manager entry %q: %w", target, err)
 	}
 	g.CredentialBlob = blob
 	return g.Write()

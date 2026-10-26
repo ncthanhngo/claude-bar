@@ -8,13 +8,16 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/soi/claude-swap-widget/backend/internal/adapter"
 	"github.com/soi/claude-swap-widget/backend/internal/domain"
 )
 
 // credman is the Windows Credential Manager surface the live store needs.
 type credman interface {
 	list(prefix string) ([]credEntry, error)
-	write(target string, blob []byte) error
+	// write replaces target's blob; create=false means the entry must
+	// already exist (never add a second one next to Claude Code's).
+	write(target string, blob []byte, create bool) error
 }
 
 // LiveStore reads and writes the login Claude Code itself uses: an entry in
@@ -37,27 +40,46 @@ type liveLocation struct {
 	enc     blobEncoding
 }
 
-// locate finds the live login: Credential Manager first when enabled, then
-// the file. ok=false means nobody is logged in.
+// locate finds the live login. With Credential Manager enabled, Claude Code
+// may still fall back to the file (e.g. a login too large for an entry), so
+// when both hold a login the newer one (later expiresAt) is the live one.
+// ok=false means nobody is logged in.
 func (s *LiveStore) locate() (loc liveLocation, blob string, ok bool, err error) {
+	var cm *credEntry
+	var cmText string
+	var cmEnc blobEncoding
 	if s.cm != nil && s.useCredman() {
 		entries, err := s.cm.list(credmanTargetPrefix)
 		if err != nil {
 			return loc, "", false, fmt.Errorf("list Credential Manager: %w", err)
 		}
 		if e, found := pickCredman(entries); found {
-			text, enc, _ := decodeBlob(e.blob)
-			return liveLocation{credman: true, target: e.target, enc: enc}, text, true, nil
+			cm = &e
+			cmText, cmEnc, _ = decodeBlob(e.blob)
 		}
 	}
 	data, err := os.ReadFile(s.credsFile)
-	if errors.Is(err, fs.ErrNotExist) {
-		return liveLocation{}, "", false, nil
-	}
-	if err != nil {
+	fileOK := err == nil
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return loc, "", false, err
 	}
-	return liveLocation{}, string(data), true, nil
+	switch {
+	case cm != nil && (!fileOK || expiresAt(cmText) >= expiresAt(string(data))):
+		return liveLocation{credman: true, target: cm.target, enc: cmEnc}, cmText, true, nil
+	case fileOK:
+		return liveLocation{}, string(data), true, nil
+	default:
+		return liveLocation{}, "", false, nil
+	}
+}
+
+// expiresAt is the login's access-token expiry, 0 when unreadable.
+func expiresAt(blob string) int64 {
+	p, err := domain.CredentialBlob(blob).Extract()
+	if err != nil {
+		return 0
+	}
+	return p.ExpiresAt
 }
 
 // Read returns the live credential blob, or "" if not logged in.
@@ -72,11 +94,17 @@ func (s *LiveStore) Write(ctx context.Context, blob domain.CredentialBlob) error
 	if err != nil {
 		return err
 	}
+	create := false
 	if !ok && s.cm != nil && s.useCredman() {
 		loc = liveLocation{credman: true, target: defaultCredmanTarget, enc: encUTF8}
+		create = true
 	}
 	if loc.credman {
-		err = s.cm.write(loc.target, encodeBlob(string(blob), loc.enc))
+		data := encodeBlob(string(blob), loc.enc)
+		if len(data) > maxCredmanBlob {
+			return fmt.Errorf("login is %d bytes, over Credential Manager's %d-byte limit", len(data), maxCredmanBlob)
+		}
+		err = s.cm.write(loc.target, data, create)
 	} else {
 		err = writeFileAtomic(s.credsFile, []byte(blob))
 	}
@@ -108,5 +136,5 @@ func writeFileAtomic(path string, data []byte) error {
 	if err := tmp.Close(); err != nil {
 		return err
 	}
-	return os.Rename(tmp.Name(), path)
+	return adapter.ReplaceFile(tmp.Name(), path)
 }

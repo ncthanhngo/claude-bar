@@ -19,10 +19,19 @@ func ClaudeConfigDir() string {
 	return filepath.Join(home, ".claude")
 }
 
-// ClaudeConfigFile returns ~/.claude.json.
+// ClaudeConfigFile returns the global config file Claude Code reads (and
+// where it keeps oauthAccount): <config dir>/.config.json when that legacy
+// file is non-empty, else .claude.json in $CLAUDE_CONFIG_DIR or the home
+// folder — the same choice Claude Code 2.1.310 makes.
 func ClaudeConfigFile() string {
-	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".claude.json")
+	if info, err := os.Stat(filepath.Join(ClaudeConfigDir(), ".config.json")); err == nil && info.Size() > 0 {
+		return filepath.Join(ClaudeConfigDir(), ".config.json")
+	}
+	dir := os.Getenv("CLAUDE_CONFIG_DIR")
+	if dir == "" {
+		dir, _ = os.UserHomeDir()
+	}
+	return filepath.Join(dir, ".claude.json")
 }
 
 // ClaudeSessionsDir returns ~/.claude/sessions.

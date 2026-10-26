@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"runtime"
 	"strconv"
 
 	"github.com/soi/claude-swap-widget/backend/internal/adapter/keychain"
@@ -96,7 +97,7 @@ func runRemove(ctx context.Context, svc *usecase.Service, args []string) error {
 	// Chat purge runs AFTER the registry / backup deletion. We treat purge
 	// errors as warnings — the user-visible operation succeeded; orphaned
 	// chat data is recoverable manually if Keychain access flakes.
-	if accountUUID != "" {
+	if accountUUID != "" && runtime.GOOS != "windows" {
 		opts := chat.PurgeOptions{KeyStore: keychain.NewChatDBKeyStore()}
 		if err := chat.PurgeAccount(ctx, accountUUID, opts); err != nil {
 			log.Printf("[remove] chat purge for %s failed: %v", accountUUID, err)

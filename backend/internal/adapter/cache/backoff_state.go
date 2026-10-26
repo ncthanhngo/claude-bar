@@ -110,5 +110,5 @@ func (b *Backoff) saveLocked(st BackoffState) error {
 		return err
 	}
 	tmp.Close()
-	return os.Rename(tmpName, b.path)
+	return adapter.ReplaceFile(tmpName, b.path)
 }

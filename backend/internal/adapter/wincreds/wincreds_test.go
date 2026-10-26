@@ -2,6 +2,7 @@ package wincreds
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -21,11 +22,10 @@ func writeFile(t *testing.T, path, body string) {
 }
 
 func TestCredmanEnabled(t *testing.T) {
-	dir := t.TempDir()
-	legacy, claudeJSON := filepath.Join(dir, ".config.json"), filepath.Join(dir, ".claude.json")
+	cfg := filepath.Join(t.TempDir(), ".claude.json")
 	noEnv := func(string) string { return "" }
 
-	if credmanEnabled(noEnv, legacy, claudeJSON) {
+	if credmanEnabled(noEnv, cfg) {
 		t.Fatal("no config: want plaintext")
 	}
 	if !credmanEnabled(func(k string) string {
@@ -33,16 +33,16 @@ func TestCredmanEnabled(t *testing.T) {
 			return "1"
 		}
 		return ""
-	}, legacy, claudeJSON) {
+	}, cfg) {
 		t.Fatal("env override ignored")
 	}
-	writeFile(t, claudeJSON, `{"cachedGrowthBookFeatures":{"tengu_windows_credman":true}}`)
-	if !credmanEnabled(noEnv, legacy, claudeJSON) {
-		t.Fatal("flag in ~/.claude.json ignored")
+	writeFile(t, cfg, `{"cachedGrowthBookFeatures":{"tengu_windows_credman":true}}`)
+	if !credmanEnabled(noEnv, cfg) {
+		t.Fatal("flag ignored")
 	}
-	writeFile(t, legacy, `{"cachedGrowthBookFeatures":{"tengu_windows_credman":false}}`)
-	if credmanEnabled(noEnv, legacy, claudeJSON) {
-		t.Fatal("legacy config must win when present")
+	writeFile(t, cfg, `{"cachedGrowthBookFeatures":{"tengu_windows_credman":false}}`)
+	if credmanEnabled(noEnv, cfg) {
+		t.Fatal("flag off ignored")
 	}
 }
 
@@ -88,7 +88,10 @@ func (f *fakeCredman) list(prefix string) ([]credEntry, error) {
 	return out, nil
 }
 
-func (f *fakeCredman) write(target string, blob []byte) error {
+func (f *fakeCredman) write(target string, blob []byte, create bool) error {
+	if _, exists := f.entries[target]; !exists && !create {
+		return errors.New("not found")
+	}
 	f.entries[target] = blob
 	f.writes++
 	return nil
@@ -169,7 +172,7 @@ func TestLiveStoreCredmanCreatesDefaultTargetWhenNothingStored(t *testing.T) {
 
 type droppingCredman struct{ fakeCredman }
 
-func (d *droppingCredman) write(string, []byte) error { return nil }
+func (d *droppingCredman) write(string, []byte, bool) error { return nil }
 
 func TestLiveStoreWriteFailsWhenNotReadBack(t *testing.T) {
 	cm := &droppingCredman{fakeCredman{entries: map[string][]byte{defaultCredmanTarget: []byte(loginA)}}}
@@ -214,5 +217,38 @@ func TestBackupStore(t *testing.T) {
 	}
 	if err := s.Delete(ctx, 1, "one@example.com"); err != nil {
 		t.Fatalf("second delete: %v", err)
+	}
+}
+
+const olderLogin = `{"claudeAiOauth":{"accessToken":"o","refreshToken":"ro","expiresAt":1}}`
+const newerLogin = `{"claudeAiOauth":{"accessToken":"n","refreshToken":"rn","expiresAt":9}}`
+
+func TestLiveStorePicksNewerOfCredmanAndFile(t *testing.T) {
+	file := filepath.Join(t.TempDir(), ".credentials.json")
+	writeFile(t, file, newerLogin)
+	cm := &fakeCredman{entries: map[string][]byte{defaultCredmanTarget: []byte(olderLogin)}}
+	s := newLiveStore(file, on, cm)
+
+	if got, _ := s.Read(context.Background()); got != newerLogin {
+		t.Fatalf("read %q, want the newer file login", got)
+	}
+	if err := s.Write(context.Background(), loginB); err != nil {
+		t.Fatal(err)
+	}
+	if cm.writes != 0 {
+		t.Fatal("wrote the stale Credential Manager entry")
+	}
+}
+
+func TestLiveStoreRejectsOversizedCredmanBlob(t *testing.T) {
+	cm := &fakeCredman{entries: map[string][]byte{defaultCredmanTarget: encodeBlob(loginA, encUTF16LE)}}
+	s := newLiveStore(filepath.Join(t.TempDir(), ".credentials.json"), on, cm)
+	big := `{"claudeAiOauth":{"accessToken":"` + strings.Repeat("x", 2000) + `","refreshToken":"r","expiresAt":3}}`
+
+	if err := s.Write(context.Background(), domain.CredentialBlob(big)); err == nil || !strings.Contains(err.Error(), "limit") {
+		t.Fatalf("err = %v, want size limit error", err)
+	}
+	if cm.writes != 0 {
+		t.Fatal("oversized blob written")
 	}
 }

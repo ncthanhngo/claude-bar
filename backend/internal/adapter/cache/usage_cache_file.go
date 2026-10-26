@@ -128,5 +128,5 @@ func (c *UsageCache) saveLocked(all map[int]*Entry) error {
 	if err := tmp.Close(); err != nil {
 		return err
 	}
-	return os.Rename(tmpName, c.path)
+	return adapter.ReplaceFile(tmpName, c.path)
 }

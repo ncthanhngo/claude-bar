@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sync"
 	"testing"
 	"time"
@@ -62,6 +63,9 @@ func TestReadDoesNotRetryNonJSONErrors(t *testing.T) {
 	}
 	if os.Geteuid() == 0 {
 		t.Skip("running as root bypasses 0o000 perm")
+	}
+	if runtime.GOOS == "windows" {
+		t.Skip("0o000 only sets the read-only attribute on Windows; the file stays readable")
 	}
 
 	store := NewAt(path)

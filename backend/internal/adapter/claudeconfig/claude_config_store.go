@@ -124,5 +124,5 @@ func (s *ClaudeConfigStore) Write(ctx context.Context, cfg *domain.ClaudeConfig)
 	if err := tmp.Close(); err != nil {
 		return err
 	}
-	return os.Rename(tmpName, s.path)
+	return adapter.ReplaceFile(tmpName, s.path)
 }

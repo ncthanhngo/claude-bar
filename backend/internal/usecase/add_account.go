@@ -16,7 +16,7 @@ type AddAccountResult struct {
 }
 
 // ErrNoLiveCredential means nothing is in the Keychain to snapshot.
-var ErrNoLiveCredential = errors.New("no live credential in Keychain — log in with `claude /login` first")
+var ErrNoLiveCredential = errors.New("no Claude Code login found — log in with `claude /login` first")
 
 // AddAccount snapshots the currently-logged-in Claude account into the registry.
 //

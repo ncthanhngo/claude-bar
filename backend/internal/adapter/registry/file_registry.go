@@ -119,5 +119,5 @@ func (r *FileRegistry) Save(ctx context.Context, reg *domain.Registry) error {
 	if err := tmp.Close(); err != nil {
 		return err
 	}
-	return os.Rename(tmpName, r.path)
+	return adapter.ReplaceFile(tmpName, r.path)
 }

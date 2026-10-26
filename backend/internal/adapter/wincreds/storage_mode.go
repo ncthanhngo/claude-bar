@@ -19,19 +19,20 @@ const defaultCredmanTarget = "Claude Code-credentials"
 // credmanTargetPrefix filters Credential Manager entries worth inspecting.
 const credmanTargetPrefix = "Claude Code"
 
+// maxCredmanBlob is CRED_MAX_CREDENTIAL_BLOB_SIZE.
+const maxCredmanBlob = 5 * 512
+
 // credmanEnabled mirrors how Claude Code (2.1.310) picks its backend on
 // Windows: CLAUDE_CODE_FORCE_WINDOWS_CREDMAN=1, else the cached GrowthBook
-// flag tengu_windows_credman read from the legacy config file, falling back
-// to ~/.claude.json. Anything unreadable means the plaintext file.
-func credmanEnabled(getenv func(string) string, legacyConfig, claudeJSON string) bool {
+// flag tengu_windows_credman in its global config file
+// (adapter.ClaudeConfigFile). Anything unreadable means the plaintext file.
+func credmanEnabled(getenv func(string) string, configFile string) bool {
 	if getenv("CLAUDE_CODE_FORCE_WINDOWS_CREDMAN") == "1" {
 		return true
 	}
-	data, err := os.ReadFile(legacyConfig)
-	if err != nil || len(data) == 0 {
-		if data, err = os.ReadFile(claudeJSON); err != nil {
-			return false
-		}
+	data, err := os.ReadFile(configFile)
+	if err != nil {
+		return false
 	}
 	var cfg struct {
 		Features map[string]any `json:"cachedGrowthBookFeatures"`
