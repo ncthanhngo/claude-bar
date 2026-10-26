@@ -43,7 +43,6 @@ body:
         - Usage display / token chart
         - IDE reload
         - Local MCP connectors
-        - iCloud sync
         - Other / not sure
     validations:
       required: true

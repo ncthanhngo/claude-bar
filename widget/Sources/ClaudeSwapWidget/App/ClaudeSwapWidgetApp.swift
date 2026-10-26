@@ -35,8 +35,6 @@ struct ClaudeSwapWidgetApp: App {
     @StateObject private var webFallback = WebFallbackCoordinator()
     @StateObject private var quickRelogin = QuickReloginCoordinator()
     @StateObject private var recovery = CredentialRecoveryCoordinator()
-    @StateObject private var cloudSync = CloudSyncCoordinator(client: CswClient())
-    @StateObject private var prefsCloudSync = PreferencesCloudSync.shared
     @StateObject private var updateController = UpdateController()
     @StateObject private var serverMonitor = ServerMonitorStore()
     @StateObject private var claudeStatus = ClaudeStatusStore()
@@ -58,17 +56,6 @@ struct ClaudeSwapWidgetApp: App {
         CbarShortcutInstaller.install()
         CmuxConfigInstaller.install()
         migrateSettingsIfNeeded()
-        // Reset the iCloud-sync toggle to false on every Sparkle update
-        // BEFORE any later startup code touches the cloud-sync passphrase
-        // Keychain item. Previously this lived inside the popover's .task,
-        // which only fires when the user opens the popover for the first
-        // time — so a Sparkle background update + a user who hadn't yet
-        // opened the popover would let `backupTokenRefreshIfNeeded` (kicked
-        // off from `store.start()`) call `loadPassphrase()` while the
-        // stale `iCloudSyncEnabled = true` value from the previous version
-        // was still live. The new code signature then hit the Keychain
-        // ACL, triggering the macOS "Allow access?" password dialog.
-        resetICloudSyncToggleOnVersionChange()
         syncReloadShortcutIfNeeded()
 
         // Coordinators get wired from MenuBarLabelView.onAppear — see
@@ -148,7 +135,6 @@ struct ClaudeSwapWidgetApp: App {
                 .environmentObject(webFallback)
                 .environmentObject(quickRelogin)
                 .environmentObject(recovery)
-                .environmentObject(cloudSync)
                 .environmentObject(updateController)
                 .environmentObject(serverMonitor)
                 .environmentObject(claudeStatus)
@@ -211,16 +197,14 @@ struct ClaudeSwapWidgetApp: App {
         store.autoSwap.isInteractiveReloginActive = { [weak quickRelogin] in
             quickRelogin?.isPresentingInteractive ?? false
         }
-        store.cloudSync = cloudSync
         DiagnosticsLogger.shared.log(.info, subsystem: "launch", "coordinators wired")
-        // All periodic loops (usage polling, iCloud prefs, web keep-alive)
+        // All periodic loops (usage polling, web keep-alive)
         // are driven through one switch so a persisted
         // pause survives relaunch and the Settings toggle can flip the whole
         // app dormant. `apply` either starts everything or leaves it stopped
         // depending on the saved flag.
         BackgroundWorkController.shared.register(
             store: store,
-            prefsSync: prefsCloudSync,
             webFallback: webFallback,
             serverMonitor: serverMonitor,
             claudeStatus: claudeStatus,
@@ -233,7 +217,6 @@ struct ClaudeSwapWidgetApp: App {
         let verifyBind = verifyCoordinator
         let webBind = webFallback
         let quickBind = quickRelogin
-        let cloudBind = cloudSync
         let updateBind = updateController
         SettingsWindowController.shared.bindEnvironment { content in
             AnyView(
@@ -243,15 +226,10 @@ struct ClaudeSwapWidgetApp: App {
                     .environmentObject(verifyBind)
                     .environmentObject(webBind)
                     .environmentObject(quickBind)
-                    .environmentObject(cloudBind)
                     .environmentObject(updateBind)
             )
         }
-        // prefsCloudSync is started/stopped by BackgroundWorkController above.
         Task { @MainActor in
-            await cloudSync.refreshStatus()
-            await cloudSync.checkOnboarding(snapshot: store.snapshot)
-            DiagnosticsLogger.shared.log(.info, subsystem: "launch", "cloud sync ready (enabled=\(AppSettings.shared.iCloudSyncEnabled))")
             try? await Task.sleep(nanoseconds: 800_000_000)
             presentOnboardingIfNeeded()
             DiagnosticsLogger.shared.log(.info, subsystem: "launch", "end wireCoordinatorsOnce")
@@ -274,26 +252,8 @@ struct ClaudeSwapWidgetApp: App {
         presentOnboardingIfNeededAtLaunch(
             store: store,
             loginCoordinator: loginCoordinator,
-            settings: settings,
-            cloudSync: cloudSync
+            settings: settings
         )
-    }
-
-    /// Every Sparkle update lands on a clean default-off iCloud sync toggle.
-    /// We compare the running `CFBundleShortVersionString` against the last
-    /// version we recorded; if they differ (fresh install OR upgrade) the
-    /// toggle is reset to false. Within the same version the toggle keeps
-    /// the user's choice, so flipping it on once per release sticks until
-    /// the next update. Keychain item is left intact so re-enabling the
-    /// toggle reuses the saved passphrase without a re-prompt.
-    @MainActor
-    private func resetICloudSyncToggleOnVersionChange() {
-        let current = (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String) ?? ""
-        guard !current.isEmpty else { return }
-        if settings.lastLaunchedAppVersion != current {
-            settings.iCloudSyncEnabled = false
-            settings.lastLaunchedAppVersion = current
-        }
     }
 }
 
@@ -306,8 +266,7 @@ struct ClaudeSwapWidgetApp: App {
 private func presentOnboardingIfNeededAtLaunch(
     store: AppStore,
     loginCoordinator: LoginCoordinator,
-    settings: AppSettings,
-    cloudSync: CloudSyncCoordinator
+    settings: AppSettings
 ) {
     guard !settings.didCompleteOnboarding else { return }
     let count = store.snapshot?.accounts.count ?? 0
@@ -320,7 +279,6 @@ private func presentOnboardingIfNeededAtLaunch(
     OnboardingWindowController.shared.present(
         store: store,
         loginCoordinator: loginCoordinator,
-        settings: settings,
-        cloudSync: cloudSync
+        settings: settings
     )
 }

@@ -12,13 +12,10 @@ import (
 // RefreshAllError carries the per-account outcome of RefreshAllTokens so
 // callers can decide which bucket of failures should abort their flow.
 //
-//   - HardFailures: network / 5xx — actually transient, blocks cloud push.
+//   - HardFailures: network / 5xx — actually transient.
 //   - RateLimited: 429 — caller may proceed and retry later.
 //   - NeedsRelogin: 400 invalid_grant — permanent per-account; user must
-//     re-login that account. Does NOT block a cloud push because the
-//     remaining accounts (and their MCP connectors) are still pushable
-//     and the broken account's last-known blob is preserved on the
-//     remote so re-login on another device can still recover.
+//     re-login that account.
 type RefreshAllError struct {
 	HardFailures []string
 	RateLimited  []string
@@ -37,15 +34,6 @@ func (e *RefreshAllError) Error() string {
 		parts = append(parts, "rate limited: "+strings.Join(e.RateLimited, "; "))
 	}
 	return strings.Join(parts, "; ")
-}
-
-// BlocksPush reports whether the failures should abort a cloud push.
-// Only true when at least one account hit a real transient/unknown error.
-// Rate-limited (429) and needs-relogin (invalid_grant) are softer states
-// that the caller may choose to skip past — push the rest of the bundle
-// rather than withholding everything on one bad token.
-func (e *RefreshAllError) BlocksPush() bool {
-	return len(e.HardFailures) > 0
 }
 
 // RefreshAllTokens proactively refreshes the OAuth credentials for every

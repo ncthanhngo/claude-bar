@@ -2,9 +2,7 @@ import SwiftUI
 import AppKit
 
 /// Two-step welcome flow. Step 1 adds the first account via the existing
-/// LoginCoordinator; Step 2 lets the user opt into Auto-swap / IDE reload /
-/// Cloud Sync. Cloud Sync opens the popover after Finish — passphrase setup
-/// happens there rather than mid-wizard.
+/// LoginCoordinator; Step 2 lets the user opt into Auto-swap / IDE reload.
 struct OnboardingView: View {
     @EnvironmentObject private var store: AppStore
     @EnvironmentObject private var loginCoordinator: LoginCoordinator
@@ -18,7 +16,6 @@ struct OnboardingView: View {
 
     @State private var optAutoSwap: Bool = false
     @State private var optIDEReload: Bool = false
-    @State private var optCloudSync: Bool = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -100,12 +97,6 @@ struct OnboardingView: View {
                     blurb: "Restarts VSCode / Cursor / Windsurf so new credentials take effect.",
                     isOn: $optIDEReload
                 )
-                featureToggle(
-                    icon: "icloud",
-                    title: "Sync to iCloud",
-                    blurb: "Encrypt accounts to your iCloud Drive. We'll prompt for a passphrase next.",
-                    isOn: $optCloudSync
-                )
             }
             Spacer(minLength: 0)
             HStack {
@@ -145,19 +136,8 @@ struct OnboardingView: View {
     }
 
     private func applyAndFinish() {
-        // Apply the toggles users actually flipped. We don't apply the
-        // cloudSync side effect (passphrase prompt) here — too aggressive.
         settings.autoSwapEnabled = optAutoSwap
         settings.autoReloadIDEAfterSwap = optIDEReload
-        // CloudSync opens the popover so the user sees what they're
-        // enrolling in before any prompt fires.
-        let needsCloudSync = optCloudSync
         onFinish()
-        if needsCloudSync {
-            // Open the popover so the user lands on the destination tab.
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                MenuBarPopoverToggle.toggle()
-            }
-        }
     }
 }

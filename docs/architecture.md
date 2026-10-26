@@ -70,9 +70,8 @@ sessions use the new account from their next request — verified in Claude Code
 
 - Accounts may link isolated persistent WKWebView profiles. The widget tries
   each linked account's `claude.ai/settings/usage` web profile first.
-- Web usage profile IDs stay local to each Mac. Claude web cookies sync
-  separately through iCloud Keychain by lowercased account email and are
-  imported into a new local profile before usage fetch on another Mac.
+- Web usage profiles and their cookies stay on this Mac (WebKit persists them);
+  nothing is synced between Macs.
 - Accounts without web usage, expired web sessions, or parse failures fall back
   to terminal/backend `GET https://api.anthropic.com/api/oauth/usage`.
   - `Authorization: Bearer <accessToken>`
@@ -133,4 +132,4 @@ flapping right after a swap while the new account's first request is in flight.
 | Keychain `csw-backup:*` | csw via `security` | per-user keychain |
 | Keychain `Claude Code-credentials` | Claude Code (we read/write same entry) | per-user keychain |
 | `~/.claude.json` | Claude Code (we patch `oauthAccount`) | preserved as-is |
-| Keychain `claude-bar-mcp:*` | Legacy connector tokens from the removed Local MCP feature; carried through iCloud sync only | per-user keychain |
+| Keychain `claude-bar-mcp:*` | Legacy connector tokens from the removed Local MCP feature; unread | per-user keychain |

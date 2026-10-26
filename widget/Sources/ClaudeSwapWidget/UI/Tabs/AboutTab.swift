@@ -11,7 +11,6 @@ import AppKit
 struct AboutTab: View {
     @EnvironmentObject private var store: AppStore
     @EnvironmentObject private var loginCoordinator: LoginCoordinator
-    @EnvironmentObject private var cloudSync: CloudSyncCoordinator
     @EnvironmentObject private var updateController: UpdateController
     @ObservedObject private var settings = AppSettings.shared
 
@@ -44,7 +43,6 @@ struct AboutTab: View {
                     stackRow(label: "Backend", value: "Go (csw daemon)")
                     stackRow(label: "IPC", value: "Unix socket · HTTP/JSON")
                     stackRow(label: "Auth storage", value: "macOS Keychain")
-                    stackRow(label: "Cloud sync", value: "iCloud Drive · AES-256-GCM")
                 }
                 SettingsGroup("Welcome flow") {
                     HStack {
@@ -58,8 +56,7 @@ struct AboutTab: View {
                             OnboardingWindowController.shared.present(
                                 store: store,
                                 loginCoordinator: loginCoordinator,
-                                settings: settings,
-                                cloudSync: cloudSync
+                                settings: settings
                             )
                         } label: {
                             Label("Re-run", systemImage: "arrow.uturn.left.circle")

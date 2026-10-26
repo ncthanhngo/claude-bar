@@ -27,7 +27,6 @@ final class AppStore: ObservableObject {
     let client = CswClient()
     let settings = AppSettings.shared
     let autoSwap: AutoSwapStateMachine
-    var cloudSync: CloudSyncCoordinator?
     /// Reachable by Phases 3/4/5 via the state machine and by any future view
     /// that needs to inspect per-account recovery status or trigger recovery.
     /// Set once at app launch by the wiring in `ClaudeSwapWidgetApp`.
@@ -56,7 +55,7 @@ final class AppStore: ObservableObject {
     /// WKWebView, not Anthropic's OAuth `/usage` endpoint, so it doesn't
     /// share the 429 budget. v11.9 set this to 60s but multi-account users
     /// reported the popover hanging: each scrape costs 3–8s (hidden
-    /// WKWebView reload + React SPA hydrate) plus a keychain/iCloud cookie
+    /// WKWebView reload + React SPA hydrate) plus a keychain cookie
     /// restore+save, so at 60s × N accounts the main actor saturates and
     /// UI updates stall. 120s leaves headroom for 2–3 web-linked accounts
     /// while still being ~33% faster than the OAuth default (180s).
@@ -97,7 +96,6 @@ final class AppStore: ObservableObject {
         autoSwap.onSwapPerformed = { [weak self] in
             await self?.refreshNow()
             self?.schedulePostSwapIntegrations()
-            await self?.autoPushCloud()
         }
     }
 
@@ -107,7 +105,6 @@ final class AppStore: ObservableObject {
         refreshTask?.cancel()
         refreshTask = Task { [weak self] in
             await self?.refreshNow()
-            await self?.backupTokenRefreshIfNeeded()
             // Post-launch hydration retry. claude.ai's React SPA paints the
             // 5h block ~2s before the 7d block, and the scraper bails after
             // ~8s. The very first scrape after a fresh process therefore
@@ -126,7 +123,6 @@ final class AppStore: ObservableObject {
                 guard let self else { return }
                 let secs = self.nextRefreshIntervalSec()
                 try? await Task.sleep(nanoseconds: UInt64(secs) * 1_000_000_000)
-                await self.backupTokenRefreshIfNeeded()
                 await self.refreshNow()
             }
         }
@@ -155,7 +151,6 @@ final class AppStore: ObservableObject {
                 DiagnosticsLogger.shared.log(.info, subsystem: "lifecycle",
                     "Mac woke from sleep — kicking immediate refresh")
                 await self.refreshNow()
-                await self.backupTokenRefreshIfNeeded()
             }
         }
     }
@@ -189,90 +184,6 @@ final class AppStore: ObservableObject {
             guard check(view.account) else { return false }
             guard let usage = view.usage else { return true }
             return usage.fiveHour != nil && usage.sevenDay == nil
-        }
-    }
-
-    private func backupTokenRefreshIfNeeded() async {
-        let now = Date().timeIntervalSince1970
-        let fullInterval: TimeInterval    = 6 * 60 * 60  // normal 6-hour cycle
-        let transientRetry: TimeInterval  = 15 * 60      // retry window after transient failure
-
-        let timeSinceAttempt  = now - settings.lastBackupTokenRefreshAt
-        let timeSinceSuccess  = now - settings.lastBackupTokenRefreshSuccessAt
-        // lastAttemptFailed: success timestamp is older than attempt timestamp
-        // (with 60s margin so near-simultaneous writes don't false-positive).
-        let lastAttemptFailed = timeSinceSuccess > timeSinceAttempt + 60
-
-        let shouldAttempt = timeSinceAttempt >= fullInterval
-                         || (lastAttemptFailed && timeSinceAttempt >= transientRetry)
-        guard shouldAttempt else { return }
-
-        settings.lastBackupTokenRefreshAt = now
-        isRefreshing = true
-        defer { isRefreshing = false }
-
-        // Sync indicator state is only meaningful when iCloud is actually
-        // configured (passphrase saved). Without a passphrase, autoPull /
-        // autoPush silently no-op and we'd otherwise mislabel a refresh-only
-        // cycle as a "successful sync".
-        let cloudPassphrase = cloudSync?.loadPassphrase()
-        var cycleError: String = ""
-        if cloudPassphrase != nil {
-            settings.lastAutoSyncAt = now
-        }
-
-        // Pull first so we refresh against the freshest cross-device tokens.
-        // Anthropic rotates refresh tokens on every use — if device A rotated
-        // an inactive account's RT overnight and pushed to iCloud, B's locally
-        // cached RT is already invalid. Pulling closes that race before our
-        // own refresh tries the stale RT and trips invalid_grant.
-        if let cloud = cloudSync, let pass = cloudPassphrase {
-            let res = await cloud.pullQuiet(passphrase: pass)
-            if case .failed(let msg) = res {
-                cycleError = "pull: \(msg)"
-            }
-        }
-
-        var refreshOk = false
-        do {
-            try await client.refreshAllTokens()
-            settings.lastBackupTokenRefreshSuccessAt = now
-            refreshOk = true
-        } catch {
-            print("[AppStore] Backup token refresh failed: \(error.localizedDescription)")
-            // lastBackupTokenRefreshSuccessAt intentionally not updated on failure.
-            // Next check after transientRetry will retry; persistent grant failures
-            // are throttled by the fullInterval on the attempt timestamp.
-            if cycleError.isEmpty {
-                cycleError = "refresh: \(error.localizedDescription)"
-            }
-        }
-
-        // Push so other devices pick up our newly-rotated tokens before their
-        // next refresh cycle (mirrors the pull above on the peer). Run even
-        // if refresh failed — pushing the current local state is still
-        // useful for any account that didn't fail (`needsRelogin` doesn't
-        // block push at the backend level).
-        if let cloud = cloudSync, let pass = cloudPassphrase {
-            let pushRes: CloudSyncCoordinator.QuietResult = await withCheckedContinuation { cont in
-                Task.detached(priority: .background) { [weak cloud, pass] in
-                    let r = await cloud?.pushQuiet(passphrase: pass) ?? .failed("coordinator gone")
-                    cont.resume(returning: r)
-                }
-            }
-            if case .failed(let msg) = pushRes, cycleError.isEmpty {
-                cycleError = "push: \(msg)"
-            }
-
-            // Final outcome for the Diagnostics chip. Half-failures (refresh
-            // ok but push failed) deliberately do NOT bump success — the
-            // local rotation isn't published yet, so the peer is at risk.
-            if refreshOk && cycleError.isEmpty {
-                settings.lastAutoSyncSuccessAt = now
-                settings.lastAutoSyncError = ""
-            } else {
-                settings.lastAutoSyncError = cycleError
-            }
         }
     }
 
@@ -543,7 +454,6 @@ final class AppStore: ObservableObject {
             print("[AppStore] Switched to account \(num)")
             swappingTo = nil
             schedulePostSwapIntegrations()
-            await autoPushCloud()
         } catch {
             let detail = error.localizedDescription
             print("[AppStore] Switch failed: \(detail)")
@@ -598,7 +508,6 @@ final class AppStore: ObservableObject {
         do {
             let res = try await client.add(nickname: nickname)
             await refreshNow()
-            await autoPushCloud()
             return res
         } catch {
             lastError = error.localizedDescription
@@ -619,33 +528,8 @@ final class AppStore: ObservableObject {
         do {
             try await client.remove(num)
             await refreshNow()
-            await autoPushCloud()
         } catch {
             lastError = error.localizedDescription
         }
-    }
-
-    // MARK: - Cloud sync helpers
-
-    private func autoPushCloud() async {
-        // Read passphrase on main actor first, then push in background.
-        // pushQuiet swallows errors so background sync failures (iCloud not
-        // mounted yet, transient network) don't pollute the diagnostics panel
-        // — manual Push still surfaces errors via the regular `push` entry.
-        guard let cloud = cloudSync,
-              let pass = cloud.loadPassphrase() else { return }
-        Task.detached(priority: .background) { [weak cloud, pass] in
-            await cloud?.pushQuiet(passphrase: pass)
-        }
-    }
-
-    /// Pulls the iCloud bundle synchronously before our own refresh-tokens
-    /// cycle runs, so we never refresh against a refresh-token that another
-    /// device has already rotated. Silent on failure (no UI error surface).
-    /// Not detached — the caller relies on the pull completing first.
-    private func autoPullCloud() async {
-        guard let cloud = cloudSync,
-              let pass = cloud.loadPassphrase() else { return }
-        await cloud.pullQuiet(passphrase: pass)
     }
 }

@@ -54,8 +54,6 @@ func main() {
 		err = runIngestOAuth(ctx, svc, args)
 	case "add-oauth":
 		err = runAddAccountOAuth(ctx, svc, args)
-	case "cloud":
-		err = runCloud(ctx, svc, args)
 	case "usage-stats":
 		err = runUsageStats(ctx, svc, args)
 	case "refresh-bundle":
@@ -96,10 +94,6 @@ Commands:
                           (stdin JSON: {accountNum, accessToken, refreshToken, expiresAt, scopes, subscriptionType, expectedEmail})
   add-oauth               Create a NEW account from a WebView OAuth payload (dedupes by email+orgUuid, backup-only)
                           (stdin JSON: {accessToken, refreshToken, expiresAt, scopes, subscriptionType, email, orgUuid, organizationName, nickname})
-  cloud status            Show iCloud Drive bundle status
-  cloud push              Encrypt and push accounts to iCloud Drive
-  cloud pull              Restore accounts from iCloud Drive bundle
-  cloud forget            Delete the bundle from iCloud Drive
   help                    Show this help
 
 All commands accept --json for machine-readable output.`)

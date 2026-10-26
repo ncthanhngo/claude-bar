@@ -9,7 +9,6 @@ import SwiftUI
 // finally accurate again.
 struct WidgetTabbedPopover: View {
     @EnvironmentObject var store: AppStore
-    @EnvironmentObject var cloudSync: CloudSyncCoordinator
     @EnvironmentObject private var updateController: UpdateController
     @EnvironmentObject private var serverMonitor: ServerMonitorStore
     @EnvironmentObject private var claudeStatus: ClaudeStatusStore
@@ -17,10 +16,6 @@ struct WidgetTabbedPopover: View {
 
     /// Selected tab. Defaults to Claude on every open (not persisted).
     @State private var tab: PopoverTab = .claude
-
-    @AppStorage("lastAutoSyncSuccessAt") private var lastAutoSyncSuccessAt: Double = 0
-    @AppStorage("lastAutoSyncError") private var lastAutoSyncError: String = ""
-    @AppStorage("iCloudSyncEnabled") private var iCloudSyncEnabled: Bool = false
 
     /// Maximum account rows shown at full height before the in-list
     /// scroll engages. Matches Standard's behaviour so the layouts feel
@@ -271,13 +266,12 @@ struct WidgetTabbedPopover: View {
 
     private var accountsHeader: some View {
         // Verify all moved to the global header (icon-only). This row stays
-        // just for the "Accounts" label + iCloud sync chip + account count.
+        // just for the "Accounts" label + account count.
         HStack(alignment: .firstTextBaseline, spacing: 6) {
             Text("Accounts")
                 .font(.system(size: 12, weight: .semibold))
                 .foregroundColor(.primary.opacity(0.78))
             ClaudeStatusIndicator(status: claudeStatus)
-            syncChip
             Spacer()
             if let count = store.snapshot.map({ "\($0.accounts.count)" }) {
                 Text(count)
@@ -301,63 +295,6 @@ struct WidgetTabbedPopover: View {
         }
         .padding(.horizontal, 14)
         .padding(.bottom, 2)
-    }
-
-    // Compact iCloud-sync indicator: green/amber/red. Hidden when sync isn't
-    // enabled or no cycle has run yet, so the header stays clean for users
-    // who don't use sync.
-    @ViewBuilder
-    private var syncChip: some View {
-        let cloudEnabled = iCloudSyncEnabled && cloudSync.status?.exists == true
-        let hasSuccess = lastAutoSyncSuccessAt > 0
-        let attemptFailed = !lastAutoSyncError.isEmpty
-        let now = Date().timeIntervalSince1970
-        let successAge = hasSuccess ? now - lastAutoSyncSuccessAt : .infinity
-        let isBroken = attemptFailed && successAge > 12 * 3600
-
-        if cloudEnabled && (hasSuccess || attemptFailed) {
-            if isBroken {
-                HStack(alignment: .firstTextBaseline, spacing: 3) {
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .font(.system(size: 10))
-                        .foregroundColor(.red)
-                    Text("sync failing")
-                        .font(.system(size: 11))
-                        .foregroundColor(.red)
-                }
-                .help(lastAutoSyncError.isEmpty
-                      ? "Auto-sync hasn't succeeded in 12h+ — open Diagnostics to investigate."
-                      : "Auto-sync failing: \(lastAutoSyncError)")
-            } else if attemptFailed {
-                HStack(alignment: .firstTextBaseline, spacing: 3) {
-                    Image(systemName: "exclamationmark.triangle")
-                        .font(.system(size: 10))
-                        .foregroundColor(.orange)
-                    Text(relativeShort(seconds: successAge))
-                        .font(.system(size: 11))
-                        .foregroundColor(.orange)
-                }
-                .help("Last sync attempt failed. Previous success \(relativeShort(seconds: successAge)) ago.\n\(lastAutoSyncError)")
-            } else if hasSuccess {
-                HStack(alignment: .firstTextBaseline, spacing: 3) {
-                    Image(systemName: "checkmark.icloud.fill")
-                        .font(.system(size: 10))
-                        .foregroundColor(.green)
-                    Text(relativeShort(seconds: successAge))
-                        .font(.system(size: 11))
-                        .foregroundColor(.secondary)
-                }
-                .help("iCloud auto-sync ok — last cycle \(relativeShort(seconds: successAge)) ago.")
-            }
-        }
-    }
-
-    private func relativeShort(seconds: TimeInterval) -> String {
-        let s = Int(max(seconds, 0))
-        if s < 60         { return "now" }
-        if s < 60 * 60    { return "\(s / 60)m" }
-        if s < 24 * 3600  { return "\(s / 3600)h" }
-        return "\(s / 86400)d"
     }
 }
 

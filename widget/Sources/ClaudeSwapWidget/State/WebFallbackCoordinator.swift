@@ -148,7 +148,7 @@ final class WebFallbackCoordinator: ObservableObject {
     /// One pass of the keep-alive checker. For each web-linked account
     /// quiet for longer than `keepAliveThreshold` (and not currently in
     /// rate-limit backoff), trigger a normal `refreshWebUsage`. Reusing
-    /// the standard path means cookie save / cloud push / backoff handling
+    /// the standard path means auth-failure and backoff handling
     /// all run identically — keep-alive is purely about WHEN we poll, not
     /// HOW.
     private func runKeepAlive() async {
@@ -232,13 +232,6 @@ final class WebFallbackCoordinator: ObservableObject {
             accountStates[view.account.identityKey] = .notLinked
             return nil
         }
-        _ = await ClaudeWebSessionSync.restore(account: view.account, dataStore: dataStore)
-        // Save cookies BEFORE the fetch — they represent the linked session
-        // and should be persisted (locally + cloud bundle) even if the usage
-        // endpoint returns a transient 404 / rate-limit. Gating save on fetch
-        // success previously meant a single bad poll on app launch could leave
-        // the cloud bundle empty for the entire poll cycle.
-        await ClaudeWebSessionSync.save(account: view.account, dataStore: dataStore)
         let started = Date()
         // Hoisted out of the do-block so the catch can see whether the fast
         // path itself looked like an auth failure even when the scraper
@@ -423,7 +416,6 @@ final class WebFallbackCoordinator: ObservableObject {
         var identifiers = loadProfileIdentifiers()
         identifiers.removeValue(forKey: account.identityKey)
         saveProfileIdentifiers(identifiers)
-        ClaudeWebSessionSync.remove(account: account)
         accountStates[account.identityKey] = .notLinked
     }
 
@@ -432,10 +424,8 @@ final class WebFallbackCoordinator: ObservableObject {
         if !connected {
             accountStates[account.identityKey] = .fallback("Sign in to this Claude web profile.")
         } else if case .connected = accountStates[account.identityKey] {
-            await ClaudeWebSessionSync.save(account: account, dataStore: dataStore)
             return
         } else {
-            await ClaudeWebSessionSync.save(account: account, dataStore: dataStore)
             accountStates[account.identityKey] = .linked
         }
     }
@@ -447,7 +437,6 @@ final class WebFallbackCoordinator: ObservableObject {
     private func fetchWebUsages(for accounts: [AccountViewDTO]) async -> [Int: UsageDTO] {
         var usages: [Int: UsageDTO] = [:]
         for account in accounts {
-            await restoreSyncedProfile(for: account.account)
             guard isLinked(account.account) else { continue }
             if let usage = await refreshWebUsage(for: account) {
                 usages[account.id] = usage
@@ -479,17 +468,6 @@ final class WebFallbackCoordinator: ObservableObject {
         }
         guard let id = UUID(uuidString: rawID) else { return nil }
         return WKWebsiteDataStore(forIdentifier: id)
-    }
-
-    private func restoreSyncedProfile(for account: AccountDTO) async {
-        guard profileID(for: account) == nil,
-              ClaudeWebSessionSync.hasSession(for: account),
-              let dataStore = linkedDataStore(for: account, createIfNeeded: true) else {
-            return
-        }
-        if await ClaudeWebSessionSync.restore(account: account, dataStore: dataStore) {
-            accountStates[account.identityKey] = .linked
-        }
     }
 
     private func profileID(for account: AccountDTO) -> UUID? {

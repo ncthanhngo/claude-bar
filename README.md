@@ -62,7 +62,7 @@ brew install --cask claude-bar
 - **IDE reload** — after a swap, reloads VSCode / Code Insiders / Cursor / Windsurf / Antigravity windows so the extension picks up new credentials (requires Accessibility permission). Reload shortcut is user-configurable (default `⌃⌘R`) and auto-installed into each editor's `keybindings.json`
 - **No terminal restarts** — running `claude` sessions (terminal, cmux, GoLand) switch to the new account on their next request (within ~30s); nothing is killed or relaunched
 - **Session guard** — warns you if Claude is running before a manual switch; option to force-switch anyway
-- **Web-first usage** — each account can link its own embedded claude.ai web profile for usage before falling back to terminal OAuth usage; web sessions sync separately through iCloud Keychain by account email
+- **Web-first usage** — each account can link its own embedded claude.ai web profile for usage before falling back to terminal OAuth usage; web sessions stay on this Mac
 - **Fan control** — Fan tab shows live fan speed (RPM) and switches between Auto, Max, or a custom speed on Apple Silicon Macs. The first change asks for your admin password once to install a small setuid helper in `/Library/PrivilegedHelperTools`; fans return to Auto when the app quits
 - **Themes** — Light, Dark, and Rainbow
 - **Icon color** — 11 preset tint colors for the menu bar icon (Settings → General)

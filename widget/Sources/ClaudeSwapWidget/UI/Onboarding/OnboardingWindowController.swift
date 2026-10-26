@@ -13,8 +13,7 @@ final class OnboardingWindowController: NSObject, NSWindowDelegate {
     func present(
         store: AppStore,
         loginCoordinator: LoginCoordinator,
-        settings: AppSettings,
-        cloudSync: CloudSyncCoordinator
+        settings: AppSettings
     ) {
         if let existing = window {
             existing.makeKeyAndOrderFront(nil)
@@ -37,7 +36,6 @@ final class OnboardingWindowController: NSObject, NSWindowDelegate {
             .environmentObject(store)
             .environmentObject(loginCoordinator)
             .environmentObject(settings)
-            .environmentObject(cloudSync)
         )
 
         let size = NSSize(width: 540, height: 620)

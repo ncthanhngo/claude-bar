@@ -14,7 +14,6 @@ Reference material for Claude Bar, grouped by audience. Start with the [project 
 ## Security & privacy
 
 - [SECURITY.md](../SECURITY.md) — data flows, trust boundaries, threat model, and how to report a vulnerability
-- [iCloud sync risks (tech note)](./tech-note-icloud-sync-risks.md) — what the passphrase-encrypted iCloud bundle does and does not protect
 
 ## Engineering journals
 

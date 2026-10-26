@@ -3,8 +3,8 @@ import SwiftUI
 /// Settings → Updates.
 ///
 /// Release-only surface: auto-update preference, installed build, release
-/// notes, and the manual "Check for updates…" button. iCloud sync and
-/// operational diagnostics live on their own sidebar entries now —
+/// notes, and the manual "Check for updates…" button. Operational
+/// diagnostics live on their own sidebar entry now —
 /// previously they were dumped at the bottom of this tab, which buried
 /// data-management actions under a release-flow heading.
 ///

@@ -19,7 +19,6 @@ final class BackgroundWorkController {
     private init() {}
 
     private weak var store: AppStore?
-    private weak var prefsSync: PreferencesCloudSync?
     private weak var webFallback: WebFallbackCoordinator?
     private weak var serverMonitor: ServerMonitorStore?
     private weak var claudeStatus: ClaudeStatusStore?
@@ -27,14 +26,12 @@ final class BackgroundWorkController {
 
     func register(
         store: AppStore,
-        prefsSync: PreferencesCloudSync,
         webFallback: WebFallbackCoordinator,
         serverMonitor: ServerMonitorStore,
         claudeStatus: ClaudeStatusStore,
         systemMetrics: SystemMetricsStore
     ) {
         self.store = store
-        self.prefsSync = prefsSync
         self.webFallback = webFallback
         self.serverMonitor = serverMonitor
         self.claudeStatus = claudeStatus
@@ -54,7 +51,6 @@ final class BackgroundWorkController {
     /// observer.
     private func resume() {
         store?.start()
-        prefsSync?.start()
         webFallback?.resumeKeepAlive()
         serverMonitor?.start()
         claudeStatus?.start()
@@ -65,7 +61,6 @@ final class BackgroundWorkController {
     /// actions in the UI still function.
     private func pause() {
         store?.stop()
-        prefsSync?.stop()
         webFallback?.stop()
         serverMonitor?.stop()
         claudeStatus?.stop()

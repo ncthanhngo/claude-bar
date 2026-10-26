@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/soi/claude-swap-widget/backend/internal/domain"
@@ -20,11 +21,11 @@ func mkOAuthInput() AddAccountFromOAuthInput {
 	}
 }
 
-func mkOAuthService(reg *domain.Registry, bak *pushTestBackupStore) *Service {
+func mkOAuthService(reg *domain.Registry, bak *oauthTestBackupStore) *Service {
 	return &Service{
 		Backup:   bak,
-		Lock:     &pushTestLock{},
-		Registry: &pushTestRegistry{reg: reg},
+		Lock:     &oauthTestLock{},
+		Registry: &oauthTestRegistry{reg: reg},
 	}
 }
 
@@ -34,7 +35,7 @@ func emptyRegistry() *domain.Registry {
 
 func TestAddAccountFromOAuth_NewAccount_AssignsNextNumberAndWritesBackup(t *testing.T) {
 	reg := emptyRegistry()
-	bak := &pushTestBackupStore{blobs: map[int]domain.CredentialBlob{}}
+	bak := &oauthTestBackupStore{blobs: map[int]domain.CredentialBlob{}}
 	svc := mkOAuthService(reg, bak)
 
 	res, err := svc.AddAccountFromOAuth(context.Background(), mkOAuthInput())
@@ -66,7 +67,7 @@ func TestAddAccountFromOAuth_DuplicateIdentity_RefreshesNoNewSlot(t *testing.T) 
 		},
 		Sequence: []int{1},
 	}
-	bak := &pushTestBackupStore{blobs: map[int]domain.CredentialBlob{}}
+	bak := &oauthTestBackupStore{blobs: map[int]domain.CredentialBlob{}}
 	svc := mkOAuthService(reg, bak)
 
 	res, err := svc.AddAccountFromOAuth(context.Background(), mkOAuthInput())
@@ -91,7 +92,7 @@ func TestAddAccountFromOAuth_SameEmailDifferentOrg_CreatesSeparateSlot(t *testin
 		},
 		Sequence: []int{1},
 	}
-	bak := &pushTestBackupStore{blobs: map[int]domain.CredentialBlob{}}
+	bak := &oauthTestBackupStore{blobs: map[int]domain.CredentialBlob{}}
 	svc := mkOAuthService(reg, bak)
 
 	res, err := svc.AddAccountFromOAuth(context.Background(), mkOAuthInput())
@@ -109,7 +110,7 @@ func TestAddAccountFromOAuth_SameEmailDifferentOrg_CreatesSeparateSlot(t *testin
 func TestAddAccountFromOAuth_MissingOrgUuid_Blocks(t *testing.T) {
 	in := mkOAuthInput()
 	in.OrgUUID = "  "
-	svc := mkOAuthService(emptyRegistry(), &pushTestBackupStore{blobs: map[int]domain.CredentialBlob{}})
+	svc := mkOAuthService(emptyRegistry(), &oauthTestBackupStore{blobs: map[int]domain.CredentialBlob{}})
 
 	_, err := svc.AddAccountFromOAuth(context.Background(), in)
 	if err == nil {
@@ -123,9 +124,62 @@ func TestAddAccountFromOAuth_MissingOrgUuid_Blocks(t *testing.T) {
 func TestAddAccountFromOAuth_MissingTokens_Errors(t *testing.T) {
 	in := mkOAuthInput()
 	in.RefreshToken = ""
-	svc := mkOAuthService(emptyRegistry(), &pushTestBackupStore{blobs: map[int]domain.CredentialBlob{}})
+	svc := mkOAuthService(emptyRegistry(), &oauthTestBackupStore{blobs: map[int]domain.CredentialBlob{}})
 
 	if _, err := svc.AddAccountFromOAuth(context.Background(), in); err == nil {
 		t.Fatal("expected error when refresh token is missing")
 	}
+}
+
+// oauthTestBackupStore delegates to listTestBackupStore but records Read calls.
+type oauthTestBackupStore struct {
+	blobs     map[int]domain.CredentialBlob
+	readCalls []int
+	mu        sync.Mutex
+}
+
+func (s *oauthTestBackupStore) Read(_ context.Context, num int, _ string) (domain.CredentialBlob, error) {
+	s.mu.Lock()
+	s.readCalls = append(s.readCalls, num)
+	s.mu.Unlock()
+	return s.blobs[num], nil
+}
+func (s *oauthTestBackupStore) Write(_ context.Context, num int, _ string, b domain.CredentialBlob) error {
+	s.mu.Lock()
+	s.blobs[num] = b
+	s.mu.Unlock()
+	return nil
+}
+func (s *oauthTestBackupStore) Delete(context.Context, int, string) error { return nil }
+
+// oauthTestLock records acquisition order.
+type oauthTestLock struct {
+	mu       sync.Mutex
+	acquired []string
+	locked   bool
+}
+
+func (l *oauthTestLock) Acquire(context.Context) error {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.acquired = append(l.acquired, "acquire")
+	l.locked = true
+	return nil
+}
+func (l *oauthTestLock) Release() error {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.locked = false
+	return nil
+}
+
+// oauthTestRegistry is a simple in-memory registry.
+type oauthTestRegistry struct {
+	reg *domain.Registry
+}
+
+func (r *oauthTestRegistry) Load(context.Context) (*domain.Registry, error) { return r.reg, nil }
+func (r *oauthTestRegistry) Save(_ context.Context, reg *domain.Registry) error {
+	r.reg = reg
+	return nil
 }

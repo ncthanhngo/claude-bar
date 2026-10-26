@@ -6,11 +6,11 @@ import SwiftUI
 //
 //   APP          — basic cosmetics + the canonical Accounts surface
 //   FEATURES     — opt-in workflows (IDE reload)
-//   DATA & SYNC  — anything that backs up, restores, or inspects state
+//   DATA         — anything that inspects state
 //   SYSTEM       — read-mostly screens (privacy, updates, about)
 //
 // The earlier "General / System" pair conflated cosmetic prefs with feature
-// surfaces and dumped Diagnostics + iCloud Sync under the
+// surfaces and dumped Diagnostics under the
 // Update tab. Four groups is short enough to scan without scrolling and
 // long enough to separate concerns the user reasons about differently.
 struct SettingsTab: View {
@@ -170,7 +170,7 @@ struct SettingsTab: View {
         let raw: [(String, [SettingsSubTab])] = [
             ("App",         SettingsSubTab.appGroup),
             ("Features",    SettingsSubTab.featuresGroup),
-            ("Data & Sync", SettingsSubTab.dataGroup),
+            ("Data", SettingsSubTab.dataGroup),
             ("System",      SettingsSubTab.systemGroup),
         ]
         let q = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -210,8 +210,7 @@ struct SettingsTab: View {
         case .general:     GeneralTab()
         case .accounts:    AccountsTab()
         case .ide:         IDEIntegrationTab()
-        case .iCloudSync:  DiagnosticsTab(mode: .iCloud)
-        case .diagnostics: DiagnosticsTab(mode: .diagnostics)
+        case .diagnostics: DiagnosticsTab()
         case .privacy:     PrivacyTab()
         case .update:      UpdateTab()
         case .about:       AboutTab()
@@ -220,7 +219,7 @@ struct SettingsTab: View {
 }
 
 enum SettingsSubTab: String, CaseIterable, Identifiable {
-    case general, accounts, ide, iCloudSync, diagnostics, privacy, update, about
+    case general, accounts, ide, diagnostics, privacy, update, about
 
     var id: String { rawValue }
 
@@ -229,8 +228,8 @@ enum SettingsSubTab: String, CaseIterable, Identifiable {
     /// Opt-in workflows that wire Claude Bar into the rest of the user's
     /// toolchain — each has enough surface area to deserve its own tab.
     static let featuresGroup: [SettingsSubTab] = [.ide]
-    /// Anything that backs up, restores, or inspects state.
-    static let dataGroup: [SettingsSubTab] = [.iCloudSync, .diagnostics]
+    /// Anything that inspects state.
+    static let dataGroup: [SettingsSubTab] = [.diagnostics]
     /// Read-mostly screens.
     static let systemGroup: [SettingsSubTab] = [.privacy, .update, .about]
 
@@ -239,7 +238,6 @@ enum SettingsSubTab: String, CaseIterable, Identifiable {
         case .general:     return "General"
         case .accounts:    return "Accounts"
         case .ide:         return "IDE Integration"
-        case .iCloudSync:  return "iCloud Sync"
         case .diagnostics: return "Diagnostics"
         case .privacy:     return "Privacy"
         case .update:      return "Updates"
@@ -252,7 +250,6 @@ enum SettingsSubTab: String, CaseIterable, Identifiable {
         case .general:     return "gearshape.fill"
         case .accounts:    return "person.2.fill"
         case .ide:         return "macwindow.on.rectangle"
-        case .iCloudSync:  return "icloud.fill"
         case .diagnostics: return "stethoscope"
         case .privacy:     return "hand.raised.fill"
         case .update:      return "arrow.down.circle.fill"
@@ -268,7 +265,6 @@ enum SettingsSubTab: String, CaseIterable, Identifiable {
         case .general:     return .gray
         case .accounts:    return .blue
         case .ide:         return .purple
-        case .iCloudSync:  return .cyan
         case .diagnostics: return .red
         case .privacy:     return .pink
         case .update:      return .green

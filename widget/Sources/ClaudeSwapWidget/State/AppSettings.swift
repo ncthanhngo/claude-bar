@@ -12,8 +12,8 @@ final class AppSettings: ObservableObject {
     /// Master "pause" switch. When true the app stays in the menu bar and
     /// remains fully interactive (manual refresh, account switch, settings)
     /// but every background loop and helper process is torn down: usage
-    /// polling, the 6-hour token refresh, auto-swap, web cookie keep-alive,
-    /// iCloud preference sync, and the server / Claude status monitors. App
+    /// polling, auto-swap, web cookie keep-alive, and the server / Claude
+    /// status monitors. App
     /// Nap is allowed to re-engage too, so a paused app is as quiet as it was
     /// before it was installed. Persisted — a paused app
     /// relaunches paused until the user flips it back. Coordinated centrally
@@ -138,51 +138,6 @@ final class AppSettings: ObservableObject {
     /// button is clicked. The wizard never reappears while this is true;
     /// the "Re-run onboarding" action in the About tab flips it back.
     @AppStorage("didCompleteOnboarding") var didCompleteOnboarding: Bool = false
-
-    /// Timestamp of the last backup token refresh attempt (written before RPC).
-    /// Used to throttle attempt frequency — prevents hammering Anthropic on
-    /// repeated grant failures. Transient failures retry after a shorter window;
-    /// see `backupTokenRefreshIfNeeded()` in AppStore for the full policy.
-    @AppStorage("lastBackupTokenRefreshAt") var lastBackupTokenRefreshAt: Double = 0
-
-    /// Timestamp of the last *successful* backup token refresh (written after RPC).
-    /// Compared against `lastBackupTokenRefreshAt` to distinguish a transient
-    /// failure (last attempt failed, retry sooner) from a persistent one (keep
-    /// the full 6-hour throttle so broken grants don't cause refresh spam).
-    @AppStorage("lastBackupTokenRefreshSuccessAt") var lastBackupTokenRefreshSuccessAt: Double = 0
-
-    /// Timestamp of the last automatic iCloud pull→refresh→push cycle attempt
-    /// (written at start of each cycle). Surfaced in Diagnostics so the user
-    /// can see whether background sync is actually running even though
-    /// pullQuiet/pushQuiet swallow individual errors.
-    @AppStorage("lastAutoSyncAt") var lastAutoSyncAt: Double = 0
-
-    /// Timestamp of the most recent fully-successful auto-sync cycle (pull +
-    /// refresh + push all returned ok). Drives the "Last sync Xh ago" / red
-    /// "Sync failing" badge — a wide gap means the user should investigate
-    /// (wrong passphrase, iCloud Drive disabled, disk full…).
-    @AppStorage("lastAutoSyncSuccessAt") var lastAutoSyncSuccessAt: Double = 0
-
-    /// Short one-line failure reason captured from the last cycle when the
-    /// success timestamp didn't move. Empty when the last cycle succeeded or
-    /// no cycle has run yet. Surfaced as the secondary text on the sync chip.
-    @AppStorage("lastAutoSyncError") var lastAutoSyncError: String = ""
-
-    /// Master switch for iCloud cloud-sync. When false, every call into
-    /// `loadPassphrase()` short-circuits to nil — the app never reads the
-    /// Keychain item, so a freshly-signed Sparkle build doesn't trigger the
-    /// macOS "Allow ClaudeBar to access this keychain item?" ACL prompt on
-    /// first run after each update. Defaults to off for every install (no
-    /// auto-migration) — users who want sync flip the toggle in Diagnostics.
-    @AppStorage("iCloudSyncEnabled") var iCloudSyncEnabled: Bool = false
-
-    /// `CFBundleShortVersionString` from the last launch. On every fresh
-    /// install or version bump the launch code compares this against the
-    /// running version and, if they differ, force-resets `iCloudSyncEnabled`
-    /// to false. The intent is that every Sparkle update lands on a clean
-    /// default-off — users who want sync re-enable it once per release and
-    /// it persists for all launches at that version. Empty on first run.
-    @AppStorage("lastLaunchedAppVersion") var lastLaunchedAppVersion: String = ""
 
     @AppStorage("menuBarIconColor") var menuBarIconColor: MenuBarIconColor = .system
 
