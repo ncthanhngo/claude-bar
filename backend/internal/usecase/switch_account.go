@@ -62,6 +62,13 @@ func (s *Service) SwitchAccount(ctx context.Context, targetNum int) error {
 		return s.repairActiveAccountState(ctx, target)
 	}
 
+	// Before the snapshot, so a refresh Claude Code has in flight for the
+	// outgoing account lands first: the snapshot then captures its rotated
+	// refresh token, and nothing overwrites the target credential below.
+	if err := s.waitClaudeRefreshLock(ctx); err != nil {
+		return err
+	}
+
 	if active, ok := reg.Accounts[activeNum]; ok && active != nil {
 		// Best-effort: failure (Keychain ACL denied, transient read error) must not
 		// block the switch. Rollback degrades to pre-existing backup in that case.
@@ -169,10 +176,23 @@ func (s *Service) rewriteLiveCredentialFromBackup(ctx context.Context, acc *doma
 	if err != nil {
 		return err
 	}
+	if err := s.waitClaudeRefreshLock(ctx); err != nil {
+		return err
+	}
 	if err := s.Live.Write(ctx, creds); err != nil {
 		return fmt.Errorf("write live creds: %w", err)
 	}
 	return nil
+}
+
+// waitClaudeRefreshLock keeps a refresh Claude Code has in flight for the
+// current live account from landing on top of the credential written next.
+// Returns ctx's error so a cancelled swap stops before touching the live slot.
+func (s *Service) waitClaudeRefreshLock(ctx context.Context) error {
+	if s.RefreshLock != nil {
+		s.RefreshLock.WaitReleased(ctx)
+	}
+	return ctx.Err()
 }
 
 func (s *Service) snapshotLiveCredential(ctx context.Context, acc *domain.Account) error {

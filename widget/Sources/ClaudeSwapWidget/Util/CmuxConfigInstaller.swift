@@ -14,8 +14,8 @@ import Foundation
 /// `--settings <big JSON>` blob until the argument list blew past ARG_MAX —
 /// surfacing as "Argument list too long" / a runaway process chain.
 ///
-/// cmux's swap-restart is already covered by CmuxPaneRelauncher (send-key
-/// driven), so routing cmux through claude-watch bought nothing. This
+/// cmux panes need no swap-restart (claude re-reads the Keychain on its
+/// own), so routing cmux through claude-watch bought nothing. This
 /// installer now SWEEPS the bad line out on every launch so existing installs
 /// self-heal after one upgrade cycle; cmux then self-resolves the real
 /// binary. It never writes a binary path of its own.

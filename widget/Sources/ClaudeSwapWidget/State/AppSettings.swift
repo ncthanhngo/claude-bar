@@ -93,9 +93,6 @@ final class AppSettings: ObservableObject {
     /// Requires Accessibility permission the first time.
     @AppStorage("autoReloadIDEAfterSwap") var autoReloadIDEAfterSwap: Bool = false
 
-    /// When true, sends SIGINT to every interactive `claude` CLI session after
-    /// a swap. Useful with the `claude-watch` wrapper script which auto-restarts.
-    @AppStorage("autoKillCLIAfterSwap") var autoKillCLIAfterSwap: Bool = false
     /// VSCode-style string of the reload shortcut injected into VSCode-family
     /// editors and replayed by `IDEReloader`. Default `cmd+ctrl+r`.
     @AppStorage("reloadShortcut") var reloadShortcut: String = "cmd+ctrl+r"

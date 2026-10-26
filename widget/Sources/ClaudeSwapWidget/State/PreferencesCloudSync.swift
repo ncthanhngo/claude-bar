@@ -333,7 +333,6 @@ private let syncedKeys: [SyncedKey] = [
     .init(id: "menuBarIconColor",         kind: .string),
     .init(id: "aggressiveAutoKill",       kind: .bool),
     .init(id: "autoReloadIDEAfterSwap",   kind: .bool),
-    .init(id: "autoKillCLIAfterSwap",     kind: .bool),
     .init(id: "reloadShortcut",           kind: .string),
     .init(id: "injectReloadShortcut",     kind: .bool),
     .init(id: "widgetTheme",              kind: .string),

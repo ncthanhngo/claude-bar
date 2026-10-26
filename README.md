@@ -12,7 +12,7 @@ A macOS menu-bar app for managing multiple [Claude Code](https://claude.ai/code)
 
 ## Why Claude Bar?
 
-One Claude Code login at a time means hitting a quota wall mid-session and stopping to re-authenticate by hand. Claude Bar keeps every account a click away in the menu bar, watches your 5-hour usage, and **auto-swaps to a fresh account the moment you run low** — then reloads your IDE and restarts your terminal session so you barely notice. It's local-first: credentials live in your macOS Keychain, and nothing leaves your Mac unless you opt in.
+One Claude Code login at a time means hitting a quota wall mid-session and stopping to re-authenticate by hand. Claude Bar keeps every account a click away in the menu bar, watches your 5-hour usage, and **auto-swaps to a fresh account the moment you run low** — running `claude` sessions pick up the new account on their own, and your IDE can reload too, so you barely notice. It's local-first: credentials live in your macOS Keychain, and nothing leaves your Mac unless you opt in.
 
 ---
 
@@ -23,9 +23,7 @@ One Claude Code login at a time means hitting a quota wall mid-session and stopp
 - [Requirements](#requirements)
 - [Setup](#setup)
   - [Add accounts](#add-accounts)
-  - [Auto-restart terminal sessions](#auto-restart-terminal-sessions)
   - [IDE reload](#ide-reload--vscode--code-insiders--cursor--windsurf--antigravity)
-  - [Cmux pane relaunch](#cmux-pane-relaunch)
 - [How auto-swap works](#how-auto-swap-works)
 - [Update](#update)
 - [Uninstall](#uninstall)
@@ -62,7 +60,7 @@ brew install --cask claude-bar
 - **Token usage chart** — Hour / Day / Month histogram of tokens and estimated USD cost across all local Claude Code sessions (CLI + IDE extensions). Click **Details** next to USD to see Anthropic's per-model rate table; rates auto-refresh in the background from a hosted JSON so updated Anthropic pricing flows in without a new release
 - **Auto-swap** — automatically switches to a lower-usage account when the active one hits your threshold; gives you a 60-second grace window with a heads-up notification, then swaps regardless of whether `claude` is still running
 - **IDE reload** — after a swap, reloads VSCode / Code Insiders / Cursor / Windsurf / Antigravity windows so the extension picks up new credentials (requires Accessibility permission). Reload shortcut is user-configurable (default `⌃⌘R`) and auto-installed into each editor's `keybindings.json`
-- **CLI auto-restart** — sends SIGINT to running `claude` sessions; use with the bundled `claude-watch` wrapper to auto-restart in your terminal
+- **No terminal restarts** — running `claude` sessions (terminal, cmux, GoLand) switch to the new account on their next request (within ~30s); nothing is killed or relaunched
 - **Session guard** — warns you if Claude is running before a manual switch; option to force-switch anyway
 - **Web-first usage** — each account can link its own embedded claude.ai web profile for usage before falling back to terminal OAuth usage; web sessions sync separately through iCloud Keychain by account email
 - **Fan control** — Fan tab shows live fan speed (RPM) and switches between Auto, Max, or a custom speed on Apple Silicon Macs. The first change asks for your admin password once to install a small setuid helper in `/Library/PrivilegedHelperTools`; fans return to Auto when the app quits
@@ -85,10 +83,6 @@ brew install --cask claude-bar
 
 Open **Settings → Accounts → Add account**. Each account needs a separate Claude Code login (`claude /login`).
 
-### Auto-restart terminal sessions
-
-Enable **Auto-kill CLI sessions** in Settings → General. Claude Bar automatically installs `claude-watch` and adds the shell alias on first launch — no manual steps needed. When a swap happens, your terminal session (including GoLand's integrated terminal) restarts automatically with the new account credentials.
-
 ### IDE reload — VSCode / Code Insiders / Cursor / Windsurf / Antigravity
 
 Enable **Auto-reload IDE after swap** in Settings → General, then click **Grant Access** when the Accessibility prompt appears. Claude Bar will reload supported IDE windows after each swap.
@@ -97,19 +91,13 @@ Enable **Auto-reload IDE after swap** in Settings → General, then click **Gran
 
 **How injection works.** With *Install shortcut into IDE keybindings.json* enabled (default), Claude Bar adds one entry to each detected editor's `keybindings.json` tagged with `"when": "!falseClaudeBarManaged"`. Toggle off to revert to the legacy `⌘⇧P → Developer: Reload Window` command-palette flow. Zed uses its own keymap and is unaffected. Managed state lives at `~/Library/Application Support/claude-bar/managed-shortcuts.json` and is cleaned up automatically when the shortcut changes or injection is disabled.
 
-### Cmux pane relaunch
-
-If you run `claude` inside a [cmux](https://cmux.com/) terminal pane, Claude Bar automatically resumes the conversation under the new account after each swap. It reads cmux's hook state at `~/.cmuxterm/claude-hook-sessions.json`, then for every active Claude pane sends `Ctrl-C` followed by `claude --resume <sessionId>` via `cmux send-key` / `cmux send`. No toggle required.
-
-Requires `cmux hooks setup` (so cmux tracks sessions) and the `cmux` CLI on `PATH`. Panes that pin an isolated `CLAUDE_CONFIG_DIR` (e.g. `~/.codex-accounts/claude/<id>/`) are intentionally skipped — claude-bar's global credential swap does not reach them, and merging the two account systems would defeat the isolation. When no cmux panes are active this integration is a silent no-op.
-
 ## How auto-swap works
 
 1. **Polls usage** every N seconds with adaptive frequency — faster as you approach the threshold
-2. Active 5h usage ≥ threshold → notification **"Auto-swap in 60s (X% used)"** — 60-second grace window; close `claude` now if you want it to finish cleanly first
-3. After the grace, **swaps** to the inactive account with the lowest 5-hour usage (highest subscription tier preferred). The swap goes through even if a `claude` session is still live — Claude Bar does not kill the process, the next invocation simply picks up the new account
+2. Active 5h usage ≥ threshold → notification **"Auto-swap in 60s (X% used)"** — 60-second grace window
+3. After the grace, **swaps** to the inactive account with the lowest 5-hour usage (highest subscription tier preferred; accounts at 100% of their 7-day limit are skipped). Running `claude` sessions are never killed — Claude Code re-reads the Keychain and uses the new account from its next request
 4. Notification **"Switched to [account]"** — confirmation after the swap completes
-5. Triggers **IDE reload** (VSCode / Code Insiders / Cursor / Windsurf / Antigravity) and **CLI restart** (`claude-watch`) if those options are enabled in Settings
+5. Triggers **IDE reload** (VSCode / Code Insiders / Cursor / Windsurf / Antigravity) if enabled in Settings
 
 If all inactive accounts are also above the threshold → notification **"All accounts above threshold"**, retry in 10 minutes.
 
@@ -148,14 +136,12 @@ Or manually: download the latest `ClaudeBar.zip` from [Releases](https://github.
 brew uninstall --cask claude-bar
 ```
 
-To also remove all data (accounts, settings, claude-watch script, `cbar` shortcut):
+To also remove all data (accounts, settings, `cbar` shortcut):
 
 ```bash
 rm -rf "$HOME/Library/Application Support/claude-bar"
 defaults delete dev.ncthanhngo.claude-bar 2>/dev/null
 rm -f /opt/homebrew/bin/cbar /usr/local/bin/cbar    # the cbar CLI shortcut
-# Remove shell alias if you added it
-sed -i '' '/alias claude="claude-watch"/d' ~/.zshrc
 ```
 
 ---

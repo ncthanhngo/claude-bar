@@ -305,6 +305,61 @@ func TestSwitchAccountSnapshotsLiveCredentialBeforeOverwritingIt(t *testing.T) {
 	}
 }
 
+// claudeRefreshInFlight simulates Claude Code finishing a refresh of the
+// outgoing account while the swap waits on its lock.
+type claudeRefreshInFlight struct {
+	live    *switchTestLiveStore
+	rotated domain.CredentialBlob
+	waited  bool
+}
+
+func (f *claudeRefreshInFlight) WaitReleased(context.Context) {
+	f.waited = true
+	f.live.read = f.rotated
+}
+
+func TestSwitchAccountWaitsForClaudeRefreshBeforeSnapshot(t *testing.T) {
+	live := &switchTestLiveStore{read: credentialBlob("a-token", "a-refresh-r1", time.Now().Add(time.Hour))}
+	rotated := credentialBlob("a-token-2", "a-refresh-r2", time.Now().Add(time.Hour))
+	waiter := &claudeRefreshInFlight{live: live, rotated: rotated}
+	backup := &listTestBackupStore{
+		blobs: map[int]domain.CredentialBlob{
+			1: credentialBlob("old-active-token", "old-active-refresh", time.Now().Add(time.Hour)),
+			2: credentialBlob("target-token", "target-refresh", time.Now().Add(time.Hour)),
+		},
+		writes: map[int]domain.CredentialBlob{},
+	}
+	svc := &Service{
+		Live:   live,
+		Backup: backup,
+		Config: switchTestConfigStore{cfg: &domain.ClaudeConfig{Raw: map[string]any{}}},
+		Registry: listTestRegistryStore{reg: &domain.Registry{
+			ActiveAccountNumber: 1,
+			Sequence:            []int{1, 2},
+			Accounts: map[int]*domain.Account{
+				1: {Number: 1, Email: "active@example.com"},
+				2: {Number: 2, Email: "target@example.com"},
+			},
+		}},
+		Refresh:     refreshedSwitchToken(),
+		Lock:        switchTestLock{},
+		RefreshLock: waiter,
+	}
+
+	if err := svc.SwitchAccount(context.Background(), 2); err != nil {
+		t.Fatalf("SwitchAccount returned error: %v", err)
+	}
+	if !waiter.waited {
+		t.Fatal("refresh lock not awaited")
+	}
+	if backup.writes[1] != rotated {
+		t.Fatalf("active backup = %q, want rotated credential written by Claude Code", backup.writes[1])
+	}
+	if live.written == "" || live.written == rotated {
+		t.Fatalf("target live credential write = %q", live.written)
+	}
+}
+
 func refreshedSwitchToken() *listTestTokenRefresher {
 	return &listTestTokenRefresher{fresh: &domain.OAuthPayload{
 		AccessToken:  "fresh-token",

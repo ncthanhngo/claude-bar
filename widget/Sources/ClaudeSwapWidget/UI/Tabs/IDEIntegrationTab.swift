@@ -1,15 +1,13 @@
 import SwiftUI
 
-/// Settings → IDE Integration. Houses the two related auto-swap helpers
-/// that were previously buried inside General as a conditional reveal:
-///   • Auto-reload IDE after swap (Accessibility + reload shortcut +
-///     keybindings.json injection)
-///   • Auto-kill CLI sessions after swap (claude-watch install + alias)
+/// Settings → IDE Integration: auto-reload IDE after swap (Accessibility +
+/// reload shortcut + keybindings.json injection). Terminal `claude` sessions
+/// need no setup — they pick up the new account on their own.
 ///
-/// Pulled out of General because the combined surface is a workflow, not a
+/// Pulled out of General because the surface is a workflow, not a
 /// preference toggle — the user opens this screen *because* they want to
-/// wire Claude Bar into their editors and terminals, not because they're
-/// browsing cosmetic prefs.
+/// wire Claude Bar into their editors, not because they're browsing
+/// cosmetic prefs.
 struct IDEIntegrationTab: View {
     @ObservedObject private var settings = AppSettings.shared
     @State private var axGranted = IDEReloader.isAccessibilityGranted
@@ -33,25 +31,6 @@ struct IDEIntegrationTab: View {
                         accessibilityStatus
                         Divider()
                         reloadShortcutSection
-                    }
-                }
-
-                SettingsGroup(
-                    "Terminal reload",
-                    subtitle: "Restart interactive `claude` CLI sessions automatically so they re-read the new account credentials."
-                ) {
-                    Toggle(isOn: $settings.autoKillCLIAfterSwap) {
-                        SettingsToggleLabel(
-                            title: "Auto-kill CLI sessions after swap",
-                            detail: "Sends SIGINT to every claude CLI process. Pair with claude-watch so your terminal — including GoLand's built-in one — auto-restarts on the new account."
-                        )
-                    }
-                    if settings.autoKillCLIAfterSwap {
-                        commandRow(label: "Install claude-watch once", command: installCmd)
-                        commandRow(label: "Make claude auto-restart everywhere", command: aliasCmd)
-                        Text("Open a new terminal tab after running the alias command. claude-watch detects the credential change and restarts automatically.")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
                     }
                 }
             }
@@ -176,48 +155,5 @@ struct IDEIntegrationTab: View {
         keybindingApplyStatus = removed.isEmpty
             ? "No managed entries to remove."
             : "Removed from \(removed.map(\.displayName).joined(separator: ", "))."
-    }
-
-    // MARK: - claude-watch shell snippets
-
-    private func commandRow(label: String, command: String) -> some View {
-        VStack(alignment: .leading, spacing: 5) {
-            Text(label)
-                .font(.caption)
-                .foregroundColor(.secondary)
-            HStack(spacing: 6) {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    Text(command)
-                        .font(.system(size: 10, design: .monospaced))
-                        .lineLimit(1)
-                        .textSelection(.enabled)
-                }
-                .padding(.horizontal, 8)
-                .padding(.vertical, 6)
-                .background(Color.primary.opacity(0.06))
-                .clipShape(RoundedRectangle(cornerRadius: 5))
-                Button {
-                    NSPasteboard.general.clearContents()
-                    NSPasteboard.general.setString(command, forType: .string)
-                } label: {
-                    Image(systemName: "doc.on.doc")
-                        .font(.system(size: 11))
-                }
-                .buttonStyle(.borderless)
-                .help("Copy")
-            }
-        }
-    }
-
-    private var installCmd: String {
-        let support = ("~/Library/Application Support/claude-swap-widget/claude-watch.sh" as NSString)
-            .expandingTildeInPath
-        let binDir = FileManager.default.fileExists(atPath: "/opt/homebrew/bin")
-            ? "/opt/homebrew/bin" : "/usr/local/bin"
-        return "chmod +x \"\(support)\" && ln -sf \"\(support)\" \(binDir)/claude-watch"
-    }
-
-    private var aliasCmd: String {
-        "grep -qxF 'alias claude=\"claude-watch\"' ~/.zshrc 2>/dev/null || echo 'alias claude=\"claude-watch\"' >> ~/.zshrc; grep -qxF 'alias claude=\"claude-watch\"' ~/.zprofile 2>/dev/null || echo 'alias claude=\"claude-watch\"' >> ~/.zprofile"
     }
 }

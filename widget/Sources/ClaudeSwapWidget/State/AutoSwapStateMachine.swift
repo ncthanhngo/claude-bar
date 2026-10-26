@@ -10,10 +10,9 @@ import UserNotifications
 /// The grace window is a soft warning, not a hard gate. Pre-#18 the swap
 /// also waited for `safeToSwap` (no live claude session) after the grace,
 /// which silently disabled auto-swap for anyone keeping a claude session
-/// running. Now: notify, wait the grace, swap regardless. Auto-swap does
-/// not kill claude — the existing process keeps its cached tokens; the
-/// next invocation picks up the new account. Users who want the live
-/// process restarted can enable `autoKillCLIAfterSwap` (post-swap SIGINT).
+/// running. Now: notify, wait the grace, swap regardless. Auto-swap never
+/// touches running claude processes — Claude Code re-reads the Keychain
+/// before each token check (30s cache), so they follow the new account.
 @MainActor
 final class AutoSwapStateMachine: ObservableObject {
     enum State: Equatable {
@@ -236,7 +235,7 @@ final class AutoSwapStateMachine: ObservableObject {
     private func notifyPending(to target: AccountViewDTO, activePct: Int, inSec: Int) async {
         await postNotification(
             title: "Auto-swap in \(inSec)s (\(activePct)% used)",
-            body: "Will switch to \(target.account.displayName) in \(inSec)s. Close claude now if you want it to finish cleanly first.",
+            body: "Will switch to \(target.account.displayName) in \(inSec)s. Running claude sessions follow automatically.",
             id: "csw.pending"
         )
     }

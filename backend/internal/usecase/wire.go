@@ -22,15 +22,16 @@ func NewMacOSService() *Service {
 	reg := registry.New()
 
 	return &Service{
-		Live:       live,
-		Backup:     keychain.NewBackupCredentialStore(),
-		Config:     config,
-		Registry:   reg,
-		Usage:      oauth.NewUsageFetcher(),
-		Refresh:    refresh,
-		Sessions:   sessions.New(),
-		Lock:       lock.New(),
-		MCPSecrets: keychain.NewMCPSecretStore(),
+		Live:        live,
+		Backup:      keychain.NewBackupCredentialStore(),
+		Config:      config,
+		Registry:    reg,
+		Usage:       oauth.NewUsageFetcher(),
+		Refresh:     refresh,
+		Sessions:    sessions.New(),
+		Lock:        lock.New(),
+		MCPSecrets:  keychain.NewMCPSecretStore(),
+		RefreshLock: lock.NewClaudeRefreshLockWait(),
 		UsageLog: usagelog.NewScanner(adapter.ClaudeProjectsDir()).
 			WithCacheFile(filepath.Join(adapter.WidgetDataDir(), "usage", "scan-cache.json")),
 		UsageCache: cache.New(),

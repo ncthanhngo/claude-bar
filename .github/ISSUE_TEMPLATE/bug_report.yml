@@ -42,7 +42,6 @@ body:
         - Auto-swap
         - Usage display / token chart
         - IDE reload
-        - CLI auto-restart (claude-watch)
         - Local MCP connectors
         - iCloud sync
         - Other / not sure

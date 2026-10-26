@@ -238,15 +238,6 @@ final class AppStore: ObservableObject {
             try await client.refreshAllTokens()
             settings.lastBackupTokenRefreshSuccessAt = now
             refreshOk = true
-
-            // refresh-tokens rotates the ACTIVE account's live Keychain token,
-            // so every already-running `claude` is now holding a token the
-            // server has invalidated — the next call 401s with "Please run
-            // /login". The swap path reloads sessions after a credential
-            // change; a silent backup refresh must do the same or wrapped
-            // terminals die mid-session with no way back. SIGUSR1 lets each
-            // claude-watch wrapper resume its conversation on the fresh token.
-            await CLISessionKiller.reloadRunningSessions()
         } catch {
             print("[AppStore] Backup token refresh failed: \(error.localizedDescription)")
             // lastBackupTokenRefreshSuccessAt intentionally not updated on failure.
@@ -580,108 +571,25 @@ final class AppStore: ObservableObject {
         swapError = nil
     }
 
-    /// Fires the SIGINT-then-`claude-watch --resume`, IDE reload, and cmux
-    /// pane relaunch pipeline. Called from the swap path and from
-    /// [[QuickReloginCoordinator]] when an active account's tokens have just
-    /// been rewritten — semantically the same situation as a swap to the
-    /// "same account, fresh credentials", so it reuses the same toggles
-    /// (`autoKillCLIAfterSwap`, `autoReloadIDEAfterSwap`) and the always-on
-    /// cmux relauncher.
+    /// Reloads IDE windows after the live credential changed. Called from the
+    /// swap path and from [[QuickReloginCoordinator]] when the active
+    /// account's tokens were rewritten. Running `claude` CLI sessions need
+    /// nothing: Claude Code re-reads the Keychain before each token check
+    /// (30s cache), so they adopt the new account on their next request.
     func schedulePostSwapIntegrations() {
         DiagnosticsLogger.shared.log(.info, subsystem: "post-swap",
-            "scheduled — autoKillCLI=\(settings.autoKillCLIAfterSwap) autoReloadIDE=\(settings.autoReloadIDEAfterSwap)")
-        Task { [weak self] in
-            await self?.restartCLISessionsAfterSwap()
-        }
+            "scheduled — autoReloadIDE=\(settings.autoReloadIDEAfterSwap)")
         Task { [weak self] in
             await self?.reloadIDEsAfterSwap()
         }
-        Task { [weak self] in
-            await self?.relaunchCmuxClaudePanesAfterSwap()
-        }
-    }
-
-    private func restartCLISessionsAfterSwap() async {
-        // Credentials must already be switched before SIGINT so claude-watch
-        // can see the changed ~/.claude.json and restart the same terminal.
-        // When cmux pane relaunch is enabled, those PIDs are skipped here so
-        // the dedicated relauncher can run `claude --resume <sid>` cleanly.
-        var killCount = 0
-        if settings.autoKillCLIAfterSwap {
-            // Always skip cmux-tracked PIDs — the dedicated cmux pane
-            // relauncher restarts them with `claude --resume <sid>` so the
-            // conversation continues. A SIGINT here would race the resume.
-            let killed = CLISessionKiller.killAll(skipCmuxTracked: true)
-            killCount = killed.count
-            DiagnosticsLogger.shared.log(.info, subsystem: "post-swap",
-                "SIGINT sent to \(killCount) CLI PID(s) (cmux-tracked skipped)")
-            if killCount > 0 {
-                try? await Task.sleep(nanoseconds: 800_000_000) // 0.8s graceful
-                CLISessionKiller.forceKillSurvivors(killed)
-                try? await Task.sleep(nanoseconds: 200_000_000) // 0.2s settle
-            }
-        } else {
-            DiagnosticsLogger.shared.log(.info, subsystem: "post-swap",
-                "CLI auto-kill disabled — leaving running claude PIDs alone")
-        }
-
-        await postSwapNotification(
-            killCount: killCount,
-            reloaded: nil,
-            autoKillEnabled: settings.autoKillCLIAfterSwap,
-            autoReloadEnabled: false
-        )
-    }
-
-    private func relaunchCmuxClaudePanesAfterSwap() async {
-        // Always runs. When no cmux panes are active the relauncher returns
-        // an empty list and this is a no-op — no notification, no side effects.
-        let outcomes = await CmuxPaneRelauncher.relaunchAll()
-        guard !outcomes.isEmpty else { return }
-
-        let resumed = outcomes.filter { $0.succeeded }.count
-        let skippedIsolated = outcomes.filter { $0.skipped == .isolatedConfigDir }.count
-        let cmuxMissing = outcomes.contains { $0.skipped == .cmuxNotInstalled }
-
-        var lines: [String] = []
-        if resumed > 0 { lines.append("Resumed \(resumed) cmux pane(s)") }
-        if skippedIsolated > 0 { lines.append("Skipped \(skippedIsolated) isolated cmux pane(s)") }
-        if cmuxMissing { lines.append("`cmux` not on PATH — install or add to PATH") }
-        guard !lines.isEmpty else { return }
-
-        let content = UNMutableNotificationContent()
-        content.title = "Cmux relaunch"
-        content.body = lines.joined(separator: "\n")
-        let req = UNNotificationRequest(identifier: "csw.cmux-relaunch", content: content, trigger: nil)
-        try? await UNUserNotificationCenter.current().add(req)
     }
 
     private func reloadIDEsAfterSwap() async {
         guard settings.autoReloadIDEAfterSwap else { return }
         let reloaded = await IDEReloader.reloadAll()
-        await postSwapNotification(
-            killCount: nil,
-            reloaded: reloaded,
-            autoKillEnabled: false,
-            autoReloadEnabled: true
-        )
-    }
-
-    private func postSwapNotification(killCount: Int?, reloaded: [String]?,
-                                      autoKillEnabled: Bool, autoReloadEnabled: Bool) async {
-        var lines: [String] = []
-        if autoKillEnabled {
-            let count = killCount ?? 0
-            lines.append(count > 0 ? "Killed \(count) CLI session(s)" : "No CLI sessions to kill")
-        }
-        if autoReloadEnabled {
-            let names = reloaded ?? []
-            lines.append(names.isEmpty ? "IDE reload: no IDEs detected" : "Reloaded: \(names.joined(separator: ", "))")
-        }
-        guard !lines.isEmpty else { return }
         let content = UNMutableNotificationContent()
         content.title = "Account switched"
-        content.body = lines.joined(separator: "\n")
+        content.body = reloaded.isEmpty ? "IDE reload: no IDEs detected" : "Reloaded: \(reloaded.joined(separator: ", "))"
         let req = UNNotificationRequest(identifier: "csw.swap-done", content: content, trigger: nil)
         try? await UNUserNotificationCenter.current().add(req)
     }

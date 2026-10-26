@@ -50,11 +50,11 @@ func runSwitch(ctx context.Context, svc *usecase.Service, args []string) error {
 			"ok":                  true,
 			"activeAccountNumber": num,
 			"activeAccountName":   name,
-			"hint":                "restart claude (or quit IDE plugin) to pick up the new credentials",
+			"hint":                "running claude sessions pick up the new credentials on their next request",
 		})
 		return nil
 	}
-	fmt.Printf("Switched to %s (account %d). Restart `claude` to use the new credentials.\n", name, num)
+	fmt.Printf("Switched to %s (account %d). Running `claude` sessions follow on their next request.\n", name, num)
 	return nil
 }
 

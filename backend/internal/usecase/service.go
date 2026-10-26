@@ -21,9 +21,11 @@ type Service struct {
 	Sessions   port.SessionInspector
 	Lock       port.FileLock
 	MCPSecrets port.MCPSecretStore
-	UsageLog   port.UsageLogScanner
-	UsageCache *cache.UsageCache
-	Backoff    *cache.Backoff
+	// RefreshLock is optional; nil skips the wait (tests).
+	RefreshLock port.ClaudeRefreshLock
+	UsageLog    port.UsageLogScanner
+	UsageCache  *cache.UsageCache
+	Backoff     *cache.Backoff
 
 	// backupRefreshMu serialises per-account token refresh+write so concurrent
 	// callers (list, verify, refresh-all, switch) cannot race on the same backup

@@ -65,6 +65,12 @@ type FileLock interface {
 	Release() error
 }
 
+// ClaudeRefreshLock waits for Claude Code to finish refreshing its own OAuth
+// token before the live credential is overwritten. Bounded; never errors.
+type ClaudeRefreshLock interface {
+	WaitReleased(ctx context.Context)
+}
+
 // MCPSecretStore holds per-account connector tokens in the macOS Keychain.
 // Keys are (accountNumber, service). Payload is provider-defined opaque JSON.
 //

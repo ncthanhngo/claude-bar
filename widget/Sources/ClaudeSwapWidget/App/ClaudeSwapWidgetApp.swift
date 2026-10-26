@@ -45,7 +45,7 @@ struct ClaudeSwapWidgetApp: App {
 
     init() {
         // Diagnostics first so anything that crashes during the rest of init
-        // (ClaudeWatchInstaller, settings migration, hotkey wiring) lands
+        // (ClaudeWatchRemover, settings migration, hotkey wiring) lands
         // in ~/Library/Logs/ClaudeBar/.
         DiagnosticsLogger.shared.bootstrap()
         CrashHandler.install()
@@ -54,7 +54,7 @@ struct ClaudeSwapWidgetApp: App {
         // inherit the shell PATH where claude is installed).
         ClaudeBinaryEnv.ensure()
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
-        ClaudeWatchInstaller.install()
+        ClaudeWatchRemover.run()
         CbarShortcutInstaller.install()
         CmuxConfigInstaller.install()
         migrateSettingsIfNeeded()
@@ -125,7 +125,7 @@ struct ClaudeSwapWidgetApp: App {
 
         if let old = UserDefaults(suiteName: oldDomain) {
             let keys = [
-                "autoKillCLIAfterSwap", "autoReloadIDEAfterSwap", "autoSwapEnabled",
+                "autoReloadIDEAfterSwap", "autoSwapEnabled",
                 "thresholdPct", "menuBarStyle", "refreshIntervalSec",
                 "refreshIntervalHighSec", "adaptiveHighThresholdPct",
                 "sessionPollIntervalSec", "widgetTheme"
