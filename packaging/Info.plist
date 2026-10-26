@@ -13,9 +13,9 @@
     <key>CFBundleIdentifier</key>
     <string>dev.ncthanhngo.claude-bar</string>
     <key>CFBundleVersion</key>
-    <string>13.17</string>
+    <string>13.18</string>
     <key>CFBundleShortVersionString</key>
-    <string>13.17</string>
+    <string>13.18</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleSignature</key>
@@ -35,7 +35,7 @@
     <key>NSHumanReadableCopyright</key>
     <string>Copyright © 2026 Thanh Ngô. Licensed under MIT.</string>
     <key>CFBundleGetInfoString</key>
-    <string>Claude Bar 13.17 — menu-bar manager for multiple Claude Code accounts</string>
+    <string>Claude Bar 13.18 — menu-bar manager for multiple Claude Code accounts</string>
     <key>CBAuthorName</key>
     <string>Thanh Ngô</string>
     <key>CBAuthorEmail</key>
@@ -45,15 +45,16 @@
     <key>CBLicense</key>
     <string>MIT</string>
     <key>CBBuildDate</key>
-    <string>2026-10-07</string>
+    <string>2026-10-26</string>
     <key>CBReleaseChannel</key>
     <string>Beta</string>
     <key>CBReleaseWhatsNew</key>
-    <string>NetBird tab: labels and SSH users are saved per machine name.</string>
+    <string>Fan tab: live fan RPM with Auto, Max and Custom fan control.
+Token usage stats refresh almost instantly and use far less CPU.</string>
     <key>CBReleaseHotfixes</key>
-    <string>Fixed NetBird labels disappearing when the network DNS domain changes.</string>
+    <string>Fixed the background helper using several seconds of CPU on every usage refresh.</string>
     <key>CBReleaseKnownIssues</key>
-    <string>NetBird SSH only works for machines that have the NetBird SSH server enabled.
+    <string>macOS may ask for Keychain access once after this update (new signing certificate).
 The claude.ai usage page often fails to load; usage then comes from the slower OAuth fallback.</string>
     <key>CFBundleDevelopmentRegion</key>
     <string>en</string>
