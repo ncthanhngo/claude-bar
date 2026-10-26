@@ -521,6 +521,7 @@ final class QuickReloginCoordinator: ObservableObject {
         // just re-authenticated by hand, so the popover "Log in" button must
         // vanish without waiting for the snapshot to report ready.
         store.recovery?.noteHealthy(account.number)
+        webFallback?.noteSignedIn(account)
         await store.refreshNow()
         // When the rewritten account was already active, reload IDE windows
         // (if the user has the toggle on) like a normal swap does. Running

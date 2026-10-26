@@ -94,6 +94,12 @@ final class WebFallbackCoordinator: ObservableObject {
     /// so the row badge stops blaming a generic "Web unavailable".
     @Published private(set) var authFailureCount: [String: Int] = [:]
     private static let authFailureThreshold = 3
+    /// Once a session is judged expired, every load just lands on the
+    /// claude.ai login page; polling that every few minutes is noise (and
+    /// looks abusive). Retry hourly instead — usage comes from OAuth
+    /// meanwhile — and resume normally as soon as the user signs back in.
+    private static let expiredRetryInterval: TimeInterval = 60 * 60
+    private var expiredRetryAt: [String: Date] = [:]
 
     func attach(store: AppStore) {
         self.store = store
@@ -228,6 +234,11 @@ final class WebFallbackCoordinator: ObservableObject {
                 .fallback("Rate-limited by claude.ai — retrying in ~\(max(1, secs / 60))m")
             return nil
         }
+        if let retryAt = expiredRetryAt[view.account.identityKey], retryAt > Date() {
+            accountStates[view.account.identityKey] =
+                .fallback("Web session expired — Quick Login to refresh usage.")
+            return nil
+        }
         guard let dataStore = linkedDataStore(for: view.account, createIfNeeded: false) else {
             accountStates[view.account.identityKey] = .notLinked
             return nil
@@ -296,6 +307,7 @@ final class WebFallbackCoordinator: ObservableObject {
             // healthy again so the next 429 starts fresh at step 0 (5 min).
             backoff.removeValue(forKey: view.account.identityKey)
             authFailureCount.removeValue(forKey: view.account.identityKey)
+            expiredRetryAt.removeValue(forKey: view.account.identityKey)
             DiagnosticsLogger.shared.log(.info, subsystem: "web-usage",
                 "ok \(view.account.email) (\(elapsedMs)ms) — \(usage.diagnosticSummary)")
             return usage
@@ -330,8 +342,9 @@ final class WebFallbackCoordinator: ObservableObject {
                         accountStates[key] = .fallback(
                             "Web session expired — Quick Login to refresh usage."
                         )
+                        expiredRetryAt[key] = Date().addingTimeInterval(Self.expiredRetryInterval)
                         DiagnosticsLogger.shared.log(.warning, subsystem: "web-usage",
-                            "auth-expired \(view.account.email) consecutiveFails=\(next) — prompting relogin")
+                            "auth-expired \(view.account.email) consecutiveFails=\(next) — prompting relogin, next web try in 1h")
                     } else {
                         accountStates[key] = .fallback(error.localizedDescription)
                         DiagnosticsLogger.shared.log(.warning, subsystem: "web-usage",
@@ -416,11 +429,20 @@ final class WebFallbackCoordinator: ObservableObject {
         var identifiers = loadProfileIdentifiers()
         identifiers.removeValue(forKey: account.identityKey)
         saveProfileIdentifiers(identifiers)
+        noteSignedIn(account) // drop the expired-session backoff with the profile
         accountStates[account.identityKey] = .notLinked
+    }
+
+    /// The user just signed in to this account's web profile: drop the
+    /// expired-session backoff so the next poll uses the web again.
+    func noteSignedIn(_ account: AccountDTO) {
+        authFailureCount.removeValue(forKey: account.identityKey)
+        expiredRetryAt.removeValue(forKey: account.identityKey)
     }
 
     func refreshConnectionState(for account: AccountDTO, dataStore: WKWebsiteDataStore) async {
         let connected = await ClaudeWebSession.isConnected(dataStore: dataStore)
+        if connected { noteSignedIn(account) }
         if !connected {
             accountStates[account.identityKey] = .fallback("Sign in to this Claude web profile.")
         } else if case .connected = accountStates[account.identityKey] {
