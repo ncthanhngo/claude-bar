@@ -4,7 +4,11 @@ package adapter
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 )
+
+// windowsAppName names the per-user folders on Windows.
+const windowsAppName = "ClaudeSwap"
 
 // ClaudeConfigDir returns ~/.claude (or $CLAUDE_CONFIG_DIR override).
 func ClaudeConfigDir() string {
@@ -33,8 +37,13 @@ func ClaudeProjectsDir() string {
 	return filepath.Join(ClaudeConfigDir(), "projects")
 }
 
-// WidgetDataDir returns ~/Library/Application Support/claude-swap-widget on macOS.
+// WidgetDataDir returns ~/Library/Application Support/claude-swap-widget on
+// macOS and %APPDATA%\ClaudeSwap on Windows.
 func WidgetDataDir() string {
+	if runtime.GOOS == "windows" {
+		dir, _ := os.UserConfigDir()
+		return filepath.Join(dir, windowsAppName)
+	}
 	home, _ := os.UserHomeDir()
 	return filepath.Join(home, "Library", "Application Support", "claude-swap-widget")
 }
@@ -56,8 +65,13 @@ func BackupRefreshLockFile() string {
 	return filepath.Join(WidgetDataDir(), "refresh.lock")
 }
 
-// CswLogFile is the credential event log, next to the widget's own log.
+// CswLogFile is the credential event log, next to the widget's own log
+// (%LOCALAPPDATA%\ClaudeSwap\logs on Windows).
 func CswLogFile() string {
+	if runtime.GOOS == "windows" {
+		dir, _ := os.UserCacheDir()
+		return filepath.Join(dir, windowsAppName, "logs", "csw.log")
+	}
 	home, _ := os.UserHomeDir()
 	return filepath.Join(home, "Library", "Logs", "ClaudeBar", "csw.log")
 }

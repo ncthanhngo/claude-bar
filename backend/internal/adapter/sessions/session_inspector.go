@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"syscall"
 
 	"github.com/soi/claude-swap-widget/backend/internal/adapter"
 	"github.com/soi/claude-swap-widget/backend/internal/domain"
@@ -79,17 +78,4 @@ func (i *SessionInspector) Report(ctx context.Context) (*domain.SessionReport, e
 	// claude is open forces user to restart mid-session.
 	r.SafeToSwap = r.BlockingCount == 0
 	return r, nil
-}
-
-// isPIDAlive returns true iff a process with this pid exists. Uses kill(pid, 0)
-// which returns EPERM if alive-but-not-ours (still alive), ESRCH if dead.
-func isPIDAlive(pid int) bool {
-	if pid <= 1 {
-		return false
-	}
-	err := syscall.Kill(pid, 0)
-	if err == nil {
-		return true
-	}
-	return err == syscall.EPERM
 }

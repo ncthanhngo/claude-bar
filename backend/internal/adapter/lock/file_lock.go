@@ -6,7 +6,6 @@ import (
 	"context"
 	"errors"
 	"os"
-	"syscall"
 	"time"
 
 	"github.com/soi/claude-swap-widget/backend/internal/adapter"
@@ -15,7 +14,8 @@ import (
 // ErrAcquireTimeout is returned when the context expires before acquiring.
 var ErrAcquireTimeout = errors.New("file lock acquire timeout")
 
-// FileLock holds an flock on a sentinel file.
+// FileLock holds an exclusive OS lock (flock / LockFileEx) on a sentinel
+// file. Locks belong to the open file, so use one FileLock per goroutine.
 type FileLock struct {
 	path string
 	f    *os.File
@@ -39,14 +39,14 @@ func (l *FileLock) Acquire(ctx context.Context) error {
 		return err
 	}
 	for {
-		err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB)
-		if err == nil {
-			l.f = f
-			return nil
-		}
-		if err != syscall.EWOULDBLOCK {
+		held, err := tryLock(f)
+		if err != nil {
 			f.Close()
 			return err
+		}
+		if held {
+			l.f = f
+			return nil
 		}
 		select {
 		case <-ctx.Done():
@@ -62,7 +62,7 @@ func (l *FileLock) Release() error {
 	if l.f == nil {
 		return nil
 	}
-	_ = syscall.Flock(int(l.f.Fd()), syscall.LOCK_UN)
+	_ = unlock(l.f)
 	err := l.f.Close()
 	l.f = nil
 	return err

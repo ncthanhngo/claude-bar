@@ -22,9 +22,13 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
-	svc := usecase.NewMacOSService()
 	cmd := os.Args[1]
 	args := os.Args[2:]
+	if platformCommands != nil && !platformCommands[cmd] {
+		fmt.Fprintf(os.Stderr, "csw %s is not available on this platform\n", cmd)
+		os.Exit(2)
+	}
+	svc := usecase.NewPlatformService()
 
 	var err error
 	switch cmd {
