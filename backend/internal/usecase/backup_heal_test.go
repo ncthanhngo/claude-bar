@@ -146,3 +146,21 @@ func TestHealKeepsNewerBackup(t *testing.T) {
 		t.Fatalf("older live overwrote a newer backup: %v", backup.writes)
 	}
 }
+
+// Claude Code's /login writes ~/.claude.json before the Keychain: for a
+// moment the config names the new account while live still holds the old
+// one's tokens.
+func TestHealSkipsLiveThatBelongsToAnotherAccount(t *testing.T) {
+	backup := healBackups()
+	// Live is still account 2's login (same refresh token as its backup),
+	// but ~/.claude.json already names account 1.
+	backup.blobs[2] = credentialBlob("b", "rb", time.Now().Add(time.Hour))
+	svc := healTestService(credentialBlob("b", "rb", time.Now().Add(time.Hour)), "one@example.com", backup)
+
+	if _, err := svc.ListAccountsMetadata(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if _, wrote := backup.writes[1]; wrote {
+		t.Fatal("account 2's live login written into account 1's backup")
+	}
+}

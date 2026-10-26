@@ -163,3 +163,48 @@ func (r *recordingRefresher) Refresh(_ context.Context, refreshToken string) (*d
 	r.used = refreshToken
 	return r.fresh, nil
 }
+
+func TestRefreshBackupProceedsWhenLiveUnreadable(t *testing.T) {
+	refresher := &listTestTokenRefresher{fresh: freshPayload("a2", "r2")}
+	svc := &Service{
+		Backup:  newCachingStore(2, credentialBlob("a1", "r1", time.Now().Add(-time.Minute))),
+		Live:    &listTestLiveStore{err: errors.New("keychain locked")},
+		Refresh: refresher,
+	}
+	if _, _, err := svc.refreshBackup(context.Background(), 2, "two@example.com", false); err != nil {
+		t.Fatalf("refreshBackup: %v", err)
+	}
+	if refresher.calls != 1 {
+		t.Fatalf("refresh calls = %d, want 1", refresher.calls)
+	}
+}
+
+type alwaysBusyLock struct{}
+
+func (alwaysBusyLock) Acquire(context.Context) error { return errors.New("timeout") }
+func (alwaysBusyLock) Release() error                { return nil }
+
+func TestListDoesNotFlagLoginWhenRefreshLockBusy(t *testing.T) {
+	backup := &listTestBackupStore{
+		blobs:  map[int]domain.CredentialBlob{2: credentialBlob("a1", "r1", time.Now().Add(-time.Minute))},
+		writes: map[int]domain.CredentialBlob{},
+	}
+	svc := &Service{
+		Backup: backup,
+		Registry: listTestRegistryStore{reg: &domain.Registry{
+			ActiveAccountNumber: 1,
+			Sequence:            []int{2},
+			Accounts:            map[int]*domain.Account{2: {Number: 2, Email: "two@example.com"}},
+		}},
+		Usage:             &listTestUsageFetcher{},
+		Refresh:           &listTestTokenRefresher{fresh: freshPayload("a2", "r2")},
+		BackupRefreshLock: func() port.FileLock { return alwaysBusyLock{} },
+	}
+	res, err := svc.ListAccounts(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := res.Accounts[0].CredentialState; got == "needs_login" {
+		t.Fatal("busy refresh lock reported as needs_login")
+	}
+}

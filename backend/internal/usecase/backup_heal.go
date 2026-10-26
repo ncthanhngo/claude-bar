@@ -20,7 +20,8 @@ const healWaitForSwap = 500 * time.Millisecond
 // A wrong heal copies one account's login over another's, so it needs proof
 // under swap.lock: ~/.claude.json still attributes the login to the account
 // (re-read after acquiring the lock — a swap that finished while we waited
-// changed it — and again after reading live, to catch a `claude /login`).
+// changed it — and again after reading live), and live is not another
+// account's token.
 func (s *Service) healActiveBackup(ctx context.Context) {
 	if s.Live == nil || s.Lock == nil || s.Config == nil {
 		return
@@ -47,9 +48,13 @@ func (s *Service) healActiveBackup(ctx context.Context) {
 		if lp == nil || !s.liveNewerThanBackup(ctx, acc, live, lp) {
 			return nil
 		}
-		// Narrows (cannot close) the window of a `claude /login` that wrote
-		// the Keychain but not yet ~/.claude.json.
 		if again := s.configActiveAccount(ctx, reg); again == nil || again.Number != acc.Number {
+			return nil
+		}
+		// `claude /login` writes ~/.claude.json before the Keychain, so for a
+		// moment the config already names the new account while live still
+		// holds the previous login — recognisable as another account's token.
+		if s.liveOwnedByOtherAccount(ctx, reg, acc.Number, lp) {
 			return nil
 		}
 		if err := s.Backup.Write(ctx, acc.Number, acc.Email, live); err != nil {
@@ -101,4 +106,22 @@ func (s *Service) liveNewerThanBackup(ctx context.Context, acc *domain.Account, 
 		return false
 	}
 	return true
+}
+
+// liveOwnedByOtherAccount reports whether another account's backup carries
+// live's refresh token, i.e. live is that account's login.
+func (s *Service) liveOwnedByOtherAccount(ctx context.Context, reg *domain.Registry, num int, lp *domain.OAuthPayload) bool {
+	for other, acc := range reg.Accounts {
+		if other == num || acc == nil {
+			continue
+		}
+		blob, err := s.Backup.Read(ctx, acc.Number, acc.Email)
+		if err != nil || blob == "" {
+			continue
+		}
+		if p, err := blob.Extract(); err == nil && p.RefreshToken == lp.RefreshToken {
+			return true
+		}
+	}
+	return false
 }
