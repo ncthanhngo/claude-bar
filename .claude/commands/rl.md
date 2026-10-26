@@ -176,6 +176,11 @@ make release
 widget/.build/artifacts/sparkle/Sparkle/bin/sign_update release/ClaudeBar.zip
 ```
 
+`make release` signs with Developer ID, notarizes (profile
+`claude-bar-notary`), staples, and must print `source=Notarized Developer ID`
+from `spctl`. If notarization or stapling fails, STOP — an un-notarized zip
+forces every user through "Open Anyway" plus an admin password.
+
 Capture from the `sign_update` output:
 - `sparkle:edSignature="..."`
 - `length="..."`

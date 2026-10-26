@@ -13,21 +13,31 @@ SHELL        := /bin/bash
 DISPLAY_NAME := ClaudeBar
 EXECUTABLE   := ClaudeSwapWidget
 BUNDLE_ID    := dev.ncthanhngo.claude-bar
-# Apple Development certificate (team 566SKQXVZT), referenced by SHA-1 because
-# revoked certificates with the same common name still sit in the keychain.
-# A stable team-signed identity keeps Keychain "Always Allow" grants valid
-# across rebuilds and Sparkle updates. Builds on machines without it fall
-# back to ad-hoc signing with a warning. Override: make app SIGN_ID=<hash|name>.
-SIGN_ID      ?= 939336EE9B073837C254E52CD0D10A564D02D25B
+# Developer ID Application certificate (team 566SKQXVZT), referenced by SHA-1
+# because revoked certificates with similar names still sit in the keychain.
+# Developer ID + notarization lets Gatekeeper open downloads without "Open
+# Anyway", and the stable team identity keeps Keychain "Always Allow" grants
+# valid across rebuilds and Sparkle updates. Builds on machines without it
+# fall back to ad-hoc signing with a warning. Override: make app SIGN_ID=<hash|name>.
+SIGN_ID      ?= 13EE4BB21E1B4743B18428D9463E2B11B6D2A9AB
+# notarytool keychain profile (xcrun notarytool store-credentials).
+NOTARY_PROFILE ?= claude-bar-notary
 CSW_SIGN_IDENTIFIER := $(BUNDLE_ID).csw
 
-# Sign inside-out: Sparkle, the csw helper (fixed identifier so Keychain ACLs
+# Sign inside-out: Sparkle's helpers then the framework (per Sparkle's
+# notarization guide), the csw helper (fixed identifier so Keychain ACLs
 # survive rebuilds), the fan helper, then the bundle. $(1) is the .app path.
+SPARKLE_B := Contents/Frameworks/Sparkle.framework/Versions/B
+CODESIGN  := codesign --force --options runtime --timestamp --sign "$(SIGN_ID)"
 define sign_bundle
-	@if codesign --force --deep --options runtime --timestamp=none --sign "$(SIGN_ID)" $(1)/Contents/Frameworks/Sparkle.framework && \
-	   codesign --force --options runtime --timestamp=none --identifier $(CSW_SIGN_IDENTIFIER) --sign "$(SIGN_ID)" $(1)/Contents/Resources/csw && \
-	   codesign --force --options runtime --timestamp=none --sign "$(SIGN_ID)" $(1)/Contents/MacOS/$(FAN_HELPER) && \
-	   codesign --force --options runtime --timestamp=none --sign "$(SIGN_ID)" $(1); then \
+	@if $(CODESIGN) $(1)/$(SPARKLE_B)/XPCServices/Installer.xpc && \
+	   $(CODESIGN) --preserve-metadata=entitlements $(1)/$(SPARKLE_B)/XPCServices/Downloader.xpc && \
+	   $(CODESIGN) $(1)/$(SPARKLE_B)/Autoupdate && \
+	   $(CODESIGN) $(1)/$(SPARKLE_B)/Updater.app && \
+	   $(CODESIGN) $(1)/Contents/Frameworks/Sparkle.framework && \
+	   $(CODESIGN) --identifier $(CSW_SIGN_IDENTIFIER) $(1)/Contents/Resources/csw && \
+	   $(CODESIGN) $(1)/Contents/MacOS/$(FAN_HELPER) && \
+	   $(CODESIGN) $(1); then \
 	  echo "Signed $(1) with $(SIGN_ID)"; \
 	else \
 	  echo "warning: signing identity $(SIGN_ID) unavailable — falling back to ad-hoc; Keychain will re-prompt" >&2; \
@@ -121,7 +131,14 @@ app: guard-identity backend widget
 	$(call sign_bundle,$(APP_BUNDLE))
 	@echo "Built $(APP_BUNDLE)"
 
+# Notarize, staple the ticket into the .app (so Gatekeeper passes offline),
+# then re-zip the stapled bundle — that zip is what Sparkle signs and ships.
 release: app
+	@rm -f release/$(DISPLAY_NAME).zip
+	cd release && ditto -c -k --keepParent $(DISPLAY_NAME).app $(DISPLAY_NAME).zip
+	xcrun notarytool submit release/$(DISPLAY_NAME).zip --keychain-profile "$(NOTARY_PROFILE)" --wait
+	xcrun stapler staple $(APP_BUNDLE)
+	spctl -a -vv $(APP_BUNDLE)
 	@rm -f release/$(DISPLAY_NAME).zip
 	cd release && zip -r --symlinks $(DISPLAY_NAME).zip $(DISPLAY_NAME).app
 	@echo "SHA256: $$(shasum -a 256 release/$(DISPLAY_NAME).zip | cut -d' ' -f1)"
