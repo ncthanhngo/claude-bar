@@ -18,7 +18,7 @@ BUNDLE_ID    := dev.ncthanhngo.claude-bar
 # A stable team-signed identity keeps Keychain "Always Allow" grants valid
 # across rebuilds and Sparkle updates. Builds on machines without it fall
 # back to ad-hoc signing with a warning. Override: make app SIGN_ID=<hash|name>.
-SIGN_ID      ?= 35D262F3699333E8478CE16686683BED8A58B4B3
+SIGN_ID      ?= 939336EE9B073837C254E52CD0D10A564D02D25B
 CSW_SIGN_IDENTIFIER := $(BUNDLE_ID).csw
 
 # Sign inside-out: Sparkle, the csw helper (fixed identifier so Keychain ACLs
