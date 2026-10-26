@@ -276,13 +276,10 @@ usually < 60s). Run this as a `Bash` call with `run_in_background: true`
 so you get a single notification when done:
 
 ```
-until rtk proxy curl -s 'https://ncthanhngo.github.io/claude-bar/appcast.xml?cb=v<NEW>' \
+until curl -s -H "Cache-Control: no-cache" 'https://ncthanhngo.github.io/claude-bar/appcast.xml?cb=v<NEW>' \
   | grep -q '<sparkle:version><NEW></sparkle:version>'; do sleep 5; done
 echo "Pages updated with v<NEW>"
 ```
-
-(`rtk proxy curl` is needed only because the rtk hook caches plain
-`curl` output and may show stale content on re-runs.)
 
 Also confirm the release zip URL returns 302:
 `curl -sI -o /dev/null -w "%{http_code}\n" https://github.com/ncthanhngo/claude-bar/releases/download/v<NEW>/ClaudeBar.zip`

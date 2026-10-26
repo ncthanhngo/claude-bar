@@ -118,7 +118,7 @@ Arguments passed in: `$ARGUMENTS`
 
 Poll the live AI Bar feed until it serves `<NEW>`:
 ```
-until rtk proxy curl -s 'https://ncthanhngo.github.io/claude-bar/appcast-ai-bar.xml?cb=v<NEW>' \
+until curl -s -H "Cache-Control: no-cache" 'https://ncthanhngo.github.io/claude-bar/appcast-ai-bar.xml?cb=v<NEW>' \
   | grep -q '<sparkle:version><NEW></sparkle:version>'; do sleep 5; done
 ```
 Confirm the zip URL returns 302:
