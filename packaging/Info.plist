@@ -13,9 +13,9 @@
     <key>CFBundleIdentifier</key>
     <string>dev.ncthanhngo.claude-bar</string>
     <key>CFBundleVersion</key>
-    <string>13.18</string>
+    <string>13.19</string>
     <key>CFBundleShortVersionString</key>
-    <string>13.18</string>
+    <string>13.19</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleSignature</key>
@@ -35,7 +35,7 @@
     <key>NSHumanReadableCopyright</key>
     <string>Copyright © 2026 Thanh Ngô. Licensed under MIT.</string>
     <key>CFBundleGetInfoString</key>
-    <string>Claude Bar 13.18 — menu-bar manager for multiple Claude Code accounts</string>
+    <string>Claude Bar 13.19 — menu-bar manager for multiple Claude Code accounts</string>
     <key>CBAuthorName</key>
     <string>Thanh Ngô</string>
     <key>CBAuthorEmail</key>
@@ -49,10 +49,10 @@
     <key>CBReleaseChannel</key>
     <string>Beta</string>
     <key>CBReleaseWhatsNew</key>
-    <string>Fan tab: live fan RPM with Auto, Max and Custom fan control.
-Token usage stats refresh almost instantly and use far less CPU.</string>
+    <string>App is now signed with Developer ID and notarized by Apple.
+New installs open directly — no more &quot;Open Anyway&quot; or admin password.</string>
     <key>CBReleaseHotfixes</key>
-    <string>Fixed the background helper using several seconds of CPU on every usage refresh.</string>
+    <string>None</string>
     <key>CBReleaseKnownIssues</key>
     <string>macOS may ask for Keychain access once after this update (new signing certificate).
 The claude.ai usage page often fails to load; usage then comes from the slower OAuth fallback.</string>
