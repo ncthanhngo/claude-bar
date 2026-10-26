@@ -13,9 +13,9 @@
     <key>CFBundleIdentifier</key>
     <string>dev.ncthanhngo.claude-bar</string>
     <key>CFBundleVersion</key>
-    <string>13.20</string>
+    <string>13.21</string>
     <key>CFBundleShortVersionString</key>
-    <string>13.20</string>
+    <string>13.21</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleSignature</key>
@@ -35,7 +35,7 @@
     <key>NSHumanReadableCopyright</key>
     <string>Copyright © 2026 Thanh Ngô. Licensed under MIT.</string>
     <key>CFBundleGetInfoString</key>
-    <string>Claude Bar 13.20 — menu-bar manager for multiple Claude Code accounts</string>
+    <string>Claude Bar 13.21 — menu-bar manager for multiple Claude Code accounts</string>
     <key>CBAuthorName</key>
     <string>Thanh Ngô</string>
     <key>CBAuthorEmail</key>
@@ -49,14 +49,14 @@
     <key>CBReleaseChannel</key>
     <string>Beta</string>
     <key>CBReleaseWhatsNew</key>
-    <string>Running claude sessions now switch accounts on their own — no more terminal or cmux restarts after a swap.
-The claude-watch wrapper and its shell alias are removed automatically.</string>
+    <string>Removed iCloud sync and bundle export/import — accounts now stay on this Mac only.
+Logins are kept alive more reliably: backups follow Claude Code&apos;s rotated tokens and refreshes no longer collide.
+An expired claude.ai web session is retried hourly instead of every poll; usage comes from OAuth meanwhile.</string>
     <key>CBReleaseHotfixes</key>
-    <string>Fixed auto-swap picking an account that already hit its 7-day limit.
-Fixed a swap during Claude Code&apos;s own token refresh losing the old account&apos;s login.</string>
+    <string>Fixed accounts asking for /login again after switching back to them.
+Fixed two background refreshes spending the same token and logging an account out.</string>
     <key>CBReleaseKnownIssues</key>
-    <string>Open a new terminal tab once after updating — tabs already open still hold the old claude-watch alias.
-Right after a swap, a running session may use the old account for up to ~30s.
+    <string>Old iCloud sync files and the sync passphrase are no longer used; remove them by hand if you enabled sync.
 The claude.ai usage page often fails to load; usage then comes from the slower OAuth fallback.</string>
     <key>CFBundleDevelopmentRegion</key>
     <string>en</string>

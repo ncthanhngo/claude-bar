@@ -12,6 +12,28 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 13.21</title>
+      <sparkle:version>13.21</sparkle:version>
+      <sparkle:shortVersionString>13.21</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li>Logins stay alive: switching back to an account no longer asks for /login, and background refreshes never spend the same token twice.</li>
+          <li>iCloud sync, backups and bundle export/import were removed — each Mac keeps its own logins.</li>
+          <li>An expired claude.ai web session is retried hourly instead of every poll; usage comes from OAuth meanwhile.</li>
+          <li>Credential events are logged to ~/Library/Logs/ClaudeBar/csw.log.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Mon, 26 Oct 2026 22:42:43 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v13.21/ClaudeBar.zip"
+        sparkle:version="13.21"
+        sparkle:shortVersionString="13.21"
+        sparkle:edSignature="r0noUvsvIfcdvIhDpX02SnaCYb1zcQIPVkfRr+PttRZM6v8pPlZ+od2OtkFYWHGHA+2S+GxA9zlH6i4zt0QxCA=="
+        length="5957171"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 13.20</title>
       <sparkle:version>13.20</sparkle:version>
       <sparkle:shortVersionString>13.20</sparkle:shortVersionString>
