@@ -138,7 +138,7 @@ func (s *Service) verifyOne(ctx context.Context, r *domain.AccountVerification) 
 		addSkip("token_refresh", "access token still valid")
 		canRotateOn401 = true
 	default:
-		fresh, rotErr := s.rotateBackup(ctx, r, blob, payload, setCheck)
+		fresh, rotErr := s.rotateBackup(ctx, r, false, setCheck)
 		if rotErr != nil {
 			// Hard failure path already recorded the failed token_refresh row
 			// and set SwapReady=false. Rate-limited path recorded a skip;
@@ -161,7 +161,7 @@ func (s *Service) verifyOne(ctx context.Context, r *domain.AccountVerification) 
 	_, err = s.Usage.Fetch(ctx, access)
 	if err != nil {
 		if _, isUnauthorized := err.(*oauth.UnauthorizedError); isUnauthorized && canRotateOn401 {
-			fresh, rotErr := s.rotateBackup(ctx, r, blob, payload, setCheck)
+			fresh, rotErr := s.rotateBackup(ctx, r, true, setCheck)
 			if rotErr == nil {
 				access = fresh
 				_, err = s.Usage.Fetch(ctx, access)
@@ -184,8 +184,8 @@ func (s *Service) verifyOne(ctx context.Context, r *domain.AccountVerification) 
 	r.SwapReady = true
 }
 
-// rotateBackup performs an OAuth refresh for an inactive account under the
-// per-account mutex, writes the refreshed blob to Keychain backup, and records
+// rotateBackup performs an OAuth refresh for an inactive account via
+// refreshBackup (locked, persisted) and records
 // the outcome via setCheck. Returns (newAccessToken, nil) on success.
 // On rate limit returns ("", *oauth.RateLimitedError) and records token_refresh
 // as skipped (transient). On any other failure returns ("", err) with
@@ -193,45 +193,27 @@ func (s *Service) verifyOne(ctx context.Context, r *domain.AccountVerification) 
 func (s *Service) rotateBackup(
 	ctx context.Context,
 	r *domain.AccountVerification,
-	blob domain.CredentialBlob,
-	payload *domain.OAuthPayload,
+	force bool,
 	setCheck func(domain.CheckResult),
 ) (string, error) {
-	var newAccess string
-	var outErr error
-
-	func() {
-		unlock := s.lockBackupRefresh(r.AccountNum)
-		defer unlock()
-
-		fresh, refErr := s.Refresh.Refresh(ctx, payload.RefreshToken)
-		if refErr != nil {
-			if rl, ok := refErr.(*oauth.RateLimitedError); ok {
-				setCheck(domain.CheckResult{
-					Name:    "token_refresh",
-					Skipped: true,
-					Detail:  "rate limited — " + rl.Error(),
-				})
-				outErr = refErr
-				return
-			}
-			setCheck(domain.CheckResult{Name: "token_refresh", Passed: false, Detail: refErr.Error()})
-			r.SwapReady = false
-			outErr = refErr
-			return
+	_, fresh, refErr := s.refreshBackup(ctx, r.AccountNum, r.Email, force)
+	if refErr != nil {
+		if errors.Is(refErr, errSharedWithLive) {
+			setCheck(domain.CheckResult{Name: "token_refresh", Skipped: true, Detail: refErr.Error()})
+			return "", refErr
 		}
-		if fresh == nil {
-			setCheck(domain.CheckResult{Name: "token_refresh", Passed: false, Detail: "refresh returned nil payload"})
-			r.SwapReady = false
-			outErr = errors.New("refresh returned nil payload")
-			return
+		if rl, ok := refErr.(*oauth.RateLimitedError); ok {
+			setCheck(domain.CheckResult{
+				Name:    "token_refresh",
+				Skipped: true,
+				Detail:  "rate limited — " + rl.Error(),
+			})
+			return "", refErr
 		}
-		setCheck(domain.CheckResult{Name: "token_refresh", Passed: true})
-		newAccess = fresh.AccessToken
-		if newBlob, err := blob.WithRefreshed(fresh); err == nil && newBlob != "" {
-			_ = s.Backup.Write(ctx, r.AccountNum, r.Email, newBlob)
-		}
-	}()
-
-	return newAccess, outErr
+		setCheck(domain.CheckResult{Name: "token_refresh", Passed: false, Detail: refErr.Error()})
+		r.SwapReady = false
+		return "", refErr
+	}
+	setCheck(domain.CheckResult{Name: "token_refresh", Passed: true})
+	return fresh.AccessToken, nil
 }

@@ -80,6 +80,17 @@ func (s *BackupCredentialStore) Read(ctx context.Context, accountNum int, email 
 	return blob, nil
 }
 
+// ReadFresh drops the cached copy and reads the Keychain item. Callers
+// holding the cross-process refresh lock use it: another csw process may
+// have rotated the credential since this process cached it.
+func (s *BackupCredentialStore) ReadFresh(ctx context.Context, accountNum int, email string) (domain.CredentialBlob, error) {
+	k := s.key(accountNum, email)
+	s.mu.Lock()
+	delete(s.cache, k)
+	s.mu.Unlock()
+	return s.Read(ctx, accountNum, email)
+}
+
 // Write saves a backup credential and updates the in-memory cache so the
 // next Read reflects the new value without going back to Keychain.
 func (s *BackupCredentialStore) Write(ctx context.Context, accountNum int, email string, blob domain.CredentialBlob) error {

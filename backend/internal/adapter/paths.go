@@ -49,6 +49,19 @@ func LockFile() string {
 	return filepath.Join(WidgetDataDir(), "swap.lock")
 }
 
+// BackupRefreshLockFile serialises backup token refreshes across csw
+// processes. Separate from LockFile: a swap holds that lock while it may
+// refresh the target's backup.
+func BackupRefreshLockFile() string {
+	return filepath.Join(WidgetDataDir(), "refresh.lock")
+}
+
+// CswLogFile is the credential event log, next to the widget's own log.
+func CswLogFile() string {
+	home, _ := os.UserHomeDir()
+	return filepath.Join(home, "Library", "Logs", "ClaudeBar", "csw.log")
+}
+
 // GateSocketFile returns the Unix domain socket path that the MCP server
 // uses to talk to the widget for write-gate approvals.
 func GateSocketFile() string {

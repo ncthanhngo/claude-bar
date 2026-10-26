@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -57,6 +58,7 @@ func (s *Service) listAccounts(ctx context.Context, usageAccounts map[int]bool) 
 	if s.Config != nil {
 		if cfg, cfgErr := s.Config.Read(ctx); cfgErr == nil {
 			activeNum = activeAccountNumber(reg, cfg)
+			s.healActiveBackup(ctx)
 		}
 	}
 
@@ -242,28 +244,16 @@ func (s *Service) fillUsage(ctx context.Context, v *AccountView) {
 			}
 		}
 	} else if payload.RefreshToken != "" && oauth.IsExpired(payload.ExpiresAt) {
-		// Inactive account: refresh only the backup copy. Mutex serialises this
-		// per-account so concurrent callers don't race on the same refresh token
-		// when the provider rotates on first use.
-		var freshAccess, credErr string
-		func() {
-			unlock := s.lockBackupRefresh(v.Account.Number)
-			defer unlock()
-			fresh, refErr := s.Refresh.Refresh(ctx, payload.RefreshToken)
-			if refErr != nil || fresh == nil || fresh.AccessToken == "" || fresh.RefreshToken == "" {
-				credErr = refreshFailureDetail(refErr, fresh)
-				return
-			}
-			if newBlob, blobErr := blob.WithRefreshed(fresh); blobErr == nil && newBlob != "" {
-				_ = s.Backup.Write(ctx, v.Account.Number, v.Account.Email, newBlob)
-			}
-			freshAccess = fresh.AccessToken
-		}()
-		if credErr != "" {
+		// Inactive account: refresh only the backup copy.
+		_, fresh, refErr := s.refreshBackup(ctx, v.Account.Number, v.Account.Email, false)
+		switch {
+		case refErr == nil:
+			access = fresh.AccessToken
+		case errors.Is(refErr, errRefreshLockBusy), errors.Is(refErr, errSharedWithLive):
+			// Transient / owned by the live session — not a login problem.
+		default:
 			v.CredentialState = "needs_login"
-			v.CredentialError = credErr
-		} else if freshAccess != "" {
-			access = freshAccess
+			v.CredentialError = refErr.Error()
 		}
 	}
 
@@ -310,16 +300,6 @@ func (s *Service) fillUsage(ctx context.Context, v *AccountView) {
 	if s.UsageCache != nil {
 		_ = s.UsageCache.Put(v.Account.Number, usage)
 	}
-}
-
-func refreshFailureDetail(err error, fresh *domain.OAuthPayload) string {
-	if err != nil {
-		return err.Error()
-	}
-	if fresh == nil {
-		return "refresh returned no token"
-	}
-	return "refresh returned incomplete token"
 }
 
 func shortDuration(d time.Duration) string {

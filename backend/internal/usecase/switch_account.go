@@ -150,6 +150,13 @@ func (s *Service) RepairLiveCredential(ctx context.Context) error {
 }
 
 func (s *Service) repairActiveAccountState(ctx context.Context, acc *domain.Account) error {
+	// When ~/.claude.json proves the live login is acc, live is the newest
+	// copy: Claude Code may have rotated its refresh token since the backup
+	// was taken, so overwriting live from the backup would log it out. Keep
+	// live and bring the backup up to date instead.
+	if s.liveProvenFor(ctx, acc) {
+		return s.snapshotLiveCredential(ctx, acc)
+	}
 	if err := s.rewriteLiveCredentialFromBackup(ctx, acc); err != nil {
 		return err
 	}
@@ -169,6 +176,28 @@ func (s *Service) repairActiveAccountState(ctx context.Context, acc *domain.Acco
 		return fmt.Errorf("write claude config: %w", err)
 	}
 	return nil
+}
+
+// liveProvenFor reports whether ~/.claude.json attributes the live login to
+// acc and live is usable and at least as new as acc's backup.
+func (s *Service) liveProvenFor(ctx context.Context, acc *domain.Account) bool {
+	cfg, err := s.Config.Read(ctx)
+	if err != nil || cfg == nil || cfg.OAuthAccount == nil ||
+		cfg.OAuthAccount.EmailAddress != acc.Email || cfg.OAuthAccount.OrganizationUUID != acc.OrganizationUUID {
+		return false
+	}
+	live, lp := s.usableLive(ctx)
+	if lp == nil {
+		return false
+	}
+	backup, err := s.readBackupFresh(ctx, acc.Number, acc.Email)
+	if err != nil {
+		return false
+	}
+	if bp, err := backup.Extract(); err == nil && backup != live && bp.ExpiresAt > lp.ExpiresAt {
+		return false
+	}
+	return true
 }
 
 func (s *Service) rewriteLiveCredentialFromBackup(ctx context.Context, acc *domain.Account) error {
@@ -213,6 +242,7 @@ func (s *Service) snapshotLiveCredential(ctx context.Context, acc *domain.Accoun
 }
 
 func (s *Service) credentialFromBackup(ctx context.Context, acc *domain.Account, requireRefresh bool) (domain.CredentialBlob, error) {
+	// Fallback for repair (ACL recovery, offline): whatever the backup holds.
 	creds, err := s.Backup.Read(ctx, acc.Number, acc.Email)
 	if err != nil {
 		return "", fmt.Errorf("read target backup: %w", err)
@@ -221,73 +251,29 @@ func (s *Service) credentialFromBackup(ctx context.Context, acc *domain.Account,
 		return "", fmt.Errorf("no backup credentials for account %d", acc.Number)
 	}
 
-	// Refresh access token before activating when the backup can still refresh.
-	// Older backups may already have a rotated refresh token; snapshotting the
-	// live credential before switch-away keeps future backups fresh. A switch
-	// requires a proven refresh so it does not install a broken login into the
-	// live slot; repair keeps its fallback for ACL recovery and offline cases.
-	payload, err := creds.Extract()
-	if err != nil {
-		return "", fmt.Errorf("parse backup credential: %w", err)
-	}
-
-	// Fast path: backup AT still has decent runway → skip OAuth refresh. This
-	// avoids piling extra refresh calls on top of the periodic background
-	// refresher, which would otherwise raise 429 rate-limit risk and surface
-	// as a misleading "need login again" right after a background cycle.
-	// Claude Code itself rotates the token when it later expires, and our
-	// next snapshotLiveCredential picks the rotated RT back up.
-	if accessTokenHasRunway(payload, freshAccessTokenWindow) {
+	// Read and (when the access token is short on runway) refresh under the
+	// refresh lock, from the Keychain itself: another csw process may be
+	// rotating this backup right now, and installing its pre-rotation copy
+	// into live would hand Claude Code an already-revoked refresh token. A
+	// switch requires a proven token so it never installs a broken login;
+	// every rotation risks the single-use token, so refresh only when needed.
+	var out domain.CredentialBlob
+	err = s.withBackupLock(ctx, acc.Number, func() error {
+		blob, _, err := s.refreshBackupLocked(ctx, acc.Number, acc.Email, false, requireRefresh)
+		out = blob
+		return err
+	})
+	switch {
+	case err == nil:
+		return out, nil
+	case errors.Is(err, errSharedWithLive):
+		// Claude Code already owns this login and keeps it fresh.
+		return creds, nil
+	case requireRefresh:
+		return "", classifyBackupRefreshError(acc.Number, err)
+	default:
 		return creds, nil
 	}
-
-	if payload.RefreshToken == "" {
-		if requireRefresh {
-			return "", fmt.Errorf("account %d credentials need login again: backup has no refresh token", acc.Number)
-		}
-		return creds, nil
-	}
-
-	unlock := s.lockBackupRefresh(acc.Number)
-	defer unlock()
-
-	fresh, err := s.Refresh.Refresh(ctx, payload.RefreshToken)
-	if err != nil {
-		if requireRefresh {
-			return "", classifyBackupRefreshError(acc.Number, err)
-		}
-		return creds, nil
-	}
-	if fresh == nil {
-		if requireRefresh {
-			return "", fmt.Errorf("account %d credentials need login again: refresh returned no token", acc.Number)
-		}
-		return creds, nil
-	}
-	if fresh.AccessToken == "" || fresh.RefreshToken == "" {
-		if requireRefresh {
-			return "", fmt.Errorf("account %d credentials need login again: refresh returned incomplete token", acc.Number)
-		}
-		return creds, nil
-	}
-
-	refreshed, err := creds.WithRefreshed(fresh)
-	if err != nil {
-		if requireRefresh {
-			return "", fmt.Errorf("account %d credentials need login again: store refreshed backup token: %w", acc.Number, err)
-		}
-		return creds, nil
-	}
-	if refreshed == "" {
-		if requireRefresh {
-			return "", fmt.Errorf("account %d credentials need login again: refreshed backup token is empty", acc.Number)
-		}
-		return creds, nil
-	}
-
-	// Persist the fresh token back so the next swap is also pre-warmed.
-	_ = s.Backup.Write(ctx, acc.Number, acc.Email, refreshed)
-	return refreshed, nil
 }
 
 func accessTokenHasRunway(p *domain.OAuthPayload, window time.Duration) bool {
@@ -304,6 +290,8 @@ func accessTokenHasRunway(p *domain.OAuthPayload, window time.Duration) bool {
 // — a 429 from a background refresh storm self-clears within minutes.
 func classifyBackupRefreshError(num int, err error) error {
 	switch {
+	case errors.Is(err, errIncompleteRefresh), errors.Is(err, errNoRefreshToken):
+		return fmt.Errorf("account %d credentials need login again: %w", num, err)
 	case isInvalidGrant(err):
 		return fmt.Errorf("account %d credentials need login again: refresh backup token: %w", num, err)
 	case isRateLimited(err):

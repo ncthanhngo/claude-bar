@@ -66,32 +66,17 @@ func (s *Service) RefreshAllTokens(ctx context.Context) error {
 		if err != nil || payload.RefreshToken == "" {
 			continue
 		}
-		// Mutex serialises with switch/list/verify refresh writers on same account.
-		func() {
-			unlock := s.lockBackupRefresh(acc.Number)
-			defer unlock()
-			fresh, refErr := s.Refresh.Refresh(ctx, payload.RefreshToken)
-			if refErr != nil {
-				label := fmt.Sprintf("account %d (%s): %v", num, acc.Email, refErr)
-				switch {
-				case isRateLimited(refErr):
-					rateLimited = append(rateLimited, label)
-				case isInvalidGrant(refErr):
-					needsRelogin = append(needsRelogin, label)
-				default:
-					hardFailures = append(hardFailures, label)
-				}
-				return
+		if _, _, refErr := s.refreshBackup(ctx, acc.Number, acc.Email, true); refErr != nil && !errors.Is(refErr, errSharedWithLive) {
+			label := fmt.Sprintf("account %d (%s): %v", num, acc.Email, refErr)
+			switch {
+			case isRateLimited(refErr):
+				rateLimited = append(rateLimited, label)
+			case isInvalidGrant(refErr):
+				needsRelogin = append(needsRelogin, label)
+			default:
+				hardFailures = append(hardFailures, label)
 			}
-			if fresh == nil {
-				return
-			}
-			refreshed, mergeErr := blob.WithRefreshed(fresh)
-			if mergeErr != nil || refreshed == "" {
-				return
-			}
-			_ = s.Backup.Write(ctx, acc.Number, acc.Email, refreshed)
-		}()
+		}
 	}
 	if len(hardFailures) == 0 && len(rateLimited) == 0 && len(needsRelogin) == 0 {
 		return nil

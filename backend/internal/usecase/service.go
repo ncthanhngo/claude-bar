@@ -2,6 +2,7 @@
 package usecase
 
 import (
+	"log"
 	"sync"
 	"time"
 
@@ -23,9 +24,15 @@ type Service struct {
 	MCPSecrets port.MCPSecretStore
 	// RefreshLock is optional; nil skips the wait (tests).
 	RefreshLock port.ClaudeRefreshLock
-	UsageLog    port.UsageLogScanner
-	UsageCache  *cache.UsageCache
-	Backoff     *cache.Backoff
+	// BackupRefreshLock returns a fresh cross-process lock that serialises
+	// backup token refreshes across csw processes; nil skips it (tests).
+	BackupRefreshLock func() port.FileLock
+	// Log receives credential events (refresh outcomes, backup heals); nil
+	// discards. Never stderr: the widget shows csw stderr as error text.
+	Log        *log.Logger
+	UsageLog   port.UsageLogScanner
+	UsageCache *cache.UsageCache
+	Backoff    *cache.Backoff
 
 	// backupRefreshMu serialises per-account token refresh+write so concurrent
 	// callers (list, verify, refresh-all, switch) cannot race on the same backup

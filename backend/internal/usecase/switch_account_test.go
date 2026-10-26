@@ -720,3 +720,74 @@ func TestSwitchAccountReportsTransientForNetworkErrorNotReloginWhenAccessTokenSt
 		t.Fatalf("error = %q, want transient phrasing", msg)
 	}
 }
+
+func TestSwitchAccountAlreadyActiveKeepsProvenLiveCredential(t *testing.T) {
+	liveBlob := credentialBlob("live-token", "rotated-by-claude", time.Now().Add(time.Hour))
+	live := &switchTestLiveStore{read: liveBlob}
+	backup := &listTestBackupStore{
+		blobs: map[int]domain.CredentialBlob{
+			1: credentialBlob("old-token", "revoked-refresh", time.Now().Add(-time.Hour)),
+		},
+		writes: map[int]domain.CredentialBlob{},
+	}
+	refresher := &listTestTokenRefresher{}
+	svc := &Service{
+		Live:   live,
+		Backup: backup,
+		Config: switchTestConfigStore{cfg: &domain.ClaudeConfig{
+			Raw:          map[string]any{},
+			OAuthAccount: &domain.OAuthAccount{EmailAddress: "active@example.com", OrganizationUUID: "active-org"},
+		}},
+		Registry: listTestRegistryStore{reg: &domain.Registry{
+			ActiveAccountNumber: 1,
+			Sequence:            []int{1},
+			Accounts: map[int]*domain.Account{
+				1: {Number: 1, Email: "active@example.com", OrganizationUUID: "active-org"},
+			},
+		}},
+		Refresh: refresher,
+		Lock:    switchTestLock{},
+	}
+
+	if err := svc.SwitchAccount(context.Background(), 1); err != nil {
+		t.Fatalf("SwitchAccount(active) returned error: %v", err)
+	}
+	if live.written != "" {
+		t.Fatalf("live overwritten with %q; must keep Claude Code's newer credential", live.written)
+	}
+	if backup.writes[1] != liveBlob {
+		t.Fatalf("backup = %q, want live credential", backup.writes[1])
+	}
+	if refresher.calls != 0 {
+		t.Fatalf("refresh calls = %d, want 0", refresher.calls)
+	}
+}
+
+func TestSwitchAccountAlreadyActiveInstallsNewerBackup(t *testing.T) {
+	// A re-login wrote only the backup; live still holds the older login.
+	live := &switchTestLiveStore{read: credentialBlob("old-live", "old-refresh", time.Now().Add(time.Hour))}
+	newer := credentialBlob("relogin-token", "relogin-refresh", time.Now().Add(2*time.Hour))
+	backup := &listTestBackupStore{blobs: map[int]domain.CredentialBlob{1: newer}, writes: map[int]domain.CredentialBlob{}}
+	svc := &Service{
+		Live:   live,
+		Backup: backup,
+		Config: switchTestConfigStore{cfg: &domain.ClaudeConfig{
+			Raw:          map[string]any{},
+			OAuthAccount: &domain.OAuthAccount{EmailAddress: "active@example.com", OrganizationUUID: "active-org"},
+		}},
+		Registry: listTestRegistryStore{reg: &domain.Registry{
+			ActiveAccountNumber: 1,
+			Sequence:            []int{1},
+			Accounts:            map[int]*domain.Account{1: {Number: 1, Email: "active@example.com", OrganizationUUID: "active-org"}},
+		}},
+		Refresh: &listTestTokenRefresher{},
+		Lock:    switchTestLock{},
+	}
+
+	if err := svc.SwitchAccount(context.Background(), 1); err != nil {
+		t.Fatalf("SwitchAccount(active): %v", err)
+	}
+	if live.written != newer {
+		t.Fatalf("live = %q, want the newer backup installed", live.written)
+	}
+}

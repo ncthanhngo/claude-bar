@@ -77,16 +77,35 @@ sessions use the new account from their next request — verified in Claude Code
   - `Authorization: Bearer <accessToken>`
   - `anthropic-beta: oauth-2025-04-20`
 - Response: `{five_hour: {utilization, resets_at}, seven_day: {utilization, resets_at}}`
-- Usage polling reads Claude Bar backup credentials for every account, including
-  the active account. It never reads the live `Claude Code-credentials` item.
-- If a backup access token is within 5 min of expiry, the widget calls
-  `POST https://platform.claude.com/v1/oauth/token` with `refresh_token` and
-  persists the refreshed creds back to that backup keychain entry.
-- If an inactive backup cannot refresh, list polling marks that account as
-  needing login even when an old access token still reaches the usage API.
+- The active account's usage uses the live access token (kept fresh by Claude
+  Code); inactive accounts use their backup credentials.
 - Active account live credentials are **never** refreshed by the widget —
-  `claude` itself owns refresh for the live token, and a race could clobber the
-  user's session.
+  `claude` itself owns refresh for the live token.
+
+## Keeping logins alive
+
+Refresh tokens are single-use: each refresh revokes the previous token, so any
+stale copy that gets spent or written back costs a login.
+
+- **Refresh only when needed.** A backup is refreshed when its access token is
+  expired (usage poll, verify) or has under 10 min left (swap); the
+  Diagnostics "Force refresh" button is the only unconditional rotation. There
+  is no background rotation and no cross-Mac sync.
+- **One refresher at a time.** Every backup refresh — and a swap's read of
+  its target — holds `~/Library/Application Support/claude-swap-widget/refresh.lock`
+  (each `csw` command is its own process) and reads the backup straight from
+  the Keychain, bypassing the per-process cache; if another process already
+  rotated it, that result is used instead of spending the token again.
+- **Never spend the live token.** A backup whose refresh token equals the live
+  one belongs to the running Claude Code session and is not refreshed.
+- **Backup follows live.** Each poll copies the live credential into the
+  active account's backup when live is newer (later `expiresAt`), holding
+  `swap.lock`, and only while `~/.claude.json` — re-read under the lock and
+  again after reading live — attributes the login to that account.
+- **Switching to the already-active account** keeps the live credential when
+  `~/.claude.json` proves it is that account and it is not older than the
+  backup; otherwise it installs the backup.
+- Refresh and heal outcomes are logged to `~/Library/Logs/ClaudeBar/csw.log`.
 
 ## Process detection
 
