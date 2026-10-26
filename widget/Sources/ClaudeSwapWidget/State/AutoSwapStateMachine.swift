@@ -214,10 +214,12 @@ final class AutoSwapStateMachine: ObservableObject {
         }
     }
 
-    private func pickTarget(_ snap: ListAccountsDTO, threshold: Int) -> AccountViewDTO? {
+    func pickTarget(_ snap: ListAccountsDTO, threshold: Int) -> AccountViewDTO? {
         snap.accounts
             .filter { !$0.isActive }
             .filter { ($0.usage?.fiveHour?.percentInt ?? 100) < threshold }
+            // A weekly-capped account can't serve requests however low its 5h is.
+            .filter { ($0.usage?.sevenDay?.percentInt ?? 0) < 100 }
             .sorted { a, b in
                 // 1. Higher subscription tier first (Max 200 > Max 100 > Pro > free)
                 if a.subscriptionTier != b.subscriptionTier {
