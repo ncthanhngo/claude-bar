@@ -39,7 +39,7 @@ windows/ClaudeSwap.exe (tray, Go)  --exec-->  csw.exe (backend, Go, GOOS=windows
 |---|---|---|
 | Engine | Reuse `backend/` via build tags + `NewWindowsService` | Same tested swap/refresh/heal logic; no fork |
 | UI ↔ engine | Exec `csw.exe --json` | Respects Go `internal/`; mirrors macOS |
-| Tray toolkit | Go + `fyne.io/systray`, dialogs via `github.com/ncruces/zenity`, toasts via `git.sr.ht/~jackmordaunt/go-toast` | One toolchain, cross-compiles from macOS, no .NET runtime |
+| Tray toolkit | Go + `fyne.io/systray`, dialogs via `github.com/ncruces/zenity` (message boxes, no toasts) | One toolchain, cross-compiles from macOS, no .NET runtime |
 | Backup storage | DPAPI (`CryptProtectData`, user scope) files, 0600-equivalent ACL | No 2.5 KB Credential Manager blob limit; tied to the Windows user |
 | Live storage | Detect: credman target if Claude Code uses it, else `.credentials.json` | Match whichever backend Claude Code is on |
 | Adding accounts | "Add current login": user runs `claude /login`, tray adopts the live credential | No OAuth WebView needed; smallest surface |
@@ -49,12 +49,21 @@ windows/ClaudeSwap.exe (tray, Go)  --exec-->  csw.exe (backend, Go, GOOS=windows
 
 | # | Phase | Status |
 |---|-------|--------|
-| 1 | [Phase 1: Windows spike (verify unknowns)](./phase-01-start.md) | Pending |
-| 2 | [Phase 2: Backend Windows adapters](./phase-02-backend-windows-adapters.md) | Pending |
-| 3 | [Phase 3: csw swap commands on Windows](./phase-03-csw-swap-commands-on-windows.md) | Pending |
-| 4 | [Phase 4: Tray app](./phase-04-tray-app.md) | Pending |
-| 5 | [Phase 5: Packaging and release](./phase-05-packaging-and-release.md) | Pending |
-| 6 | [Phase 6: Test matrix Win10 / Win11](./phase-06-test-matrix-win10-win11.md) | Pending |
+| 1 | [Phase 1: Windows spike (verify unknowns)](./phase-01-start.md) | Script ready — run on Windows |
+| 2 | [Phase 2: Backend Windows adapters](./phase-02-backend-windows-adapters.md) | Done (code) |
+| 3 | [Phase 3: csw swap commands on Windows](./phase-03-csw-swap-commands-on-windows.md) | Done (code) |
+| 4 | [Phase 4: Tray app](./phase-04-tray-app.md) | Done (code) |
+| 5 | [Phase 5: Packaging and release](./phase-05-packaging-and-release.md) | Done (code; CI builds installer) |
+| 6 | [Phase 6: Test matrix Win10 / Win11](./phase-06-test-matrix-win10-win11.md) | Pending — manual |
+
+Implementation notes (deviations from the design above):
+- The live store does not hard-code a Credential Manager target: it lists entries starting with `Claude Code`, picks the one holding `claudeAiOauth` (preferring `Claude Code-credentials`), keeps its UTF-8/UTF-16 encoding, and verifies every write by reading it back. When Claude Code is on Credential Manager but the login sits in `.credentials.json`, the file is written.
+- **The live adapter is provisional until Phase 1 runs**: target naming per config dir, credential type, encoding and blob size are still unverified. It prefers the newer of Credential Manager and the file, never creates a second Credential Manager entry next to an existing one, and refuses blobs over 2560 bytes.
+- No toast notifications: zenity's toasts run PowerShell built from message text (an injection sink) and Windows often drops toasts from unregistered apps. Errors show in message boxes; success shows as the menu's "Active:" line.
+- Read-only `list` has a 30 s timeout; `switch`/`add`/`verify`/`rename`/`remove` are never killed (a kill between a token refresh and its save loses the login).
+- "(needs login)" is set only for a missing backup or an auth rejection (`invalid_grant`/401), not for network errors at boot.
+- `adapter.ClaudeConfigFile` now mirrors Claude Code (legacy `<config dir>\.config.json` if non-empty, else `.claude.json` in `CLAUDE_CONFIG_DIR` or home) on every OS.
+- Version for the Windows app lives in `windows/VERSION`; release tags are `win-v<VERSION>`.
 
 Phase 1 gates everything (its findings may change Phase 2's live adapter). 2 → 3 → 4 → 5; 6 runs against the Phase 5 artifact.
 

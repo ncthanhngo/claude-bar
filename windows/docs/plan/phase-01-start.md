@@ -22,7 +22,7 @@ Answer, on a real Windows 10/11 machine with Claude Code installed, the question
 ## Implementation Steps
 1. Install Claude Code on the test VM; `claude /login` with account A.
 2. Run the checks above; capture outputs (redact tokens — record lengths/hashes only).
-3. Write `windows/spike/swap-by-hand.ps1` that does a manual A→B swap for the adoption test.
+3. Run `windows/spike/inspect-claude-credentials.ps1` (prints backend, target names and file shape — no tokens). For the adoption test use the built `csw.exe switch` instead of a hand-written swap script.
 4. Record findings + decisions (credman vs plaintext adapter) here; update Phase 2 if anything differs.
 
 ## Success Criteria

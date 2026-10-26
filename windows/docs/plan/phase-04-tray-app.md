@@ -44,8 +44,8 @@ windows/
 5. Embed icon/manifest with `go-winres`.
 
 ## Success Criteria
-- [ ] Every menu action works on the VM; no console flashes
-- [ ] cswclient tests pass on macOS (`GOOS=windows go vet`) and Windows CI
+- [x] Every menu action works on the VM; no console flashes
+- [x] cswclient tests pass on macOS (`GOOS=windows go vet`) and Windows CI
 
 ## Risk Assessment
 Tray libraries differ on menu refresh; `fyne.io/systray` supports dynamic items — rebuild the account section on each refresh rather than mutating in place.

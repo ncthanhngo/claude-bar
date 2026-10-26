@@ -1,0 +1,71 @@
+name: Windows
+
+on:
+  pull_request:
+    branches: [main]
+    paths: ['backend/**', 'windows/**', '.github/workflows/windows.yml']
+  push:
+    branches: [main]
+    paths: ['backend/**', 'windows/**', '.github/workflows/windows.yml']
+    tags: ['win-v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: backend/go.mod
+      - name: Backend tests (Windows adapters, locks, swap engine)
+        working-directory: backend
+        run: go test ./...
+      - name: Tray tests
+        working-directory: windows
+        run: go test ./...
+
+  release:
+    needs: test
+    if: startsWith(github.ref, 'refs/tags/win-v')
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: backend/go.mod
+      - name: Check tag matches windows/VERSION
+        run: |
+          tag="${GITHUB_REF_NAME#win-v}"
+          [ "$tag" = "$(cat windows/VERSION)" ] || { echo "tag $tag != windows/VERSION $(cat windows/VERSION)"; exit 1; }
+      - name: Install build tools
+        run: |
+          command -v make || choco install make --no-progress -y
+          choco upgrade innosetup --no-progress -y  # needs 6.3+ for x64compatible
+      - name: Build exes
+        working-directory: windows
+        run: make build
+      - name: Zip and build installers
+        working-directory: windows
+        run: |
+          v=$(cat VERSION)
+          for arch in amd64 arm64; do
+            (cd dist/windows-$arch && 7z a -tzip ../ClaudeSwap-$v-windows-$arch.zip ClaudeSwap.exe csw.exe)
+            "/c/Program Files (x86)/Inno Setup 6/ISCC.exe" //DAppVersion=$v //DArch=$arch installer/claudeswap.iss
+          done
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" windows/dist/*.zip windows/dist/*-setup.exe \
+            --title "Claude Swap for Windows ${GITHUB_REF_NAME#win-v}" \
+            --notes "Windows 10/11 tray app that switches the Claude Code account. Unsigned: SmartScreen may show *More info → Run anyway*." \
+            --prerelease

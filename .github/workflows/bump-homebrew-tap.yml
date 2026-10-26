@@ -11,6 +11,8 @@ on:
 
 jobs:
   bump:
+    # macOS releases only (v*); Windows releases are tagged win-v*.
+    if: github.event_name != 'release' || startsWith(github.event.release.tag_name, 'v')
     runs-on: ubuntu-latest
     steps:
       - name: Resolve tag and version

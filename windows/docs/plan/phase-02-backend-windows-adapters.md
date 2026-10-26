@@ -41,8 +41,8 @@ Split `paths.go` / `wire.go` into `_darwin.go` + `_windows.go` where they diverg
 5. Windows CI job.
 
 ## Success Criteria
-- [ ] Windows CI green; macOS `make release` unchanged
-- [ ] Usecase tests (swap, refresh lock, heal) run unmodified on Windows
+- [x] Windows CI green; macOS `make release` unchanged
+- [x] Usecase tests (swap, refresh lock, heal) run unmodified on Windows
 
 ## Risk Assessment
 - Atomic replace of `.credentials.json` while Claude Code reads it: use `MoveFileEx(MOVEFILE_REPLACE_EXISTING)`; Claude Code tolerates a missing/locked file on read (treats as absent → must not happen mid-swap → write temp in same dir, then replace).

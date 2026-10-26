@@ -27,8 +27,8 @@ Expose only the swap subset of `csw` on Windows and make sure each works end-to-
 3. Manual run on the VM: add A (current), `claude /login` as B, add B, switch A↔B, verify `~/.claude.json` + live store.
 
 ## Success Criteria
-- [ ] Manual A↔B switch works from `csw.exe`; `claude /status` shows the switched account
-- [ ] Unsupported commands fail cleanly
+- [x] Manual A↔B switch works from `csw.exe`; `claude /status` shows the switched account
+- [x] Unsupported commands fail cleanly
 
 ## Risk Assessment
 `add` on an already-registered login refreshes that account's backup instead of creating a second one (existing dedupe) — keep it that way so two backups never share one refresh token.

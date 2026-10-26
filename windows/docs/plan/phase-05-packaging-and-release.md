@@ -25,8 +25,8 @@ Produce a portable zip and an installer for x64 (and arm64 if Phase 6 has hardwa
 4. README section: install, SmartScreen note, uninstall.
 
 ## Success Criteria
-- [ ] Tagging `win-v0.1` produces both artifacts on the release
-- [ ] Fresh Win11 VM installs, runs, uninstalls cleanly
+- [x] Tagging `win-v0.1` produces both artifacts on the release
+- [x] Fresh Win11 VM installs, runs, uninstalls cleanly
 
 ## Risk Assessment
 Unsigned installers trigger SmartScreen; document it and revisit signing.
