@@ -1,6 +1,8 @@
 package usecase
 
 import (
+	"path/filepath"
+
 	"github.com/soi/claude-swap-widget/backend/internal/adapter"
 	"github.com/soi/claude-swap-widget/backend/internal/adapter/cache"
 	"github.com/soi/claude-swap-widget/backend/internal/adapter/claudeconfig"
@@ -29,7 +31,8 @@ func NewMacOSService() *Service {
 		Sessions:   sessions.New(),
 		Lock:       lock.New(),
 		MCPSecrets: keychain.NewMCPSecretStore(),
-		UsageLog:   usagelog.NewScanner(adapter.ClaudeProjectsDir()),
+		UsageLog: usagelog.NewScanner(adapter.ClaudeProjectsDir()).
+			WithCacheFile(filepath.Join(adapter.WidgetDataDir(), "usage", "scan-cache.json")),
 		UsageCache: cache.New(),
 		Backoff:    cache.NewBackoff(),
 	}

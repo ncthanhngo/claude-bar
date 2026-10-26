@@ -5,9 +5,7 @@
 package usagelog
 
 import (
-	"bufio"
 	"context"
-	"encoding/json"
 	"errors"
 	"io/fs"
 	"os"
@@ -24,6 +22,10 @@ import (
 type Scanner struct {
 	root       string
 	maxFileAge time.Duration
+	// cachePath persists per-file scan offsets + 15-minute usage totals so
+	// each csw process only reads the bytes appended since the last scan.
+	// Empty disables persistence (every Scan is a full scan).
+	cachePath string
 }
 
 // NewScanner returns a scanner rooted at ~/.claude/projects (HOME expansion
@@ -35,6 +37,12 @@ func NewScanner(root string) *Scanner {
 		// a safety margin so an end-of-month file still gets scanned on the 1st.
 		maxFileAge: 13 * 31 * 24 * time.Hour,
 	}
+}
+
+// WithCacheFile enables the persisted incremental scan cache at path.
+func (s *Scanner) WithCacheFile(path string) *Scanner {
+	s.cachePath = path
+	return s
 }
 
 // Scan walks the project tree and returns aggregate buckets for the calendar
@@ -66,6 +74,10 @@ func (s *Scanner) Scan(ctx context.Context, now time.Time) (*domain.UsageStatsRe
 		return report, nil
 	}
 
+	cache := loadScanCache(s.cachePath)
+	next := &scanCache{Version: scanCacheVersion, Files: make(map[string]*fileState, len(cache.Files))}
+	changed := false
+
 	err := filepath.WalkDir(s.root, func(path string, d fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return nil
@@ -83,12 +95,37 @@ func (s *Scanner) Scan(ctx context.Context, now time.Time) (*domain.UsageStatsRe
 		if info.ModTime().Before(cutoff) {
 			return nil
 		}
-		s.foldFile(path, monthStart, weekStart, todayStart,
-			hourly, daily, monthly,
-			hourlyEarliest, dailyEarliest, monthlyEarliest,
-			report)
+		st := cache.Files[path]
+		// New file, or one that shrank below our offset (rewritten) — start over.
+		if st == nil || info.Size() < st.Offset {
+			st = &fileState{}
+			changed = true
+		}
+		if info.Size() > st.Offset {
+			foldNewLines(path, st)
+			changed = true
+		}
+		next.Files[path] = st
 		return nil
 	})
+	// Files that vanished or aged out drop from the cache.
+	if len(next.Files) != len(cache.Files) {
+		changed = true
+	}
+
+	for _, st := range next.Files {
+		for _, q := range st.Quarters {
+			foldQuarter(q, monthStart, weekStart, todayStart,
+				hourly, daily, monthly,
+				hourlyEarliest, dailyEarliest, monthlyEarliest,
+				report)
+		}
+	}
+	if err == nil && changed {
+		// Best-effort: a cache write failure only costs a rescan next time.
+		_ = saveScanCache(s.cachePath, next)
+	}
+
 	report.Hourly = hourly
 	report.Daily = daily
 	report.Monthly = monthly
@@ -141,77 +178,47 @@ func buildMonthlySlots(now time.Time) []domain.TimedBucket {
 	return slots
 }
 
-func (s *Scanner) foldFile(
-	path string,
+// foldQuarter adds one 15-minute usage slot to the calendar aggregates and
+// histogram series. Every window boundary is a local hour edge, which is
+// also a quarter edge, so placing the whole slot by its start is exact.
+func foldQuarter(
+	q usageQuarter,
 	monthStart, weekStart, todayStart time.Time,
 	hourly, daily, monthly []domain.TimedBucket,
 	hourlyEarliest, dailyEarliest, monthlyEarliest time.Time,
 	report *domain.UsageStatsReport,
 ) {
-	f, err := os.Open(path)
-	if err != nil {
+	tsLocal := time.Unix(q[0]*quarterSec, 0).In(monthlyEarliest.Location())
+	if tsLocal.Before(monthlyEarliest) {
 		return
 	}
-	defer f.Close()
+	// Calendar aggregates: current month / week / day in local time.
+	if !tsLocal.Before(monthStart) {
+		addQuarter(&report.ThisMonth, q)
+	}
+	if !tsLocal.Before(weekStart) {
+		addQuarter(&report.ThisWeek, q)
+	}
+	if !tsLocal.Before(todayStart) {
+		addQuarter(&report.Today, q)
+	}
 
-	scanner := bufio.NewScanner(f)
-	// JSONL entries can carry the full conversation context — relax the
-	// default 64 KB token limit so cache_creation entries with attachments
-	// don't trip the scanner.
-	scanner.Buffer(make([]byte, 0, 1<<16), 4*1024*1024)
-
-	for scanner.Scan() {
-		line := scanner.Bytes()
-		var entry assistantLogEntry
-		if err := json.Unmarshal(line, &entry); err != nil {
-			continue
+	// Histogram series.
+	if !tsLocal.Before(hourlyEarliest) {
+		idx := int(tsLocal.Sub(hourlyEarliest) / time.Hour)
+		if idx >= 0 && idx < len(hourly) {
+			addQuarter(&hourly[idx].Bucket, q)
 		}
-		if entry.Type != "assistant" || entry.Message.Usage == nil {
-			continue
+	}
+	if !tsLocal.Before(dailyEarliest) {
+		idx := int(tsLocal.Sub(dailyEarliest) / (24 * time.Hour))
+		if idx >= 0 && idx < len(daily) {
+			addQuarter(&daily[idx].Bucket, q)
 		}
-		// Timestamp is RFC3339 UTC in observed logs. Skip lines we cannot
-		// place — they would otherwise inflate every bucket.
-		ts, err := time.Parse(time.RFC3339, entry.Timestamp)
-		if err != nil {
-			continue
-		}
-		tsLocal := ts.In(monthlyEarliest.Location())
-		if tsLocal.Before(monthlyEarliest) {
-			continue
-		}
-
-		u := entry.Message.Usage
-
-		// Calendar aggregates: current month / week / day in local time.
-		if !tsLocal.Before(monthStart) {
-			report.ThisMonth.Add(u.InputTokens, u.OutputTokens, u.CacheCreation, u.CacheRead)
-		}
-		if !tsLocal.Before(weekStart) {
-			report.ThisWeek.Add(u.InputTokens, u.OutputTokens, u.CacheCreation, u.CacheRead)
-		}
-		if !tsLocal.Before(todayStart) {
-			report.Today.Add(u.InputTokens, u.OutputTokens, u.CacheCreation, u.CacheRead)
-		}
-
-		// Histogram series.
-		if !tsLocal.Before(hourlyEarliest) {
-			idx := int(tsLocal.Sub(hourlyEarliest) / time.Hour)
-			if idx >= 0 && idx < len(hourly) {
-				hourly[idx].Bucket.Add(u.InputTokens, u.OutputTokens, u.CacheCreation, u.CacheRead)
-			}
-		}
-		if !tsLocal.Before(dailyEarliest) {
-			idx := int(tsLocal.Sub(dailyEarliest) / (24 * time.Hour))
-			if idx >= 0 && idx < len(daily) {
-				daily[idx].Bucket.Add(u.InputTokens, u.OutputTokens, u.CacheCreation, u.CacheRead)
-			}
-		}
-		if !tsLocal.Before(monthlyEarliest) {
-			idx := monthDiff(monthlyEarliest, tsLocal)
-			if idx >= 0 && idx < len(monthly) {
-				monthly[idx].Bucket.Add(u.InputTokens, u.OutputTokens, u.CacheCreation, u.CacheRead)
-			}
-		}
+	}
+	idx := monthDiff(monthlyEarliest, tsLocal)
+	if idx >= 0 && idx < len(monthly) {
+		addQuarter(&monthly[idx].Bucket, q)
 	}
 }
 
