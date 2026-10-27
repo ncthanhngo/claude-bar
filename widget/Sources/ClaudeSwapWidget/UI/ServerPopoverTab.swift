@@ -457,6 +457,9 @@ private struct ServerHostRow: View {
         return .green
     }
 
+    // AppSettings is main-actor isolated; older SDKs (macOS 14) don't infer
+    // that for View helpers outside `body`.
+    @MainActor
     private func diskColor(_ pct: Int) -> Color {
         if pct >= AppSettings.shared.serverDiskCritPct { return .red }
         if pct >= AppSettings.shared.serverDiskWarnPct { return .orange }
