@@ -211,6 +211,9 @@ private struct CopyableAddress: View {
 
 // MARK: - host row
 
+// Main actor for the whole row: its helpers read main-actor AppSettings,
+// and the macOS 14 SDK only infers isolation for `body`.
+@MainActor
 private struct ServerHostRow: View {
     let host: CswClient.SSHHostDTO
     let health: CswClient.HostHealth?
@@ -457,9 +460,6 @@ private struct ServerHostRow: View {
         return .green
     }
 
-    // AppSettings is main-actor isolated; older SDKs (macOS 14) don't infer
-    // that for View helpers outside `body`.
-    @MainActor
     private func diskColor(_ pct: Int) -> Color {
         if pct >= AppSettings.shared.serverDiskCritPct { return .red }
         if pct >= AppSettings.shared.serverDiskWarnPct { return .orange }
