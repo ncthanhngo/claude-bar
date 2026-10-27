@@ -12,6 +12,28 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 13.22</title>
+      <sparkle:version>13.22</sparkle:version>
+      <sparkle:shortVersionString>13.22</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li>Away mode: press ⌥X (or the lock button in the popover header) to keep the Mac awake and lock the screen while running work keeps going.</li>
+          <li>Away mode first checks for a login password and an immediate screen lock, and opens System Settings if either is missing.</li>
+          <li>Normal sleep returns as soon as you unlock.</li>
+          <li>Known issue: closing a MacBook lid still sleeps it.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Tue, 27 Oct 2026 18:08:23 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v13.22/ClaudeBar.zip"
+        sparkle:version="13.22"
+        sparkle:shortVersionString="13.22"
+        sparkle:edSignature="kwgp8fQu1rthD9ZI99m/J9/tmlDvMsct/8e+88WV4JqcdLmO4P5vY3HYbK8mneT0Vj+XUqdQHFazXSet/0uVDA=="
+        length="5974582"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 13.21</title>
       <sparkle:version>13.21</sparkle:version>
       <sparkle:shortVersionString>13.21</sparkle:shortVersionString>
