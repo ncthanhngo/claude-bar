@@ -1,0 +1,325 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Claude Swap</title>
+<style>
+  :root {
+    --bg: #f7f7f8; --card: #ffffff; --hover: #eef0f3; --line: rgba(0,0,0,.08);
+    --text: #1d1d1f; --muted: #6b6f76; --faint: rgba(0,0,0,.07);
+    --accent: #d97757; --active: #22c55e;
+    --green: #22c55e; --amber: #eab308; --red: #ef4444; --amber-text: #a16207; --red-text: #dc2626;
+    --menu: #ffffff; --shadow: 0 8px 24px rgba(0,0,0,.18);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1f1f22; --card: #2a2a2e; --hover: #34343a; --line: rgba(255,255,255,.08);
+      --text: #f2f2f3; --muted: #a0a0a8; --faint: rgba(255,255,255,.09);
+      --amber-text: #eab308; --red-text: #f87171;
+      --menu: #303036; --shadow: 0 8px 24px rgba(0,0,0,.5);
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--text);
+    font: 12px "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+    user-select: none; -webkit-user-select: none; overflow: hidden; }
+  button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+  #app { display: flex; flex-direction: column; }
+
+  header { display: flex; align-items: center; gap: 8px; padding: 10px 10px 8px 12px; }
+  .logo { width: 22px; height: 22px; border-radius: 6px; background: var(--accent); color: #fff;
+    display: grid; place-items: center; font-weight: 700; font-size: 12px; flex: none; }
+  .titles { flex: 1; min-width: 0; }
+  .title { font-weight: 600; font-size: 13px; }
+  .status { color: var(--muted); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .icon-btn { width: 26px; height: 26px; border-radius: 6px; display: grid; place-items: center; color: var(--muted); }
+  .icon-btn:hover { background: var(--hover); color: var(--text); }
+  .icon-btn svg { width: 15px; height: 15px; }
+  .spin svg { animation: spin 1s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .divider { height: 1px; background: var(--line); }
+  .section { display: flex; align-items: center; padding: 8px 12px 4px; color: var(--muted);
+    font-size: 10.5px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; }
+  .section .grow { flex: 1; }
+  .link { color: var(--accent); font-size: 11px; font-weight: 600; text-transform: none; letter-spacing: 0;
+    padding: 2px 6px; border-radius: 5px; }
+  .link:hover { background: var(--hover); }
+
+  #list { padding: 2px 6px 6px; overflow-y: auto; }
+  #list::-webkit-scrollbar { width: 6px; }
+  #list::-webkit-scrollbar-thumb { background: var(--faint); border-radius: 3px; }
+  .row { position: relative; display: flex; gap: 9px; padding: 7px 8px; border-radius: 8px; margin-bottom: 4px;
+    background: var(--card); border: 1px solid var(--line); cursor: pointer; text-align: left; width: 100%; }
+  .row:hover { background: var(--hover); }
+  .row.active { cursor: default; border-color: color-mix(in srgb, var(--active) 45%, transparent); }
+  .row.dim { opacity: .55; pointer-events: none; }
+  .avatar { width: 28px; height: 28px; border-radius: 50%; flex: none; display: grid; place-items: center;
+    color: #fff; font-weight: 700; font-size: 12px; margin-top: 1px; }
+  .body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+  .name-line { display: flex; align-items: center; gap: 6px; min-height: 18px; }
+  .name { font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .row.active .name { font-weight: 600; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--active); flex: none; }
+  .badge { font-size: 9.5px; font-weight: 600; padding: 1px 5px; border-radius: 4px; background: var(--faint);
+    color: var(--muted); text-transform: uppercase; flex: none; }
+  .badge.desk { background: color-mix(in srgb, var(--accent) 20%, transparent); color: var(--accent); }
+  .badge.warn { background: color-mix(in srgb, var(--red) 18%, transparent); color: var(--red-text); text-transform: none; }
+  .grow { flex: 1; }
+  .more { width: 22px; height: 22px; border-radius: 5px; display: grid; place-items: center; color: var(--muted);
+    visibility: hidden; flex: none; }
+  .row:hover .more, .more.open { visibility: visible; }
+  .more:hover { background: var(--faint); color: var(--text); }
+  .more svg { width: 14px; height: 14px; }
+  .loader { width: 12px; height: 12px; border: 2px solid var(--faint); border-top-color: var(--accent);
+    border-radius: 50%; animation: spin .8s linear infinite; flex: none; }
+  .email { color: var(--muted); font-size: 10.5px; margin-top: -3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  .usage { display: flex; align-items: center; gap: 6px; }
+  .usage .lbl { width: 32px; color: var(--muted); font-size: 9.5px; font-weight: 500; white-space: nowrap; overflow: hidden; }
+  .bar { flex: 1; height: 6px; border-radius: 3px; background: var(--faint); overflow: hidden; }
+  .bar > i { display: block; height: 100%; border-radius: 3px; min-width: 3px; }
+  .usage .pct { width: 36px; text-align: right; font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .usage .reset { width: 46px; text-align: right; color: var(--muted); font-size: 10px; font-variant-numeric: tabular-nums; }
+  .usage.none .pct, .usage.none .reset { color: var(--muted); font-weight: 400; }
+
+  .relogin { display: flex; align-items: center; gap: 6px; margin-top: 2px; color: var(--muted); font-size: 10.5px; }
+  .relogin span { flex: 1; }
+  .relogin .link { padding: 2px 6px; }
+
+  .empty { padding: 18px 16px 14px; text-align: center; color: var(--muted); }
+  .empty b { display: block; color: var(--text); font-size: 13px; margin-bottom: 4px; }
+  .btn { display: inline-block; margin-top: 10px; padding: 6px 12px; border-radius: 6px; background: var(--accent);
+    color: #fff; font-weight: 600; }
+  .btn:hover { filter: brightness(1.08); }
+
+  footer { display: flex; align-items: center; padding: 6px 8px 8px 12px; color: var(--muted); font-size: 11px; gap: 6px; }
+  footer .link { color: var(--muted); font-weight: 500; }
+  footer .link:hover { color: var(--text); }
+
+  .notice { margin: 0 8px 6px; padding: 7px 10px; border-radius: 7px; font-size: 11.5px; display: none; }
+  .notice.show { display: block; }
+  .notice.ok { background: color-mix(in srgb, var(--green) 16%, transparent); }
+  .notice.err { background: color-mix(in srgb, var(--red) 16%, transparent); color: var(--red-text); }
+
+  .menu { position: fixed; z-index: 10; min-width: 230px; padding: 4px; border-radius: 8px; background: var(--menu);
+    border: 1px solid var(--line); box-shadow: var(--shadow); display: none; }
+  .menu.show { display: block; }
+  .menu button { display: flex; width: 100%; align-items: center; gap: 8px; padding: 6px 10px; border-radius: 5px; text-align: left; }
+  .menu button:hover { background: var(--hover); }
+  .menu .sep { height: 1px; background: var(--line); margin: 4px 2px; }
+  .menu .check { width: 12px; color: var(--accent); }
+  .menu .danger { color: var(--red-text); }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="logo">C</div>
+    <div class="titles">
+      <div class="title">Claude Swap</div>
+      <div class="status" id="status">Loading…</div>
+    </div>
+    <button class="icon-btn" id="refresh" title="Refresh usage">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9"/><path d="M13.5 2.5v3h-3"/></svg>
+    </button>
+    <button class="icon-btn" id="appmenu-btn" title="More">
+      <svg viewBox="0 0 16 16" fill="currentColor"><circle cx="3.5" cy="8" r="1.3"/><circle cx="8" cy="8" r="1.3"/><circle cx="12.5" cy="8" r="1.3"/></svg>
+    </button>
+  </header>
+  <div class="divider"></div>
+  <div class="section"><span>Accounts</span><span id="count" style="margin-left:5px"></span><span class="grow"></span>
+    <button class="link" id="signin">+ Sign in account</button></div>
+  <div id="list"></div>
+  <div class="notice" id="notice"></div>
+  <div class="divider"></div>
+  <footer>
+    <button class="link" id="addcurrent" title="Save the account Claude Code is logged in with now">Add current Claude Code login</button>
+    <span class="grow"></span><span id="version"></span>
+  </footer>
+</div>
+
+<div class="menu" id="appmenu">
+  <button data-act="autostart"><span class="check" id="autostart-check"></span>Start at login</button>
+  <button data-act="switchdesktop" id="switchdesktop-item" title="Also switch Claude Desktop's sign-in (it restarts)"><span class="check" id="switchdesktop-check"></span>Switch Claude Desktop too</button>
+  <button data-act="reloadide" title="Restart Claude in VS Code and other editors so it uses the new account"><span class="check" id="reloadide-check"></span>Reload VS Code after switching</button>
+  <button data-act="logs"><span class="check"></span>Open logs folder</button>
+  <button data-act="about"><span class="check"></span>Check for updates</button>
+  <div class="sep"></div>
+  <button data-act="quit"><span class="check"></span>Quit Claude Swap</button>
+</div>
+<div class="menu" id="rowmenu">
+  <button data-act="rename"><span class="check"></span>Rename…</button>
+  <button data-act="savedesktop" id="savedesktop-btn" title="Claude Desktop must be signed in to this account"><span class="check"></span>Save Claude Desktop sign-in here…</button>
+  <button data-act="remove" class="danger" id="remove-btn"><span class="check"></span>Remove…</button>
+</div>
+
+<script>
+window.onerror = (msg, src, line, col) => { try { window.cswLog(`${msg} @${line}:${col}`); } catch (_) {} };
+window.addEventListener('unhandledrejection', (e) => { try { window.cswLog('rejection: ' + (e.reason && e.reason.message || e.reason)); } catch (_) {} });
+const $ = (id) => document.getElementById(id);
+const act = (name, num) => window.cswAction(name, num || 0);
+let state = null, rowMenuNum = 0, noticeId = 0, noticeTimer = 0;
+
+const palette = (p) => p < 60 ? 'var(--green)' : p < 85 ? 'var(--amber)' : 'var(--red)';
+const pctColor = (p) => p < 60 ? '' : p < 85 ? 'var(--amber-text)' : 'var(--red-text)';
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+function hue(s) { let h = 0; for (const c of s) h = (h * 31 + c.charCodeAt(0)) >>> 0; return h % 360; }
+
+function resetLabel(iso) {
+  if (!iso) return '';
+  let ms = new Date(iso) - Date.now();
+  if (!(ms > 0)) return 'now';
+  const m = Math.floor(ms / 60000), d = Math.floor(m / 1440), h = Math.floor((m % 1440) / 60);
+  if (d > 0) return `${d}d ${h}h`;
+  if (h > 0) return `${h}h ${m % 60}m`;
+  return m < 1 ? '<1m' : `${m}m`;
+}
+
+function usageRow(label, w, weekly) {
+  if (!w) return `<div class="usage none"><span class="lbl">${esc(label)}</span><div class="bar"></div><span class="pct">—</span><span class="reset"></span></div>`;
+  const p = Math.round(w.utilizationPct || 0);
+  const color = weekly ? '' : pctColor(p);
+  return `<div class="usage"><span class="lbl" title="${esc(label)}">${esc(label)}</span>
+    <div class="bar"><i style="width:${Math.min(100, Math.max(0, p))}%;background:${palette(p)}"></i></div>
+    <span class="pct" style="color:${color}">${p < 1 ? '&lt;1%' : p + '%'}</span>
+    <span class="reset">${resetLabel(w.resetsAt)}</span></div>`;
+}
+
+function row(v) {
+  const a = v.account, name = a.nickname || a.email;
+  const swapping = state.swapping === a.number;
+  const dim = state.swapping && !swapping;
+  const u = v.usage;
+  let usage;
+  if (u) {
+    usage = usageRow('5h', u.fiveHour) + usageRow('7d', u.sevenDay, true) +
+      (u.sevenDayScoped ? usageRow(u.scopedLabel || 'model', u.sevenDayScoped, true) : '');
+  } else {
+    usage = usageRow('5h', null) + usageRow('7d', null);
+  }
+  let plan = v.subscriptionType ? `<span class="badge">${esc(v.subscriptionType)}</span>` : '';
+  if (v.inDesktop) plan += `<span class="badge desk" title="Claude Desktop is signed in to this account">Desktop</span>`;
+  else if (v.hasDesktop) plan += `<span class="badge" title="A Claude Desktop sign-in is saved for this account">Desktop</span>`;
+  let warn = '', relogin = '';
+  if (v.recovering) {
+    warn = `<span class="badge" title="Signing this account back in with its saved claude.ai session">reconnecting…</span>`;
+  } else if (v.needsLogin) {
+    warn = `<span class="badge warn" title="This saved login no longer works">needs login</span>`;
+    relogin = `<div class="relogin"><span>${v.canRecover ? 'Claude Swap will retry in the background.' : 'Sign in to this account once more.'}</span>
+      <button class="link" data-relogin="${a.number}">Sign in again</button></div>`;
+  }
+  return `<div class="row${v.isActive ? ' active' : ''}${dim ? ' dim' : ''}" data-num="${a.number}" data-active="${v.isActive ? 1 : 0}" data-needs="${v.needsLogin && !v.isActive ? 1 : 0}"
+      title="${v.isActive ? 'Active account' : 'Click to switch Claude Code to this account'}">
+    <div class="avatar" style="background:hsl(${hue(a.email)} 55% 48%)">${esc(name.trim()[0] || '?').toUpperCase()}</div>
+    <div class="body">
+      <div class="name-line"><span class="name">${esc(name)}</span>${v.isActive ? '<span class="dot"></span>' : ''}${plan}${warn}
+        <span class="grow"></span>${swapping || v.recovering ? '<span class="loader"></span>' : ''}
+        <button class="more" data-more="${a.number}" title="Account actions">
+          <svg viewBox="0 0 16 16" fill="currentColor"><circle cx="3.5" cy="8" r="1.3"/><circle cx="8" cy="8" r="1.3"/><circle cx="12.5" cy="8" r="1.3"/></svg></button>
+      </div>
+      ${a.nickname ? `<div class="email">${esc(a.email)}</div>` : ''}
+      ${usage}${relogin}
+    </div>
+  </div>`;
+}
+
+function render(s) {
+  state = s;
+  $('status').textContent = s.status || '';
+  $('version').textContent = s.version ? 'v' + s.version : '';
+  $('autostart-check').textContent = s.autostart ? '✓' : '';
+  $('reloadide-check').textContent = s.reloadIDE ? '✓' : '';
+  $('switchdesktop-check').textContent = s.switchDesktop ? '✓' : '';
+  $('switchdesktop-item').style.display = s.desktopInstalled ? '' : 'none';
+  $('savedesktop-btn').style.display = s.desktopInstalled ? '' : 'none';
+  $('refresh').classList.toggle('spin', !!s.loadingUsage);
+  const accts = (s.accounts || []).slice().sort((x, y) => (y.isActive ? 1 : 0) - (x.isActive ? 1 : 0));
+  $('count').textContent = accts.length ? '· ' + accts.length : '';
+  if (s.loadError && !accts.length) {
+    $('list').innerHTML = `<div class="empty"><b>Could not load accounts</b>${esc(s.loadError)}</div>`;
+  } else if (!accts.length) {
+    $('list').innerHTML = `<div class="empty"><b>No accounts yet</b>Sign in to each Claude account once,<br>then click one here to switch.
+      <br><button class="btn" data-act="signin">Sign in account</button></div>`;
+  } else {
+    $('list').innerHTML = accts.map(row).join('');
+  }
+  if (s.notice && s.notice.id !== noticeId) {
+    noticeId = s.notice.id;
+    const n = $('notice');
+    n.textContent = s.notice.text;
+    n.className = 'notice show ' + (s.notice.kind === 'error' ? 'err' : 'ok');
+    clearTimeout(noticeTimer);
+    noticeTimer = setTimeout(() => { n.className = 'notice'; report(); }, s.notice.kind === 'error' ? 8000 : 4000);
+  }
+  report();
+}
+window.render = render;
+
+// The account list scrolls past three rows; the window fits the rest.
+function report() {
+  const list = $('list'), rows = list.querySelectorAll('.row');
+  list.style.maxHeight = '';
+  if (rows.length > 3) {
+    const r = rows[3].getBoundingClientRect(), top = list.getBoundingClientRect().top;
+    list.style.maxHeight = (r.top - top + 2) + 'px';
+  }
+  requestAnimationFrame(() => window.cswResize(Math.ceil($('app').getBoundingClientRect().height)));
+}
+
+function closeMenus() { document.querySelectorAll('.menu.show').forEach((m) => m.classList.remove('show'));
+  document.querySelectorAll('.more.open').forEach((m) => m.classList.remove('open')); }
+
+function openMenu(menu, anchor) {
+  closeMenus();
+  menu.classList.add('show');
+  const r = anchor.getBoundingClientRect(), mw = menu.offsetWidth, mh = menu.offsetHeight;
+  let left = Math.min(r.right - mw, innerWidth - mw - 6), top = r.bottom + 4;
+  if (top + mh > innerHeight - 4) top = Math.max(4, r.top - mh - 4);
+  menu.style.left = Math.max(6, left) + 'px';
+  menu.style.top = top + 'px';
+}
+
+document.addEventListener('click', (e) => {
+  const again = e.target.closest('[data-relogin]');
+  if (again) { e.stopPropagation(); closeMenus(); act('relogin', +again.dataset.relogin); return; }
+  const more = e.target.closest('[data-more]');
+  if (more) {
+    e.stopPropagation();
+    rowMenuNum = +more.dataset.more;
+    const v = state.accounts.find((x) => x.account.number === rowMenuNum);
+    $('remove-btn').style.display = v && v.isActive ? 'none' : '';
+    openMenu($('rowmenu'), more);
+    more.classList.add('open');
+    return;
+  }
+  const item = e.target.closest('.menu [data-act]');
+  if (item) {
+    const a = item.dataset.act;
+    closeMenus();
+    act(a, (a === 'rename' || a === 'remove' || a === 'savedesktop') ? rowMenuNum : 0);
+    return;
+  }
+  if (e.target.closest('#appmenu-btn')) { openMenu($('appmenu'), $('appmenu-btn')); return; }
+  closeMenus();
+  if (e.target.closest('#refresh')) { act('refresh'); return; }
+  if (e.target.closest('#signin, [data-act="signin"]')) { act('signin'); return; }
+  if (e.target.closest('#addcurrent')) { act('addcurrent'); return; }
+  const r = e.target.closest('.row');
+  if (r && r.dataset.needs === '1') { act('relogin', +r.dataset.num); return; }
+  if (r && r.dataset.active !== '1' && !state.swapping) act('switch', +r.dataset.num);
+});
+document.addEventListener('contextmenu', (e) => {
+  e.preventDefault();
+  const r = e.target.closest('.row');
+  if (r) { r.querySelector('.more').click(); }
+});
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { closeMenus(); window.cswHide(); } });
+window.addEventListener('blur', () => { closeMenus(); window.cswHide(); });
+window.onShown = () => { closeMenus(); if (state) render(state); };
+setInterval(() => { if (state) render(state); }, 60000); // keep reset countdowns fresh
+window.cswReady();
+</script>
+</body>
+</html>

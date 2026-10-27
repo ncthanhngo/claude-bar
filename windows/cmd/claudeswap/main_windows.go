@@ -14,6 +14,10 @@ import (
 )
 
 func main() {
+	if len(os.Args) >= 3 && os.Args[1] == tray.SignInFlag {
+		tray.SignInMain(os.Args[2:]) // the tray's sign-in window process
+		return
+	}
 	ok, err := winutil.SingleInstance(`Local\ClaudeSwapTray`)
 	if err != nil || !ok {
 		return // already running in this session

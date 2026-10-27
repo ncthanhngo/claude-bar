@@ -8,13 +8,15 @@ import (
 )
 
 type recorder struct {
-	args [][]string
-	out  string
-	err  error
+	args  [][]string
+	stdin []string
+	out   string
+	err   error
 }
 
-func (r *recorder) run(_ context.Context, args ...string) ([]byte, error) {
+func (r *recorder) run(_ context.Context, stdin []byte, args ...string) ([]byte, error) {
 	r.args = append(r.args, args)
+	r.stdin = append(r.stdin, string(stdin))
 	return []byte(r.out), r.err
 }
 
@@ -48,6 +50,24 @@ func TestCommandArgsPutFlagsBeforePositionals(t *testing.T) {
 	}
 	if !reflect.DeepEqual(r.args, want) {
 		t.Fatalf("args %v", r.args)
+	}
+}
+
+func TestAddSignedInSendsCodeOnStdin(t *testing.T) {
+	r := &recorder{out: `{"account":{"number":2,"email":"b@x.com"},"wasDuplicate":false}`}
+	c := NewWithRunner(r.run)
+	res, err := c.AddSignedIn(context.Background(), &SignIn{State: "st", Verifier: "ver"}, "abc#st", "Work", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(r.args[0], []string{"add-oauth-code", "--json"}) {
+		t.Fatalf("args %v", r.args[0])
+	}
+	if r.stdin[0] != `{"code":"abc#st","expectedEmail":"","nickname":"Work","state":"st","verifier":"ver"}` {
+		t.Fatalf("stdin %s", r.stdin[0])
+	}
+	if res.Account.Number != 2 {
+		t.Fatalf("result %+v", res)
 	}
 }
 
