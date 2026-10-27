@@ -9,6 +9,7 @@ final class AwayModeControllerTests: XCTestCase {
     func testStartHoldsAwakeAndLocks() {
         var held = 0, locks = 0
         let away = AwayModeController(
+            readiness: { .ready }, explain: { _ in },
             holdAwake: { held += 1; return 7 }, releaseAwake: { _ in }, lockScreen: { locks += 1 })
         away.start()
         away.start()
@@ -20,6 +21,7 @@ final class AwayModeControllerTests: XCTestCase {
     func testUnlockReleasesAssertion() {
         var released: [IOPMAssertionID] = []
         let away = AwayModeController(
+            readiness: { .ready }, explain: { _ in },
             holdAwake: { 7 }, releaseAwake: { released.append($0) }, lockScreen: {})
         away.start()
         DistributedNotificationCenter.default().post(name: .init("com.apple.screenIsUnlocked"), object: nil)
@@ -32,9 +34,24 @@ final class AwayModeControllerTests: XCTestCase {
 
     func testFailedAssertionStillLocks() {
         var locks = 0
-        let away = AwayModeController(holdAwake: { nil }, releaseAwake: { _ in }, lockScreen: { locks += 1 })
+        let away = AwayModeController(readiness: { .ready }, explain: { _ in }, holdAwake: { nil }, releaseAwake: { _ in }, lockScreen: { locks += 1 })
         away.start()
         XCTAssertFalse(away.isAway)
         XCTAssertEqual(locks, 1)
+    }
+
+    func testNotReadyExplainsInsteadOfLocking() {
+        for state in [AwayModeController.Readiness.noPassword, .lockDelayed] {
+            var held = 0, locks = 0
+            var explained: [AwayModeController.Readiness] = []
+            let away = AwayModeController(
+                readiness: { state }, explain: { explained.append($0) },
+                holdAwake: { held += 1; return 7 }, releaseAwake: { _ in }, lockScreen: { locks += 1 })
+            away.start()
+            XCTAssertFalse(away.isAway)
+            XCTAssertEqual(explained, [state])
+            XCTAssertEqual(held, 0)
+            XCTAssertEqual(locks, 0)
+        }
     }
 }
