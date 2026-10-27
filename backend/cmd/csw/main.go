@@ -58,6 +58,10 @@ func main() {
 		err = runIngestOAuth(ctx, svc, args)
 	case "add-oauth":
 		err = runAddAccountOAuth(ctx, svc, args)
+	case "login-url":
+		err = runLoginURL(args)
+	case "add-oauth-code":
+		err = runAddOAuthCode(ctx, svc, args)
 	case "usage-stats":
 		err = runUsageStats(ctx, svc, args)
 	case "refresh-bundle":
@@ -98,7 +102,10 @@ Commands:
                           (stdin JSON: {accountNum, accessToken, refreshToken, expiresAt, scopes, subscriptionType, expectedEmail})
   add-oauth               Create a NEW account from a WebView OAuth payload (dedupes by email+orgUuid, backup-only)
                           (stdin JSON: {accessToken, refreshToken, expiresAt, scopes, subscriptionType, email, orgUuid, organizationName, nickname})
-  help                    Show this help
+  login-url               Start a browser sign-in for a new account ({url, state, verifier} with --json)
+  add-oauth-code          Exchange the sign-in code from login-url and save the account (backup-only)
+                          (stdin JSON: {code, state, verifier, nickname, expectedEmail})
+  help                   Show this help
 
 All commands accept --json for machine-readable output.`)
 }
