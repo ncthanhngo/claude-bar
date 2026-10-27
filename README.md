@@ -8,6 +8,15 @@ A macOS menu-bar app for managing multiple [Claude Code](https://claude.ai/code)
 [![CI](https://github.com/ncthanhngo/claude-bar/actions/workflows/test.yml/badge.svg)](https://github.com/ncthanhngo/claude-bar/actions/workflows/test.yml)
 ![Built with Swift & Go](https://img.shields.io/badge/built%20with-Swift%20%2B%20Go-orange)
 
+## Download
+
+| Your computer | App | Get it |
+|---|---|---|
+| 🍎 **Mac** (macOS 14+) | Claude Bar | `brew install --cask ncthanhngo/tap/claude-bar`, or `ClaudeBar.zip` from the [latest macOS release](https://github.com/ncthanhngo/claude-bar/releases/latest) |
+| 🪟 **Windows** 10/11 (x64) | Claude Swap | `ClaudeSwap-<version>-windows-amd64-setup.exe` from the [Windows releases](https://github.com/ncthanhngo/claude-bar/releases?q=win-v&expanded=true) — see [windows/README.md](windows/README.md) |
+
+On the Releases page, macOS releases are titled **macOS · v…** and Windows releases **Windows · Claude Swap …**.
+
 ---
 
 ## Why Claude Bar?

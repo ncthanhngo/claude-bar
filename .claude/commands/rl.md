@@ -201,12 +201,20 @@ integrity check.
 gh release create v<NEW> release/ClaudeBar.zip \
   -R ncthanhngo/claude-bar \
   --target main \
-  --title "v<NEW> — <one-line summary from the bullet notes>" \
+  --title "macOS · v<NEW> — <one-line summary from the bullet notes>" \
+  --latest \
   --notes "$(cat <<'EOF'
+> 🍎 **This is the macOS app (Claude Bar), macOS 14+.** Download `ClaudeBar.zip` below or `brew install --cask ncthanhngo/tap/claude-bar`. On Windows? Get **Claude Swap for Windows** from the [Windows releases](https://github.com/ncthanhngo/claude-bar/releases?q=win-v&expanded=true).
+
 <bullet notes as markdown>
 EOF
 )"
 ```
+
+The `macOS · ` title prefix and the banner line keep macOS and Windows
+releases apart on the Releases page (Windows releases are titled
+`Windows · Claude Swap <ver>` and never take the Latest badge), so
+`releases/latest` always points at the macOS app.
 
 Then verify the uploaded asset's `digest` matches the local sha256:
 

@@ -33,7 +33,7 @@ const (
 	// listTimeout bounds the read-only list. Other csw commands are never
 	// killed: a kill between a token refresh and its save loses the login.
 	listTimeout = 30 * time.Second
-	releasesURL = "https://github.com/ncthanhngo/claude-bar/releases"
+	releasesURL = "https://github.com/ncthanhngo/claude-bar/releases?q=win-v&expanded=true" // Windows releases only
 )
 
 // Version is stamped at build time.

@@ -62,8 +62,25 @@ jobs:
       - name: Publish release
         env:
           GH_TOKEN: ${{ github.token }}
+        # Titled "Windows · …" and never Latest, so the Releases page keeps
+        # Windows and macOS apart and releases/latest stays the macOS app.
+        # Edit the notes afterwards to add what's new.
         run: |
+          v="${GITHUB_REF_NAME#win-v}"
+          cat > notes.md <<EOF
+          > 🪟 **This is the Windows app (Claude Swap).** On a Mac? Get **Claude Bar for macOS** from the [latest macOS release](https://github.com/ncthanhngo/claude-bar/releases/latest) or \`brew install --cask ncthanhngo/tap/claude-bar\`.
+
+          ## Download
+
+          | File | Use it when |
+          |---|---|
+          | **\`ClaudeSwap-$v-windows-amd64-setup.exe\`** | Recommended — installs for your Windows user (no admin) |
+          | \`ClaudeSwap-$v-windows-amd64.zip\` | Portable — unzip and run \`ClaudeSwap.exe\` (keep \`csw.exe\` next to it) |
+
+          Requires **Windows 10/11, x64 (Intel/AMD)**. Unsigned: SmartScreen may show *More info → Run anyway*; Smart App Control blocks it.
+          See [windows/README.md](https://github.com/ncthanhngo/claude-bar/blob/main/windows/README.md) for features.
+          EOF
           gh release create "$GITHUB_REF_NAME" windows/dist/*.zip windows/dist/*-setup.exe \
-            --title "Claude Swap for Windows ${GITHUB_REF_NAME#win-v}" \
-            --notes "Windows 10/11 tray app that switches the Claude Code account. Unsigned: SmartScreen may show *More info → Run anyway*." \
-            --prerelease
+            --title "Windows · Claude Swap $v" \
+            --notes-file notes.md \
+            --latest=false
