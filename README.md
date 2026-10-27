@@ -34,6 +34,8 @@ One Claude Code login at a time means hitting a quota wall mid-session and stopp
   - [Add accounts](#add-accounts)
   - [IDE reload](#ide-reload--vscode--code-insiders--cursor--windsurf--antigravity)
 - [How auto-swap works](#how-auto-swap-works)
+- [Command line](#command-line)
+- [Windows](#windows)
 - [Update](#update)
 - [Uninstall](#uninstall)
 - [Build from source](#build-from-source)
@@ -65,6 +67,8 @@ brew install --cask claude-bar
 
 - **Multi-account management** — add, rename, and switch Claude Code accounts from the menu bar
 - **Credential health** — inactive accounts that can no longer refresh are marked before a broken switch
+- **Logins stay alive** — the active account's backup follows the refresh tokens Claude Code rotates, so switching back never asks for `/login`; refreshes are serialised across processes and never spend the running session's token. Events are logged to `~/Library/Logs/ClaudeBar/csw.log`
+- **Local only** — no iCloud or cross-Mac sync; every Mac keeps its own logins
 - **Usage display** — 5-hour and 7-day quota bars with % and time-until-reset for each account
 - **Token usage chart** — Hour / Day / Month histogram of tokens and estimated USD cost across all local Claude Code sessions (CLI + IDE extensions). Click **Details** next to USD to see Anthropic's per-model rate table; rates auto-refresh in the background from a hosted JSON so updated Anthropic pricing flows in without a new release
 - **Auto-swap** — automatically switches to a lower-usage account when the active one hits your threshold; gives you a 60-second grace window with a heads-up notification, then swaps regardless of whether `claude` is still running
@@ -82,7 +86,7 @@ brew install --cask claude-bar
 
 - macOS 14 (Sonoma) or later
 - [Claude Code](https://claude.ai/code) installed, with at least one account logged in (`claude /login`)
-- For building from source: Xcode 15+ and Go 1.23+
+- For building from source: Xcode 15+ and Go 1.25+
 
 ---
 
@@ -110,7 +114,7 @@ Enable **Auto-reload IDE after swap** in Settings → General, then click **Gran
 
 If all inactive accounts are also above the threshold → notification **"All accounts above threshold"**, retry in 10 minutes.
 
-> Auto-swap is driven by the **5-hour** window exclusively. The 7-day window is displayed for reference but does not affect swap decisions.
+> Auto-swap is triggered by the **5-hour** window only. The 7-day window never triggers a swap, but an account that has used 100% of it is never picked as the target.
 
 ---
 
@@ -126,6 +130,12 @@ cbar switch work --json   # machine-readable output
 ```
 
 The shortcut points into the app bundle, so it stops working once the app is removed (clean it up with the [uninstall](#uninstall) steps). Building from source? The same binary is at `backend/bin/csw` after `make backend`.
+
+---
+
+## Windows
+
+**Claude Swap** is the Windows 10/11 (x64) companion: a tray app with a popover of accounts and usage, in-app sign-in, login upkeep, and switching for Claude Code (terminal and VS Code) and optionally Claude Desktop. It runs the same `csw` engine built for Windows. Auto-swap, token stats and the Server/Fan tabs stay macOS-only. Get it from the [Windows releases](https://github.com/ncthanhngo/claude-bar/releases?q=win-v&expanded=true); details in [`windows/README.md`](./windows/README.md).
 
 ---
 
@@ -148,7 +158,8 @@ brew uninstall --cask claude-bar
 To also remove all data (accounts, settings, `cbar` shortcut):
 
 ```bash
-rm -rf "$HOME/Library/Application Support/claude-bar"
+rm -rf "$HOME/Library/Application Support/claude-bar" "$HOME/Library/Application Support/claude-swap-widget"
+rm -rf "$HOME/Library/Logs/ClaudeBar"
 defaults delete dev.ncthanhngo.claude-bar 2>/dev/null
 rm -f /opt/homebrew/bin/cbar /usr/local/bin/cbar    # the cbar CLI shortcut
 ```
@@ -157,7 +168,7 @@ rm -f /opt/homebrew/bin/cbar /usr/local/bin/cbar    # the cbar CLI shortcut
 
 ## Build from source
 
-Requirements: macOS 14+, Xcode 15+, Go 1.23+
+Requirements: macOS 14+, Xcode 15+, Go 1.25+
 
 ```bash
 git clone https://github.com/ncthanhngo/claude-bar.git
@@ -190,7 +201,7 @@ Issues and pull requests are welcome.
 
 1. Build and test locally with `make app` and `make test`.
 2. Keep changes focused; match the existing Go and Swift style in the surrounding code.
-3. For anything that touches credentials or syncing, read [SECURITY.md](./SECURITY.md) first and call out the trust-boundary impact in your PR description.
+3. For anything that touches credentials, read [SECURITY.md](./SECURITY.md) first and call out the trust-boundary impact in your PR description.
 
 ---
 
