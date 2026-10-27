@@ -1,4 +1,5 @@
 import SwiftUI
+import Carbon.HIToolbox
 import UserNotifications
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
@@ -72,7 +73,7 @@ struct ClaudeSwapWidgetApp: App {
         }
     }
 
-    /// Wire the global Carbon hotkey that toggles the menu-bar popover.
+    /// Wire the global Carbon hotkeys: ⌥Z popover toggle, ⌥X away mode.
     @MainActor
     static func registerGlobalHotkey(settings: AppSettings) {
         HotkeyRegistry.shared.register(
@@ -81,6 +82,13 @@ struct ClaudeSwapWidgetApp: App {
             modifiers: UInt32(settings.briefingHotkeyOpenAppModifiers)
         ) {
             MenuBarPopoverToggle.toggle()
+        }
+        HotkeyRegistry.shared.register(
+            name: HotkeySlot.awayMode,
+            keyCode: UInt32(kVK_ANSI_X),
+            modifiers: UInt32(optionKey)
+        ) {
+            AwayModeController.shared.start()
         }
     }
 

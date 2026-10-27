@@ -3,8 +3,9 @@ import Carbon.HIToolbox
 
 /// Multi-shortcut global hotkey registry backed by Carbon's RegisterEventHotKey.
 ///
-/// Used for one named binding:
+/// Used for two named bindings:
 ///   • `openApp` → toggle the menu bar popover (default ⌥Z)
+///   • `awayMode` → keep awake + lock the screen (fixed ⌥X)
 ///
 /// Carbon avoids the Accessibility permission prompt and works while the app
 /// is in the background. Each slot can be re-bound at runtime.
@@ -83,4 +84,5 @@ final class HotkeyRegistry {
 
 enum HotkeySlot {
     static let openApp = "openApp"
+    static let awayMode = "awayMode"
 }

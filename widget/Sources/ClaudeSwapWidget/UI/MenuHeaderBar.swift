@@ -77,6 +77,7 @@ struct MenuHeaderBar: View {
             // Right side — 3 chrome buttons evenly spaced. Settings anchors
             // the top-right corner per the design spec.
             HStack(spacing: 18) {
+                awayButton
                 themeButton
                 quitButton
                 settingsButton
@@ -117,6 +118,18 @@ struct MenuHeaderBar: View {
                 ))
                 .frame(width: 13, height: 13)
         }
+    }
+
+    private var awayButton: some View {
+        Button(action: { AwayModeController.shared.start() }) {
+            Image(systemName: "lock.display")
+                .font(.system(size: 13))
+                .foregroundColor(.secondary)
+        }
+        .buttonStyle(.borderless)
+        .help("Away (⌥X) — keep the Mac awake and lock the screen")
+        .pointingHandCursor()
+        .accessibilityLabel("Lock screen and stay awake")
     }
 
     private var quitButton: some View {
