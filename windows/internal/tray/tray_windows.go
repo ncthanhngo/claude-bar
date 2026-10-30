@@ -489,9 +489,20 @@ func (a *app) signInAccount(again *cswclient.Account) {
 		delete(a.wrongLogin, res.Account.Number)
 		a.mu.Unlock()
 	}
+	// The sign-in only saves the backup. For the active account Claude Code
+	// still holds the old (maybe someone else's) login, so switch to the
+	// account again: csw installs the newer backup into live.
+	var installErr error
+	if err == nil && again != nil {
+		if v, ok := a.account(res.Account.Number); ok && v.IsActive {
+			installErr = a.csw.Switch(ctx, res.Account.Number)
+		}
+	}
 	switch {
 	case err != nil:
 		showError("Could not save the account", err)
+	case installErr != nil:
+		showError("Signed in, but Claude Code still uses the old login", installErr)
 	case again != nil:
 		a.post("ok", "Signed "+again.DisplayName()+" in again.")
 	case res.WasDuplicate:

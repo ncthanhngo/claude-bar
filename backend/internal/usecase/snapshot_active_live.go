@@ -46,8 +46,12 @@ func (s *Service) SnapshotActiveLive(ctx context.Context) error {
 	if err := s.liveIsAccount(ctx, active); err != nil {
 		return err
 	}
-	if _, err := blob.Extract(); err != nil {
+	p, err := blob.Extract()
+	if err != nil {
 		return fmt.Errorf("parse active live credential: %w", err)
+	}
+	if err := s.liveTokenIsOthers(ctx, p, active); err != nil {
+		return err
 	}
 	if err := s.Backup.Write(ctx, active.Number, active.Email, blob); err != nil {
 		return fmt.Errorf("snapshot active backup credential: %w", err)

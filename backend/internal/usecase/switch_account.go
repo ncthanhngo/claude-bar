@@ -187,7 +187,7 @@ func (s *Service) liveProvenFor(ctx context.Context, acc *domain.Account) bool {
 		return false
 	}
 	live, lp := s.usableLive(ctx)
-	if lp == nil {
+	if lp == nil || s.liveTokenIsOthers(ctx, lp, acc) != nil {
 		return false
 	}
 	backup, err := s.readBackupFresh(ctx, acc.Number, acc.Email)
@@ -232,11 +232,28 @@ func (s *Service) snapshotLiveCredential(ctx context.Context, acc *domain.Accoun
 	if blob == "" {
 		return errors.New("active live credential is empty")
 	}
-	if _, err := blob.Extract(); err != nil {
+	p, err := blob.Extract()
+	if err != nil {
 		return fmt.Errorf("parse active live credential: %w", err)
+	}
+	if err := s.liveTokenIsOthers(ctx, p, acc); err != nil {
+		return err
 	}
 	if err := s.Backup.Write(ctx, acc.Number, acc.Email, blob); err != nil {
 		return fmt.Errorf("snapshot active backup credential: %w", err)
+	}
+	return nil
+}
+
+// liveTokenIsOthers returns ErrLiveIdentityMismatch when Anthropic says
+// live's token is another account's than acc, though ~/.claude.json names
+// acc. Only a definite answer counts: an expired token or no network keeps
+// the config-based trust, since skipping a snapshot can lose a rotated
+// refresh token too.
+func (s *Service) liveTokenIsOthers(ctx context.Context, live *domain.OAuthPayload, acc *domain.Account) error {
+	if err := s.tokenIsAccount(ctx, live.AccessToken, acc); errors.Is(err, errTokenOwnedByOther) {
+		s.logf("snapshot account %d: skipped, live %v", acc.Number, err)
+		return fmt.Errorf("%w (%v)", ErrLiveIdentityMismatch, err)
 	}
 	return nil
 }

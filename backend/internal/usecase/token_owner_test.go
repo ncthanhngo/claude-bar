@@ -116,3 +116,70 @@ func TestListKeepsUsageWhenProfileUnreachable(t *testing.T) {
 		t.Fatal("usage dropped over an unreachable profile endpoint")
 	}
 }
+
+// ~/.claude.json names the active account, but the live token is a
+// stranger's: the periodic snapshot must not copy it into the backup.
+func TestSnapshotActiveLiveRefusesTokenOfAnotherAccount(t *testing.T) {
+	svc, backup, _ := snapshotTestService("active@example.com")
+	svc.Profile = ownerProfile{owners: map[string]string{"live-token": "stranger@example.com"}}
+
+	if err := svc.SnapshotActiveLive(context.Background()); !errors.Is(err, ErrLiveIdentityMismatch) {
+		t.Fatalf("err = %v, want ErrLiveIdentityMismatch", err)
+	}
+	if len(backup.writes) != 0 {
+		t.Fatalf("backup written: %v", backup.writes)
+	}
+}
+
+// An unconfirmed owner (expired token, no network) keeps the snapshot:
+// skipping it could lose a refresh token Claude Code rotated.
+func TestSnapshotActiveLiveKeepsCopyingWhenOwnerUnknown(t *testing.T) {
+	svc, backup, live := snapshotTestService("active@example.com")
+	svc.Profile = ownerProfile{err: errors.New("network down")}
+
+	if err := svc.SnapshotActiveLive(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if backup.writes[1] != live {
+		t.Fatalf("backup = %q, want live", backup.writes[1])
+	}
+}
+
+// Switching to the active account repairs a live login that is really a
+// stranger's, even when that live token looks newer than the backup.
+func TestSwitchToActiveReplacesLiveTokenOfAnotherAccount(t *testing.T) {
+	strangerLive := credentialBlob("stranger-access", "stranger-refresh", time.Now().Add(3*time.Hour))
+	live := &switchTestLiveStore{read: strangerLive}
+	own := credentialBlob("own-access", "own-refresh", time.Now().Add(time.Hour))
+	backup := &listTestBackupStore{blobs: map[int]domain.CredentialBlob{1: own}, writes: map[int]domain.CredentialBlob{}}
+	acc := &domain.Account{Number: 1, Email: "active@example.com", OrganizationUUID: "active-org"}
+	svc := &Service{
+		Live:   live,
+		Backup: backup,
+		Config: switchTestConfigStore{cfg: &domain.ClaudeConfig{
+			Raw:          map[string]any{},
+			OAuthAccount: &domain.OAuthAccount{EmailAddress: acc.Email, OrganizationUUID: acc.OrganizationUUID},
+		}},
+		Registry: listTestRegistryStore{reg: &domain.Registry{
+			ActiveAccountNumber: 1,
+			Sequence:            []int{1},
+			Accounts:            map[int]*domain.Account{1: acc},
+		}},
+		Refresh: &listTestTokenRefresher{},
+		Lock:    switchTestLock{},
+		Profile: ownerProfile{owners: map[string]string{
+			"stranger-access": "stranger@example.com",
+			"own-access":      "active@example.com",
+		}},
+	}
+
+	if err := svc.SwitchAccount(context.Background(), 1); err != nil {
+		t.Fatalf("SwitchAccount(active): %v", err)
+	}
+	if live.written != own {
+		t.Fatalf("live = %q, want the account's own backup installed", live.written)
+	}
+	if _, wrote := backup.writes[1]; wrote {
+		t.Fatal("stranger's token copied into the backup")
+	}
+}
