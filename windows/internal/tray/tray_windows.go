@@ -414,7 +414,7 @@ func (a *app) addCurrent() {
 	case err != nil:
 		showError("Could not add the account", err)
 	case res.WasDuplicate:
-		_ = zenity.Info(res.Account.DisplayName()+" was already saved; its saved login was updated.", zenity.Title(appTitle))
+		go zenity.Info(res.Account.DisplayName()+" was already saved; its saved login was updated.", zenity.Title(appTitle)) // never hold the busy flag on a dialog
 	}
 	a.refresh()
 }
@@ -457,7 +457,7 @@ func (a *app) signInAccount(again *cswclient.Account) {
 	}
 	switch {
 	case errors.Is(err, errSignInClosed):
-		_ = zenity.Info("Sign-in was not completed, so no account was added.", zenity.Title(appTitle))
+		go zenity.Info("Sign-in was not completed, so no account was added.", zenity.Title(appTitle)) // never hold the busy flag on a dialog
 		return
 	case errors.Is(err, zenity.ErrCanceled):
 		return
@@ -482,9 +482,9 @@ func (a *app) signInAccount(again *cswclient.Account) {
 	case again != nil:
 		a.post("ok", "Signed "+again.DisplayName()+" in again.")
 	case res.WasDuplicate:
-		_ = zenity.Info(res.Account.DisplayName()+" was already saved; its saved login was updated.", zenity.Title(appTitle))
+		go zenity.Info(res.Account.DisplayName()+" was already saved; its saved login was updated.", zenity.Title(appTitle)) // never hold the busy flag on a dialog
 	default:
-		_ = zenity.Info("Added "+res.Account.DisplayName()+". Click the Claude Swap icon and pick it to switch Claude Code to it.", zenity.Title(appTitle))
+		go zenity.Info("Added "+res.Account.DisplayName()+". Click the Claude Swap icon and pick it to switch Claude Code to it.", zenity.Title(appTitle)) // never hold the busy flag on a dialog
 	}
 	a.refresh()
 }
@@ -500,7 +500,7 @@ func (a *app) pick(prompt string) (cswclient.AccountView, bool) {
 	}
 	a.mu.Unlock()
 	if len(names) == 0 {
-		_ = zenity.Info("No accounts saved yet.", zenity.Title(appTitle))
+		go zenity.Info("No accounts saved yet.", zenity.Title(appTitle)) // never hold the busy flag on a dialog
 		return cswclient.AccountView{}, false
 	}
 	choice, err := zenity.List(prompt, names, zenity.Title(appTitle), zenity.DisallowEmpty())
@@ -550,7 +550,7 @@ func (a *app) removeAccount(num int) {
 		return
 	}
 	if v.IsActive {
-		_ = zenity.Info("Switch to another account before removing the active one.", zenity.Title(appTitle))
+		go zenity.Info("Switch to another account before removing the active one.", zenity.Title(appTitle)) // never hold the busy flag on a dialog
 		return
 	}
 	if zenity.Question(fmt.Sprintf("Remove %s and its saved login from Claude Swap?\nClaude Code itself is not affected.", v.Account.DisplayName()),
@@ -563,6 +563,7 @@ func (a *app) removeAccount(num int) {
 		a.clearRecovery(v.Account.Number)
 		go removeProfileDir(profileFor(v.Account))
 		_ = os.Remove(desktopSavePath(v.Account))
+		setDesktopIndex(identityKey(v.Account), "")
 	}
 	a.refresh()
 }
@@ -657,8 +658,12 @@ func (a *app) pushState() {
 	if a.pop == nil {
 		return
 	}
-	_, desktopInstalled := findDesktop()
-	owner := desktopOwner()
+	desktop, desktopInstalled := findDesktop()
+	desktopUUID := ""
+	if desktopInstalled {
+		desktopUUID = desktop.accountUUID() // whose sign-in Desktop holds now
+	}
+	desktopIdx := desktopIndex()
 	a.mu.Lock()
 	accounts := make([]popAccount, len(a.accounts))
 	for i, v := range a.accounts {
@@ -673,7 +678,7 @@ func (a *app) pushState() {
 			Recovering:  a.recovering == num,
 			CanRecover:  a.needLogin[num] && hasProfile(v.Account) && (st == nil || !st.manual),
 			HasDesktop:  hasDesktopSave(v.Account),
-			InDesktop:   owner != "" && owner == identityKey(v.Account),
+			InDesktop:   desktopUUID != "" && desktopIdx[identityKey(v.Account)] == desktopUUID,
 		}
 	}
 	state := map[string]any{
@@ -729,6 +734,8 @@ func (a *app) onPopoverAction(action string, num int) {
 	case "savedesktop":
 		a.pop.Hide()
 		a.saveDesktopLogin(num)
+	case "desktopanother":
+		a.desktopSignInAnother()
 	case "switchdesktop":
 		a.toggleSwitchDesktop()
 	case "reloadide":
@@ -750,5 +757,8 @@ func (a *app) onPopoverAction(action string, num int) {
 // showError uses a plain message box: toast notifications from an
 // unregistered app are often dropped silently, and errors must be seen.
 func showError(title string, err error) {
-	_ = zenity.Error(err.Error(), zenity.Title(title))
+	// Async: a dialog hidden behind other windows must not keep an
+	// operation marked as running (every later click would be refused).
+	logf("error: %s: %v", title, err)
+	go zenity.Error(err.Error(), zenity.Title(title))
 }

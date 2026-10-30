@@ -21,44 +21,102 @@ import (
 	"github.com/soi/claude-swap-widget/windows/internal/cswclient"
 )
 
-// Claude Desktop keeps its claude.ai sign-in in its Electron profile, apart
-// from Claude Code's login. To switch it too, Claude Swap keeps one copy of
-// the sign-in parts of that profile per account (DPAPI-encrypted, like the
-// saved Claude Code logins) and swaps them while Desktop is closed. Settings
-// (claude_desktop_config.json, config.json, Preferences) are shared and
-// never touched.
+// Claude Desktop keeps its sign-in in its Electron profile, apart from
+// Claude Code's login: OAuth tokens in config.json (encrypted by Electron's
+// safeStorage) plus the claude.ai web session (cookies, storage). To switch
+// it too, Claude Swap keeps one copy of those parts per account
+// (DPAPI-encrypted, like the saved Claude Code logins) and swaps them while
+// Desktop is closed. Everything else — the rest of config.json,
+// claude_desktop_config.json (MCP), Preferences, Cowork data — is shared
+// and never touched.
 
-// desktopSessionParts are the profile entries that hold the sign-in,
+// desktopSessionParts are the profile entries that hold the web session,
 // relative to the data folder.
 var desktopSessionParts = []string{
 	`Network\Cookies`, `Network\Cookies-journal`,
 	`Local Storage`, `Session Storage`, `IndexedDB`, `WebStorage`,
 }
 
+// desktopConfigKeys are the config.json entries that are the sign-in.
+var desktopConfigKeys = []string{"oauth:tokenCache", "oauth:tokenCacheV2", "lastKnownAccountUuid"}
+
+// desktopConfigEntry is where captured config keys travel inside a save.
+const desktopConfigEntry = "claude-swap/config-keys.json"
+
 // claudeDesktop is an installed Claude Desktop.
 type claudeDesktop struct {
-	dataDir string // ...\Roaming\Claude
+	dataDir string // the profile folder Desktop really uses
 	aumid   string // MSIX app id for relaunch; "" for a non-store install
 	exe     string // non-store install's Claude.exe
 }
 
-// findDesktop locates Claude Desktop: the Microsoft Store (MSIX) build keeps
-// its data under Packages\<family>\LocalCache; the classic installer under
-// %APPDATA%\Claude.
+// findDesktop locates Claude Desktop and the profile it really uses.
+// Current Store (MSIX) builds move their data out of the package to
+// %LOCALAPPDATA%\Claude-Data\claude_<publisher> on first run and leave a
+// ".user-data-left.*" marker in the old Packages\...\LocalCache folder;
+// older ones keep it there; the classic installer uses %APPDATA%\Claude.
 func findDesktop() (*claudeDesktop, bool) {
-	pkgs, _ := filepath.Glob(filepath.Join(os.Getenv("LOCALAPPDATA"), "Packages", "Claude_*"))
-	for _, p := range pkgs {
-		data := filepath.Join(p, "LocalCache", "Roaming", "Claude")
-		if isDir(data) {
-			return &claudeDesktop{dataDir: data, aumid: filepath.Base(p) + "!Claude"}, true
+	local := os.Getenv("LOCALAPPDATA")
+	aumid := ""
+	if pkgs, _ := filepath.Glob(filepath.Join(local, "Packages", "Claude_*")); len(pkgs) > 0 {
+		aumid = filepath.Base(pkgs[0]) + "!Claude"
+	}
+	exe := filepath.Join(local, "AnthropicClaude", "claude.exe")
+
+	var best string
+	var bestTime time.Time
+	dirs, _ := filepath.Glob(filepath.Join(local, "Claude-Data", "claude_*"))
+	for _, dir := range dirs {
+		if st, err := os.Stat(filepath.Join(dir, "Local State")); err == nil && st.ModTime().After(bestTime) {
+			best, bestTime = dir, st.ModTime()
 		}
 	}
-	data := filepath.Join(os.Getenv("APPDATA"), "Claude")
-	exe := filepath.Join(os.Getenv("LOCALAPPDATA"), "AnthropicClaude", "claude.exe")
-	if isDir(data) {
-		return &claudeDesktop{dataDir: data, exe: exe}, true
+	if best == "" && aumid != "" {
+		old := filepath.Join(local, "Packages", strings.TrimSuffix(aumid, "!Claude"), "LocalCache", "Roaming", "Claude")
+		if left, _ := filepath.Glob(filepath.Join(old, ".user-data-left*")); len(left) == 0 && isDir(old) {
+			best = old
+		}
 	}
-	return nil, false
+	if best == "" && isDir(filepath.Join(os.Getenv("APPDATA"), "Claude")) {
+		best = filepath.Join(os.Getenv("APPDATA"), "Claude")
+	}
+	if best == "" {
+		return nil, false
+	}
+	if aumid != "" {
+		return &claudeDesktop{dataDir: best, aumid: aumid}, true
+	}
+	return &claudeDesktop{dataDir: best, exe: exe}, true
+}
+
+// readConfig reads Desktop's config.json as raw JSON values.
+func (d *claudeDesktop) readConfig() (map[string]json.RawMessage, error) {
+	data, err := os.ReadFile(filepath.Join(d.dataDir, "config.json"))
+	if os.IsNotExist(err) {
+		return map[string]json.RawMessage{}, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	cfg := map[string]json.RawMessage{}
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		return nil, fmt.Errorf("read Claude Desktop config.json: %w", err)
+	}
+	return cfg, nil
+}
+
+// accountUUID is the account Desktop is signed in to ("" if none or unknown).
+func (d *claudeDesktop) accountUUID() string {
+	cfg, err := d.readConfig()
+	if err != nil {
+		return ""
+	}
+	var uuid string
+	_ = json.Unmarshal(cfg["lastKnownAccountUuid"], &uuid)
+	if len(cfg["oauth:tokenCache"]) == 0 && len(cfg["oauth:tokenCacheV2"]) == 0 {
+		return "" // signed out
+	}
+	return uuid
 }
 
 func isDir(p string) bool {
@@ -106,33 +164,58 @@ func (d *claudeDesktop) running() bool { return len(d.pids()) > 0 }
 var (
 	procEnumWindows              = user32.NewProc("EnumWindows")
 	procGetWindowThreadProcessId = user32.NewProc("GetWindowThreadProcessId")
-	procPostMessageW             = user32.NewProc("PostMessageW")
+	procSendMessageTimeoutW      = user32.NewProc("SendMessageTimeoutW")
 )
 
-// quit closes Desktop: a polite WM_CLOSE to its windows first (it may only
-// hide to the tray), then ends whatever is left. Its profile files are free
-// once every process is gone.
+// endSessionCallback is shared: windows.NewCallback slots are never freed.
+var (
+	endSessionPids map[uint32]bool
+	endSessionWnds []uintptr
+	endSessionCB   = windows.NewCallback(func(hwnd, _ uintptr) uintptr {
+		var pid uint32
+		procGetWindowThreadProcessId.Call(hwnd, uintptr(unsafe.Pointer(&pid)))
+		if endSessionPids[pid] {
+			endSessionWnds = append(endSessionWnds, hwnd)
+		}
+		return 1
+	})
+)
+
+// quit closes Desktop the way Windows does when an app must close for an
+// update (WM_QUERYENDSESSION + WM_ENDSESSION with ENDSESSION_CLOSEAPP):
+// Electron then shuts down cleanly and writes its cookies first. WM_CLOSE
+// only hides Desktop to the tray, and killing it loses a sign-in made in
+// the last ~30 s (Chromium writes cookies in batches). Ending the processes
+// is the fallback when Desktop does not respond.
 func (d *claudeDesktop) quit() error {
 	pids := d.pids()
 	if len(pids) == 0 {
 		return nil
 	}
-	own := map[uint32]bool{}
+	endSessionPids = map[uint32]bool{}
 	for _, p := range pids {
-		own[p] = true
+		endSessionPids[p] = true
 	}
-	cb := windows.NewCallback(func(hwnd, _ uintptr) uintptr {
-		var pid uint32
-		procGetWindowThreadProcessId.Call(hwnd, uintptr(unsafe.Pointer(&pid)))
-		if own[pid] {
-			procPostMessageW.Call(hwnd, 0x0010, 0, 0) // WM_CLOSE
-		}
-		return 1
-	})
-	procEnumWindows.Call(cb, 0)
-	if d.waitGone(3 * time.Second) {
+	endSessionWnds = nil
+	procEnumWindows.Call(endSessionCB, 0)
+	const (
+		wmQueryEndSession  = 0x0011
+		wmEndSession       = 0x0016
+		endSessionCloseApp = 0x1
+		smtoAbortIfHung    = 0x2
+	)
+	var res uintptr
+	for _, h := range endSessionWnds {
+		procSendMessageTimeoutW.Call(h, wmQueryEndSession, 0, endSessionCloseApp, smtoAbortIfHung, 3000, uintptr(unsafe.Pointer(&res)))
+	}
+	for _, h := range endSessionWnds {
+		procSendMessageTimeoutW.Call(h, wmEndSession, 1, endSessionCloseApp, smtoAbortIfHung, 3000, uintptr(unsafe.Pointer(&res)))
+	}
+	if d.waitGone(15 * time.Second) {
+		logf("desktop quit: closed cleanly")
 		return nil
 	}
+	logf("desktop quit: did not close in time, ending its processes")
 	for _, p := range d.pids() {
 		if h, err := windows.OpenProcess(windows.PROCESS_TERMINATE, false, p); err == nil {
 			_ = windows.TerminateProcess(h, 0)
@@ -198,13 +281,74 @@ func (d *claudeDesktop) capture() ([]byte, error) {
 			return nil, fmt.Errorf("read Claude Desktop %s: %w", part, err)
 		}
 	}
+	cfg, err := d.readConfig()
+	if err != nil {
+		return nil, err
+	}
+	keys := map[string]json.RawMessage{}
+	for _, k := range desktopConfigKeys {
+		if v, ok := cfg[k]; ok {
+			keys[k] = v
+		}
+	}
+	if len(keys["oauth:tokenCache"]) == 0 && len(keys["oauth:tokenCacheV2"]) == 0 {
+		return nil, errors.New("Claude Desktop is not signed in — sign in to it first")
+	}
+	kw, err := zw.Create(desktopConfigEntry)
+	if err != nil {
+		return nil, err
+	}
+	if err := json.NewEncoder(kw).Encode(keys); err != nil {
+		return nil, err
+	}
 	if err := zw.Close(); err != nil {
 		return nil, err
 	}
 	if files == 0 {
-		return nil, errors.New("Claude Desktop has no saved sign-in yet")
+		return nil, errors.New("Claude Desktop's web session files were not found")
 	}
 	return dpapiProtect(buf.Bytes())
+}
+
+// forgetSignIn removes the sign-in from this PC only, so Desktop opens at
+// its sign-in screen. Unlike Desktop's own "Log out" it does not end the
+// session at Anthropic, so a saved copy of it keeps working. Desktop must
+// be closed.
+func (d *claudeDesktop) forgetSignIn() error {
+	if err := d.writeConfigKeys(nil); err != nil {
+		return err
+	}
+	for _, part := range desktopSessionParts {
+		if err := os.RemoveAll(filepath.Join(d.dataDir, part)); err != nil {
+			return fmt.Errorf("clear Claude Desktop %s: %w", part, err)
+		}
+	}
+	return nil
+}
+
+// writeConfigKeys sets the sign-in keys of config.json to keys (removing
+// those keys absent from it) and leaves every other setting as it is.
+func (d *claudeDesktop) writeConfigKeys(keys map[string]json.RawMessage) error {
+	cfg, err := d.readConfig()
+	if err != nil {
+		return err
+	}
+	for _, k := range desktopConfigKeys {
+		if v, ok := keys[k]; ok {
+			cfg[k] = v
+		} else {
+			delete(cfg, k)
+		}
+	}
+	data, err := json.MarshalIndent(cfg, "", "  ")
+	if err != nil {
+		return err
+	}
+	path := filepath.Join(d.dataDir, "config.json")
+	if err := os.WriteFile(path+".claude-swap.tmp", data, 0o600); err != nil {
+		return err
+	}
+	return os.Rename(path+".claude-swap.tmp", path)
 }
 
 // restore replaces the sign-in parts of the profile with a captured copy.
@@ -218,12 +362,38 @@ func (d *claudeDesktop) restore(blob []byte) error {
 	if err != nil {
 		return err
 	}
+	var keys map[string]json.RawMessage
+	for _, f := range zr.File {
+		if f.Name != desktopConfigEntry {
+			continue
+		}
+		r, err := f.Open()
+		if err != nil {
+			return err
+		}
+		err = json.NewDecoder(r).Decode(&keys)
+		r.Close()
+		if err != nil {
+			return fmt.Errorf("saved Desktop sign-in: %w", err)
+		}
+	}
+	if keys == nil {
+		// Saved by an older Claude Swap without config keys: it never held
+		// the sign-in, so restoring it would only sign Desktop out.
+		return errors.New("this saved Desktop sign-in is from an older Claude Swap — save it again")
+	}
+	if err := d.writeConfigKeys(keys); err != nil {
+		return fmt.Errorf("write Claude Desktop config.json: %w", err)
+	}
 	for _, part := range desktopSessionParts {
 		if err := os.RemoveAll(filepath.Join(d.dataDir, part)); err != nil {
 			return fmt.Errorf("clear Claude Desktop %s: %w", part, err)
 		}
 	}
 	for _, f := range zr.File {
+		if f.Name == desktopConfigEntry {
+			continue
+		}
 		dst := filepath.Join(d.dataDir, filepath.FromSlash(f.Name))
 		if !strings.HasPrefix(dst, d.dataDir+string(os.PathSeparator)) {
 			continue // never write outside the profile
@@ -301,19 +471,39 @@ func writeDesktopSave(acc cswclient.Account, blob []byte) error {
 	return os.Rename(tmp, desktopSavePath(acc))
 }
 
-// desktopOwner is the identity key of the account Desktop is signed in to,
-// as far as Claude Swap knows ("" = unknown).
-func desktopOwner() string {
-	var st struct {
-		Owner string `json:"owner"`
-	}
-	data, _ := os.ReadFile(filepath.Join(desktopStoreDir(), "state.json"))
-	_ = json.Unmarshal(data, &st)
-	return st.Owner
+// desktopIndex maps each saved Desktop sign-in (by identity key) to the
+// Claude account UUID Desktop reported when it was saved. Desktop's own
+// lastKnownAccountUuid then tells which saved account it is on now — no
+// guessing, and a sign-in is never stored under the wrong account.
+func desktopIndex() map[string]string {
+	idx := map[string]string{}
+	data, _ := os.ReadFile(filepath.Join(desktopStoreDir(), "index.json"))
+	_ = json.Unmarshal(data, &idx)
+	return idx
 }
 
-func setDesktopOwner(key string) {
+func setDesktopIndex(key, uuid string) {
+	idx := desktopIndex()
+	if uuid == "" {
+		delete(idx, key)
+	} else {
+		idx[key] = uuid
+	}
 	_ = os.MkdirAll(desktopStoreDir(), 0o700)
-	data, _ := json.Marshal(map[string]string{"owner": key})
-	_ = os.WriteFile(filepath.Join(desktopStoreDir(), "state.json"), data, 0o600)
+	data, _ := json.MarshalIndent(idx, "", "  ")
+	_ = os.WriteFile(filepath.Join(desktopStoreDir(), "index.json"), data, 0o600)
+}
+
+// desktopKeyFor is the identity key whose saved sign-in is Desktop account
+// uuid ("" if none).
+func desktopKeyFor(uuid string) string {
+	if uuid == "" {
+		return ""
+	}
+	for key, u := range desktopIndex() {
+		if u == uuid {
+			return key
+		}
+	}
+	return ""
 }

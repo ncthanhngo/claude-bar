@@ -141,6 +141,7 @@
 
 <div class="menu" id="appmenu">
   <button data-act="autostart"><span class="check" id="autostart-check"></span>Start at login</button>
+  <button data-act="desktopanother" id="desktopanother-item" title="Opens Claude Desktop at its sign-in screen without logging the current account out"><span class="check"></span>Sign Claude Desktop in to another account…</button>
   <button data-act="switchdesktop" id="switchdesktop-item" title="Also switch Claude Desktop's sign-in (it restarts)"><span class="check" id="switchdesktop-check"></span>Switch Claude Desktop too</button>
   <button data-act="reloadide" title="Restart Claude in VS Code and other editors so it uses the new account"><span class="check" id="reloadide-check"></span>Reload VS Code after switching</button>
   <button data-act="logs"><span class="check"></span>Open logs folder</button>
@@ -233,6 +234,7 @@ function render(s) {
   $('reloadide-check').textContent = s.reloadIDE ? '✓' : '';
   $('switchdesktop-check').textContent = s.switchDesktop ? '✓' : '';
   $('switchdesktop-item').style.display = s.desktopInstalled ? '' : 'none';
+  $('desktopanother-item').style.display = s.desktopInstalled ? '' : 'none';
   $('savedesktop-btn').style.display = s.desktopInstalled ? '' : 'none';
   $('refresh').classList.toggle('spin', !!s.loadingUsage);
   const accts = (s.accounts || []).slice().sort((x, y) => (y.isActive ? 1 : 0) - (x.isActive ? 1 : 0));
