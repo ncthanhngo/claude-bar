@@ -21,6 +21,14 @@ Status: used on Windows 11 (x64). Design and test checklist:
   (verify every 6 h, on popover open, on switch); the active account's
   rotated login is saved every 15 min (`csw snapshot-active`, which refuses
   when Claude Code is logged in to another account).
+- **Never mixes up accounts** — before a token is copied between Claude
+  Code and the saved logins, or its usage is shown, `csw` asks Anthropic
+  (`/api/oauth/profile`) whose token it is. `~/.claude.json` alone is not
+  trusted: a Claude Code window started under another account can write that
+  account's token back after a switch. A token that turns out to be another
+  account's is never saved over this one, its usage is hidden, and the row
+  shows *needs login* naming the real owner. **Sign in again** on the active
+  account also puts the new login into Claude Code, not only the saved copy.
 - **Recovers lost logins** — an account flagged *needs login* is signed back
   in in the background with its own claude.ai session (hidden WebView2,
   auto-Authorize; at most 3 tries, 5 min apart, 5 grants/hour — same limits
@@ -32,6 +40,10 @@ Status: used on Windows 11 (x64). Design and test checklist:
   (⋯ on the row → *Save Claude Desktop sign-in here…*); switching then closes
   Desktop, swaps its sign-in (cookies / local storage / IndexedDB only — MCP
   config and settings are shared) and reopens it.
+- **Sign Claude Desktop in to another account** (app menu) — opens Desktop
+  at its sign-in screen without Desktop's own *Log out*, which would end the
+  session at Anthropic and break the saved copy. The current sign-in is
+  saved first.
 
 ## How it works
 
@@ -56,7 +68,7 @@ Files:
 | `%APPDATA%\ClaudeSwap` | saved accounts (DPAPI-encrypted), `tray.json` settings |
 | `%APPDATA%\ClaudeSwap\desktop` | saved Claude Desktop sign-ins (DPAPI-encrypted) |
 | `%LOCALAPPDATA%\ClaudeSwap\profiles` | per-account claude.ai web sessions (for recovery) |
-| `%LOCALAPPDATA%\ClaudeSwap\logs` | `csw.log`, `tray.log` (clicks and outcomes, no secrets) |
+| `%LOCALAPPDATA%\ClaudeSwap\logs` | `csw.log`, `tray.log` (clicks and outcomes, no secrets), `tray-crash.log` |
 
 Nothing syncs between machines.
 
@@ -67,7 +79,13 @@ Nothing syncs between machines.
    Code login**.)
 2. Click an account in the popover to switch to it.
 3. Optional, Claude Desktop: sign Desktop in to an account, then ⋯ on that
-   account's row → **Save Claude Desktop sign-in here…**. Repeat per account.
+   account's row → **Save Claude Desktop sign-in here…**. For the next
+   account use the app menu → **Sign Claude Desktop in to another account…**
+   (not Desktop's *Log out*). Repeat per account.
+
+If a row shows *needs login* with "token belongs to another account", click
+**Sign in again** and sign in with that row's email, then restart any open
+Claude Code windows.
 
 ## Build (any OS, Go 1.25+)
 
