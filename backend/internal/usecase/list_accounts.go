@@ -20,6 +20,10 @@ type AccountView struct {
 	CredentialState  string          `json:"credentialState,omitempty"`
 	CredentialError  string          `json:"credentialError,omitempty"`
 	SubscriptionType string          `json:"subscriptionType,omitempty"`
+
+	// wrongOwner keeps inspectActiveCredential's healthy probe from
+	// clearing a needs_login set because the token is someone else's.
+	wrongOwner bool
 }
 
 // ListAccountsResult is what the UI consumes.
@@ -130,7 +134,7 @@ func allUsageAccounts(views []*AccountView) map[int]bool {
 //     the view is left unchanged. False-positive "needs_login" on an active
 //     session is worse than a missed detection.
 func (s *Service) inspectActiveCredential(ctx context.Context, v *AccountView) {
-	if s.Live == nil {
+	if s.Live == nil || v.wrongOwner {
 		return
 	}
 
@@ -296,10 +300,35 @@ func (s *Service) fillUsage(ctx context.Context, v *AccountView) {
 	if s.Backoff != nil {
 		s.Backoff.RecordSuccess()
 	}
+	// The token may be another account's login (see healActiveBackup), and
+	// its numbers would then show under this row. Only a definite mismatch
+	// hides them; an unreachable profile endpoint keeps the usage.
+	if err := s.tokenIsAccount(ctx, access, v.Account); errors.Is(err, errTokenOwnedByOther) {
+		s.markWrongOwner(v, err)
+		return
+	}
 	v.Usage = usage
 	if s.UsageCache != nil {
 		_ = s.UsageCache.Put(v.Account.Number, usage)
 	}
+}
+
+// markWrongOwner flags a row whose token is another account's login and
+// drops its cached usage, which came from that same token.
+func (s *Service) markWrongOwner(v *AccountView, err error) {
+	v.Usage = nil
+	v.wrongOwner = true
+	v.CredentialState = "needs_login"
+	if v.IsActive {
+		v.CredentialError = "Claude Code holds another account's login: " + err.Error()
+	} else {
+		v.CredentialError = "saved login is another account's: " + err.Error()
+	}
+	v.Error = v.CredentialError
+	if s.UsageCache != nil {
+		_ = s.UsageCache.Drop(v.Account.Number)
+	}
+	s.logf("usage account %d: hidden, %v", v.Account.Number, err)
 }
 
 func shortDuration(d time.Duration) string {

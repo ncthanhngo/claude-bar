@@ -58,6 +58,11 @@ type app struct {
 	loadErr      string
 	notice       *notice
 
+	// wrongLogin holds csw's reason for accounts the usage list flagged
+	// needs_login (e.g. the token is another account's). verify() replaces
+	// needLogin wholesale and skips the active account, so it lives apart.
+	wrongLogin map[int]string
+
 	// Background re-login (recovery_windows.go).
 	recovering int
 	recovery   map[int]*recoveryStatus
@@ -76,7 +81,7 @@ type app struct {
 
 // Run blocks until the user quits.
 func Run(csw *cswclient.Client) {
-	a := &app{csw: csw, needLogin: map[int]bool{}, usage: map[int]*cswclient.Usage{},
+	a := &app{csw: csw, needLogin: map[int]bool{}, usage: map[int]*cswclient.Usage{}, wrongLogin: map[int]string{},
 		recovery: map[int]*recoveryStatus{}, settings: loadSettings()}
 	systray.Run(a.onReady, func() {})
 }
@@ -219,8 +224,15 @@ func (a *app) refreshUsage() {
 		a.loadErr = ""
 		a.usageAt = time.Now()
 		for _, v := range res.Accounts {
-			if v.Usage != nil {
-				a.usage[v.Account.Number] = v.Usage
+			num := v.Account.Number
+			switch {
+			case v.Usage != nil:
+				a.usage[num] = v.Usage
+				delete(a.wrongLogin, num)
+			case v.CredentialState == "needs_login" && v.CredentialError != "":
+				// The kept usage may have come from the same bad token.
+				delete(a.usage, num)
+				a.wrongLogin[num] = v.CredentialError
 			}
 		}
 	}
@@ -474,6 +486,7 @@ func (a *app) signInAccount(again *cswclient.Account) {
 		a.clearRecovery(res.Account.Number)
 		a.mu.Lock()
 		delete(a.needLogin, res.Account.Number)
+		delete(a.wrongLogin, res.Account.Number)
 		a.mu.Unlock()
 	}
 	switch {
@@ -646,7 +659,8 @@ func (a *app) post(kind, text string) {
 // popAccount is an account row as the popover page sees it.
 type popAccount struct {
 	cswclient.AccountView
-	NeedsLogin bool `json:"needsLogin"`
+	NeedsLogin bool   `json:"needsLogin"`
+	LoginError string `json:"loginError,omitempty"` // why, when csw said so
 	Recovering bool `json:"recovering"` // background re-login running
 	CanRecover bool `json:"canRecover"` // a background re-login may still fix it
 	HasDesktop bool `json:"hasDesktop"` // a Claude Desktop sign-in is saved
@@ -674,7 +688,8 @@ func (a *app) pushState() {
 		st := a.recovery[num]
 		accounts[i] = popAccount{
 			AccountView: v,
-			NeedsLogin:  a.needLogin[num],
+			NeedsLogin:  a.needLogin[num] || a.wrongLogin[num] != "",
+			LoginError:  a.wrongLogin[num],
 			Recovering:  a.recovering == num,
 			CanRecover:  a.needLogin[num] && hasProfile(v.Account) && (st == nil || !st.manual),
 			HasDesktop:  hasDesktopSave(v.Account),

@@ -26,6 +26,7 @@ func NewWindowsService() *Service {
 		Config:      claudeconfig.New(),
 		Registry:    registry.New(),
 		Usage:       oauth.NewUsageFetcher(),
+		Profile:     oauth.NewProfileFetcher(),
 		Refresh:     oauth.NewTokenRefresher(),
 		Sessions:    sessions.New(),
 		Lock:        lock.New(),

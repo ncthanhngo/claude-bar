@@ -18,7 +18,9 @@ type Service struct {
 	Config     port.ClaudeConfigStore
 	Registry   port.RegistryStore
 	Usage      port.UsageFetcher
-	Refresh    port.TokenRefresher
+	// Profile is optional; nil skips the token-owner checks (tests).
+	Profile    port.ProfileFetcher
+	Refresh   port.TokenRefresher
 	Sessions   port.SessionInspector
 	Lock       port.FileLock
 	MCPSecrets port.MCPSecretStore

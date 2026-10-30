@@ -35,6 +35,7 @@ type AccountView struct {
 	Account          Account `json:"account"`
 	IsActive         bool    `json:"isActive"`
 	CredentialState  string  `json:"credentialState,omitempty"`
+	CredentialError  string  `json:"credentialError,omitempty"`
 	SubscriptionType string  `json:"subscriptionType,omitempty"`
 	Usage            *Usage  `json:"usage,omitempty"`
 }

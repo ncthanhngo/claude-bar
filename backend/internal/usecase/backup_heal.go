@@ -2,6 +2,8 @@ package usecase
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"time"
 
 	"github.com/soi/claude-swap-widget/backend/internal/domain"
@@ -55,6 +57,16 @@ func (s *Service) healActiveBackup(ctx context.Context) {
 		// moment the config already names the new account while live still
 		// holds the previous login — recognisable as another account's token.
 		if s.liveOwnedByOtherAccount(ctx, reg, acc.Number, lp) {
+			return nil
+		}
+		// ~/.claude.json can name this account while live holds someone
+		// else's freshly rotated token (a Claude Code session started under
+		// another account refreshes and writes its own login back). The
+		// refresh-token match above misses that, so ask Anthropic. Any
+		// doubt skips the heal: a lost heal retries next poll, an overwritten
+		// backup loses the account's login.
+		if err := s.tokenIsAccount(ctx, lp.AccessToken, acc); err != nil {
+			s.logf("heal account %d: skipped, %v", acc.Number, err)
 			return nil
 		}
 		if err := s.Backup.Write(ctx, acc.Number, acc.Email, live); err != nil {
@@ -124,4 +136,24 @@ func (s *Service) liveOwnedByOtherAccount(ctx context.Context, reg *domain.Regis
 		}
 	}
 	return false
+}
+
+// errTokenOwnedByOther means a token belongs to a different account than
+// the one it is stored or used for.
+var errTokenOwnedByOther = errors.New("token belongs to another account")
+
+// tokenIsAccount returns nil when Anthropic reports access as acc's login.
+// Without a ProfileFetcher (tests) every token passes.
+func (s *Service) tokenIsAccount(ctx context.Context, access string, acc *domain.Account) error {
+	if s.Profile == nil {
+		return nil
+	}
+	id, err := s.Profile.Identity(ctx, access)
+	if err != nil {
+		return fmt.Errorf("token owner unknown: %w", err)
+	}
+	if !id.Matches(acc) {
+		return fmt.Errorf("%w (%s)", errTokenOwnedByOther, id.Email)
+	}
+	return nil
 }

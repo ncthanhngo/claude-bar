@@ -31,6 +31,7 @@ func NewMacOSService() *Service {
 		Config:      config,
 		Registry:    reg,
 		Usage:       oauth.NewUsageFetcher(),
+		Profile:     oauth.NewProfileFetcher(),
 		Refresh:     refresh,
 		Sessions:    sessions.New(),
 		Lock:        lock.New(),

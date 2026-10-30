@@ -1,7 +1,10 @@
 // Package domain holds pure entities and value objects. No I/O, no framework.
 package domain
 
-import "time"
+import (
+	"strings"
+	"time"
+)
 
 // Account is a managed Claude Code account profile.
 //
@@ -78,4 +81,22 @@ func (r *Registry) FindByIdentity(email, orgUUID string) int {
 		}
 	}
 	return 0
+}
+
+// TokenIdentity is whose login an access token is, as Anthropic reports it.
+type TokenIdentity struct {
+	Email   string
+	OrgUUID string
+}
+
+// Matches reports whether the token belongs to acc. An empty org UUID on
+// either side matches any org, like the ~/.claude.json identity check.
+func (t *TokenIdentity) Matches(acc *Account) bool {
+	if t == nil || acc == nil {
+		return false
+	}
+	if !strings.EqualFold(strings.TrimSpace(t.Email), strings.TrimSpace(acc.Email)) {
+		return false
+	}
+	return t.OrgUUID == "" || acc.OrganizationUUID == "" || t.OrgUUID == acc.OrganizationUUID
 }

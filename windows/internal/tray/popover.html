@@ -207,7 +207,7 @@ function row(v) {
   if (v.recovering) {
     warn = `<span class="badge" title="Signing this account back in with its saved claude.ai session">reconnecting…</span>`;
   } else if (v.needsLogin) {
-    warn = `<span class="badge warn" title="This saved login no longer works">needs login</span>`;
+    warn = `<span class="badge warn" title="${esc(v.loginError || 'This saved login no longer works')}">needs login</span>`;
     relogin = `<div class="relogin"><span>${v.canRecover ? 'Claude Swap will retry in the background.' : 'Sign in to this account once more.'}</span>
       <button class="link" data-relogin="${a.number}">Sign in again</button></div>`;
   }

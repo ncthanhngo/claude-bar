@@ -41,6 +41,11 @@ type UsageFetcher interface {
 	Fetch(ctx context.Context, accessToken string) (*domain.Usage, error)
 }
 
+// ProfileFetcher asks Anthropic which account an access token belongs to.
+type ProfileFetcher interface {
+	Identity(ctx context.Context, accessToken string) (*domain.TokenIdentity, error)
+}
+
 // TokenRefresher exchanges a refresh token for a new access token.
 type TokenRefresher interface {
 	Refresh(ctx context.Context, refreshToken string) (*domain.OAuthPayload, error)
