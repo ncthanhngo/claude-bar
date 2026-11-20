@@ -46,7 +46,7 @@ final class AppStore: ObservableObject {
     /// Last time `refreshNow` actually issued an OAuth usage fallback list
     /// call. Used to gate Anthropic's rate-limited `/usage` endpoint to its
     /// own cadence (`refreshIntervalSec` / `refreshIntervalHighSec`) while
-    /// the outer loop polls web-scraped accounts every 60/30s. Nil before
+    /// the outer loop polls web-scraped accounts every ~5 min. Nil before
     /// the first call so the very first refresh always hits OAuth.
     private var lastOAuthFallbackAt: Date?
 
@@ -57,13 +57,13 @@ final class AppStore: ObservableObject {
     /// reported the popover hanging: each scrape costs 3–8s (hidden
     /// WKWebView reload + React SPA hydrate) plus a keychain cookie
     /// restore+save, so at 60s × N accounts the main actor saturates and
-    /// UI updates stall. 120s leaves headroom for 2–3 web-linked accounts
-    /// while still being ~33% faster than the OAuth default (180s).
-    private static let webRefreshIntervalSec = 120
-    /// Web-scrape cadence ceiling (active 5h ≥ adaptiveHighThresholdPct).
-    /// Halved from `webRefreshIntervalSec`. Same backoff reasoning as
-    /// above — 30s was too tight for multi-account web scrapes.
-    private static let webRefreshIntervalHighSec = 60
+    /// UI updates stall. 300s: claude.ai revoked the web session
+    /// (`account_session_invalid`) after hours of 20–120s polling, so the
+    /// web cadence stays at one call per ~5 minutes.
+    private static let webRefreshIntervalSec = 300
+    /// Web-scrape cadence at active 5h ≥ adaptiveHighThresholdPct. Same as
+    /// `webRefreshIntervalSec` — high usage no longer polls claude.ai faster.
+    private static let webRefreshIntervalHighSec = 300
 
     private var refreshTask: Task<Void, Never>?
     private var wakeObserver: NSObjectProtocol?
@@ -88,7 +88,6 @@ final class AppStore: ObservableObject {
     /// "high traffic" levels the adaptive cadence already uses so we never
     /// poll faster than steady-state worst case.
     private static let boostedOAuthIntervalSec = 60
-    private static let boostedWebIntervalSec = 30
 
     init() {
         self.autoSwap = AutoSwapStateMachine(client: client, settings: AppSettings.shared)
@@ -191,7 +190,7 @@ final class AppStore: ObservableObject {
     /// Falls back to the low interval when no usage is available yet.
     ///
     /// When any account is web-linked, drops to the web-scrape cadence
-    /// (60s / 30s) instead of the OAuth cadence (180s / 120s by default).
+    /// (300s) instead of the OAuth cadence (180s / 120s by default).
     /// The OAuth `/usage` call inside `refreshNow` is still gated by
     /// `lastOAuthFallbackAt` so Anthropic's rate-limited endpoint keeps
     /// its own slower cadence even on the faster outer loop.
@@ -226,13 +225,14 @@ final class AppStore: ObservableObject {
     /// has lapsed (or the user disabled the boost in Settings) so background
     /// polling falls back to the user-configured cadence.
     private func applyPopoverBoost(base: Int, webLinked: Bool) -> Int {
-        guard settings.popoverBoostEnabled,
+        // No boost on the claude.ai web cadence (see `webRefreshIntervalSec`).
+        guard !webLinked,
+              settings.popoverBoostEnabled,
               let opened = popoverOpenedAt,
               Date().timeIntervalSince(opened) < Self.popoverBoostWindow else {
             return base
         }
-        let floor = webLinked ? Self.boostedWebIntervalSec : Self.boostedOAuthIntervalSec
-        return min(base, floor)
+        return min(base, Self.boostedOAuthIntervalSec)
     }
 
     /// ±20% jitter clamped to a 30s floor. Picked over a Gaussian or
@@ -257,6 +257,12 @@ final class AppStore: ObservableObject {
     func notePopoverOpened() {
         guard settings.popoverBoostEnabled else { return }
         popoverOpenedAt = Date()
+        // Web-linked: opening the popover must not add claude.ai calls on
+        // top of the 5-minute cadence; show the last snapshot instead.
+        if anyAccountWebLinked(), let last = lastRefreshAt,
+           Date().timeIntervalSince(last) < Double(Self.webRefreshIntervalSec) {
+            return
+        }
         Task { await refreshNow() }
     }
 
