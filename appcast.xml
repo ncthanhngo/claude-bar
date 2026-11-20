@@ -3,6 +3,27 @@
   Sparkle appcast — source of truth. The file published at
   https://ncthanhngo.github.io/claude-bar/appcast.xml is served from the
   `gh-pages` branch and is a byte-for-byte copy of this file. When
+    <item>
+      <title>Version 13.23</title>
+      <sparkle:version>13.23</sparkle:version>
+      <sparkle:shortVersionString>13.23</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li>Claude web usage is now checked about every 5 minutes, so claude.ai is less likely to sign you out.</li>
+          <li>Opening the popover no longer speeds up web polling.</li>
+          <li>Known issue: usage numbers can lag by up to about 5 minutes.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Fri, 20 Nov 2026 12:48:20 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v13.23/ClaudeBar.zip"
+        sparkle:version="13.23"
+        sparkle:shortVersionString="13.23"
+        sparkle:edSignature="ZfG8EUiQ2WS8ttRltUW3qoNeiKcGKB6Cu+iolSpMfei9Us9TE9NzgW3yWJliexNzJMF1nqi/CH6R6WLg2Qi5Bg=="
+        length="5974743"
+        type="application/octet-stream"/>
+    </item>
   cutting a new release, prepend the new <item> here and copy across.
 -->
 <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" xmlns:dc="http://purl.org/dc/elements/1.1/">
