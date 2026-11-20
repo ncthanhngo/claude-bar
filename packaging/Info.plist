@@ -7,7 +7,7 @@
 	<key>CBAuthorName</key>
 	<string>Thanh Ngô</string>
 	<key>CBBuildDate</key>
-	<string>2026-10-27</string>
+	<string>2026-11-20</string>
 	<key>CBHomepageURL</key>
 	<string>https://github.com/ncthanhngo/claude-bar</string>
 	<key>CBLicense</key>
@@ -15,14 +15,12 @@
 	<key>CBReleaseChannel</key>
 	<string>Beta</string>
 	<key>CBReleaseHotfixes</key>
-	<string>None</string>
+	<string>Fixed frequent usage polling that could make claude.ai end the web session.</string>
 	<key>CBReleaseKnownIssues</key>
-	<string>Closing a MacBook lid still puts it to sleep, even in away mode.
-⌥X is fixed for now and no longer types ≈ in other apps.</string>
+	<string>Usage numbers can lag by up to about 5 minutes.
+Closing a MacBook lid still puts it to sleep, even in away mode.</string>
 	<key>CBReleaseWhatsNew</key>
-	<string>Away mode: press ⌥X to keep the Mac awake and lock the screen while you step out.
-Away mode needs a login password and an immediate screen lock, and opens Settings if either is missing.
-The Mac sleeps normally again as soon as you unlock.</string>
+	<string>Claude web usage is now checked about every 5 minutes, so claude.ai is less likely to sign you out.</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
@@ -30,7 +28,7 @@ The Mac sleeps normally again as soon as you unlock.</string>
 	<key>CFBundleExecutable</key>
 	<string>ClaudeSwapWidget</string>
 	<key>CFBundleGetInfoString</key>
-	<string>Claude Bar 13.22 — menu-bar manager for multiple Claude Code accounts</string>
+	<string>Claude Bar 13.23 — menu-bar manager for multiple Claude Code accounts</string>
 	<key>CFBundleIconFile</key>
 	<string>AppIcon</string>
 	<key>CFBundleIdentifier</key>
@@ -45,11 +43,11 @@ The Mac sleeps normally again as soon as you unlock.</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>13.22</string>
+	<string>13.23</string>
 	<key>CFBundleSignature</key>
 	<string>????</string>
 	<key>CFBundleVersion</key>
-	<string>13.22</string>
+	<string>13.23</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>14.0</string>
 	<key>LSUIElement</key>
