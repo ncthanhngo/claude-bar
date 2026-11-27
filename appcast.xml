@@ -13,6 +13,25 @@
     <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
     <language>en</language>
     <item>
+      <title>Version 13.26</title>
+      <sparkle:version>13.26</sparkle:version>
+      <sparkle:shortVersionString>13.26</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li>The AWDL antenna in the popover header is now dark green while AWDL is kept off.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Fri, 27 Nov 2026 16:52:41 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v13.26/ClaudeBar.zip"
+        sparkle:version="13.26"
+        sparkle:shortVersionString="13.26"
+        sparkle:edSignature="2pUoXfwQwZc98OlffaJQN+/TGihtjIrsI2awaL8wAhccfIbWDSemTclq8PrYq/BUYy1yGte+FaOSh3/KUM/TDA=="
+        length="6166939"
+        type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 13.25</title>
       <sparkle:version>13.25</sparkle:version>
       <sparkle:shortVersionString>13.25</sparkle:shortVersionString>
