@@ -91,40 +91,15 @@ final class FanControlStore: ObservableObject {
 
     // MARK: - Helper
 
-    /// Root-owned copy the app actually runs. Named per bundle id so Claude
-    /// Bar and AI Bar never overwrite each other's helper.
-    nonisolated static var installedHelper: String {
-        "/Library/PrivilegedHelperTools/\(Bundle.main.bundleIdentifier ?? "dev.ncthanhngo.claude-bar").fan-helper"
-    }
-
-    /// The helper shipped inside the app, next to the main executable.
-    nonisolated static var bundledHelper: String? {
-        let path = Bundle.main.executableURL?.deletingLastPathComponent()
-            .appendingPathComponent("ClaudeBarFanHelper").path
-        return path.flatMap { FileManager.default.isExecutableFile(atPath: $0) ? $0 : nil }
-    }
-
-    /// Installed, root-owned, setuid — and identical to the bundled copy, so an
-    /// app update that changes the helper reinstalls it.
-    nonisolated static func helperIsCurrent(bundled: String) -> Bool {
-        guard let attrs = try? FileManager.default.attributesOfItem(atPath: installedHelper),
-              (attrs[.ownerAccountID] as? NSNumber)?.intValue == 0,
-              let perms = (attrs[.posixPermissions] as? NSNumber)?.intValue,
-              perms & 0o4000 != 0 else { return false }
-        return FileManager.default.contentsEqual(atPath: installedHelper, andPath: bundled)
-    }
-
     /// Runs the command, installing the helper first if needed. Returns nil
     /// on success, else a message for the tab. Blocks — call off the main actor.
     nonisolated static func run(_ command: FanCommand) -> String? {
-        guard let bundled = bundledHelper else { return "Không tìm thấy fan helper trong app." }
-        if !helperIsCurrent(bundled: bundled) {
-            let dest = installedHelper
-            let ok = Shell.admin("mkdir -p /Library/PrivilegedHelperTools && cp \(quoted(bundled)) \(quoted(dest))"
-                + " && chown root:wheel \(quoted(dest)) && chmod 4755 \(quoted(dest))")
-            guard ok else { return "Cần quyền admin để điều khiển quạt." }
+        switch PrivilegedHelper.fan.ensureInstalled() {
+        case .notBundled: return "Không tìm thấy fan helper trong app."
+        case .denied: return "Cần quyền admin để điều khiển quạt."
+        case .ok: break
         }
-        switch status(of: installedHelper, command.arguments) {
+        switch PrivilegedHelper.fan.run(command.arguments) {
         case 0: return nil
         case 3: return "Fan helper không có quyền root."
         default: return "Mac này không cho đổi tốc độ quạt."
@@ -135,19 +110,8 @@ final class FanControlStore: ObservableObject {
     /// launch in case the app crashed while Max/Custom was on. Never prompts:
     /// does nothing unless the helper is already installed.
     nonisolated static func restoreAuto() {
-        guard FileManager.default.isExecutableFile(atPath: installedHelper),
+        guard FileManager.default.isExecutableFile(atPath: PrivilegedHelper.fan.installedPath),
               Fans.read().contains(where: \.isManual) else { return }
-        _ = status(of: installedHelper, FanCommand.auto.arguments)
-    }
-
-    private nonisolated static func status(of path: String, _ args: [String]) -> Int32 {
-        let p = Process()
-        p.executableURL = URL(fileURLWithPath: path)
-        p.arguments = args
-        do { try p.run(); p.waitUntilExit(); return p.terminationStatus } catch { return -1 }
-    }
-
-    private nonisolated static func quoted(_ path: String) -> String {
-        "'" + path.replacingOccurrences(of: "'", with: "'\\''") + "'"
+        _ = PrivilegedHelper.fan.run(FanCommand.auto.arguments)
     }
 }

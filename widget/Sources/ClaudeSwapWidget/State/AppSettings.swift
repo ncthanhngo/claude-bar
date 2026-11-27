@@ -87,6 +87,9 @@ final class AppSettings: ObservableObject {
     @AppStorage("menuBarShowUsagePct") var menuBarShowUsagePct: Bool = true
     @AppStorage("menuBarShowReset") var menuBarShowReset: Bool = true
     @AppStorage("aggressiveAutoKill") var aggressiveAutoKill: Bool = false
+    /// Keep AWDL (awdl0) down, turning it off again whenever macOS brings it
+    /// back. Opt-in; see AWDLGuard.
+    @AppStorage("awdlAlwaysOff") var awdlAlwaysOff: Bool = false
 
     /// When true, automatically reloads supported IDE windows after a swap.
     /// to every running IDE (VSCode, Cursor, Windsurf…) after a successful swap.

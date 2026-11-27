@@ -95,6 +95,8 @@ struct GeneralTab: View {
 
                 backgroundActivityGroup
 
+                AWDLSettingsGroup()
+
                 // Adaptive-refresh is power-user-only — most people never
                 // tweak it. Tuck behind a disclosure so the General page
                 // doesn't open with three steppers competing for attention
@@ -273,5 +275,49 @@ struct GeneralTab: View {
         let remainder = seconds % 60
         if remainder == 0 { return "\(minutes)m" }
         return "\(minutes)m \(remainder)s"
+    }
+}
+
+/// Settings → General → Wi-Fi: the "Always turn off AWDL" switch and its live
+/// state. The guard itself lives in `AWDLGuard`.
+private struct AWDLSettingsGroup: View {
+    @ObservedObject private var settings = AppSettings.shared
+    @ObservedObject private var awdl = AWDLGuard.shared
+
+    var body: some View {
+        SettingsGroup("Wi-Fi", subtitle: "AWDL (awdl0) powers AirDrop, Handoff, Sidecar and AirPlay to Mac. While it is on, Wi-Fi can lag and drop packets every few seconds. \(AppInfo.displayName) can keep it off and turn it off again whenever macOS brings it back.") {
+            Toggle(isOn: $settings.awdlAlwaysOff) {
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 6) {
+                        Text("Always turn off AWDL")
+                        if awdl.isApplying {
+                            ProgressView().controlSize(.small).scaleEffect(0.6)
+                        }
+                    }
+                    Text(statusText)
+                        .font(.caption)
+                        .foregroundColor(awdl.error == nil ? .secondary : .red)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .disabled(awdl.isUp == nil && !settings.awdlAlwaysOff)
+            .onChange(of: settings.awdlAlwaysOff) { _, on in
+                AWDLGuard.shared.apply(enabled: on)
+            }
+            Text("The first time, macOS asks for your admin password to install a small helper. AirDrop, Handoff and Sidecar stop working while this is on, and AWDL stays off only while \(AppInfo.displayName) is running.")
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private var statusText: String {
+        if let error = awdl.error { return error }
+        guard let up = awdl.isUp else { return "This Mac has no AWDL interface." }
+        var text = "awdl0 is \(up ? "up" : "down")."
+        if settings.awdlAlwaysOff, awdl.reDisableCount > 0, let last = awdl.lastReDisable {
+            text += " macOS turned it back on \(awdl.reDisableCount)× since launch; last turned off again at \(last.formatted(date: .omitted, time: .shortened))."
+        }
+        return text
     }
 }

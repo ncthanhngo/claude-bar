@@ -69,6 +69,8 @@ struct ClaudeSwapWidgetApp: App {
                 // popover's .task) so the hotkey works on a cold-launched
                 // session the user hasn't clicked into yet.
                 Self.registerGlobalHotkey(settings: AppSettings.shared)
+                // Starts watching awdl0; turns it off now if the setting is on.
+                AWDLGuard.shared.apply(enabled: AppSettings.shared.awdlAlwaysOff)
             }
         }
     }

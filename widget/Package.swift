@@ -6,7 +6,8 @@ let package = Package(
     platforms: [.macOS(.v14)],
     products: [
         .executable(name: "ClaudeSwapWidget", targets: ["ClaudeSwapWidget"]),
-        .executable(name: "ClaudeBarFanHelper", targets: ["ClaudeBarFanHelper"])
+        .executable(name: "ClaudeBarFanHelper", targets: ["ClaudeBarFanHelper"]),
+        .executable(name: "ClaudeBarNetHelper", targets: ["ClaudeBarNetHelper"])
     ],
     dependencies: [
         // Sparkle 2 — in-app auto-update. EdDSA-signed appcast.
@@ -27,6 +28,11 @@ let package = Package(
             name: "ClaudeBarFanHelper",
             dependencies: ["SMCKit"],
             path: "Sources/ClaudeBarFanHelper"
+        ),
+        // Tiny setuid-root tool the app installs to keep AWDL (awdl0) down.
+        .executableTarget(
+            name: "ClaudeBarNetHelper",
+            path: "Sources/ClaudeBarNetHelper"
         ),
         .executableTarget(
             name: "ClaudeSwapWidget",

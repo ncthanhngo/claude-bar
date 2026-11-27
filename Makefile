@@ -26,7 +26,7 @@ CSW_SIGN_IDENTIFIER := $(BUNDLE_ID).csw
 
 # Sign inside-out: Sparkle's helpers then the framework (per Sparkle's
 # notarization guide), the csw helper (fixed identifier so Keychain ACLs
-# survive rebuilds), the fan helper, then the bundle. $(1) is the .app path.
+# survive rebuilds), the fan and net helpers, then the bundle. $(1) is the .app path.
 SPARKLE_B := Contents/Frameworks/Sparkle.framework/Versions/B
 CODESIGN  := codesign --force --options runtime --timestamp --sign "$(SIGN_ID)"
 define sign_bundle
@@ -37,6 +37,7 @@ define sign_bundle
 	   $(CODESIGN) $(1)/Contents/Frameworks/Sparkle.framework && \
 	   $(CODESIGN) --identifier $(CSW_SIGN_IDENTIFIER) $(1)/Contents/Resources/csw && \
 	   $(CODESIGN) $(1)/Contents/MacOS/$(FAN_HELPER) && \
+	   $(CODESIGN) $(1)/Contents/MacOS/$(NET_HELPER) && \
 	   $(CODESIGN) $(1); then \
 	  echo "Signed $(1) with $(SIGN_ID)"; \
 	else \
@@ -54,6 +55,8 @@ WIDGET_BUILD := widget/.build/release/$(EXECUTABLE)
 # setuid-root fan control tool; the app installs it into
 # /Library/PrivilegedHelperTools on first use (see FanControlStore).
 FAN_HELPER   := ClaudeBarFanHelper
+# setuid-root AWDL switch; installed the same way on first use (see AWDLGuard).
+NET_HELPER   := ClaudeBarNetHelper
 APP_BUNDLE   := release/$(DISPLAY_NAME).app
 
 # sqlite_fts5: enables SQLite FTS5 full-text search inside the SQLCipher
@@ -105,6 +108,7 @@ app: guard-identity backend widget
 	@mkdir -p $(APP_BUNDLE)/Contents/Frameworks
 	cp $(WIDGET_BUILD)              $(APP_BUNDLE)/Contents/MacOS/$(EXECUTABLE)
 	cp widget/.build/release/$(FAN_HELPER) $(APP_BUNDLE)/Contents/MacOS/$(FAN_HELPER)
+	cp widget/.build/release/$(NET_HELPER) $(APP_BUNDLE)/Contents/MacOS/$(NET_HELPER)
 	cp $(BACKEND_BIN)               $(APP_BUNDLE)/Contents/Resources/csw
 	cp packaging/icon.png           $(APP_BUNDLE)/Contents/Resources/icon.png
 	cp packaging/AppIcon.icns       $(APP_BUNDLE)/Contents/Resources/AppIcon.icns
