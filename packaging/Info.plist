@@ -7,7 +7,7 @@
 	<key>CBAuthorName</key>
 	<string>Thanh Ngô</string>
 	<key>CBBuildDate</key>
-	<string>2026-11-20</string>
+	<string>2026-11-27</string>
 	<key>CBHomepageURL</key>
 	<string>https://github.com/ncthanhngo/claude-bar</string>
 	<key>CBLicense</key>
@@ -15,12 +15,14 @@
 	<key>CBReleaseChannel</key>
 	<string>Beta</string>
 	<key>CBReleaseHotfixes</key>
-	<string>Fixed frequent usage polling that could make claude.ai end the web session.</string>
+	<string>None</string>
 	<key>CBReleaseKnownIssues</key>
-	<string>Usage numbers can lag by up to about 5 minutes.
+	<string>AirDrop, Handoff and Sidecar don't work while the AWDL switch is on.
+AWDL is only kept off while Claude Bar is running.
 Closing a MacBook lid still puts it to sleep, even in away mode.</string>
 	<key>CBReleaseWhatsNew</key>
-	<string>Claude web usage is now checked about every 5 minutes, so claude.ai is less likely to sign you out.</string>
+	<string>New Settings → General → Wi-Fi switch keeps AWDL (awdl0) off.
+If macOS turns AWDL back on, Claude Bar turns it off again right away.</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
@@ -28,7 +30,7 @@ Closing a MacBook lid still puts it to sleep, even in away mode.</string>
 	<key>CFBundleExecutable</key>
 	<string>ClaudeSwapWidget</string>
 	<key>CFBundleGetInfoString</key>
-	<string>Claude Bar 13.23 — menu-bar manager for multiple Claude Code accounts</string>
+	<string>Claude Bar 13.24 — menu-bar manager for multiple Claude Code accounts</string>
 	<key>CFBundleIconFile</key>
 	<string>AppIcon</string>
 	<key>CFBundleIdentifier</key>
@@ -43,11 +45,11 @@ Closing a MacBook lid still puts it to sleep, even in away mode.</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>13.23</string>
+	<string>13.24</string>
 	<key>CFBundleSignature</key>
 	<string>????</string>
 	<key>CFBundleVersion</key>
-	<string>13.23</string>
+	<string>13.24</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>14.0</string>
 	<key>LSUIElement</key>

@@ -19,7 +19,7 @@ BUNDLE_ID    := dev.ncthanhngo.claude-bar
 # Anyway", and the stable team identity keeps Keychain "Always Allow" grants
 # valid across rebuilds and Sparkle updates. Builds on machines without it
 # fall back to ad-hoc signing with a warning. Override: make app SIGN_ID=<hash|name>.
-SIGN_ID      ?= 13EE4BB21E1B4743B18428D9463E2B11B6D2A9AB
+SIGN_ID      ?= 5C8963D343BB9C99A90D0F23D29A43100547FC8F
 # notarytool keychain profile (xcrun notarytool store-credentials).
 NOTARY_PROFILE ?= claude-bar-notary
 CSW_SIGN_IDENTIFIER := $(BUNDLE_ID).csw

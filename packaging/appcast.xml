@@ -3,6 +3,37 @@
   Sparkle appcast — source of truth. The file published at
   https://ncthanhngo.github.io/claude-bar/appcast.xml is served from the
   `gh-pages` branch and is a byte-for-byte copy of this file. When
+  cutting a new release, add the new item as the first child of channel
+  (below, not inside this comment) and copy across.
+-->
+<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <channel>
+    <title>Claude Bar</title>
+    <link>https://github.com/ncthanhngo/claude-bar</link>
+    <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
+    <language>en</language>
+    <item>
+      <title>Version 13.24</title>
+      <sparkle:version>13.24</sparkle:version>
+      <sparkle:shortVersionString>13.24</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <ul>
+          <li>New Settings → General → Wi-Fi → Always turn off AWDL switch keeps awdl0 down, stopping the Wi-Fi lag it causes.</li>
+          <li>When macOS turns AWDL back on, Claude Bar turns it off again right away.</li>
+          <li>First use asks for your admin password once to install a small helper.</li>
+          <li>AirDrop, Handoff and Sidecar don't work while the switch is on.</li>
+        </ul>
+      ]]></description>
+      <pubDate>Fri, 27 Nov 2026 15:08:53 +0700</pubDate>
+      <enclosure
+        url="https://github.com/ncthanhngo/claude-bar/releases/download/v13.24/ClaudeBar.zip"
+        sparkle:version="13.24"
+        sparkle:shortVersionString="13.24"
+        sparkle:edSignature="wq3ddL/g+v7nlwqWbsIdyl6S+Jj18I/UBA5vmr6Xqp3oMJ5X3Red8n+uttPP9pYpJ+Y2rbPeljbMmtjymHobCg=="
+        length="6163854"
+        type="application/octet-stream"/>
+    </item>
     <item>
       <title>Version 13.23</title>
       <sparkle:version>13.23</sparkle:version>
@@ -24,14 +55,6 @@
         length="5974743"
         type="application/octet-stream"/>
     </item>
-  cutting a new release, prepend the new <item> here and copy across.
--->
-<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" xmlns:dc="http://purl.org/dc/elements/1.1/">
-  <channel>
-    <title>Claude Bar</title>
-    <link>https://github.com/ncthanhngo/claude-bar</link>
-    <description>Auto-update feed for Claude Bar — menu-bar manager for multiple Claude Code accounts.</description>
-    <language>en</language>
     <item>
       <title>Version 13.22</title>
       <sparkle:version>13.22</sparkle:version>
