@@ -51,8 +51,8 @@ enum ForceRefreshOutcome {
     }
 }
 
-/// Slim header: status (left) + Theme · Quit · Settings (right, evenly
-/// spaced). All other actions migrated to Settings:
+/// Slim header: status (left) + AWDL · Away · Theme · Quit · Settings
+/// (right, evenly spaced). All other actions migrated to Settings:
 ///   • Add account     → Settings → General
 ///   • Verify all      → Settings → Diagnostics
 ///   • Force refresh   → Settings → Diagnostics
@@ -60,6 +60,7 @@ enum ForceRefreshOutcome {
 struct MenuHeaderBar: View {
     @EnvironmentObject var store: AppStore
     @ObservedObject private var settings = AppSettings.shared
+    @ObservedObject private var awdl = AWDLGuard.shared
 
     var body: some View {
         HStack(spacing: 0) {
@@ -77,6 +78,9 @@ struct MenuHeaderBar: View {
             // Right side — 3 chrome buttons evenly spaced. Settings anchors
             // the top-right corner per the design spec.
             HStack(spacing: 18) {
+                if awdl.isUp != nil || settings.awdlAlwaysOff {
+                    awdlButton
+                }
                 awayButton
                 themeButton
                 quitButton
@@ -118,6 +122,31 @@ struct MenuHeaderBar: View {
                 ))
                 .frame(width: 13, height: 13)
         }
+    }
+
+    /// Quick switch for "Always turn off AWDL" (same setting as Settings →
+    /// General → Wi-Fi). Slashed orange antenna = AWDL kept off; plain
+    /// antenna = AirDrop / Handoff / Sidecar available.
+    private var awdlButton: some View {
+        let on = settings.awdlAlwaysOff
+        return Button(action: { awdl.setAlwaysOff(!on) }) {
+            Image(systemName: on ? "antenna.radiowaves.left.and.right.slash" : "antenna.radiowaves.left.and.right")
+                .font(.system(size: 13))
+                .foregroundColor(on ? .orange : .secondary)
+                .opacity(awdl.isApplying ? 0.4 : 1)
+        }
+        .buttonStyle(.borderless)
+        .disabled(awdl.isApplying)
+        .help(awdlHelp)
+        .pointingHandCursor()
+        .accessibilityLabel(on ? "Allow AWDL (AirDrop)" : "Always turn off AWDL")
+    }
+
+    private var awdlHelp: String {
+        if let error = awdl.error { return "AWDL: \(error)" }
+        return settings.awdlAlwaysOff
+            ? "AWDL đang bị tắt (AirDrop, Handoff, Sidecar không dùng được) — bấm để bật lại"
+            : "AWDL đang bật — bấm để luôn tắt AWDL (giảm giật Wi-Fi)"
     }
 
     private var awayButton: some View {

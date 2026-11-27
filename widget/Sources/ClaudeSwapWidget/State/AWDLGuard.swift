@@ -40,6 +40,13 @@ final class AWDLGuard: ObservableObject {
 
     private init() {}
 
+    /// Flips "Always turn off AWDL" from Settings or the popover header:
+    /// saves the setting and applies it right away.
+    func setAlwaysOff(_ on: Bool) {
+        AppSettings.shared.awdlAlwaysOff = on
+        apply(enabled: on)
+    }
+
     /// Called on launch and whenever the setting changes.
     func apply(enabled newValue: Bool) {
         startMonitoring()

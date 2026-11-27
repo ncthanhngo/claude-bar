@@ -286,7 +286,7 @@ private struct AWDLSettingsGroup: View {
 
     var body: some View {
         SettingsGroup("Wi-Fi", subtitle: "AWDL (awdl0) powers AirDrop, Handoff, Sidecar and AirPlay to Mac. While it is on, Wi-Fi can lag and drop packets every few seconds. \(AppInfo.displayName) can keep it off and turn it off again whenever macOS brings it back.") {
-            Toggle(isOn: $settings.awdlAlwaysOff) {
+            Toggle(isOn: Binding(get: { settings.awdlAlwaysOff }, set: { awdl.setAlwaysOff($0) })) {
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(spacing: 6) {
                         Text("Always turn off AWDL")
@@ -301,9 +301,6 @@ private struct AWDLSettingsGroup: View {
                 }
             }
             .disabled(awdl.isUp == nil && !settings.awdlAlwaysOff)
-            .onChange(of: settings.awdlAlwaysOff) { _, on in
-                AWDLGuard.shared.apply(enabled: on)
-            }
             Text("The first time, macOS asks for your admin password to install a small helper. AirDrop, Handoff and Sidecar stop working while this is on, and AWDL stays off only while \(AppInfo.displayName) is running.")
                 .font(.caption)
                 .foregroundColor(.secondary)
