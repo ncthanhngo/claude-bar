@@ -125,14 +125,14 @@ struct MenuHeaderBar: View {
     }
 
     /// Quick switch for "Always turn off AWDL" (same setting as Settings →
-    /// General → Wi-Fi). Slashed orange antenna = AWDL kept off; plain
+    /// General → Wi-Fi). Slashed dark-green antenna = AWDL kept off; plain
     /// antenna = AirDrop / Handoff / Sidecar available.
     private var awdlButton: some View {
         let on = settings.awdlAlwaysOff
         return Button(action: { awdl.setAlwaysOff(!on) }) {
             Image(systemName: on ? "antenna.radiowaves.left.and.right.slash" : "antenna.radiowaves.left.and.right")
                 .font(.system(size: 13))
-                .foregroundColor(on ? .orange : .secondary)
+                .foregroundColor(on ? Self.awdlOffTint : .secondary)
                 .opacity(awdl.isApplying ? 0.4 : 1)
         }
         .buttonStyle(.borderless)
@@ -141,6 +141,9 @@ struct MenuHeaderBar: View {
         .pointingHandCursor()
         .accessibilityLabel(on ? "Allow AWDL (AirDrop)" : "Always turn off AWDL")
     }
+
+    /// Dark green (#0F7A3A) while AWDL is kept off.
+    private static let awdlOffTint = Color(red: 0.06, green: 0.48, blue: 0.23)
 
     private var awdlHelp: String {
         if let error = awdl.error { return "AWDL: \(error)" }
